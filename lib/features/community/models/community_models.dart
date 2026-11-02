@@ -577,6 +577,25 @@ class CommunityPost {
   /// Returns true when this post is awaiting moderator approval.
   bool get isPendingApproval => moderationStatus.trim().toLowerCase() == 'pending';
 
+  /// Returns the unique ordered list of emoji reactions to display on the badge.
+  /// If the current user has reacted, that emoji is guaranteed to appear first.
+  List<String> get displayReactions {
+    final result = <String>[];
+    if (userReaction != null && userReaction!.trim().isNotEmpty && liked) {
+      result.add(userReaction!.trim());
+    }
+    for (final r in reactions) {
+      final clean = r.trim();
+      if (clean.isNotEmpty && !result.contains(clean)) {
+        result.add(clean);
+      }
+    }
+    if (result.isEmpty && liked) {
+      result.add('👍');
+    }
+    return result;
+  }
+
   List<String> get effectiveImageUrls {
     if (imageUrls.isNotEmpty) return imageUrls;
     if (imageUrl != null && imageUrl!.isNotEmpty) return <String>[imageUrl!];
@@ -704,7 +723,7 @@ class CommunityComment {
         result.add(clean);
       }
     }
-    if (result.isEmpty && likes > 0) {
+    if (result.isEmpty && liked) {
       result.add('👍');
     }
     return result;

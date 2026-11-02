@@ -18,6 +18,7 @@ class CommunityEngagementBar extends StatefulWidget {
     required this.reposted,
     required this.bookmarked,
     this.userReaction,
+    this.reactions = const <String>[],
     this.onReply,
     this.onRepost,
     this.onLike,
@@ -36,6 +37,7 @@ class CommunityEngagementBar extends StatefulWidget {
   final bool reposted;
   final bool bookmarked;
   final String? userReaction;
+  final List<String> reactions;
   final VoidCallback? onReply;
   final VoidCallback? onRepost;
   final VoidCallback? onLike;
@@ -145,13 +147,26 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
     final UiTheme theme = context.ui;
     final bool isMobile = context.uiRes.isMobile;
 
-    final String? activeEmoji = (widget.liked &&
-            widget.userReaction != null &&
-            widget.userReaction!.isNotEmpty)
-        ? widget.userReaction
-        : (widget.liked ? '👍' : null);
+    final List<String> effectiveReactions = <String>[];
+    if (widget.liked &&
+        widget.userReaction != null &&
+        widget.userReaction!.trim().isNotEmpty) {
+      effectiveReactions.add(widget.userReaction!.trim());
+    }
+    for (final r in widget.reactions) {
+      final clean = r.trim();
+      if (clean.isNotEmpty && !effectiveReactions.contains(clean)) {
+        effectiveReactions.add(clean);
+      }
+    }
+    if (effectiveReactions.isEmpty && widget.liked) {
+      effectiveReactions.add('👍');
+    }
 
-    final Color activeColor = switch (activeEmoji) {
+    final String? primaryEmoji =
+        effectiveReactions.isNotEmpty ? effectiveReactions.first : null;
+
+    final Color activeColor = switch (primaryEmoji) {
       '❤️' => Colors.redAccent,
       '🔥' => Colors.deepOrangeAccent,
       '🚀' => theme.colors.bullish,
@@ -169,7 +184,10 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
           icon: widget.liked
               ? Icons.thumb_up_alt_rounded
               : Icons.thumb_up_alt_outlined,
-          emoji: activeEmoji,
+          emojis: (widget.liked || widget.likes > 0)
+              ? effectiveReactions
+              : const <String>[],
+          emoji: primaryEmoji,
           count: widget.likes > 0 ? uiCompactNumber(widget.likes) : '',
           tooltip: _overlayEntry != null
               ? ''
@@ -472,6 +490,7 @@ class CommunityEngagementButton extends StatelessWidget {
     super.key,
     required this.icon,
     this.emoji,
+    this.emojis = const <String>[],
     required this.count,
     required this.tooltip,
     required this.activeColor,
@@ -484,6 +503,7 @@ class CommunityEngagementButton extends StatelessWidget {
 
   final IconData icon;
   final String? emoji;
+  final List<String> emojis;
   final String count;
   final String tooltip;
   final Color activeColor;
@@ -497,6 +517,9 @@ class CommunityEngagementButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final Color color = isActive ? activeColor : theme.colors.foregroundMuted;
+    final List<String> displayEmojis = emojis.isNotEmpty
+        ? emojis
+        : (emoji != null && emoji!.isNotEmpty ? <String>[emoji!] : const <String>[]);
 
     return UiInteractive(
       onTap: onTap,
@@ -532,12 +555,20 @@ class CommunityEngagementButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  if (emoji != null && emoji!.isNotEmpty)
-                    Text(
-                      emoji!,
-                      style: TextStyle(
-                        fontSize: isMobile ? ctx.fs(14) : ctx.fs(15),
-                      ),
+                  if (displayEmojis.isNotEmpty)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        for (int i = 0; i < displayEmojis.take(3).length; i++) ...<Widget>[
+                          if (i > 0) const SizedBox(width: 2),
+                          Text(
+                            displayEmojis[i],
+                            style: TextStyle(
+                              fontSize: isMobile ? ctx.fs(13.5) : ctx.fs(14.5),
+                            ),
+                          ),
+                        ],
+                      ],
                     )
                   else
                     Icon(

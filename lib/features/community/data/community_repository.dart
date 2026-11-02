@@ -169,6 +169,7 @@ class CommunityRepository extends ChangeNotifier {
 
       final Set<String> likedPostIds = <String>{};
       final Map<String, String> userPostReactions = <String, String>{};
+      final Map<String, Set<String>> allPostReactions = <String, Set<String>>{};
       final Set<String> bookmarkedPostIds = <String>{};
       final Set<String> repostedPostIds = <String>{};
       _followedAuthorIds.clear();
@@ -192,12 +193,28 @@ class CommunityRepository extends ChangeNotifier {
           final id = item['post_id']?.toString();
           if (id != null) {
             likedPostIds.add(id);
-            userPostReactions[id] = item['reaction']?.toString() ?? '👍';
+            final rx = item['reaction']?.toString().trim() ?? '👍';
+            userPostReactions[id] = rx;
+            (allPostReactions[id] ??= <String>{}).add(rx);
           }
         }
       } catch (e) {
         debugPrint('[CommunityRepository] Error fetching likes: $e');
       }
+
+      // Query all post reactions across all users to display multi-reaction emoji cluster
+      try {
+        final allLikesRes = await client
+            .from('community_likes')
+            .select('post_id, reaction');
+        for (final item in (allLikesRes as List)) {
+          final pid = item['post_id']?.toString();
+          final rx = item['reaction']?.toString().trim();
+          if (pid != null && pid.isNotEmpty && rx != null && rx.isNotEmpty) {
+            (allPostReactions[pid] ??= <String>{}).add(rx);
+          }
+        }
+      } catch (_) {}
 
       try {
         final bookmarksRes = await client
@@ -525,6 +542,7 @@ class CommunityRepository extends ChangeNotifier {
           views: (row['views_count'] as num?)?.toInt() ?? 0,
           liked: likedPostIds.contains(postId),
           userReaction: userPostReactions[postId],
+          reactions: (allPostReactions[postId] ?? <String>{}).toList(),
           reposted: repostedPostIds.contains(postId),
           bookmarked: bookmarkedPostIds.contains(postId),
           moderationStatus: row['moderation_status']?.toString() ?? 'approved',
@@ -1572,9 +1590,22 @@ class CommunityRepository extends ChangeNotifier {
       final int newLikes = isLikedNow
           ? (p.liked ? p.likes : p.likes + 1)
           : (p.liked ? (p.likes - 1).clamp(0, 999999) : p.likes);
+
+      final updatedRx = List<String>.from(p.reactions);
+      if (p.userReaction != null && (userReaction != p.userReaction || !isLikedNow)) {
+        updatedRx.remove(p.userReaction);
+      }
+      if (isLikedNow && userReaction != null && userReaction.trim().isNotEmpty) {
+        final clean = userReaction.trim();
+        if (!updatedRx.contains(clean)) {
+          updatedRx.insert(0, clean);
+        }
+      }
+
       return p.copyWith(
         liked: isLikedNow,
         userReaction: userReaction,
+        reactions: updatedRx,
         likes: newLikes,
       );
     }).toList();
@@ -4436,6 +4467,7 @@ class CommunityRepository extends ChangeNotifier {
         expiresAt: now.add(const Duration(days: 2)),
       ),
       likes: 289,
+      reactions: const <String>['🚀', '👍', '💡'],
       comments: 48,
       reposts: 37,
       views: 6200,
@@ -4463,6 +4495,7 @@ class CommunityRepository extends ChangeNotifier {
         candles: _generateCandles(16, 300.0, rising: true),
       ),
       likes: 56,
+      reactions: const <String>['🚀', '👍'],
       comments: 12,
       reposts: 8,
       views: 1420,
@@ -4491,6 +4524,7 @@ class CommunityRepository extends ChangeNotifier {
         candles: _generateCandles(18, 140.0, rising: true),
       ),
       likes: 148,
+      reactions: const <String>['🚀', '🔥', '👍'],
       comments: 19,
       reposts: 32,
       views: 3400,

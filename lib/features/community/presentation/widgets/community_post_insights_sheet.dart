@@ -206,11 +206,11 @@ class CommunityPostInsightsSheet extends StatelessWidget {
                         children: <Widget>[
                           _reactionCount(
                             context,
-                            icon: (post.userReaction != null && post.userReaction!.isNotEmpty)
-                                ? null
-                                : Icons.thumb_up_alt_rounded,
-                            emoji: (post.userReaction != null && post.userReaction!.isNotEmpty)
-                                ? post.userReaction
+                            icon: post.displayReactions.isEmpty
+                                ? Icons.thumb_up_alt_rounded
+                                : null,
+                            emoji: post.displayReactions.isNotEmpty
+                                ? post.displayReactions.first
                                 : null,
                             label: 'Likes',
                             count: post.likes,

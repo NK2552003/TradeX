@@ -112,6 +112,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   late bool _liked;
   late int _likes;
   String? _userReaction;
+  late List<String> _reactions;
   late bool _reposted;
   late int _reposts;
   late bool _bookmarked;
@@ -122,6 +123,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     _liked = widget.post.liked;
     _likes = widget.post.likes;
     _userReaction = widget.post.userReaction;
+    _reactions = List<String>.from(widget.post.reactions);
     _reposted = widget.post.reposted;
     _reposts = widget.post.reposts;
     _bookmarked = widget.post.bookmarked;
@@ -137,10 +139,12 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.post.liked != widget.post.liked ||
         oldWidget.post.likes != widget.post.likes ||
-        oldWidget.post.userReaction != widget.post.userReaction) {
+        oldWidget.post.userReaction != widget.post.userReaction ||
+        oldWidget.post.reactions != widget.post.reactions) {
       _liked = widget.post.liked;
       _likes = widget.post.likes;
       _userReaction = widget.post.userReaction;
+      _reactions = List<String>.from(widget.post.reactions);
     }
     if (oldWidget.post.reposted != widget.post.reposted ||
         oldWidget.post.reposts != widget.post.reposts) {
@@ -153,10 +157,19 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   }
 
   void _handleLike() {
+    final oldRx = _userReaction;
     setState(() {
       _liked = !_liked;
       _likes += _liked ? 1 : -1;
       _userReaction = _liked ? (_userReaction ?? '👍') : null;
+      if (_liked) {
+        final rx = _userReaction ?? '👍';
+        if (!_reactions.contains(rx)) {
+          _reactions.insert(0, rx);
+        }
+      } else if (oldRx != null) {
+        _reactions.remove(oldRx);
+      }
     });
     if (widget.repository != null) {
       widget.repository.toggleLike(widget.post.id);
@@ -168,15 +181,25 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   void _handleReact(String reaction) {
     final bool wasLiked = _liked;
     final bool sameReaction = wasLiked && _userReaction == reaction;
+    final String? oldRx = _userReaction;
     setState(() {
       if (sameReaction) {
         _liked = false;
         _likes = (_likes - 1).clamp(0, 999999);
         _userReaction = null;
+        if (oldRx != null) {
+          _reactions.remove(oldRx);
+        }
       } else {
         _liked = true;
         _likes = wasLiked ? _likes : _likes + 1;
         _userReaction = reaction;
+        if (oldRx != null) {
+          _reactions.remove(oldRx);
+        }
+        if (!_reactions.contains(reaction)) {
+          _reactions.insert(0, reaction);
+        }
       }
     });
     if (widget.repository != null) {
@@ -891,6 +914,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                     : 1),
             liked: _liked,
             userReaction: _userReaction,
+            reactions: _reactions,
             reposted: _reposted,
             bookmarked: _bookmarked,
             onReply: widget.onReply ?? widget.onTap,
