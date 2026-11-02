@@ -134,13 +134,15 @@ class CommunityComposerTriggerCard extends StatelessWidget {
                   ),
                 ),
               ),
-              UiGap.h(theme.spacing.sm),
-              UiButton(
-                label: 'Post',
-                size: UiSize.xs,
-                intent: UiIntent.primary,
-                onPressed: () => onTap(ComposerMode.post),
-              ),
+              if (!context.uiRes.isMobile) ...<Widget>[
+                UiGap.h(theme.spacing.sm),
+                UiButton(
+                  label: 'Post',
+                  size: UiSize.xs,
+                  intent: UiIntent.primary,
+                  onPressed: () => onTap(ComposerMode.post),
+                ),
+              ],
             ],
           ),
         ],

@@ -147,23 +147,16 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
     if (_opened) {
       final theme = context.ui;
 
-      return PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (bool didPop, dynamic result) {
-          if (!didPop) {
-            _closeTool();
-          }
-        },
-        child: ColoredBox(
-          color: theme.colors.background,
-          child: Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: AppCalculatorWorkspaceScope(
-                  embeddedHeader: widget.onSubpageChanged != null,
-                  child: _tool(context, onBack: _closeTool),
-                ),
+      return ColoredBox(
+        color: theme.colors.background,
+        child: Stack(
+          children: <Widget>[
+            Positioned.fill(
+              child: AppCalculatorWorkspaceScope(
+                embeddedHeader: widget.onSubpageChanged != null,
+                child: _tool(context, onBack: _closeTool),
               ),
+            ),
               Positioned(
                 right: context.sp(theme.spacing.md),
                 bottom: context.sp(theme.spacing.md),
@@ -216,8 +209,7 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
               ),
             ],
           ),
-        ),
-      );
+        );
     }
 
     return _indexView(context);
@@ -250,17 +242,9 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
 
   Widget _mobile(BuildContext context) {
     if (_opened) {
-      return PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (bool didPop, dynamic result) {
-          if (!didPop) {
-            _closeTool();
-          }
-        },
-        child: AppCalculatorWorkspaceScope(
-          embeddedHeader: widget.onSubpageChanged != null,
-          child: _tool(context, onBack: _closeTool),
-        ),
+      return AppCalculatorWorkspaceScope(
+        embeddedHeader: widget.onSubpageChanged != null,
+        child: _tool(context, onBack: _closeTool),
       );
     }
 

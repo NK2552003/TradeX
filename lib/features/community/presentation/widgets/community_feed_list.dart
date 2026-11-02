@@ -17,6 +17,7 @@ class CommunityFeedList extends StatelessWidget {
     this.controller,
     this.repository,
     this.currentUser,
+    this.isLoading = false,
     this.onPostTap,
     this.onLike,
     this.onRepost,
@@ -35,6 +36,7 @@ class CommunityFeedList extends StatelessWidget {
   final ScrollController? controller;
   final CommunityRepository? repository;
   final CommunityAuthor? currentUser;
+  final bool isLoading;
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<String>? onLike;
   final ValueChanged<String>? onRepost;
@@ -52,6 +54,36 @@ class CommunityFeedList extends StatelessWidget {
     final double topEdgeOffset = (padding is EdgeInsets)
         ? (padding as EdgeInsets).top
         : 0.0;
+    final bool effectiveLoading =
+        isLoading || (repository?.isLoading == true && posts.isEmpty);
+
+    // If loading and no posts yet, render a list of stunning post skeletons below the header!
+    if (effectiveLoading && posts.isEmpty) {
+      Widget skeletonList = UiLazyList(
+        controller: controller,
+        padding: padding ?? EdgeInsets.zero,
+        headerBuilder: header == null ? null : (_) => header!,
+        itemCount: 3,
+        itemBuilder: (BuildContext ctx, int index) {
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: ctx.sp(ctx.ui.spacing.xs),
+            ),
+            child: CommunityPostCardSkeleton(
+              hasMedia: index % 2 == 0,
+            ),
+          );
+        },
+      );
+      if (onRefresh != null) {
+        skeletonList = RefreshIndicator(
+          edgeOffset: topEdgeOffset,
+          onRefresh: onRefresh!,
+          child: skeletonList,
+        );
+      }
+      return skeletonList;
+    }
 
     if (posts.isEmpty && header == null) {
       final empty =
@@ -76,6 +108,37 @@ class CommunityFeedList extends StatelessWidget {
         );
       }
       return empty;
+    }
+
+    if (posts.isEmpty && header != null) {
+      final empty =
+          emptyState ??
+          const CommunityEmptyState(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: 'No posts in this feed yet',
+            message:
+                'Be the first to share a thesis, trade setup or market insight.',
+          );
+
+      final emptyContent = ListView(
+        controller: controller,
+        padding: padding,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: <Widget>[
+          header!,
+          SizedBox(height: context.sp(context.ui.spacing.md)),
+          empty,
+        ],
+      );
+
+      if (onRefresh != null) {
+        return RefreshIndicator(
+          edgeOffset: topEdgeOffset,
+          onRefresh: onRefresh!,
+          child: emptyContent,
+        );
+      }
+      return emptyContent;
     }
 
     Widget list = UiLazyList(

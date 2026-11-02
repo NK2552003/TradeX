@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 
@@ -49,7 +50,7 @@ class CommunityEngagementBar extends StatefulWidget {
 }
 
 class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
-  final LayerLink _layerLink = LayerLink();
+  final GlobalKey _likeButtonKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   Timer? _hideTimer;
 
@@ -61,6 +62,26 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
     if (overlay == null) return;
 
     final isMobile = context.uiRes.isMobile;
+    if (isMobile) {
+      HapticFeedback.lightImpact();
+    }
+
+    final RenderBox? box = _likeButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final Offset globalPos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final Size boxSize = box?.size ?? const Size(44, 44);
+    final Size screenSize = MediaQuery.sizeOf(context);
+
+    const double pillWidth = 216.0;
+    const double pillHeight = 44.0;
+
+    // Center pill horizontally on the like button, clamped to screen edges
+    final double left = (globalPos.dx + boxSize.width / 2 - pillWidth / 2)
+        .clamp(8.0, (screenSize.width - pillWidth - 8.0).clamp(8.0, 9999.0));
+
+    // Position above like button; if too close to top of screen, flip below
+    final double top = globalPos.dy > pillHeight + 12
+        ? globalPos.dy - pillHeight - 8
+        : globalPos.dy + boxSize.height + 8;
 
     _overlayEntry = OverlayEntry(
       builder: (BuildContext ctx) {
@@ -75,20 +96,17 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
                 ),
               ),
             Positioned(
-              width: 216,
-              child: CompositedTransformFollower(
-                link: _layerLink,
-                showWhenUnlinked: false,
-                offset: const Offset(-8, -48),
-                child: _LinkedInReactionPill(
-                  selectedEmoji: widget.liked ? widget.userReaction : null,
-                  onSelect: (String emoji) {
-                    widget.onReact?.call(emoji);
-                    _hideOverlay();
-                  },
-                  onHoverEnter: () => _hideTimer?.cancel(),
-                  onHoverExit: _scheduleHide,
-                ),
+              left: left,
+              top: top,
+              width: pillWidth,
+              child: _LinkedInReactionPill(
+                selectedEmoji: widget.liked ? widget.userReaction : null,
+                onSelect: (String emoji) {
+                  widget.onReact?.call(emoji);
+                  _hideOverlay();
+                },
+                onHoverEnter: () => _hideTimer?.cancel(),
+                onHoverExit: isMobile ? () {} : _scheduleHide,
               ),
             ),
           ],
@@ -97,6 +115,7 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
     );
 
     overlay.insert(_overlayEntry!);
+    if (mounted) setState(() {});
   }
 
   void _scheduleHide() {
@@ -106,15 +125,18 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
     });
   }
 
-  void _hideOverlay() {
+  void _hideOverlay({bool rebuild = true}) {
     _hideTimer?.cancel();
     _overlayEntry?.remove();
     _overlayEntry = null;
+    if (rebuild && mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
-    _hideOverlay();
+    _hideOverlay(rebuild: false);
     super.dispose();
   }
 
@@ -138,18 +160,20 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
     };
 
     // Single unified LinkedIn Like / Reaction button
-    final Widget likeButton = CompositedTransformTarget(
-      link: _layerLink,
+    final Widget likeButton = KeyedSubtree(
+      key: _likeButtonKey,
       child: MouseRegion(
-        onEnter: (_) => _showOverlay(),
-        onExit: (_) => _scheduleHide(),
+        onEnter: isMobile ? null : (_) => _showOverlay(),
+        onExit: isMobile ? null : (_) => _scheduleHide(),
         child: CommunityEngagementButton(
           icon: widget.liked
               ? Icons.thumb_up_alt_rounded
               : Icons.thumb_up_alt_outlined,
           emoji: activeEmoji,
           count: widget.likes > 0 ? uiCompactNumber(widget.likes) : '',
-          tooltip: widget.liked ? 'Unlike' : 'Like',
+          tooltip: _overlayEntry != null
+              ? ''
+              : (widget.liked ? 'Unlike' : 'Like'),
           isActive: widget.liked,
           activeColor: activeColor,
           hoverColor: activeColor.withValues(alpha: 0.08),
@@ -230,6 +254,10 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
     );
 
     return Container(
+      constraints: BoxConstraints(
+        minHeight: isMobile ? 44.0 : 36.0,
+        maxHeight: isMobile ? 54.0 : 48.0,
+      ),
       padding: EdgeInsets.only(
         top: context.sp(theme.spacing.xs),
         bottom: context.sp(theme.spacing.xxs),
@@ -351,7 +379,7 @@ class _LinkedInReactionPillState extends State<_LinkedInReactionPill>
         opacity: _opacity,
         child: ScaleTransition(
           scale: _scale,
-          alignment: Alignment.bottomLeft,
+          alignment: Alignment.bottomCenter,
           child: Material(
             color: Colors.transparent,
             child: Container(
@@ -479,6 +507,9 @@ class CommunityEngagementButton extends StatelessWidget {
             (isActive || isHovered) ? activeColor : color;
 
         return Tooltip(
+          triggerMode: isMobile
+              ? TooltipTriggerMode.manual
+              : TooltipTriggerMode.longPress,
           message: tooltip,
           child: Container(
             padding: EdgeInsets.symmetric(

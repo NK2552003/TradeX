@@ -98,7 +98,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
           if (blockedIds.contains(authorId)) return false;
           final moderationStatus =
               row['moderation_status']?.toString().toLowerCase() ?? 'approved';
-          if (moderationStatus != 'approved' && authorId != currentUserId) {
+          if (moderationStatus == 'rejected' && authorId != currentUserId) {
             return false;
           }
           return true;

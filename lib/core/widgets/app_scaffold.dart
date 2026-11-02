@@ -1303,7 +1303,10 @@ class _AppScaffoldState extends State<AppScaffold> {
       ),
     ),
 
-    'calculators' => CalculatorsScreen(onSubpageChanged: _onSubpageChanged),
+    'calculators' => CalculatorsScreen(
+      key: const PageStorageKey<String>('calculators_screen'),
+      onSubpageChanged: _onSubpageChanged,
+    ),
     'community' => _communityPage(initialTabIndex: 0),
     'community_feed' => _communityPage(initialTabIndex: 0),
     'community_explore' => _communityPage(initialTabIndex: 1),

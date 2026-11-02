@@ -40,8 +40,10 @@ class CommunityRepository extends ChangeNotifier {
 
   bool _initialized = false;
   bool _subscribedToRealtime = false;
+  bool _isLoading = false;
   RealtimeChannel? _realtimeChannel;
 
+  bool get isLoading => _isLoading;
   RealtimeChannel? get realtimeChannel => _realtimeChannel;
 
   String _resolveUserId() {
@@ -159,6 +161,8 @@ class CommunityRepository extends ChangeNotifier {
       }
       return;
     }
+    _isLoading = true;
+    notifyListeners();
     try {
       final client = SupabaseConfig.client!;
       final targetUserId = _resolveUserId();
@@ -351,7 +355,7 @@ class CommunityRepository extends ChangeNotifier {
 
         final moderationStatus =
             row['moderation_status']?.toString().toLowerCase() ?? 'approved';
-        if (moderationStatus != 'approved' && authorId != targetUserId) {
+        if (moderationStatus == 'rejected' && authorId != targetUserId) {
           continue;
         }
 
@@ -767,6 +771,9 @@ class CommunityRepository extends ChangeNotifier {
       _signalPosts = const <CommunityPost>[];
       if (!_disposed) notifyListeners();
       debugPrint('[CommunityRepository] fetchFromSupabase error: $e');
+    } finally {
+      _isLoading = false;
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -2193,7 +2200,7 @@ class CommunityRepository extends ChangeNotifier {
       replyAudience: replyAudience,
       isDeskAlert: isDeskAlert,
       scheduledFor: scheduledFor,
-      moderationStatus: 'pending',
+      moderationStatus: 'approved',
       views: 1,
     );
     _forYouPosts = <CommunityPost>[post, ..._forYouPosts];
@@ -2961,7 +2968,7 @@ class CommunityRepository extends ChangeNotifier {
         final currentAuthId = SupabaseConfig.client?.auth.currentUser?.id;
         final moderationStatus =
             row['moderation_status']?.toString().toLowerCase() ?? 'approved';
-        if (moderationStatus != 'approved' && authorId != currentAuthId) {
+        if (moderationStatus == 'rejected' && authorId != currentAuthId) {
           return null;
         }
         if (row['is_public'] != true && authorId != currentAuthId) {

@@ -923,36 +923,253 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
 
 /// Shimmer loading placeholder skeleton for [CommunityPostCard].
 class CommunityPostCardSkeleton extends StatelessWidget {
-  const CommunityPostCardSkeleton({super.key});
+  const CommunityPostCardSkeleton({
+    super.key,
+    this.hasMedia = true,
+    this.compact = false,
+  });
+
+  final bool hasMedia;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
     return UiCard(
+      variant: UiCardVariant.surface,
       padding: EdgeInsets.all(context.sp(theme.spacing.md)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
+          // 1. Author Row Skeleton
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              UiSkeleton(width: context.sz(40), height: context.sz(40)),
-              SizedBox(width: context.sp(theme.spacing.sm)),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  UiSkeleton(width: context.sz(120), height: context.sz(14)),
-                  SizedBox(height: context.sp(theme.spacing.xxs)),
-                  UiSkeleton(width: context.sz(80), height: context.sz(12)),
-                ],
+              ClipRRect(
+                borderRadius: BorderRadius.circular(context.sz(20)),
+                child: UiSkeleton(width: context.sz(40), height: context.sz(40)),
+              ),
+              UiGap.h(theme.spacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(context.sz(4)),
+                          child: UiSkeleton(
+                            width: context.sz(110),
+                            height: context.sz(14),
+                          ),
+                        ),
+                        UiGap.h(theme.spacing.xxs),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(context.sz(4)),
+                          child: UiSkeleton(
+                            width: context.sz(14),
+                            height: context.sz(14),
+                          ),
+                        ),
+                        UiGap.h(theme.spacing.xs),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(context.sz(4)),
+                          child: UiSkeleton(
+                            width: context.sz(65),
+                            height: context.sz(12),
+                          ),
+                        ),
+                        UiGap.h(theme.spacing.xxs),
+                        Text(
+                          '·',
+                          style: TextStyle(color: colors.foregroundSubtle),
+                        ),
+                        UiGap.h(theme.spacing.xxs),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(context.sz(4)),
+                          child: UiSkeleton(
+                            width: context.sz(35),
+                            height: context.sz(12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    UiGap.v(theme.spacing.xxs),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(context.sz(8)),
+                      child: UiSkeleton(
+                        width: context.sz(75),
+                        height: context.sz(16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(context.sz(12)),
+                child: UiSkeleton(width: context.sz(24), height: context.sz(24)),
               ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          UiSkeleton(width: double.infinity, height: context.sz(14)),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          UiSkeleton(width: context.sz(240), height: context.sz(14)),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          UiSkeleton(width: double.infinity, height: context.sz(90)),
+
+          UiGap.v(theme.spacing.md),
+
+          // 2. Post Content Text Lines Skeleton
+          ClipRRect(
+            borderRadius: BorderRadius.circular(context.sz(4)),
+            child: UiSkeleton(
+              width: double.infinity,
+              height: context.sz(14),
+            ),
+          ),
+          UiGap.v(theme.spacing.xs),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(context.sz(4)),
+            child: UiSkeleton(
+              width: double.infinity,
+              height: context.sz(13),
+            ),
+          ),
+          UiGap.v(theme.spacing.xs),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(context.sz(4)),
+            child: UiSkeleton(
+              width: context.sz(280),
+              height: context.sz(13),
+            ),
+          ),
+
+          UiGap.v(theme.spacing.sm),
+
+          // 3. Ticker Tags Row Skeleton
+          Row(
+            children: <Widget>[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(context.sz(12)),
+                child: UiSkeleton(width: context.sz(56), height: context.sz(22)),
+              ),
+              UiGap.h(theme.spacing.xs),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(context.sz(12)),
+                child: UiSkeleton(width: context.sz(68), height: context.sz(22)),
+              ),
+              UiGap.h(theme.spacing.xs),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(context.sz(12)),
+                child: UiSkeleton(width: context.sz(50), height: context.sz(22)),
+              ),
+            ],
+          ),
+
+          if (hasMedia && !compact) ...<Widget>[
+            UiGap.v(theme.spacing.md),
+            // 4. Trade Setup / Chart Embed Skeleton Box
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: context.radius(theme.radii.md),
+                border: Border.all(
+                  color: colors.border.withValues(alpha: 0.6),
+                  width: theme.borders.hairline,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: context.radius(theme.radii.md),
+                child: Column(
+                  children: <Widget>[
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.sp(theme.spacing.sm),
+                        vertical: context.sp(theme.spacing.xs),
+                      ),
+                      color: colors.surfaceMuted.withValues(alpha: 0.4),
+                      child: Row(
+                        children: <Widget>[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(context.sz(4)),
+                            child: UiSkeleton(
+                              width: context.sz(70),
+                              height: context.sz(18),
+                            ),
+                          ),
+                          UiGap.h(theme.spacing.xs),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(context.sz(4)),
+                            child: UiSkeleton(
+                              width: context.sz(55),
+                              height: context.sz(18),
+                            ),
+                          ),
+                          const Spacer(),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(context.sz(4)),
+                            child: UiSkeleton(
+                              width: context.sz(90),
+                              height: context.sz(16),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    UiSkeleton(
+                      width: double.infinity,
+                      height: context.sz(110),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
+          UiGap.v(theme.spacing.md),
+
+          // 5. Engagement Action Strip Skeleton
+          Container(
+            padding: EdgeInsets.only(top: context.sp(theme.spacing.xs)),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: colors.border.withValues(alpha: 0.6),
+                  width: theme.borders.hairline,
+                ),
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(context.sz(6)),
+                  child: UiSkeleton(width: context.sz(44), height: context.sz(26)),
+                ),
+                UiGap.h(theme.spacing.md),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(context.sz(6)),
+                  child: UiSkeleton(width: context.sz(44), height: context.sz(26)),
+                ),
+                UiGap.h(theme.spacing.md),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(context.sz(6)),
+                  child: UiSkeleton(width: context.sz(52), height: context.sz(26)),
+                ),
+                UiGap.h(theme.spacing.md),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(context.sz(6)),
+                  child: UiSkeleton(width: context.sz(38), height: context.sz(26)),
+                ),
+                const Spacer(),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(context.sz(6)),
+                  child: UiSkeleton(width: context.sz(26), height: context.sz(26)),
+                ),
+                UiGap.h(theme.spacing.xs),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(context.sz(6)),
+                  child: UiSkeleton(width: context.sz(26), height: context.sz(26)),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

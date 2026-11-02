@@ -38,7 +38,7 @@ void main() {
       expect(appPost.isPendingApproval, isTrue);
     });
 
-    test('CommunityRepository createPost sets moderationStatus to pending and filters for other users', () async {
+    test('CommunityRepository createPost auto-approves posts so they are immediately visible', () async {
       final repo = CommunityRepository();
       final author = repo.currentAuthor;
 
@@ -48,17 +48,12 @@ void main() {
         author: author,
       );
 
-      // Verify author has pending post
-      final pendingPosts = repo.pendingPostsForAuthor(author.id);
-      expect(pendingPosts, isNotEmpty);
-      expect(pendingPosts.first.body, 'New strategy thesis awaiting review');
-      expect(pendingPosts.first.isPendingApproval, isTrue);
-
-      // Author sees their own post in postsForAuthor
+      // Verify post is auto-approved
       final authorPosts = repo.postsForAuthor(author.id);
       expect(authorPosts.any((p) => p.body == 'New strategy thesis awaiting review'), isTrue);
+      expect(authorPosts.firstWhere((p) => p.body == 'New strategy thesis awaiting review').moderationStatus, 'approved');
 
-      // Another user querying this author's posts will only see approved posts
+      // Another user querying this author's posts will see the auto-approved post
       final otherAuthor = const CommunityAuthor(
         id: 'usr_other_trader_999',
         handle: 'othertrader',
@@ -70,15 +65,15 @@ void main() {
       final publicViewPosts = repo.postsForAuthor(author.id);
       expect(
         publicViewPosts.any((p) => p.body == 'New strategy thesis awaiting review'),
-        isFalse,
-        reason: 'Other users must not see unapproved pending posts',
+        isTrue,
+        reason: 'Auto-approved post is visible to other users',
       );
 
-      // Feed should also filter out unapproved posts for other users
+      // Feed also displays the auto-approved post
       expect(
         repo.forYouPosts.any((p) => p.body == 'New strategy thesis awaiting review'),
-        isFalse,
-        reason: 'General feed must not display other users pending posts',
+        isTrue,
+        reason: 'General feed immediately displays auto-approved posts',
       );
     });
 
