@@ -201,57 +201,64 @@ class DeskStatsOverview extends StatelessWidget {
     return UiCard(
       key: data.key,
       variant: UiCardVariant.surface,
+      minHeight: context.sz(84),
       padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Text(
-            data.title.toUpperCase(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: context.uiText.caption.copyWith(
-              color: colors.foregroundSubtle,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.7,
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          if (data.customMetric != null)
-            data.customMetric!
-          else
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: <Widget>[
-                  Text(
-                    data.value,
-                    style: context.uiText.title.copyWith(
-                      color: data.valueColor ?? colors.foreground,
-                      fontFamily: 'monospace',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                  if (data.secondary != null) ...<Widget>[
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Text(
-                      data.secondary!,
-                      style: context.uiText.caption.copyWith(
-                        color: data.secondaryColor ?? colors.foregroundMuted,
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ],
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                data.title.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.uiText.caption.copyWith(
+                  color: colors.foregroundSubtle,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.7,
+                ),
               ),
-            ),
+              SizedBox(height: context.sp(theme.spacing.xs)),
+              if (data.customMetric != null)
+                data.customMetric!
+              else
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: <Widget>[
+                      Text(
+                        data.value,
+                        style: context.uiText.title.copyWith(
+                          color: data.valueColor ?? colors.foreground,
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      if (data.secondary != null) ...<Widget>[
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        Text(
+                          data.secondary!,
+                          style: context.uiText.caption.copyWith(
+                            color: data.secondaryColor ?? colors.foregroundMuted,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+            ],
+          ),
           SizedBox(height: context.sp(theme.spacing.xs)),
           if (data.customBottom != null)
             data.customBottom!
@@ -281,14 +288,16 @@ class DeskStatsOverview extends StatelessWidget {
     final double width = maxWidth ?? MediaQuery.sizeOf(context).width;
 
     if (width >= 1024) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          for (int i = 0; i < stats.length; i++) ...<Widget>[
-            if (i > 0) SizedBox(width: gap),
-            Expanded(child: _buildCard(context, stats[i])),
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            for (int i = 0; i < stats.length; i++) ...<Widget>[
+              if (i > 0) SizedBox(width: gap),
+              Expanded(child: _buildCard(context, stats[i])),
+            ],
           ],
-        ],
+        ),
       );
     }
 
@@ -297,17 +306,19 @@ class DeskStatsOverview extends StatelessWidget {
       for (int i = 0; i < stats.length; i += 2) {
         if (i > 0) rows.add(SizedBox(height: gap));
         rows.add(
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(child: _buildCard(context, stats[i])),
-              SizedBox(width: gap),
-              Expanded(
-                child: (i + 1 < stats.length)
-                    ? _buildCard(context, stats[i + 1])
-                    : const SizedBox.shrink(),
-              ),
-            ],
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Expanded(child: _buildCard(context, stats[i])),
+                SizedBox(width: gap),
+                Expanded(
+                  child: (i + 1 < stats.length)
+                      ? _buildCard(context, stats[i + 1])
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
           ),
         );
       }
@@ -319,17 +330,19 @@ class DeskStatsOverview extends StatelessWidget {
       children: <Widget>[
         for (int i = 0; i < stats.length; i += 2) ...<Widget>[
           if (i > 0) SizedBox(height: gap),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(child: _buildCard(context, stats[i])),
-              SizedBox(width: gap),
-              Expanded(
-                child: (i + 1 < stats.length)
-                    ? _buildCard(context, stats[i + 1])
-                    : const SizedBox.shrink(),
-              ),
-            ],
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Expanded(child: _buildCard(context, stats[i])),
+                SizedBox(width: gap),
+                Expanded(
+                  child: (i + 1 < stats.length)
+                      ? _buildCard(context, stats[i + 1])
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
           ),
         ],
       ],

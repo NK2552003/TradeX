@@ -868,30 +868,30 @@ class StrategiesScreenState extends State<StrategiesScreen> {
 
     final DeskStatCardData kpi2 = DeskStatCardData(
       title: 'BEST PERFORMING SETUP',
-      customMetric: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      customMetric: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        runSpacing: context.sp(theme.spacing.xxs),
         children: <Widget>[
           Text(
             topSetup?.name ?? 'None yet',
             style: context.uiText.heading.copyWith(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: colors.foreground,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          Text(
-            topSetup != null
-                ? AppTokens.signedMoney(topSetup.netPnl, decimals: 0)
-                : '—',
-            style: context.uiText.caption.copyWith(
-              fontWeight: FontWeight.bold,
-              color: topSetup != null
-                  ? AppTokens.pl(context, topSetup.netPnl)
-                  : colors.foregroundSubtle,
+          if (topSetup != null) ...<Widget>[
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            Text(
+              AppTokens.signedMoney(topSetup.netPnl, decimals: 0),
+              style: context.uiText.caption.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTokens.pl(context, topSetup.netPnl),
+              ),
             ),
-          ),
+          ],
         ],
       ),
       customBottom: Row(
