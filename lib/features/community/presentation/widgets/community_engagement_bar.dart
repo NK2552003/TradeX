@@ -168,6 +168,10 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
     if (effectiveReactions.isEmpty && widget.liked) {
       effectiveReactions.add('👍');
     }
+    if (widget.likes > effectiveReactions.length &&
+        !effectiveReactions.contains('👍')) {
+      effectiveReactions.add('👍');
+    }
 
     final String? primaryEmoji =
         effectiveReactions.isNotEmpty ? effectiveReactions.first : null;
