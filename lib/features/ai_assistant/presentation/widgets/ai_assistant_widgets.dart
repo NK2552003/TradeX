@@ -11,3 +11,4 @@ export 'ai_persona_selector.dart';
 export 'ai_prompt_library.dart';
 export 'ai_thread_tile.dart';
 export 'ai_ide_components.dart';
+export 'ai_coach_response_card.dart';

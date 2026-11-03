@@ -7,6 +7,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
+import 'package:tradex/features/ai_assistant/models/ai_coach_response.dart';
 import 'package:tradex/features/ai_assistant/presentation/widgets/ai_assistant_widgets.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
@@ -33,6 +34,7 @@ class AiChatView extends StatefulWidget {
   final void Function(AiSuggestedAction) onCreateFromChat;
   final VoidCallback? onOpenPersona;
   final VoidCallback? onOpenHistory;
+  final bool showHeader;
 
   const AiChatView({
     super.key,
@@ -41,6 +43,7 @@ class AiChatView extends StatefulWidget {
     required this.onCreateFromChat,
     this.onOpenPersona,
     this.onOpenHistory,
+    this.showHeader = true,
   });
 
   @override
@@ -170,96 +173,100 @@ class _AiChatViewState extends State<AiChatView> {
     final generating = _repository.generating;
     final isEmpty = _repository.isActiveEmpty;
     final actions = _repository.latestActions;
+    final String assistantStatus =
+        CustomerDataPolicy.allowDemo && !_repository.usesLiveService
+        ? 'Demo mode · responses are simulated'
+        : (_repository.serviceAvailable
+              ? 'Connected assistant service'
+              : 'Assistant service unavailable');
 
     return AiDensityScope(
       child: Column(
         children: [
-          AppPaneHeader(
-            leading: AiPersonaChip(
-              persona: persona,
-              onTap: widget.onOpenPersona,
+          if (widget.showHeader)
+            AppPaneHeader(
+              leading: AiPersonaChip(
+                persona: persona,
+                onTap: widget.onOpenPersona,
+                dense: true,
+              ),
+              title: 'AI Trading Coach',
+              subtitle: activeThread.title == 'New conversation'
+                  ? assistantStatus
+                  : '$assistantStatus · ${activeThread.title}',
               dense: true,
-            ),
-            title: activeThread.title,
-            subtitle:
-                CustomerDataPolicy.allowDemo && !_repository.usesLiveService
-                ? 'Demo mode · responses are simulated'
-                : (_repository.serviceAvailable
-                      ? 'Connected assistant service'
-                      : 'Assistant service unavailable'),
-            dense: true,
-            trailing: <Widget>[
-              UiIconButton(
-                icon: Icons.add_comment_outlined,
-                tooltip: 'New chat',
-                size: UiSize.sm,
-                onPressed: () => _repository.newThread(),
-              ),
-              UiDropdownMenu(
-                alignRight: true,
-                items: <UiMenuItem>[
-                  UiMenuItem(
-                    label: 'Share to Messages',
-                    icon: Icons.send_outlined,
-                    onPressed: () {
-                      final msgs = _repository.messages;
-                      if (msgs.isNotEmpty) {
-                        final last =
-                            msgs
-                                .where((m) => m.role == AppAiRole.assistant)
-                                .lastOrNull ??
-                            msgs.last;
-                        ShareToConversationDialog.show(
-                          context,
-                          initialText:
-                              '🤖 alphajournal AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
-                        );
-                      }
-                    },
-                  ),
-                  UiMenuItem(
-                    label: 'Export transcript',
-                    icon: Icons.copy_all_outlined,
-                    onPressed: () => _exportConversation(context),
-                  ),
-                  UiMenuItem(
-                    label: 'Rename chat',
-                    icon: Icons.edit_outlined,
-                    onPressed: () => _showRenameDialog(context),
-                  ),
-                  const UiMenuItem.divider(),
-                  UiMenuItem(
-                    label: 'Clear messages',
-                    icon: Icons.delete_sweep_outlined,
-                    intent: UiIntent.warning,
-                    onPressed: () {
-                      _repository.clearActiveThread();
-                      UiToastScope.maybeOf(context)?.show(
-                        UiToastData(
-                          title: 'Chat Cleared',
-                          message: 'Conversation messages cleared.',
-                          intent: UiIntent.neutral,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-                child: UiIconButton(
-                  icon: Icons.more_horiz_rounded,
-                  tooltip: 'Options',
-                  size: UiSize.sm,
-                  onPressed: null,
-                ),
-              ),
-              if (widget.onOpenHistory != null)
+              trailing: <Widget>[
                 UiIconButton(
-                  icon: Icons.history_rounded,
-                  tooltip: 'History',
+                  icon: Icons.add_comment_outlined,
+                  tooltip: 'New chat',
                   size: UiSize.sm,
-                  onPressed: widget.onOpenHistory,
+                  onPressed: () => _repository.newThread(),
                 ),
-            ],
-          ),
+                UiDropdownMenu(
+                  alignRight: true,
+                  items: <UiMenuItem>[
+                    UiMenuItem(
+                      label: 'Share to Messages',
+                      icon: Icons.send_outlined,
+                      onPressed: () {
+                        final msgs = _repository.messages;
+                        if (msgs.isNotEmpty) {
+                          final last =
+                              msgs
+                                  .where((m) => m.role == AppAiRole.assistant)
+                                  .lastOrNull ??
+                              msgs.last;
+                          ShareToConversationDialog.show(
+                            context,
+                            initialText:
+                                '🤖 alphajournal AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
+                          );
+                        }
+                      },
+                    ),
+                    UiMenuItem(
+                      label: 'Export transcript',
+                      icon: Icons.copy_all_outlined,
+                      onPressed: () => _exportConversation(context),
+                    ),
+                    UiMenuItem(
+                      label: 'Rename chat',
+                      icon: Icons.edit_outlined,
+                      onPressed: () => _showRenameDialog(context),
+                    ),
+                    const UiMenuItem.divider(),
+                    UiMenuItem(
+                      label: 'Clear messages',
+                      icon: Icons.delete_sweep_outlined,
+                      intent: UiIntent.warning,
+                      onPressed: () {
+                        _repository.clearActiveThread();
+                        UiToastScope.maybeOf(context)?.show(
+                          UiToastData(
+                            title: 'Chat Cleared',
+                            message: 'Conversation messages cleared.',
+                            intent: UiIntent.neutral,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                  child: UiIconButton(
+                    icon: Icons.more_horiz_rounded,
+                    tooltip: 'Options',
+                    size: UiSize.sm,
+                    onPressed: null,
+                  ),
+                ),
+                if (widget.onOpenHistory != null)
+                  UiIconButton(
+                    icon: Icons.history_rounded,
+                    tooltip: 'History',
+                    size: UiSize.sm,
+                    onPressed: widget.onOpenHistory,
+                  ),
+              ],
+            ),
           Expanded(
             child: Center(
               child: ConstrainedBox(
@@ -633,6 +640,7 @@ class _AiChatViewState extends State<AiChatView> {
               );
             },
             onOpenRef: widget.onOpenRef,
+            messageBuilder: _buildMessage,
             emptyTitle: '',
             emptyMessage: '',
           ),
@@ -688,6 +696,79 @@ class _AiChatViewState extends State<AiChatView> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildMessage(BuildContext context, AppAiMessage message) {
+    if (message.role == AppAiRole.user) {
+      final UiTheme theme = context.ui;
+      return Align(
+        alignment: Alignment.centerRight,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: context.uiRes.isMobile
+                ? double.infinity
+                : context.sz(560),
+          ),
+          child: UiCard(
+            variant: UiCardVariant.surface,
+            borderless: true,
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.md),
+              vertical: context.sp(theme.spacing.sm),
+            ),
+            child: Text(message.body, style: context.uiText.body),
+          ),
+        ),
+      );
+    }
+
+    if (message.role == AppAiRole.assistant &&
+        !message.pending &&
+        message.error == null) {
+      final AiCoachResponse? response = AiCoachResponse.tryParse(message.body);
+      if (response != null) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: context.sp(context.ui.spacing.md),
+            right: context.sp(context.ui.spacing.md),
+            bottom: context.sp(context.ui.spacing.md),
+          ),
+          child: AiCoachResponseCard(
+            response: response,
+            sources: message.sources,
+            onCopy: () => _copyMessage(message),
+            onRetry: () => _repository.regenerate(message),
+            onShare: () => _shareMessage(message),
+          ),
+        );
+      }
+    }
+
+    return AppAiMessageBubble(
+      message: message,
+      onCopy: () => _copyMessage(message),
+      onRetry: () => _repository.regenerate(message),
+      onShare: () => _shareMessage(message),
+      onOpenRef: widget.onOpenRef,
+    );
+  }
+
+  void _copyMessage(AppAiMessage message) {
+    Clipboard.setData(ClipboardData(text: message.body));
+    UiToastScope.maybeOf(context)?.show(
+      UiToastData(
+        title: 'Copied',
+        message: 'Response copied to clipboard.',
+        intent: UiIntent.neutral,
+      ),
+    );
+  }
+
+  void _shareMessage(AppAiMessage message) {
+    ShareToConversationDialog.show(
+      context,
+      initialText: '🤖 alphajournal AI Copilot:\n\n${message.body}',
     );
   }
 }

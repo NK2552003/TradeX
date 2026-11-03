@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:tradex/core/ai/unified_ai_service.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 
@@ -86,6 +87,7 @@ class HttpAiChatTransport implements AiChatTransport {
         ..body = jsonEncode({
           'thread_id': threadId,
           'persona': persona,
+          'system_prompt': UnifiedAiService.buildPersonaSystemPrompt(persona),
           'stream': true,
           'messages': [
             for (final message

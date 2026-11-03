@@ -267,7 +267,9 @@ class UnifiedAiService {
           return;
         }
       } catch (e) {
-        debugPrint('[UnifiedAiService] OpenAI stream failed: $e. Falling back.');
+        debugPrint(
+          '[UnifiedAiService] OpenAI stream failed: $e. Falling back.',
+        );
       }
     }
 
@@ -444,7 +446,9 @@ class UnifiedAiService {
     final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
     final formattedMessages = <Map<String, String>>[
       {'role': 'system', 'content': systemPrompt},
-      for (final m in messages.skip((messages.length - 15).clamp(0, messages.length)))
+      for (final m in messages.skip(
+        (messages.length - 15).clamp(0, messages.length),
+      ))
         {
           'role': m.role == AppAiRole.user ? 'user' : 'assistant',
           'content': m.body,
@@ -513,7 +517,9 @@ class UnifiedAiService {
 
       final contents = <Map<String, dynamic>>[];
       if (messages != null && messages.isNotEmpty) {
-        for (final m in messages.skip((messages.length - 15).clamp(0, messages.length))) {
+        for (final m in messages.skip(
+          (messages.length - 15).clamp(0, messages.length),
+        )) {
           contents.add({
             'role': m.role == AppAiRole.user ? 'user' : 'model',
             'parts': [
@@ -623,7 +629,9 @@ class UnifiedAiService {
     final formattedMessages = <Map<String, dynamic>>[
       if (systemPrompt != null && systemPrompt.trim().isNotEmpty)
         {'role': 'system', 'content': systemPrompt.trim()},
-      for (final m in messages.skip((messages.length - 15).clamp(0, messages.length)))
+      for (final m in messages.skip(
+        (messages.length - 15).clamp(0, messages.length),
+      ))
         {
           'role': m.role == AppAiRole.user ? 'user' : 'assistant',
           'content': m.body,
@@ -785,9 +793,12 @@ You are alphajournal Institutional AI Assistant, an elite market intelligence en
 Persona mode: $lensDesc
 
 Formatting and Response Directives:
-1. Provide actionable, high-signal quantitative insights with exact price structures, risk/reward boundaries, and logical invalidations.
-2. Structure answers with clean Markdown headings, bulleted technical confluences, and structured summary tables where appropriate.
-3. Never use generic conversational fluff. Deliver rigorous market execution context.
+1. When the user asks for a stock breakdown, reply only with valid JSON in exactly this shape and nothing else:
+{"label":"Swing trade","title":"<SYMBOL> Institutional Swing Trade Breakdown","rr_initial":"1:<x>","rr_extended":"1:<y>","plan":["Entry: ...","Confirmation: ...","Stop: ...","Targets: ...","Risk management: ..."],"closing":"..."}
+
+2. Use real current price levels for the requested stock only. If prices could not be verified, say so in the relevant step.
+3. Never mention another company or add an intro, disclaimer, or extra section.
+4. If the request is not a stock breakdown, stay concise and structured without inventing market prices.
 ''';
   }
 
@@ -828,64 +839,6 @@ Formatting and Response Directives:
 
     final ticker = matches.isNotEmpty ? matches.first : 'NIFTY';
 
-    final personaTitle = switch (persona.toLowerCase()) {
-      'momentum' || 'scalp' => '⚡ Scalper Order Flow Analysis',
-      'macro' => '🌐 Macro Multi-Asset Positioning',
-      'options' || 'quant' => '🧮 Volatility Surface & Greeks Strategy',
-      'risk' => '🛡️ Portfolio Risk Matrix & Capital Protection',
-      _ => '📈 Swing Structure & Market Analysis',
-    };
-
-    final buffer = StringBuffer();
-    buffer.writeln('### $personaTitle: $ticker\n');
-    buffer.writeln(
-      '**Core Context:** Evaluating `$cleanPrompt` under institutional quantitative parameters.\n',
-    );
-    buffer.writeln('#### 1. Key Structural & Liquidity Levels');
-    buffer.writeln(
-      '| Structural Zone | Price Boundary | Confluence & Rationale |',
-    );
-    buffer.writeln('| :--- | :--- | :--- |');
-    buffer.writeln(
-      '| **Supply / Major Resistance** | Range High (+1.8%) | Volume Point of Control (VPOC) & 0.618 Fib extension |',
-    );
-    buffer.writeln(
-      '| **Equilibrium / Fair Value Gap** | Equilibrium (Current) | 20-period Exponential Moving Average retest |',
-    );
-    buffer.writeln(
-      '| **Demand / Key Support** | Range Low (-1.4%) | Higher-timeframe liquidity sweep & institutional absorption |',
-    );
-    buffer.writeln('');
-    buffer.writeln('#### 2. Trade Execution Blueprint');
-    buffer.writeln(
-      '- **Trade Bias:** Higher-timeframe trend alignment with structural break confirmation.',
-    );
-    buffer.writeln(
-      '- **Execution Trigger:** Wait for liquidity sweep followed by a 15-minute candle close confirmation.',
-    );
-    buffer.writeln(
-      '- **Target 1 (Scale-out):** 1:1.8 R:R — Take off 50% position and trail stops to Breakeven.',
-    );
-    buffer.writeln(
-      '- **Target 2 (Runner):** 1:3.2 R:R — Trail along the dynamic 9 EMA.',
-    );
-    buffer.writeln(
-      '- **Hard Invalidation:** Candle body close beyond the primary demand shelf.\n',
-    );
-    buffer.writeln('#### 3. Risk Management & Position Sizing');
-    buffer.writeln('> [!IMPORTANT]');
-    buffer.writeln(
-      '> Never allocate more than 1.0% of total portfolio equity to a single trade setup. Ensure position size is calculated from the stop distance rather than fixed share volume.\n',
-    );
-    buffer.writeln('#### 4. Execution Discipline Checklist');
-    buffer.writeln('- [x] Validated against higher-timeframe trend context');
-    buffer.writeln(
-      '- [x] Invalidation level clearly identified prior to entry',
-    );
-    buffer.writeln(
-      '- [x] Risk-to-reward ratio exceeds minimum 1:2.0 threshold',
-    );
-
-    return buffer.toString();
+    return '''{"label":"Swing trade","title":"$ticker Institutional Swing Trade Breakdown","rr_initial":"1:1.8","rr_extended":"1:3.2","plan":["Entry: Wait for a pullback into demand and Fibonacci confluence; current prices could not be verified.","Confirmation: Require expanding volume and a decisive price-action close in the requested direction.","Stop: Place the stop beyond demand and calculate size from the exact stop distance.","Targets: Use the first scale-out at 1:1.8 and extend the runner toward 1:3.2.","Risk management: Risk no more than 1% of equity and never average below invalidation."],"closing":"Invalidate the setup on a decisive close beyond demand."}''';
   }
 }

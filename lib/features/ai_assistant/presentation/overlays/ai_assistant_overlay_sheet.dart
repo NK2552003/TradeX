@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
+import 'package:tradex/features/ai_assistant/models/ai_coach_response.dart';
 import 'package:tradex/features/ai_assistant/presentation/overlays/ai_create_sheet.dart';
 import 'package:tradex/features/ai_assistant/presentation/overlays/ai_persona_dialog.dart';
 import 'package:tradex/features/ai_assistant/presentation/widgets/ai_assistant_widgets.dart';
@@ -321,6 +322,7 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
                   onRetry: _repo.regenerate,
                   onShare: _shareToDm,
                   onOpenRef: widget.onOpenRef,
+                  messageBuilder: _buildMessage,
                   messageActionsBuilder: _createActions,
                   emptyTitle: 'How can Copilot assist you?',
                   emptyMessage:
@@ -331,6 +333,59 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMessage(BuildContext context, AppAiMessage message) {
+    if (message.role != AppAiRole.assistant ||
+        message.pending ||
+        message.error != null) {
+      return AppAiMessageBubble(
+        message: message,
+        onCopy: () => _copyMessage(message),
+        onRetry: () => _repo.regenerate(message),
+        onShare: () => _shareToDm(message),
+        onOpenRef: widget.onOpenRef,
+        actionsBuilder: _createActions,
+      );
+    }
+    final AiCoachResponse? response = AiCoachResponse.tryParse(message.body);
+    if (response == null) {
+      return AppAiMessageBubble(
+        message: message,
+        onCopy: () => _copyMessage(message),
+        onRetry: () => _repo.regenerate(message),
+        onShare: () => _shareToDm(message),
+        onOpenRef: widget.onOpenRef,
+        actionsBuilder: _createActions,
+      );
+    }
+    final List<Widget> createActions = _createActions(
+      message,
+    ).skip(1).take(4).toList(growable: false);
+    return Padding(
+      padding: EdgeInsets.only(bottom: context.sp(context.ui.spacing.md)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          AiCoachResponseCard(
+            response: response,
+            sources: message.sources,
+            onCopy: () => _copyMessage(message),
+            onRetry: () => _repo.regenerate(message),
+            onShare: () => _shareToDm(message),
+          ),
+          if (createActions.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(top: context.sp(context.ui.spacing.xs)),
+              child: Wrap(
+                spacing: context.sp(context.ui.spacing.xs),
+                runSpacing: context.sp(context.ui.spacing.xs),
+                children: createActions,
+              ),
+            ),
+        ],
       ),
     );
   }

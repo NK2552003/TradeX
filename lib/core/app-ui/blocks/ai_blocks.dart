@@ -22,6 +22,7 @@ class AppAiChatBlock extends StatefulWidget {
     this.onShare,
     this.onOpenRef,
     this.messageActionsBuilder,
+    this.messageBuilder,
     this.emptyTitle = 'Ask about your trading',
     this.emptyMessage =
         'Summarise this week, review a setup, or stress-test a strategy.',
@@ -41,6 +42,10 @@ class AppAiChatBlock extends StatefulWidget {
   /// Per-message extra actions (e.g. "Save note", "Log trade") rendered under
   /// each settled answer. Null by default — existing callers are unaffected.
   final List<Widget>? Function(AppAiMessage message)? messageActionsBuilder;
+
+  /// Optional feature-specific renderer for a complete message row.
+  final Widget Function(BuildContext context, AppAiMessage message)?
+  messageBuilder;
   final String emptyTitle;
   final String emptyMessage;
 
@@ -94,20 +99,22 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
                   ),
                   itemCount: widget.messages.length,
                   itemBuilder: (BuildContext ctx, int i) => AppFadeIn(
-                    child: AppAiMessageBubble(
-                      message: widget.messages[i],
-                      onCopy: widget.onCopy == null
-                          ? null
-                          : () => widget.onCopy!(widget.messages[i]),
-                      onRetry: widget.onRetry == null
-                          ? null
-                          : () => widget.onRetry!(widget.messages[i]),
-                      onShare: widget.onShare == null
-                          ? null
-                          : () => widget.onShare!(widget.messages[i]),
-                      onOpenRef: widget.onOpenRef,
-                      actionsBuilder: widget.messageActionsBuilder,
-                    ),
+                    child:
+                        widget.messageBuilder?.call(ctx, widget.messages[i]) ??
+                        AppAiMessageBubble(
+                          message: widget.messages[i],
+                          onCopy: widget.onCopy == null
+                              ? null
+                              : () => widget.onCopy!(widget.messages[i]),
+                          onRetry: widget.onRetry == null
+                              ? null
+                              : () => widget.onRetry!(widget.messages[i]),
+                          onShare: widget.onShare == null
+                              ? null
+                              : () => widget.onShare!(widget.messages[i]),
+                          onOpenRef: widget.onOpenRef,
+                          actionsBuilder: widget.messageActionsBuilder,
+                        ),
                   ),
                 ),
         ),

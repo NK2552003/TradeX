@@ -271,16 +271,18 @@ abstract final class AiSeedData {
             id: 'm_nifty_2',
             role: AppAiRole.assistant,
             body:
-                '📈 Swing lens — multi-day structure & positioning:\n\n'
-                'NIFTY50 is coiling in a tight bull flag on the 15m after a clean '
-                'impulse leg. The rising 20-EMA is holding as dynamic support and '
-                'volume is contracting into the flag — that is textbook '
-                'continuation behaviour.\n\n'
-                '• Trigger: break and hold above 24,280\n'
-                '• Invalidation: 15m close back under 24,120\n'
-                '• Targets: 24,540 then 24,720\n\n'
-                'Swing note: scale in against the higher-timeframe demand and hold '
-                'for the measured move.',
+                'Label: Swing trade\n'
+                'Title: NIFTY50 Institutional Swing Trade Breakdown\n\n'
+                'Risk/Reward\n'
+                '- Initial: 1:2\n'
+                '- Extended: 1:3\n\n'
+                'The plan\n'
+                '1. Entry: Wait for a pullback into 24,120–24,180 demand and the 0.618 Fibonacci retracement.\n'
+                '2. Confirmation: Look for expanding volume and a 15m bullish close above 24,280.\n'
+                '3. Stop: Place the stop below 24,120 because a close there breaks the bull flag.\n'
+                '4. Targets: Take T1 at 24,540 and T2 at 24,720.\n'
+                '5. Risk management: Risk no more than 1% of equity and size from the stop distance.\n\n'
+                'Closing line: Invalidate the setup on a 15m close below 24,120.',
             sentAt: now.subtract(const Duration(minutes: 17)),
             sources: const <String>['NIFTY50 15m', 'Volume profile', 'Breadth'],
           ),
@@ -302,13 +304,18 @@ abstract final class AiSeedData {
             id: 'm_rel_2',
             role: AppAiRole.assistant,
             body:
-                '⚡ Scalper lens — intraday momentum & order flow:\n\n'
-                'RELIANCE is pressing an ascending triangle into 2,980. I would '
-                'not pre-position into the print — let the reaction set the tone, '
-                'then trade the retest of the breakout with defined risk under '
-                '2,932.\n\n'
-                'Scalper note: only trigger on a confirmed break-and-retest; kill '
-                'the idea if 1m momentum stalls.',
+                'Label: Swing trade\n'
+                'Title: RELIANCE Institutional Swing Trade Breakdown\n\n'
+                'Risk/Reward\n'
+                '- Initial: 1:1.4\n'
+                '- Extended: 1:2.9\n\n'
+                'The plan\n'
+                '1. Entry: Wait for a pullback into the 2,932–2,980 demand and triangle retest zone.\n'
+                '2. Confirmation: Require post-earnings volume expansion and a bullish break-and-retest.\n'
+                '3. Stop: Place the stop below 2,932 because the triangle structure fails there.\n'
+                '4. Targets: Use T1 at 3,060 and T2 at 3,140.\n'
+                '5. Risk management: Keep event risk small and cap the position at 1% equity risk.\n\n'
+                'Closing line: Invalidate the setup if price loses 2,932 after the retest.',
             sentAt: now.subtract(const Duration(hours: 3, minutes: 3)),
             sources: const <String>['RELIANCE 1h', 'Options IV'],
           ),
@@ -330,12 +337,18 @@ abstract final class AiSeedData {
             id: 'm_inc_2',
             role: AppAiRole.assistant,
             body:
-                '🧮 Quant lens — volatility surface & Greeks:\n\n'
-                'With IV rank elevated, an iron condor around the expected move '
-                'collects premium while staying delta-neutral. Sell the wings at '
-                '~16-delta and keep total risk to a fixed fraction of the book.\n\n'
-                'Quant note: express this via defined-risk spreads while IV rank '
-                'is elevated to stay theta-neutral.',
+                'Label: Swing trade\n'
+                'Title: INDEX Institutional Swing Trade Breakdown\n\n'
+                'Risk/Reward\n'
+                '- Initial: 1:1.5\n'
+                '- Extended: 1:2.5\n\n'
+                'The plan\n'
+                '1. Entry: Wait for a pullback into the defined expected-move boundary; live prices could not be verified.\n'
+                '2. Confirmation: Confirm volume contraction followed by directional expansion and stable implied volatility.\n'
+                '3. Stop: Exit beyond the spread invalidation level before gamma risk accelerates.\n'
+                '4. Targets: Take T1 at the first premium-decay objective and T2 at the extended boundary.\n'
+                '5. Risk management: Use defined-risk size with a fixed fraction of portfolio equity.\n\n'
+                'Closing line: Invalidate the setup when price closes beyond the selected risk boundary.',
             sentAt: now.subtract(const Duration(days: 1, hours: 2, minutes: 5)),
             sources: const <String>['IV rank', 'Expected move'],
           ),
@@ -540,15 +553,18 @@ abstract final class AiSeedData {
     // Default: treat it as an analysis request on the detected symbol.
     return (
       body:
-          'Here is my read on $symbol:\n\n'
-          '• Trend: constructive — higher highs and higher lows on the anchor '
-          'timeframe.\n'
-          '• Key level: the range high is the line in the sand; reclaim and hold '
-          'is bullish, rejection keeps it range-bound.\n'
-          '• Plan: wait for the break-and-retest rather than chasing; risk sits '
-          'cleanly under the retest low.\n\n'
-          'Want me to turn this into a full trade plan, a note, or a journal '
-          'entry?',
+          'Label: Swing trade\n'
+          'Title: $symbol Institutional Swing Trade Breakdown\n\n'
+          'Risk/Reward\n'
+          '- Initial: 1:2\n'
+          '- Extended: 1:3\n\n'
+          'The plan\n'
+          '1. Entry: Wait for a pullback into demand and Fibonacci confluence; live prices could not be verified.\n'
+          '2. Confirmation: Require expanding volume and a decisive price-action close.\n'
+          '3. Stop: Place the stop beyond the demand zone and size from the stop distance.\n'
+          '4. Targets: Take the first scale-out at 1:2 and extend the runner toward 1:3.\n'
+          '5. Risk management: Risk no more than 1% of equity and never average below invalidation.\n\n'
+          'Closing line: Invalidate the setup on a decisive close beyond demand.',
       sources: <String>['$symbol chart', 'Momentum', 'Volume'],
       actions: const <AiSuggestedAction>[
         AiSuggestedAction(

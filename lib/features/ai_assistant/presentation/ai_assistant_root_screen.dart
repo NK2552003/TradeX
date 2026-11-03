@@ -550,6 +550,7 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
       onOpenRef: widget.onOpenRef ?? (_) {},
       onOpenPersona: _changePersona,
       onOpenHistory: _isMobile ? _openHistory : null,
+      showHeader: _isMobile,
     );
     if (_isMobile) return chat;
     return Column(
