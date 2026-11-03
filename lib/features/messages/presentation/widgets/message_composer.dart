@@ -129,23 +129,25 @@ class MessageComposerState extends State<MessageComposer>
 
     _audioRecorder ??= AudioRecorder();
     try {
-      // 1. Explicitly check and request microphone permissions
+      // 1. Explicitly check permissions on mobile/desktop where native dialogs are used
       bool hasPermission = true;
-      try {
-        hasPermission = await _audioRecorder!.hasPermission();
-      } catch (e) {
-        debugPrint('[MessageComposer] Mic permission check fallback: $e');
-        hasPermission = true;
+      if (!kIsWeb) {
+        try {
+          hasPermission = await _audioRecorder!.hasPermission();
+        } catch (e) {
+          debugPrint('[MessageComposer] Mic permission check fallback: $e');
+          hasPermission = true;
+        }
       }
 
-      if (!hasPermission) {
+      if (!hasPermission && !kIsWeb) {
         _cancelRecording();
         if (mounted) {
           UiToastScope.maybeOf(context)?.show(
             UiToastData(
               title: 'Microphone permission required',
               message:
-                  'Please allow microphone access in your browser or device settings to record voice notes.',
+                  'Please allow microphone access in your device settings to record voice notes.',
               intent: UiIntent.warning,
             ),
           );
@@ -156,8 +158,17 @@ class MessageComposerState extends State<MessageComposer>
       // 2. Start recording with platform-optimal audio encoder
       try {
         if (kIsWeb) {
+          AudioEncoder effectiveEncoder = AudioEncoder.opus;
+          try {
+            final isOpus = await _audioRecorder!.isEncoderSupported(AudioEncoder.opus);
+            if (!isOpus) {
+              final isAac = await _audioRecorder!.isEncoderSupported(AudioEncoder.aacLc);
+              effectiveEncoder = isAac ? AudioEncoder.aacLc : AudioEncoder.wav;
+            }
+          } catch (_) {}
+
           await _audioRecorder!.start(
-            const RecordConfig(encoder: AudioEncoder.opus),
+            RecordConfig(encoder: effectiveEncoder),
             path: '',
           );
         } else {
@@ -170,7 +181,19 @@ class MessageComposerState extends State<MessageComposer>
           );
         }
       } catch (e) {
-        debugPrint('[MessageComposer] AudioRecorder start fallback: $e');
+        debugPrint('[MessageComposer] AudioRecorder start error: $e');
+        _cancelRecording();
+        if (mounted) {
+          UiToastScope.maybeOf(context)?.show(
+            UiToastData(
+              title: 'Microphone access required',
+              message:
+                  'Please click the lock or microphone icon in your browser address bar to allow audio recording.',
+              intent: UiIntent.warning,
+            ),
+          );
+        }
+        return;
       }
     } catch (e) {
       debugPrint('[MessageComposer] Error starting voice recording: $e');

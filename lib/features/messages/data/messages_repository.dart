@@ -1,4 +1,5 @@
 import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/utils/attachment_compression_service.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -828,9 +829,14 @@ class MessagesRepository extends ChangeNotifier {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final ext = filename.contains('.')
-            ? filename.split('.').last.toLowerCase().trim()
-            : 'png';
+        final compressed = await AttachmentCompressionService.compressAttachment(
+          bytes: bytes,
+          filename: filename,
+        );
+
+        final ext = compressed.filename.contains('.')
+            ? compressed.filename.split('.').last.toLowerCase().trim()
+            : 'webp';
         final actor = client.auth.currentUser?.id ?? _resolveUserId();
         if (actor.isEmpty) {
           throw StateError('Sign in required to upload an attachment.');
@@ -839,21 +845,9 @@ class MessagesRepository extends ChangeNotifier {
 
         await client.storage.from('community-attachments').uploadBinary(
           storagePath,
-          bytes,
+          compressed.bytes,
           fileOptions: FileOptions(
-            contentType: ext == 'png'
-                ? 'image/png'
-                : (ext == 'jpg' || ext == 'jpeg')
-                    ? 'image/jpeg'
-                    : ext == 'pdf'
-                        ? 'application/pdf'
-                        : ext == 'webm'
-                            ? 'audio/webm'
-                            : (ext == 'm4a' || ext == 'mp4')
-                                ? 'audio/mp4'
-                                : (ext == 'mp3' || ext == 'wav')
-                                    ? 'audio/$ext'
-                                    : 'application/octet-stream',
+            contentType: compressed.mimeType,
             cacheControl: '3600',
             upsert: true,
           ),

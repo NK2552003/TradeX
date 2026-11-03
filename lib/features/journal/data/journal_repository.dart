@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/config/record_access.dart';
+import 'package:tradex/core/utils/attachment_compression_service.dart';
 import 'package:tradex/core/data/owned_record_writer.dart';
 import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
@@ -1002,9 +1003,16 @@ class JournalRepositoryImpl implements JournalRepository {
       RecordAccess.requireOwner(owner.userId);
     }
 
-    final Uint8List fileBytes = bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
+    final Uint8List rawBytes = bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
     final String rawFileName = filename ?? (file != null ? p.basename(file.path) : 'attachment.png');
-    final rawExt = rawFileName.contains('.') ? rawFileName.split('.').last : 'png';
+
+    final compressed = await AttachmentCompressionService.compressAttachment(
+      bytes: rawBytes,
+      filename: rawFileName,
+    );
+    final Uint8List fileBytes = compressed.bytes;
+    final String effectiveFileName = compressed.filename;
+    final rawExt = effectiveFileName.contains('.') ? effectiveFileName.split('.').last : 'webp';
     final ext = rawExt.toLowerCase().trim();
 
     if (SupabaseConfig.isConfigured) {

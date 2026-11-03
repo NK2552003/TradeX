@@ -79,6 +79,7 @@ dependencies:
   purchases_ui_flutter: ^10.18.1
   record: ^7.1.2
   audioplayers: ^6.8.1
+  image: ^4.12.0
 
 dev_dependencies:
   flutter_test:

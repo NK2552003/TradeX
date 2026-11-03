@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:tradex/core/utils/attachment_compression_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
@@ -357,6 +358,15 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
   @override
   Future<String> uploadAvatar(Uint8List imageBytes, String contentType) async {
     String finalAvatarUrl = '';
+    final compressed = await AttachmentCompressionService.compressAttachment(
+      bytes: imageBytes,
+      filename: 'avatar.png',
+      mimeType: contentType,
+      isAvatar: true,
+    );
+    final effectiveBytes = compressed.bytes;
+    final effectiveMime = compressed.mimeType;
+
     if (SupabaseConfig.isConfigured) {
       final client = SupabaseConfig.client!;
       final user = client.auth.currentUser;
@@ -367,17 +377,17 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       if (targetUserId.isEmpty) return finalAvatarUrl;
 
       try {
-        final ext = contentType.contains('jpeg') || contentType.contains('jpg')
-            ? 'jpg'
-            : 'png';
+        final ext = compressed.filename.contains('.')
+            ? compressed.filename.split('.').last
+            : 'webp';
         final fileName =
             '${targetUserId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
         await client.storage
             .from('avatars')
             .uploadBinary(
               fileName,
-              imageBytes,
-              fileOptions: FileOptions(contentType: contentType, upsert: true),
+              effectiveBytes,
+              fileOptions: FileOptions(contentType: effectiveMime, upsert: true),
             );
         final publicUrl = client.storage.from('avatars').getPublicUrl(fileName);
         if (publicUrl.isNotEmpty) {
@@ -390,7 +400,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       }
 
       if (finalAvatarUrl.isEmpty) {
-        finalAvatarUrl = 'data:$contentType;base64,${base64Encode(imageBytes)}';
+        finalAvatarUrl = 'data:$effectiveMime;base64,${base64Encode(effectiveBytes)}';
       }
 
       try {
@@ -404,7 +414,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
         );
       }
     } else {
-      finalAvatarUrl = 'data:$contentType;base64,${base64Encode(imageBytes)}';
+      finalAvatarUrl = 'data:$effectiveMime;base64,${base64Encode(effectiveBytes)}';
     }
 
     _profile = _profile.copyWith(avatarUrl: finalAvatarUrl);

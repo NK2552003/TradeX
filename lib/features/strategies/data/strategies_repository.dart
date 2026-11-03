@@ -1,4 +1,5 @@
 import 'package:tradex/core/config/record_access.dart';
+import 'package:tradex/core/utils/attachment_compression_service.dart';
 import 'package:tradex/core/data/owned_record_writer.dart';
 import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
@@ -1228,8 +1229,15 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     }
 
     final String rawFileName = filename ?? (file != null ? p.basename(file.path) : 'attachment.png');
-    final String ext = sanitizeExtension(rawFileName);
-    final Uint8List fileBytes = bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
+    final Uint8List rawBytes = bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
+
+    final compressed = await AttachmentCompressionService.compressAttachment(
+      bytes: rawBytes,
+      filename: rawFileName,
+    );
+    final String effectiveFileName = compressed.filename;
+    final String ext = sanitizeExtension(effectiveFileName);
+    final Uint8List fileBytes = compressed.bytes;
     final int length = fileBytes.length;
 
     if (length > 10485760) {

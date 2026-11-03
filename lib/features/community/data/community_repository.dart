@@ -22,6 +22,7 @@ import 'package:tradex/features/auth/data/services/supabase_auth_backend_service
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
+import 'package:tradex/core/utils/attachment_compression_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Reactive repository backing the community platform with live Supabase sync
@@ -2304,40 +2305,36 @@ class CommunityRepository extends ChangeNotifier {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final ext = filename != null && filename.contains('.')
-            ? filename.split('.').last
-            : (file != null && file.path.contains('.')
-                  ? file.path.split('.').last
-                  : 'png');
+        final rawBytes = bytes ?? (file != null ? await file.readAsBytes() : null);
+        if (rawBytes == null || rawBytes.isEmpty) {
+          throw ArgumentError('No attachment payload provided for upload.');
+        }
+
+        final originalName = filename ?? (file != null ? file.path.split('/').last : 'attachment.png');
+        final compressed = await AttachmentCompressionService.compressAttachment(
+          bytes: rawBytes,
+          filename: originalName,
+        );
+
+        final ext = compressed.filename.contains('.')
+            ? compressed.filename.split('.').last
+            : 'webp';
         final cleanName = '${const Uuid().v4()}.$ext';
         final actor = client.auth.currentUser?.id;
         if (actor == null) throw StateError('Sign in to upload an attachment.');
         final storagePath = '$actor/$postId/$cleanName';
 
-        if (bytes != null) {
-          await client.storage
-              .from('community-attachments')
-              .uploadBinary(
-                storagePath,
-                bytes,
-                fileOptions: const FileOptions(
-                  cacheControl: '3600',
-                  upsert: true,
-                ),
-              );
-        } else if (file != null) {
-          final fileBytes = await file.readAsBytes();
-          await client.storage
-              .from('community-attachments')
-              .uploadBinary(
-                storagePath,
-                fileBytes,
-                fileOptions: const FileOptions(
-                  cacheControl: '3600',
-                  upsert: true,
-                ),
-              );
-        }
+        await client.storage
+            .from('community-attachments')
+            .uploadBinary(
+              storagePath,
+              compressed.bytes,
+              fileOptions: FileOptions(
+                contentType: compressed.mimeType,
+                cacheControl: '3600',
+                upsert: true,
+              ),
+            );
         return client.storage
             .from('community-attachments')
             .getPublicUrl(storagePath);
