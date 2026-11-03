@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-// ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
@@ -31,6 +30,7 @@ class _AiHistoryViewState extends State<AiHistoryView> {
   late AiAssistantRepository _repository;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  int _filterIndex = 0; // 0: All, 1: Pinned, 2: Recent
 
   @override
   void initState() {
@@ -122,7 +122,7 @@ class _AiHistoryViewState extends State<AiHistoryView> {
                   ],
                 ),
               ),
-              UiDivider(),
+              const UiDivider(),
               _actionTile(
                 ctx,
                 icon: thread.pinned
@@ -294,6 +294,8 @@ class _AiHistoryViewState extends State<AiHistoryView> {
 
   @override
   Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+
     final threads = _repository.threads.where((t) {
       if (_searchQuery.isEmpty) return true;
       return t.title.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -302,11 +304,17 @@ class _AiHistoryViewState extends State<AiHistoryView> {
     final pinnedThreads = threads.where((t) => t.pinned).toList();
     final recentThreads = threads.where((t) => !t.pinned).toList();
 
+    final showPinned = _filterIndex == 0 || _filterIndex == 1;
+    final showRecent = _filterIndex == 0 || _filterIndex == 2;
+
     return AiDensityScope(
       child: Column(
         children: [
           Padding(
-            padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.md),
+              vertical: context.sp(theme.spacing.sm),
+            ),
             child: Row(
               children: [
                 Expanded(
@@ -318,56 +326,116 @@ class _AiHistoryViewState extends State<AiHistoryView> {
                         _searchQuery = val;
                       });
                     },
+                    onClear: () {
+                      _searchController.clear();
+                      setState(() {
+                        _searchQuery = '';
+                      });
+                    },
                   ),
                 ),
-                SizedBox(width: context.sp(context.ui.spacing.sm)),
+                SizedBox(width: context.sp(theme.spacing.xs)),
                 UiIconButton(
-                  icon: Icons.add_comment_outlined,
+                  icon: Icons.add_comment_rounded,
                   tooltip: 'New chat',
+                  intent: UiIntent.primary,
                   onPressed: widget.onNewThread,
                 ),
               ],
             ),
           ),
+
+          // Filter chips
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.md),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  UiBadge(
+                    label: 'All (${threads.length})',
+                    variant: _filterIndex == 0 ? UiBadgeVariant.solid : UiBadgeVariant.outline,
+                    intent: _filterIndex == 0 ? UiIntent.primary : UiIntent.neutral,
+                    size: UiSize.xs,
+                    onTap: () => setState(() => _filterIndex = 0),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  UiBadge(
+                    label: 'Pinned (${pinnedThreads.length})',
+                    variant: _filterIndex == 1 ? UiBadgeVariant.solid : UiBadgeVariant.outline,
+                    intent: _filterIndex == 1 ? UiIntent.primary : UiIntent.neutral,
+                    size: UiSize.xs,
+                    onTap: () => setState(() => _filterIndex = 1),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  UiBadge(
+                    label: 'Recent (${recentThreads.length})',
+                    variant: _filterIndex == 2 ? UiBadgeVariant.solid : UiBadgeVariant.outline,
+                    intent: _filterIndex == 2 ? UiIntent.primary : UiIntent.neutral,
+                    size: UiSize.xs,
+                    onTap: () => setState(() => _filterIndex = 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          SizedBox(height: context.sp(theme.spacing.xs)),
+
           Expanded(
             child: threads.isEmpty
                 ? AiEmptyState(
-                    icon: Icons.chat_bubble_outline,
-                    title: 'No chats yet',
-                    message:
-                        'Start a new conversation to see your history here.',
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: _searchQuery.isNotEmpty ? 'No chats found' : 'No chats yet',
+                    message: _searchQuery.isNotEmpty
+                        ? 'Try searching with a different keyword.'
+                        : 'Start a new conversation to see your history here.',
                     action: UiButton(
-                      label: 'New Chat',
+                      label: 'Start New Chat',
+                      icon: Icons.add_comment_rounded,
+                      intent: UiIntent.primary,
                       onPressed: widget.onNewThread,
                     ),
                   )
                 : ListView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.sp(theme.spacing.sm),
+                      vertical: context.sp(theme.spacing.xs),
+                    ),
                     children: [
-                      if (pinnedThreads.isNotEmpty) ...[
+                      if (showPinned && pinnedThreads.isNotEmpty) ...[
                         const AiSectionHeader(
-                          title: 'Pinned',
-                          icon: Icons.push_pin,
+                          title: 'Pinned Threads',
+                          icon: Icons.push_pin_rounded,
                         ),
                         ...pinnedThreads.map(
-                          (thread) => AiThreadTile(
-                            thread: thread,
-                            selected: thread.id == widget.selectedThreadId,
-                            onTap: () => widget.onSelectThread(thread.id),
-                            onLongPress: () => _handleLongPress(thread),
+                          (thread) => Padding(
+                            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+                            child: AiThreadTile(
+                              thread: thread,
+                              selected: thread.id == widget.selectedThreadId,
+                              onTap: () => widget.onSelectThread(thread.id),
+                              onLongPress: () => _handleLongPress(thread),
+                            ),
                           ),
                         ),
                       ],
-                      if (recentThreads.isNotEmpty) ...[
+                      if (showRecent && recentThreads.isNotEmpty) ...[
                         const AiSectionHeader(
-                          title: 'Recent',
-                          icon: Icons.access_time,
+                          title: 'Recent Conversations',
+                          icon: Icons.access_time_rounded,
                         ),
                         ...recentThreads.map(
-                          (thread) => AiThreadTile(
-                            thread: thread,
-                            selected: thread.id == widget.selectedThreadId,
-                            onTap: () => widget.onSelectThread(thread.id),
-                            onLongPress: () => _handleLongPress(thread),
+                          (thread) => Padding(
+                            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+                            child: AiThreadTile(
+                              thread: thread,
+                              selected: thread.id == widget.selectedThreadId,
+                              onTap: () => widget.onSelectThread(thread.id),
+                              onLongPress: () => _handleLongPress(thread),
+                            ),
                           ),
                         ),
                       ],

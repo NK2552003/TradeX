@@ -18,50 +18,80 @@ class AiCreateActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.ui;
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final Color intentColor = target.intent.color(context);
+
     return UiCard(
       onTap: onTap,
       semanticLabel: target.actionLabel,
+      variant: UiCardVariant.surface,
+      accentColor: intentColor,
       padding: EdgeInsets.all(context.sp(theme.spacing.md)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            target.icon,
-            size: context.sz(22),
-            color: target.intent.color(context),
+          Container(
+            width: context.sz(40),
+            height: context.sz(40),
+            decoration: BoxDecoration(
+              color: intentColor.withValues(alpha: 0.12),
+              borderRadius: context.radius(theme.radii.md),
+              border: Border.all(
+                color: intentColor.withValues(alpha: 0.25),
+                width: theme.borders.hairline,
+              ),
+            ),
+            child: Icon(
+              target.icon,
+              size: context.sz(20),
+              color: intentColor,
+            ),
           ),
-          UiGap.h(theme.spacing.sm),
+          SizedBox(width: context.sp(theme.spacing.sm)),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(target.label, style: context.uiText.bodyStrong),
-                UiGap.v(theme.spacing.xs),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        target.label,
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontSize: context.fs(14),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    UiBadge(
+                      label: target.actionLabel,
+                      intent: target.intent,
+                      variant: UiBadgeVariant.soft,
+                      size: UiSize.xs,
+                    ),
+                  ],
+                ),
+                SizedBox(height: context.sp(theme.spacing.xxs)),
                 Text(
                   target.description,
                   style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundMuted,
-                    height: 1.45,
+                    color: colors.foregroundMuted,
+                    height: 1.4,
                   ),
-                ),
-                UiGap.v(theme.spacing.sm),
-                Text(
-                  target.actionLabel,
-                  style: context.uiText.caption.copyWith(
-                    color: target.intent.color(context),
-                    fontWeight: FontWeight.w600,
-                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          UiGap.h(theme.spacing.xs),
+          SizedBox(width: context.sp(theme.spacing.xs)),
           Icon(
-            Icons.chevron_right_rounded,
-            size: context.sz(18),
-            color: theme.colors.foregroundSubtle,
+            Icons.arrow_forward_ios_rounded,
+            size: context.sz(13),
+            color: colors.foregroundSubtle,
           ),
         ],
       ),

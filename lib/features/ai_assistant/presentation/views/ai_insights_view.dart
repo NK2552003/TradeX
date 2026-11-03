@@ -1,6 +1,8 @@
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
 import 'package:tradex/features/ai_assistant/presentation/widgets/ai_assistant_widgets.dart';
@@ -28,6 +30,7 @@ class AiInsightsView extends StatefulWidget {
 class _AiInsightsViewState extends State<AiInsightsView> {
   late AiAssistantRepository _repository;
   bool _generating = false;
+  int _selectedFilter = 0; // 0: All, 1: Long, 2: Short, 3: High Conviction
 
   @override
   void initState() {
@@ -96,19 +99,62 @@ class _AiInsightsViewState extends State<AiInsightsView> {
     }
   }
 
+  List<double> _generateSparkline(AiChartSetup setup) {
+    final isLong = setup.direction == AiTradeDirection.long;
+    final e = setup.entry;
+    final t = setup.target1;
+    final s = setup.stopLoss;
+
+    if (isLong) {
+      return [
+        s,
+        s + (e - s) * 0.4,
+        s + (e - s) * 0.8,
+        e,
+        e + (t - e) * 0.35,
+        e + (t - e) * 0.7,
+        t,
+      ];
+    } else {
+      return [
+        s,
+        s - (s - e) * 0.4,
+        s - (s - e) * 0.8,
+        e,
+        e - (e - t) * 0.35,
+        e - (e - t) * 0.7,
+        t,
+      ];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+
+    final allSetups = _repository.chartSetups;
+    final filteredSetups = allSetups.where((s) {
+      if (_selectedFilter == 1) return s.direction == AiTradeDirection.long;
+      if (_selectedFilter == 2) return s.direction == AiTradeDirection.short;
+      if (_selectedFilter == 3) return s.confidence >= 80;
+      return true;
+    }).toList();
+
     return AiDensityScope(
       child: SingleChildScrollView(
+        padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xl)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const AiSectionHeader(
-              title: 'Market Insights',
-              icon: Icons.lightbulb_outline,
+              title: 'Market Intelligence',
+              icon: Icons.lightbulb_outline_rounded,
             ),
             Padding(
-              padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.md),
+                vertical: context.sp(theme.spacing.xs),
+              ),
               child: AppAiInsightsBlock(
                 insights: _repository.insights,
                 loading: _generating,
@@ -119,16 +165,75 @@ class _AiInsightsViewState extends State<AiInsightsView> {
                     : null,
               ),
             ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
             const AiSectionHeader(
-              title: 'Chart Setups',
-              icon: Icons.show_chart,
+              title: 'Institutional Setups',
+              icon: Icons.candlestick_chart_rounded,
             ),
-            if (_repository.chartSetups.length >= 2)
-              _buildSetupAnalytics(_repository.chartSetups),
-            _buildChartSetups(),
+            if (allSetups.length >= 2)
+              _buildSetupAnalytics(allSetups),
+            SizedBox(height: context.sp(theme.spacing.xs)),
+
+            // Filter Tabs
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.md),
+                vertical: context.sp(theme.spacing.xs),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _filterChip(
+                      label: 'All Setups (${allSetups.length})',
+                      selected: _selectedFilter == 0,
+                      onTap: () => setState(() => _selectedFilter = 0),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    _filterChip(
+                      label: 'Longs (${allSetups.where((s) => s.direction == AiTradeDirection.long).length})',
+                      selected: _selectedFilter == 1,
+                      intent: UiIntent.bullish,
+                      onTap: () => setState(() => _selectedFilter = 1),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    _filterChip(
+                      label: 'Shorts (${allSetups.where((s) => s.direction == AiTradeDirection.short).length})',
+                      selected: _selectedFilter == 2,
+                      intent: UiIntent.bearish,
+                      onTap: () => setState(() => _selectedFilter = 2),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    _filterChip(
+                      label: 'High Conviction ≥80% (${allSetups.where((s) => s.confidence >= 80).length})',
+                      selected: _selectedFilter == 3,
+                      intent: UiIntent.primary,
+                      onTap: () => setState(() => _selectedFilter = 3),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            _buildChartSetups(filteredSetups),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _filterChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    UiIntent? intent,
+  }) {
+    return UiBadge(
+      label: label,
+      variant: selected ? UiBadgeVariant.solid : UiBadgeVariant.outline,
+      intent: intent ?? UiIntent.neutral,
+      size: UiSize.sm,
+      onTap: onTap,
     );
   }
 
@@ -214,12 +319,27 @@ class _AiInsightsViewState extends State<AiInsightsView> {
     );
   }
 
-  Widget _buildChartSetups() {
-    final setups = _repository.chartSetups;
+  Widget _buildChartSetups(List<AiChartSetup> setups) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
     if (setups.isEmpty) {
       return Padding(
-        padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
-        child: Text('No chart setups available.', style: context.uiText.body),
+        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.filter_list_off_rounded,
+                size: context.sz(32),
+                color: colors.foregroundMuted,
+              ),
+              SizedBox(height: context.sp(theme.spacing.xs)),
+              Text('No chart setups match this filter.', style: context.uiText.body),
+            ],
+          ),
+        ),
       );
     }
 
@@ -229,140 +349,202 @@ class _AiInsightsViewState extends State<AiInsightsView> {
       itemCount: setups.length,
       itemBuilder: (context, index) {
         final setup = setups[index];
+        final isBullish = setup.direction == AiTradeDirection.long;
+        final trendColor = isBullish ? colors.bullish : colors.bearish;
+        final sparkValues = _generateSparkline(setup);
+
         return Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: context.sp(context.ui.spacing.md),
-            vertical: context.sp(context.ui.spacing.xs),
+            horizontal: context.sp(theme.spacing.md),
+            vertical: context.sp(theme.spacing.xs),
           ),
           child: UiCard(
             variant: UiCardVariant.surface,
+            accentColor: trendColor,
             onTap: () => widget.onOpenChartAnalysis(setup),
             child: Padding(
-              padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+              padding: EdgeInsets.all(context.sp(theme.spacing.md)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Header Row: Symbol, Timeframe, Direction, Confidence
                   Row(
                     children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.candlestick_chart_rounded,
-                              size: context.sz(20),
-                              color: context.ui.colors.primary,
-                            ),
-                            SizedBox(width: context.sp(context.ui.spacing.xs)),
-                            Flexible(
-                              child: Text(
-                                '${setup.symbol} • ${setup.timeframe}',
-                                style: context.uiText.bodyStrong,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.sp(theme.spacing.xs),
+                          vertical: context.sp(theme.spacing.xxs),
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceMuted,
+                          borderRadius: context.radius(theme.radii.sm),
+                          border: Border.all(
+                            color: colors.border.withValues(alpha: 0.6),
+                            width: theme.borders.hairline,
+                          ),
+                        ),
+                        child: Text(
+                          setup.timeframe,
+                          style: context.uiText.caption.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: context.fs(11),
+                          ),
                         ),
                       ),
-                      SizedBox(width: context.sp(context.ui.spacing.xs)),
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      Expanded(
+                        child: Text(
+                          setup.symbol,
+                          style: context.uiText.heading.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: context.fs(15),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                       UiBadge(
                         label: setup.direction.label,
                         intent: setup.direction.intent,
                         icon: setup.direction.icon,
+                        size: UiSize.xs,
                       ),
-                    ],
-                  ),
-                  SizedBox(height: context.sp(context.ui.spacing.xs)),
-                  Text('Pattern: ${setup.pattern}', style: context.uiText.body),
-                  SizedBox(height: context.sp(context.ui.spacing.xs)),
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: context.sp(context.ui.spacing.sm),
-                    runSpacing: context.sp(context.ui.spacing.xs),
-                    children: [
-                      Wrap(
-                        spacing: context.sp(context.ui.spacing.sm),
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            'Entry: ${AppTokens.price(setup.entry)}',
-                            style: context.uiText.bodyStrong,
-                          ),
-                          Text(
-                            'SL: ${AppTokens.price(setup.stopLoss)}',
-                            style: context.uiText.caption.copyWith(
-                              color: context.ui.colors.destructive,
-                            ),
-                          ),
-                          Text(
-                            'TP: ${AppTokens.price(setup.target1)}',
-                            style: context.uiText.caption.copyWith(
-                              color: context.ui.colors.bullish,
-                            ),
-                          ),
-                        ],
-                      ),
+                      SizedBox(width: context.sp(theme.spacing.xxs)),
                       UiBadge(
-                        label: 'R:R ${setup.rrRatio.toStringAsFixed(1)}',
+                        label: '${setup.confidence}%',
+                        intent: setup.confidence >= 80 ? UiIntent.primary : UiIntent.neutral,
                         variant: UiBadgeVariant.outline,
                         size: UiSize.xs,
                       ),
                     ],
                   ),
-                  SizedBox(height: context.sp(context.ui.spacing.xs)),
+
+                  SizedBox(height: context.sp(theme.spacing.xs)),
+
+                  // Pattern and Sparkline Row
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Pattern: ${setup.pattern}',
+                              style: context.uiText.bodyStrong.copyWith(
+                                color: colors.foreground,
+                              ),
+                            ),
+                            SizedBox(height: context.sp(theme.spacing.xxs)),
+                            Text(
+                              setup.rationale,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.uiText.caption.copyWith(
+                                color: colors.foregroundMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.sm)),
+                      SizedBox(
+                        width: context.sz(80),
+                        height: context.sz(32),
+                        child: UiSparkChart(
+                          values: sparkValues,
+                          color: trendColor,
+                          filled: true,
+                          height: context.sz(32),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: context.sp(theme.spacing.sm)),
+
+                  // Execution Levels Bar
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.sp(theme.spacing.sm),
+                      vertical: context.sp(theme.spacing.xs),
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.surfaceMuted.withValues(alpha: 0.5),
+                      borderRadius: context.radius(theme.radii.md),
+                      border: Border.all(
+                        color: colors.border.withValues(alpha: 0.5),
+                        width: theme.borders.hairline,
+                      ),
+                    ),
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: context.sp(theme.spacing.sm),
+                      runSpacing: context.sp(theme.spacing.xs),
+                      children: [
+                        _levelMetric(
+                          context,
+                          label: 'Entry',
+                          value: AppTokens.price(setup.entry),
+                          color: colors.foreground,
+                        ),
+                        _levelMetric(
+                          context,
+                          label: 'Stop Loss',
+                          value: AppTokens.price(setup.stopLoss),
+                          color: colors.destructive,
+                        ),
+                        _levelMetric(
+                          context,
+                          label: 'Target 1',
+                          value: AppTokens.price(setup.target1),
+                          color: colors.bullish,
+                        ),
+                        _levelMetric(
+                          context,
+                          label: 'R:R',
+                          value: '1:${setup.rrRatio.toStringAsFixed(1)}',
+                          color: colors.primary,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: context.sp(theme.spacing.sm)),
+
+                  // Actions Row
                   Wrap(
                     alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: context.sp(context.ui.spacing.xs),
-                    runSpacing: context.sp(context.ui.spacing.xs),
+                    spacing: context.sp(theme.spacing.xs),
+                    runSpacing: context.sp(theme.spacing.xs),
                     children: [
+                      UiButton(
+                        label: 'Send in DM',
+                        icon: Icons.send_outlined,
+                        size: UiSize.xs,
+                        variant: UiVariant.ghost,
+                        onPressed: () {
+                          ShareToConversationDialog.show(
+                            context,
+                            initialText:
+                                '📈 AI Setup: ${setup.symbol} (${setup.timeframe})\n'
+                                'Direction: ${setup.direction.label}\n'
+                                'Pattern: ${setup.pattern}\n'
+                                'Entry: ${AppTokens.price(setup.entry)} | Stop: ${AppTokens.price(setup.stopLoss)} | TP1: ${AppTokens.price(setup.target1)}\n'
+                                'Confidence: ${setup.confidence}%\n'
+                                'Rationale: ${setup.rationale}',
+                          );
+                        },
+                      ),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.monitor_heart,
-                            size: 16,
-                            color: context.ui.colors.foregroundMuted,
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              'Confidence: ${setup.confidence}%',
-                              style: context.uiText.caption.copyWith(
-                                color: context.ui.colors.foregroundMuted,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Wrap(
-                        spacing: context.sp(context.ui.spacing.xs),
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          UiButton(
-                            label: 'Send in DM',
-                            icon: Icons.send_outlined,
-                            size: UiSize.xs,
-                            variant: UiVariant.ghost,
-                            onPressed: () {
-                              ShareToConversationDialog.show(
-                                context,
-                                initialText:
-                                    '📈 AI Setup: ${setup.symbol} (${setup.timeframe})\n'
-                                    'Direction: ${setup.direction.label}\n'
-                                    'Pattern: ${setup.pattern}\n'
-                                    'Entry: ${AppTokens.price(setup.entry)} | Stop: ${AppTokens.price(setup.stopLoss)} | TP1: ${AppTokens.price(setup.target1)}\n'
-                                    'Confidence: ${setup.confidence}%\n'
-                                    'Rationale: ${setup.rationale}',
-                              );
-                            },
-                          ),
                           UiDropdownMenu(
                             alignRight: true,
                             items: [
                               UiMenuItem(
-                                label: 'Log Trade',
+                                label: 'Log Trade in Journal',
                                 icon: Icons.menu_book_outlined,
                                 onPressed: () => widget.onCreateFromSetup(
                                   setup,
@@ -370,26 +552,35 @@ class _AiInsightsViewState extends State<AiInsightsView> {
                                 ),
                               ),
                               UiMenuItem(
-                                label: 'Save as Note',
+                                label: 'Save Research Note',
                                 icon: Icons.sticky_note_2_outlined,
                                 onPressed: () => widget.onCreateFromSetup(
                                   setup,
                                   AiCreateTarget.note,
                                 ),
                               ),
+                              UiMenuItem(
+                                label: 'Build Playbook',
+                                icon: Icons.account_tree_outlined,
+                                onPressed: () => widget.onCreateFromSetup(
+                                  setup,
+                                  AiCreateTarget.strategy,
+                                ),
+                              ),
                             ],
                             child: UiIconButton(
-                              icon: Icons.more_vert_rounded,
+                              icon: Icons.more_horiz_rounded,
                               size: UiSize.xs,
-                              tooltip: 'More options',
+                              tooltip: 'More actions',
                               onPressed: null,
                             ),
                           ),
+                          SizedBox(width: context.sp(theme.spacing.xs)),
                           UiButton(
                             label: 'Analyze',
-                            icon: Icons.analytics_outlined,
+                            icon: Icons.candlestick_chart_rounded,
                             size: UiSize.xs,
-                            variant: UiVariant.soft,
+                            variant: UiVariant.solid,
                             intent: UiIntent.primary,
                             onPressed: () => widget.onOpenChartAnalysis(setup),
                           ),
@@ -403,6 +594,34 @@ class _AiInsightsViewState extends State<AiInsightsView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _levelMetric(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: context.uiText.caption.copyWith(
+            color: context.uiColors.foregroundMuted,
+            fontSize: context.fs(10.5),
+          ),
+        ),
+        SizedBox(height: 1),
+        Text(
+          value,
+          style: context.uiText.bodyStrong.copyWith(
+            color: color,
+            fontSize: context.fs(12),
+          ),
+        ),
+      ],
     );
   }
 }

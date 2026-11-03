@@ -13,6 +13,20 @@ import 'package:tradex/features/messages/presentation/overlays/share_to_conversa
 import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/strategies/data/strategies_repository.dart';
 
+class _QuickPromptCardData {
+  const _QuickPromptCardData({
+    required this.title,
+    required this.prompt,
+    required this.icon,
+    required this.intent,
+  });
+
+  final String title;
+  final String prompt;
+  final IconData icon;
+  final UiIntent intent;
+}
+
 class AiChatView extends StatefulWidget {
   final AiAssistantRepository repository;
   final void Function(AppLinkRef)? onOpenRef;
@@ -282,28 +296,147 @@ class _AiChatViewState extends State<AiChatView> {
 
   Widget _buildEmptyState() {
     final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final persona = _repository.persona;
+
     return Column(
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.md),
+              vertical: context.sp(theme.spacing.md),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'How can I help you today?',
-                  style: context.uiText.heading.copyWith(
-                    fontWeight: FontWeight.bold,
+                // 1. Hero Terminal Status Banner
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.md),
+                    vertical: context.sp(theme.spacing.sm),
                   ),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: context.radius(theme.radii.lg),
+                    border: Border.all(
+                      color: colors.border.withValues(alpha: 0.8),
+                      width: theme.borders.hairline,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.primary.withValues(alpha: 0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: context.sz(38),
+                        height: context.sz(38),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              colors.primary,
+                              colors.bullish,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: context.radius(theme.radii.md),
+                        ),
+                        child: Icon(
+                          Icons.auto_awesome_rounded,
+                          color: colors.onPrimary,
+                          size: context.sz(20),
+                        ),
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.sm)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Quant Trading Copilot',
+                                  style: context.uiText.subheading.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(width: context.sp(theme.spacing.xs)),
+                                UiBadge(
+                                  label: 'L2 Engine',
+                                  intent: UiIntent.bullish,
+                                  variant: UiBadgeVariant.soft,
+                                  size: UiSize.xs,
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: context.sp(theme.spacing.xxs)),
+                            Wrap(
+                              spacing: context.sp(theme.spacing.xs),
+                              runSpacing: context.sp(theme.spacing.xxs),
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                UiBadge(
+                                  label: 'Lens: ${persona.label}',
+                                  icon: persona.icon,
+                                  intent: UiIntent.primary,
+                                  variant: UiBadgeVariant.soft,
+                                  size: UiSize.xs,
+                                  onTap: widget.onOpenPersona,
+                                ),
+                                UiBadge(
+                                  label: _repository.serviceAvailable
+                                      ? 'Online'
+                                      : 'Simulated',
+                                  icon: Icons.wifi_tethering_rounded,
+                                  intent: _repository.serviceAvailable
+                                      ? UiIntent.bullish
+                                      : UiIntent.neutral,
+                                  variant: UiBadgeVariant.soft,
+                                  size: UiSize.xs,
+                                ),
+                                UiBadge(
+                                  label: '${_repository.chartSetups.length} Live Setups',
+                                  icon: Icons.candlestick_chart_rounded,
+                                  intent: UiIntent.info,
+                                  variant: UiBadgeVariant.soft,
+                                  size: UiSize.xs,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: context.sp(theme.spacing.md)),
+
+                // 2. Core Copilot Capabilities Grid
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Core Capabilities',
+                      style: context.uiText.subheading.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '${_repository.capabilities.length} available',
+                      style: context.uiText.caption.copyWith(
+                        color: colors.foregroundMuted,
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: context.sp(theme.spacing.xs)),
-                Text(
-                  'Select a trading capability or ask anything about setups, risk, and strategies.',
-                  style: context.uiText.body.copyWith(
-                    color: theme.colors.foregroundMuted,
-                  ),
-                ),
-                SizedBox(height: context.sp(theme.spacing.md)),
                 UiCardGrid(
                   minTileWidth: 230,
                   intrinsicHeight: true,
@@ -326,9 +459,134 @@ class _AiChatViewState extends State<AiChatView> {
                       ),
                   ],
                 ),
+
+                SizedBox(height: context.sp(theme.spacing.lg)),
+
+                // 3. One-Tap Quantitative Prompts
+                Text(
+                  'One-Tap Trading Inquiries',
+                  style: context.uiText.subheading.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: context.sp(theme.spacing.xxs)),
+                Text(
+                  'Formulated by institutional market analysts for disciplined execution.',
+                  style: context.uiText.caption.copyWith(
+                    color: colors.foregroundMuted,
+                  ),
+                ),
+                SizedBox(height: context.sp(theme.spacing.sm)),
+
+                LayoutBuilder(
+                  builder: (BuildContext ctx, BoxConstraints constraints) {
+                    final bool isCompact = constraints.maxWidth < 640;
+                    final List<_QuickPromptCardData> quickPillars = [
+                      _QuickPromptCardData(
+                        title: 'Technical & Volume Breakouts',
+                        prompt:
+                            'Scan NIFTY50 & BANKNIFTY for 15-min consolidation breakouts with high volume surge and clear VWAP support.',
+                        icon: Icons.trending_up_rounded,
+                        intent: UiIntent.bullish,
+                      ),
+                      _QuickPromptCardData(
+                        title: 'Risk & Position Sizing Calculator',
+                        prompt:
+                            'Calculate max position size and risk-to-reward ratio for ₹50,000 capital risk with 1:2.8 R:R target.',
+                        icon: Icons.shield_outlined,
+                        intent: UiIntent.warning,
+                      ),
+                      _QuickPromptCardData(
+                        title: 'Trade Journal Psychology Audit',
+                        prompt:
+                            'Analyze my recent trades and identify recurring behavioural errors like revenge trading or early exits.',
+                        icon: Icons.psychology_outlined,
+                        intent: UiIntent.primary,
+                      ),
+                      _QuickPromptCardData(
+                        title: 'Strategy Playbook Stress-Test',
+                        prompt:
+                            'Stress-test my 9 EMA pullback strategy against volatile, range-bound market sessions.',
+                        icon: Icons.auto_graph_rounded,
+                        intent: UiIntent.info,
+                      ),
+                    ];
+
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: isCompact ? 1 : 2,
+                        childAspectRatio: isCompact ? 3.2 : 2.5,
+                        crossAxisSpacing: ctx.sp(theme.spacing.sm),
+                        mainAxisSpacing: ctx.sp(theme.spacing.sm),
+                      ),
+                      itemCount: quickPillars.length,
+                      itemBuilder: (context, idx) {
+                        final p = quickPillars[idx];
+                        return UiCard(
+                          variant: UiCardVariant.surface,
+                          accentColor: p.intent.color(ctx),
+                          padding: EdgeInsets.all(ctx.sp(theme.spacing.sm)),
+                          onTap: () => _repository.sendPrompt(p.prompt),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: ctx.sz(36),
+                                height: ctx.sz(36),
+                                decoration: BoxDecoration(
+                                  color: p.intent.color(ctx).withValues(alpha: 0.12),
+                                  borderRadius: ctx.radius(theme.radii.md),
+                                ),
+                                child: Icon(
+                                  p.icon,
+                                  size: ctx.sz(18),
+                                  color: p.intent.color(ctx),
+                                ),
+                              ),
+                              SizedBox(width: ctx.sp(theme.spacing.sm)),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      p.title,
+                                      style: ctx.uiText.bodyStrong.copyWith(
+                                        fontSize: ctx.fs(12.5),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    SizedBox(height: ctx.sp(theme.spacing.xxs)),
+                                    Text(
+                                      p.prompt,
+                                      style: ctx.uiText.caption.copyWith(
+                                        color: colors.foregroundMuted,
+                                        fontSize: ctx.fs(11),
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: ctx.sz(12),
+                                color: colors.foregroundSubtle,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+
                 if (_repository.quickPrompts.isNotEmpty) ...[
-                  SizedBox(height: context.sp(theme.spacing.md)),
-                  Text('Quick Questions', style: context.uiText.subheading),
+                  SizedBox(height: context.sp(theme.spacing.xl)),
+                  Text('Trending Market Inquiries', style: context.uiText.subheading),
                   SizedBox(height: context.sp(theme.spacing.xs)),
                   Wrap(
                     spacing: context.sp(theme.spacing.xs),
@@ -353,61 +611,131 @@ class _AiChatViewState extends State<AiChatView> {
 
   Widget _buildComposerBar(BuildContext context) {
     final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
     return Container(
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.md),
+        vertical: context.sp(theme.spacing.sm),
+      ),
       decoration: BoxDecoration(
-        color: theme.colors.surface,
+        color: colors.surface,
         border: Border(
           top: BorderSide(
-            color: theme.colors.border,
+            color: colors.border.withValues(alpha: 0.8),
             width: theme.borders.hairline,
           ),
         ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: <Widget>[
-          UiIconButton(
-            icon: Icons.add_photo_alternate_outlined,
-            tooltip: 'Attach chart setup',
-            onPressed: () => _showAttachmentPicker(context),
-          ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          Expanded(
-            child: UiInput(
-              controller: _emptyComposerController,
-              enabled: _repository.serviceAvailable && !_repository.generating,
-              hintText: 'Message your AI trading coach…',
-              maxLines: 4,
-              minLines: 1,
-              onSubmitted: (text) {
-                final trimmed = text.trim();
-                if (trimmed.isNotEmpty &&
-                    _repository.serviceAvailable &&
-                    !_repository.generating) {
-                  _emptyComposerController.clear();
-                  _repository.sendPrompt(trimmed);
-                }
-              },
+      child: SafeArea(
+        top: false,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Tooltip(
+              message: 'Attach Trading Context',
+              child: Container(
+                width: context.sz(40),
+                height: context.sz(40),
+                decoration: BoxDecoration(
+                  color: colors.surfaceMuted,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: colors.border.withValues(alpha: 0.8),
+                    width: theme.borders.hairline,
+                  ),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.add_link_rounded,
+                    size: context.sz(20),
+                    color: colors.foreground,
+                  ),
+                  onPressed: () => _showAttachmentPicker(context),
+                  splashRadius: 20,
+                  padding: EdgeInsets.zero,
+                ),
+              ),
             ),
-          ),
-          SizedBox(width: context.sp(theme.spacing.sm)),
-          UiIconButton(
-            icon: Icons.arrow_upward,
-            intent: UiIntent.primary,
-            variant: UiVariant.solid,
-            tooltip: 'Send',
-            onPressed: () {
-              final trimmed = _emptyComposerController.text.trim();
-              if (trimmed.isNotEmpty &&
-                  _repository.serviceAvailable &&
-                  !_repository.generating) {
-                _emptyComposerController.clear();
-                _repository.sendPrompt(trimmed);
-              }
-            },
-          ),
-        ],
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            Expanded(
+              child: Container(
+                constraints: BoxConstraints(
+                  minHeight: context.sz(40),
+                  maxHeight: context.sz(140),
+                ),
+                decoration: BoxDecoration(
+                  color: colors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(context.sz(20)),
+                  border: Border.all(
+                    color: colors.border.withValues(alpha: 0.8),
+                    width: theme.borders.hairline,
+                  ),
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.sm),
+                ),
+                child: TextField(
+                  controller: _emptyComposerController,
+                  enabled: _repository.serviceAvailable && !_repository.generating,
+                  minLines: 1,
+                  maxLines: 4,
+                  style: context.uiText.body.copyWith(color: colors.foreground),
+                  decoration: InputDecoration(
+                    hintText: 'Message your AI trading coach…',
+                    hintStyle: context.uiText.body.copyWith(
+                      color: colors.foregroundMuted,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      vertical: context.sp(theme.spacing.xs),
+                    ),
+                  ),
+                  onSubmitted: (text) {
+                    final trimmed = text.trim();
+                    if (trimmed.isNotEmpty &&
+                        _repository.serviceAvailable &&
+                        !_repository.generating) {
+                      _emptyComposerController.clear();
+                      _repository.sendPrompt(trimmed);
+                    }
+                  },
+                ),
+              ),
+            ),
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            Tooltip(
+              message: 'Send',
+              child: Container(
+                width: context.sz(40),
+                height: context.sz(40),
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.arrow_upward_rounded,
+                    size: context.sz(20),
+                    color: colors.onPrimary,
+                  ),
+                  onPressed: () {
+                    final trimmed = _emptyComposerController.text.trim();
+                    if (trimmed.isNotEmpty &&
+                        _repository.serviceAvailable &&
+                        !_repository.generating) {
+                      _emptyComposerController.clear();
+                      _repository.sendPrompt(trimmed);
+                    }
+                  },
+                  splashRadius: 20,
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

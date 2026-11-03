@@ -113,56 +113,66 @@ class _AiChartAnalysisDialogState extends State<AiChartAnalysisDialog> {
         actions: _stage >= 4
             ? [
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
                       children: [
                         Expanded(
                           child: UiButton(
-                            label: 'Save as note',
+                            label: 'Save Note',
+                            icon: Icons.sticky_note_2_outlined,
                             variant: UiVariant.outline,
+                            size: UiSize.sm,
                             onPressed: () =>
                                 _openCreateSheet(AiCreateTarget.note),
                           ),
                         ),
-                        SizedBox(width: context.sp(context.ui.spacing.sm)),
+                        SizedBox(width: context.sp(context.ui.spacing.xs)),
                         Expanded(
                           child: UiButton(
-                            label: 'Log trade',
+                            label: 'Log Trade',
+                            icon: Icons.menu_book_outlined,
                             variant: UiVariant.outline,
+                            size: UiSize.sm,
                             onPressed: () =>
                                 _openCreateSheet(AiCreateTarget.journal),
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: context.sp(context.ui.spacing.sm)),
+                    SizedBox(height: context.sp(context.ui.spacing.xs)),
                     Row(
                       children: [
                         Expanded(
                           child: UiButton(
-                            label: 'Create playbook',
+                            label: 'Playbook',
+                            icon: Icons.account_tree_outlined,
                             variant: UiVariant.outline,
+                            size: UiSize.sm,
                             onPressed: () =>
                                 _openCreateSheet(AiCreateTarget.strategy),
                           ),
                         ),
-                        SizedBox(width: context.sp(context.ui.spacing.sm)),
+                        SizedBox(width: context.sp(context.ui.spacing.xs)),
                         Expanded(
                           child: UiButton(
-                            label: 'Share to feed',
+                            label: 'Community',
+                            icon: Icons.forum_outlined,
                             variant: UiVariant.outline,
+                            size: UiSize.sm,
                             onPressed: () =>
                                 _openCreateSheet(AiCreateTarget.post),
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: context.sp(context.ui.spacing.sm)),
+                    SizedBox(height: context.sp(context.ui.spacing.xs)),
                     UiButton(
                       label: 'Send setup in DM',
                       icon: Icons.send_rounded,
                       variant: UiVariant.solid,
                       intent: UiIntent.primary,
+                      size: UiSize.sm,
                       onPressed: _shareToDm,
                     ),
                   ],

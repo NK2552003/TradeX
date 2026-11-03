@@ -98,7 +98,7 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
     }
   }
 
-  static const _routeTabs = ['chat', 'insights', 'create'];
+  static const _routeTabs = ['chat', 'insights', 'create', 'history'];
   static const _routePanels = ['insights', 'create'];
 
   @override
@@ -205,13 +205,15 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
     _repo.selectThread(id);
     if (_isMobile) {
       setState(() => _mobilePanel = _MobilePanel.none);
-      _mobileTab = 0; // back to chat
+      _selectMainTab(0); // back to chat
     }
   }
 
   void _openHistory() {
-    setState(() => _mobilePanel = _MobilePanel.history);
     if (_isMobile) {
+      _selectMainTab(3);
+    } else {
+      setState(() => _mobilePanel = _MobilePanel.history);
       _notifySubpage();
     }
   }
@@ -324,6 +326,7 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
       0 => _chatView(context, showHeader: true),
       1 => _insightsView(context),
       2 => _createView(context),
+      3 => _historyPanel(context),
       _ => _chatView(context, showHeader: true),
     };
   }
@@ -342,23 +345,28 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
         top: false,
         child: Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: context.sp(theme.spacing.md),
+            horizontal: context.sp(theme.spacing.sm),
             vertical: context.sp(theme.spacing.xs),
           ),
           child: UiToggleGroup<int>(
             value: _mobileTab,
             onChanged: _selectMainTab,
             options: <UiOption<int>>[
-              UiOption<int>(label: 'Chat', value: 0, icon: Icons.chat_outlined),
+              UiOption<int>(label: 'Chat', value: 0, icon: Icons.chat_bubble_outline_rounded),
               UiOption<int>(
                 label: 'Insights',
                 value: 1,
-                icon: Icons.insights_outlined,
+                icon: Icons.insights_rounded,
               ),
               UiOption<int>(
                 label: 'Create',
                 value: 2,
-                icon: Icons.add_circle_outline,
+                icon: Icons.auto_awesome_rounded,
+              ),
+              UiOption<int>(
+                label: 'History',
+                value: 3,
+                icon: Icons.history_rounded,
               ),
             ],
           ),
@@ -444,6 +452,13 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   Widget _desktopSidePanel(BuildContext context) {
     return Column(
       children: <Widget>[
+        AppPaneHeader(
+          title: _sideTab == 0 ? 'Market Insights' : 'AI Creation Studio',
+          subtitle: _sideTab == 0
+              ? 'Live setups & quantitative bias'
+              : 'Draft notes, trades, and playbooks',
+          dense: true,
+        ),
         _wideTabBar(
           context,
           const <String>['Insights', 'Create'],
