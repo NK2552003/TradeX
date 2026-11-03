@@ -13,6 +13,8 @@
             <array><string>tradex</string></array>
         </dict>
     </array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>alphajournal needs access to your microphone to record and send voice messages.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

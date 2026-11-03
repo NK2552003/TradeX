@@ -9,7 +9,6 @@ import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/pricing_models.dart';
-import 'package:tradex/features/auth/presentation/widgets/tradex_footer.dart';
 import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
 
 /// Records for the marketing preview. They come from the same source the
@@ -306,21 +305,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                             ),
                           ),
 
-                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
-                          // Claude-styled Detailed Footer
-                          UiDeferred(
-                            estimatedHeight: 450,
-                            builder: (_) => _buildFooter(
-                              context,
-                              theme,
-                              colors,
-                              responsive,
-                            ),
-                          ),
-
                           SizedBox(
                             height: context.sp(theme.spacing.xxxl) * 2,
-                          ), // extra bottom padding for the fade
+                          ), // bottom clearance for smooth scroll and fade
                         ],
                       ),
                     ),
@@ -569,38 +556,32 @@ class _GetStartedPageState extends State<GetStartedPage> {
                       children: [
                         _HeaderNavLink(
                           label: 'home',
-                          onTap: () {
-                            _scrollController.animateTo(
-                              0.0,
-                              duration: const Duration(milliseconds: 500),
-                              curve: Curves.easeInOutCubic,
-                            );
-                          },
+                          onTap: () => _scrollToSection('home'),
                         ),
                         SizedBox(width: context.sp(theme.spacing.xl)),
                         _HeaderNavLink(
                           label: 'platform',
-                          onTap: () => _scrollToKey(_showcaseKey),
+                          onTap: () => _scrollToSection('showcase'),
                         ),
                         SizedBox(width: context.sp(theme.spacing.xl)),
                         _HeaderNavLink(
                           label: 'solutions',
-                          onTap: () => _scrollToKey(_personasKey),
+                          onTap: () => _scrollToSection('personas'),
                         ),
                         SizedBox(width: context.sp(theme.spacing.xl)),
                         _HeaderNavLink(
                           label: 'features',
-                          onTap: () => _scrollToKey(_featuresKey),
+                          onTap: () => _scrollToSection('features'),
                         ),
                         SizedBox(width: context.sp(theme.spacing.xl)),
                         _HeaderNavLink(
                           label: 'pricing',
-                          onTap: () => _scrollToKey(_pricingKey),
+                          onTap: () => _scrollToSection('pricing'),
                         ),
                         SizedBox(width: context.sp(theme.spacing.xl)),
                         _HeaderNavLink(
                           label: 'faq',
-                          onTap: () => _scrollToKey(_faqKey),
+                          onTap: () => _scrollToSection('faq'),
                         ),
                       ],
                     ),
@@ -1362,22 +1343,6 @@ class _GetStartedPageState extends State<GetStartedPage> {
           ),
         ),
       ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Claude-Style Detailed Footer
-  // ---------------------------------------------------------------------------
-  Widget _buildFooter(
-    BuildContext context,
-    UiTheme theme,
-    UiColors colors,
-    UiResponsive responsive,
-  ) {
-    return TradeXFooter(
-      onNavigateToSection: _scrollToSection,
-      onGetStartedTrader: () => widget.onGetStarted(UserRole.customer),
-      onGetStartedAffiliate: () => widget.onGetStarted(UserRole.affiliate),
     );
   }
 

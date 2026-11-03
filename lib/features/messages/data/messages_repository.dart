@@ -847,7 +847,13 @@ class MessagesRepository extends ChangeNotifier {
                     ? 'image/jpeg'
                     : ext == 'pdf'
                         ? 'application/pdf'
-                        : 'application/octet-stream',
+                        : ext == 'webm'
+                            ? 'audio/webm'
+                            : (ext == 'm4a' || ext == 'mp4')
+                                ? 'audio/mp4'
+                                : (ext == 'mp3' || ext == 'wav')
+                                    ? 'audio/$ext'
+                                    : 'application/octet-stream',
             cacheControl: '3600',
             upsert: true,
           ),
@@ -869,7 +875,13 @@ class MessagesRepository extends ChangeNotifier {
                 ? 'image/jpeg'
                 : ext == 'pdf'
                     ? 'application/pdf'
-                    : 'application/octet-stream';
+                    : ext == 'webm'
+                        ? 'audio/webm'
+                        : (ext == 'm4a' || ext == 'mp4')
+                            ? 'audio/mp4'
+                            : (ext == 'mp3' || ext == 'wav')
+                                ? 'audio/$ext'
+                                : 'application/octet-stream';
         return 'data:$mimeType;base64,${base64Encode(bytes)}';
       }
     }

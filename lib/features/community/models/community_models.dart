@@ -119,13 +119,12 @@ class CommunityAuthor {
 
   String get roleBadgeText => switch (userRole) {
     UserRole.customer => switch (subscriptionTier.toLowerCase().trim()) {
-        'enterprise' => 'ENTERPRISE PLAN',
-        'pro' => 'PRO TRADER',
-        'premium' => 'PREMIUM PLAN',
-        'basic' || 'starter' => 'BASIC PLAN',
-        'free' || _ => switch (tier) {
-            AppTier.enterprise => 'ENTERPRISE PLAN',
-            AppTier.premium => 'PRO TRADER',
+        'enterprise' || 'pro' => 'PRO PLAN',
+        'premium' || 'basic' || 'starter' => 'BASIC PLAN',
+        'free' => 'FREE PLAN',
+        _ => switch (tier) {
+            AppTier.enterprise => 'PRO PLAN',
+            AppTier.premium => 'BASIC PLAN',
             AppTier.free => 'FREE PLAN',
           },
       },
@@ -137,10 +136,10 @@ class CommunityAuthor {
     UserRole.userAdmin => UiIntent.danger,
     UserRole.affiliate => UiIntent.warning,
     UserRole.customer => switch (subscriptionTier.toLowerCase().trim()) {
-        'enterprise' => UiIntent.success,
-        'pro' || 'premium' => UiIntent.primary,
-        'basic' || 'starter' => UiIntent.info,
-        'free' || _ => switch (tier) {
+        'enterprise' || 'pro' => UiIntent.success,
+        'premium' || 'basic' || 'starter' => UiIntent.primary,
+        'free' => UiIntent.neutral,
+        _ => switch (tier) {
             AppTier.enterprise => UiIntent.success,
             AppTier.premium => UiIntent.primary,
             AppTier.free => UiIntent.neutral,

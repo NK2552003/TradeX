@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -209,7 +211,26 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
     }
   }
 
-  void _sendVoice(String duration) {
+  Future<void> _sendVoice(String duration, Uint8List? bytes) async {
+    String? audioUrl;
+    if (bytes != null && bytes.isNotEmpty) {
+      try {
+        final ext = kIsWeb ? 'webm' : 'm4a';
+        final filename = 'voice_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        audioUrl = await widget.repository.uploadAttachment(
+          threadId: widget.threadId,
+          bytes: bytes,
+          filename: filename,
+        );
+      } catch (e) {
+        debugPrint(
+          '[MessagesThreadView] Voice upload failed: $e. Falling back to data URI.',
+        );
+        final mime = kIsWeb ? 'audio/webm' : 'audio/mp4';
+        audioUrl = 'data:$mime;base64,${base64Encode(bytes)}';
+      }
+    }
+
     widget.repository.sendMessage(
       widget.threadId,
       attachment: MessageAttachment(
@@ -218,6 +239,7 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
         title: 'Voice Note',
         subtitle: 'Audio message ($duration)',
         sizeLabel: duration,
+        url: audioUrl,
       ),
     );
   }

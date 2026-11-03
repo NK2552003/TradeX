@@ -817,8 +817,8 @@ class CommunityRepository extends ChangeNotifier {
   }) {
     final subTier = (authorProfile?['subscription_tier'] as String?)?.toLowerCase().trim() ?? 'free';
     final appTier = switch (subTier) {
-      'enterprise' => AppTier.enterprise,
-      'pro' || 'premium' => AppTier.premium,
+      'enterprise' || 'pro' => AppTier.enterprise,
+      'premium' || 'basic' => AppTier.premium,
       _ => AppTier.free,
     };
 
@@ -1593,7 +1593,9 @@ class CommunityRepository extends ChangeNotifier {
 
       final updatedRx = List<String>.from(p.reactions);
       if (p.userReaction != null && (userReaction != p.userReaction || !isLikedNow)) {
-        updatedRx.remove(p.userReaction);
+        if (newLikes <= 0 || (newLikes == 1 && !isLikedNow)) {
+          updatedRx.remove(p.userReaction);
+        }
       }
       if (isLikedNow && userReaction != null && userReaction.trim().isNotEmpty) {
         final clean = userReaction.trim();

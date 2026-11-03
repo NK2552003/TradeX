@@ -226,7 +226,12 @@ class _AppScaffoldState extends State<AppScaffold> {
     // the session, so the session adopts it here. That makes entitlement
     // single-owner: upgrading in billing unlocks DMs and copilot credits in the
     // same frame instead of leaving each surface with its own stale copy.
-    _session.changeTier(widget.subscriptionTier);
+    final cachedSubTier = _profiles.cachedProfile.subscriptionTier;
+    if (cachedSubTier.isNotEmpty && cachedSubTier.toLowerCase() != 'free') {
+      _session.changeTier(appTierFromId(cachedSubTier));
+    } else {
+      _session.changeTier(widget.subscriptionTier);
+    }
     CustomerTierQuota.refreshPublishedCatalogue().catchError((Object _) {});
     // Painted from the cached profile on the first frame so the avatar, handle
     // and sidebar footer are never blank, then refreshed from the repository.

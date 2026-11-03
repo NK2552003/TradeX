@@ -1,7 +1,12 @@
 import 'dart:async';
+import 'dart:io' as io;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 
@@ -36,7 +41,7 @@ class MessageComposer extends StatefulWidget {
 
   final void Function(String body)? onSendText;
   final void Function(MessageAttachmentKind kind)? onSendAttachment;
-  final void Function(String durationLabel)? onSendVoice;
+  final void Function(String durationLabel, Uint8List? audioBytes)? onSendVoice;
   final void Function(AppLinkRef ref)? onSendRef;
   final void Function(String emoji)? onQuickReaction;
   final void Function(String draft)? onDraftChanged;
@@ -57,6 +62,7 @@ class MessageComposerState extends State<MessageComposer>
   int _recordSeconds = 0;
   Timer? _recordTimer;
   late final AnimationController _pulseController;
+  AudioRecorder? _audioRecorder;
 
   @override
   void initState() {
@@ -68,6 +74,11 @@ class MessageComposerState extends State<MessageComposer>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
+    try {
+      _audioRecorder = AudioRecorder();
+    } catch (e) {
+      debugPrint('[MessageComposer] AudioRecorder init: $e');
+    }
   }
 
   @override
@@ -100,7 +111,7 @@ class MessageComposerState extends State<MessageComposer>
 
   void startRecording() => _startRecording();
 
-  void _startRecording() {
+  Future<void> _startRecording() async {
     HapticFeedback.mediumImpact();
     _pulseController.repeat(reverse: true);
     setState(() {
@@ -115,9 +126,68 @@ class MessageComposerState extends State<MessageComposer>
       }
       setState(() => _recordSeconds++);
     });
+
+    _audioRecorder ??= AudioRecorder();
+    try {
+      // 1. Explicitly check and request microphone permissions
+      bool hasPermission = true;
+      try {
+        hasPermission = await _audioRecorder!.hasPermission();
+      } catch (e) {
+        debugPrint('[MessageComposer] Mic permission check fallback: $e');
+        hasPermission = true;
+      }
+
+      if (!hasPermission) {
+        _cancelRecording();
+        if (mounted) {
+          UiToastScope.maybeOf(context)?.show(
+            UiToastData(
+              title: 'Microphone permission required',
+              message:
+                  'Please allow microphone access in your browser or device settings to record voice notes.',
+              intent: UiIntent.warning,
+            ),
+          );
+        }
+        return;
+      }
+
+      // 2. Start recording with platform-optimal audio encoder
+      try {
+        if (kIsWeb) {
+          await _audioRecorder!.start(
+            const RecordConfig(encoder: AudioEncoder.opus),
+            path: '',
+          );
+        } else {
+          final tempDir = await getTemporaryDirectory();
+          final path =
+              '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+          await _audioRecorder!.start(
+            const RecordConfig(encoder: AudioEncoder.aacLc),
+            path: path,
+          );
+        }
+      } catch (e) {
+        debugPrint('[MessageComposer] AudioRecorder start fallback: $e');
+      }
+    } catch (e) {
+      debugPrint('[MessageComposer] Error starting voice recording: $e');
+      _cancelRecording();
+      if (mounted) {
+        UiToastScope.maybeOf(context)?.show(
+          UiToastData(
+            title: 'Could not record audio',
+            message: '$e',
+            intent: UiIntent.danger,
+          ),
+        );
+      }
+    }
   }
 
-  void _cancelRecording() {
+  Future<void> _cancelRecording() async {
     HapticFeedback.selectionClick();
     _pulseController.stop();
     _pulseController.reset();
@@ -126,23 +196,54 @@ class MessageComposerState extends State<MessageComposer>
       _isRecording = false;
       _recordSeconds = 0;
     });
+    try {
+      if (_audioRecorder != null && await _audioRecorder!.isRecording()) {
+        await _audioRecorder!.stop();
+      }
+    } catch (_) {}
   }
 
-  void _sendVoiceRecording() {
+  Future<void> _sendVoiceRecording() async {
     _recordTimer?.cancel();
     _pulseController.stop();
     _pulseController.reset();
-    final int sec = _recordSeconds < 1 ? 3 : _recordSeconds;
+
+    final int sec = _recordSeconds < 1 ? 1 : _recordSeconds;
     final int m = sec ~/ 60;
     final int s = sec % 60;
     final String durationLabel = '$m:${s.toString().padLeft(2, '0')}';
+
     setState(() {
       _isRecording = false;
       _recordSeconds = 0;
     });
     HapticFeedback.lightImpact();
+
+    Uint8List? audioBytes;
+    try {
+      if (_audioRecorder != null && await _audioRecorder!.isRecording()) {
+        final String? path = await _audioRecorder!.stop();
+        if (path != null && path.isNotEmpty) {
+          if (kIsWeb) {
+            final resp = await http.get(Uri.parse(path));
+            if (resp.statusCode == 200) {
+              audioBytes = resp.bodyBytes;
+            }
+          } else {
+            final file = io.File(path);
+            if (await file.exists()) {
+              audioBytes = await file.readAsBytes();
+              unawaited(file.delete());
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[MessageComposer] Error stopping audio recorder: $e');
+    }
+
     if (widget.onSendVoice != null) {
-      widget.onSendVoice!(durationLabel);
+      widget.onSendVoice!(durationLabel, audioBytes);
     } else {
       widget.onSendAttachment?.call(MessageAttachmentKind.voice);
     }
@@ -151,6 +252,7 @@ class MessageComposerState extends State<MessageComposer>
   @override
   void dispose() {
     _recordTimer?.cancel();
+    _audioRecorder?.dispose();
     _pulseController.dispose();
     _controller.removeListener(_onChanged);
     _controller.dispose();

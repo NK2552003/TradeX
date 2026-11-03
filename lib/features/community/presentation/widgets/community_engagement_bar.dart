@@ -85,16 +85,22 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
         ? globalPos.dy - pillHeight - 8
         : globalPos.dy + boxSize.height + 8;
 
+    final DateTime openedAt = DateTime.now();
+
     _overlayEntry = OverlayEntry(
       builder: (BuildContext ctx) {
         return Stack(
           children: <Widget>[
-            // Mobile tap-outside barrier to dismiss cleanly
+            // Mobile tap-outside barrier to dismiss cleanly without closing on initial touch release
             if (isMobile)
               Positioned.fill(
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
-                  onTap: _hideOverlay,
+                  onTap: () {
+                    if (DateTime.now().difference(openedAt).inMilliseconds > 350) {
+                      _hideOverlay();
+                    }
+                  },
                 ),
               ),
             Positioned(

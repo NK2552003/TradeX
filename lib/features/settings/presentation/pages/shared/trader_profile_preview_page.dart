@@ -565,14 +565,14 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             ? _liveAvatarUrl
             : widget.author?.avatarUrl);
 
-    final bool effectiveVerified = isAdmin ||
-        (_liveVerified ??
+    final bool effectiveVerified = (!isAdmin) &&
+        ((_liveVerified ??
             widget.verified ??
             widget.author?.verified ??
             (widget.isCurrentUser
                 ? (ProfileSettingsRepositoryImpl.instance.cachedProfile.verified ||
                     (SupabaseAuthBackendService.instance.currentUserProfile?.verified ?? false))
-                : false));
+                : false)) == true);
 
     final String? effectiveLocation = widget.location?.trim().isNotEmpty == true
         ? widget.location!.trim()
@@ -671,7 +671,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           'basic' || 'starter' => 'BASIC PLAN',
           'free' || _ => switch (widget.author?.tier) {
               AppTier.enterprise => 'ENTERPRISE PLAN',
-              AppTier.premium => 'PRO TRADER',
+              AppTier.premium => 'BASIC PLAN',
               _ => 'FREE PLAN',
             },
         },

@@ -196,7 +196,7 @@ class DemoDataSource {
     followers: 0,
     following: 0,
     winRate: null,
-    verified: tier != AppTier.free,
+    verified: false,
     tradingStyle: null,
   );
 

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/core/data/app_session.dart';
+import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/settings/models/connected_account_model.dart';
@@ -236,8 +237,9 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
   );
 
   @override
-  UserProfileModel get cachedProfile =>
-      _profile.copyWith(subscriptionTier: AppSession.instance.tier.value.name);
+  UserProfileModel get cachedProfile => _profile.subscriptionTier.isNotEmpty
+      ? _profile
+      : _profile.copyWith(subscriptionTier: AppSession.instance.tier.value.name);
 
   @override
   Future<UserProfileModel> getProfile() async {
@@ -249,7 +251,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
             user?.id ??
             SupabaseAuthBackendService.instance.currentUserProfile?.id ??
             '';
-        if (targetUserId.isEmpty) return _profile;
+        if (targetUserId.isEmpty) return cachedProfile;
 
         final res = await client
             .from('profiles')
@@ -259,18 +261,16 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
 
         if (res != null) {
           _profile = UserProfileModel.fromJson(res);
-          return _profile.copyWith(
-            subscriptionTier: AppSession.instance.tier.value.name,
-          );
+          final tierFromProfile = appTierFromId(_profile.subscriptionTier);
+          AppSession.instance.changeTier(tierFromProfile);
+          return _profile;
         }
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] getProfile error: $e');
       }
     }
 
-    return _profile.copyWith(
-      subscriptionTier: AppSession.instance.tier.value.name,
-    );
+    return cachedProfile;
   }
 
   @override

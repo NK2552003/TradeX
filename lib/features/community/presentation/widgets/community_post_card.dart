@@ -168,7 +168,9 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           _reactions.insert(0, rx);
         }
       } else if (oldRx != null) {
-        _reactions.remove(oldRx);
+        if (_likes <= 0) {
+          _reactions.remove(oldRx);
+        }
       }
     });
     if (widget.repository != null) {
@@ -187,14 +189,14 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
         _liked = false;
         _likes = (_likes - 1).clamp(0, 999999);
         _userReaction = null;
-        if (oldRx != null) {
+        if (_likes <= 0 && oldRx != null) {
           _reactions.remove(oldRx);
         }
       } else {
         _liked = true;
         _likes = wasLiked ? _likes : _likes + 1;
         _userReaction = reaction;
-        if (oldRx != null) {
+        if (_likes <= 1 && oldRx != null) {
           _reactions.remove(oldRx);
         }
         if (!_reactions.contains(reaction)) {

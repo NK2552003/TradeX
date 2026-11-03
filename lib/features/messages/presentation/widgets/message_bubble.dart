@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -869,9 +871,16 @@ class _VoiceAttachmentPlayer extends StatefulWidget {
 }
 
 class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
+  AudioPlayer? _player;
+  StreamSubscription<Duration>? _posSub;
+  StreamSubscription<Duration>? _durSub;
+  StreamSubscription<void>? _completeSub;
+  StreamSubscription<PlayerState>? _stateSub;
   bool _isPlaying = false;
   double _progress = 0.0;
   double _speed = 1.0;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
   Timer? _timer;
 
   static const List<double> _waveformHeights = <double>[
@@ -902,6 +911,7 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
   ];
 
   int get _totalSeconds {
+    if (_duration > Duration.zero) return _duration.inSeconds;
     final String raw =
         widget.attachment.sizeLabel ?? widget.attachment.subtitle ?? '0:12';
     final match = RegExp(r'(\d+):(\d+)').firstMatch(raw);
@@ -913,16 +923,81 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
     return 12;
   }
 
-  void _togglePlay() {
-    HapticFeedback.selectionClick();
-    if (_isPlaying) {
-      _pause();
-    } else {
-      _play();
+  @override
+  void initState() {
+    super.initState();
+    _initAudioPlayer();
+  }
+
+  void _initAudioPlayer() {
+    final String? url = widget.attachment.url;
+    if (url != null && url.isNotEmpty) {
+      _player = AudioPlayer();
+      _posSub = _player!.onPositionChanged.listen((Duration pos) {
+        if (!mounted) return;
+        setState(() {
+          _position = pos;
+          if (_duration.inMilliseconds > 0) {
+            _progress = (pos.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0);
+          }
+        });
+      });
+      _durSub = _player!.onDurationChanged.listen((Duration dur) {
+        if (!mounted) return;
+        setState(() => _duration = dur);
+      });
+      _completeSub = _player!.onPlayerComplete.listen((_) {
+        if (!mounted) return;
+        setState(() {
+          _isPlaying = false;
+          _progress = 0.0;
+          _position = Duration.zero;
+        });
+      });
+      _stateSub = _player!.onPlayerStateChanged.listen((PlayerState state) {
+        if (!mounted) return;
+        final playing = state == PlayerState.playing;
+        if (_isPlaying != playing) {
+          setState(() => _isPlaying = playing);
+        }
+      });
     }
   }
 
-  void _play() {
+  Future<void> _togglePlay() async {
+    HapticFeedback.selectionClick();
+    if (_isPlaying) {
+      await _pause();
+    } else {
+      await _play();
+    }
+  }
+
+  Future<void> _play() async {
+    final String? url = widget.attachment.url;
+    if (url != null && url.isNotEmpty) {
+      try {
+        _player ??= AudioPlayer();
+        if (_posSub == null) _initAudioPlayer();
+        if (_position >= _duration && _duration > Duration.zero) {
+          await _player!.seek(Duration.zero);
+        }
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          await _player!.play(UrlSource(url));
+        } else if (url.startsWith('data:')) {
+          final data = url.contains(',') ? url.split(',').last : url;
+          await _player!.play(BytesSource(base64Decode(data)));
+        } else {
+          await _player!.play(DeviceFileSource(url));
+        }
+        await _player!.setPlaybackRate(_speed);
+        if (mounted) setState(() => _isPlaying = true);
+        return;
+      } catch (e) {
+        debugPrint('[VoiceAttachmentPlayer] Real audio playback error: $e. Falling back to timer.');
+      }
+    }
+
     _timer?.cancel();
     setState(() => _isPlaying = true);
     final int totalSec = _totalSeconds;
@@ -942,9 +1017,14 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
     });
   }
 
-  void _pause() {
+  Future<void> _pause() async {
     _timer?.cancel();
-    setState(() => _isPlaying = false);
+    try {
+      if (_player != null) {
+        await _player!.pause();
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _isPlaying = false);
   }
 
   void _cycleSpeed() {
@@ -958,11 +1038,19 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
         _speed = 1.0;
       }
     });
+    try {
+      _player?.setPlaybackRate(_speed);
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _posSub?.cancel();
+    _durSub?.cancel();
+    _completeSub?.cancel();
+    _stateSub?.cancel();
+    _player?.dispose();
     super.dispose();
   }
 
@@ -976,7 +1064,9 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final Color fg = widget.fgColor;
-    final int currentSec = (_progress * _totalSeconds).floor();
+    final int currentSec = (_duration > Duration.zero)
+        ? _position.inSeconds
+        : (_progress * _totalSeconds).floor();
     final String timeDisplay = _isPlaying
         ? '${_formatTime(currentSec)} / ${widget.attachment.sizeLabel ?? _formatTime(_totalSeconds)}'
         : (widget.attachment.sizeLabel ?? _formatTime(_totalSeconds));

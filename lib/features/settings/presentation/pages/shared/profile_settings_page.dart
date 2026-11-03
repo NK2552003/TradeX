@@ -229,8 +229,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     _publicJournalsEnabled = profile.publicJournals;
   }
 
-  bool get _verified =>
-      appTierFromId(_profile?.subscriptionTier ?? '') != AppTier.free;
+  bool get _verified => _profile?.verified == true;
 
   @override
   void dispose() {
