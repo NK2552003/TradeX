@@ -80,6 +80,9 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   /// Desktop side-panel tab: 0 = Insights, 1 = Create.
   int _sideTab = 0;
 
+  /// IDE activity rail: 0 = chat, 1 = insights, 2 = create, 3 = history.
+  int _ideActivity = 0;
+
   /// Secondary mobile panel currently pushed.
   _MobilePanel _mobilePanel = _MobilePanel.none;
 
@@ -315,6 +318,16 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
     }
     return Column(
       children: <Widget>[
+        AiConsoleHeader(
+          trailing: <Widget>[
+            UiIconButton(
+              icon: Icons.add_rounded,
+              tooltip: 'New chat',
+              size: UiSize.sm,
+              onPressed: () => _repo.newThread(),
+            ),
+          ],
+        ),
         Expanded(child: _mobileTabContent(context)),
         _mobileTabBar(context),
       ],
@@ -352,7 +365,11 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
             value: _mobileTab,
             onChanged: _selectMainTab,
             options: <UiOption<int>>[
-              UiOption<int>(label: 'Chat', value: 0, icon: Icons.chat_bubble_outline_rounded),
+              UiOption<int>(
+                label: 'Chat',
+                value: 0,
+                icon: Icons.chat_bubble_outline_rounded,
+              ),
               UiOption<int>(
                 label: 'Insights',
                 value: 1,
@@ -380,22 +397,78 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildTablet(BuildContext context) {
-    return UiSplitPane(
-      initialRatio: 0.32,
-      minRatio: 0.24,
-      maxRatio: 0.46,
-      primary: _historyRail(context),
-      detail: Column(
-        children: <Widget>[
-          _wideTabBar(
-            context,
-            const <String>['Chat', 'Insights', 'Create'],
-            _wideTab,
-            _selectMainTab,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        AiIdeActivityRail(
+          selected: _ideActivity,
+          onSelected: _selectIdeActivity,
+        ),
+        Expanded(
+          child: UiSplitPane(
+            initialRatio: 0.32,
+            minRatio: 0.24,
+            maxRatio: 0.46,
+            primary: _historyRail(context),
+            detail: Column(
+              children: <Widget>[
+                _wideTabBar(
+                  context,
+                  const <String>['Chat', 'Insights', 'Create'],
+                  _wideTab,
+                  _selectMainTab,
+                ),
+                Expanded(child: _wideTabContent(context)),
+              ],
+            ),
           ),
-          Expanded(child: _wideTabContent(context)),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+
+  void _selectIdeActivity(int activity) {
+    setState(() => _ideActivity = activity);
+    switch (activity) {
+      case 0:
+        _selectMainTab(0);
+        break;
+      case 1:
+        _selectSidePanel(0);
+        if (!_isMobile) setState(() => _wideTab = 1);
+        break;
+      case 2:
+        _selectSidePanel(1);
+        if (!_isMobile) setState(() => _wideTab = 2);
+        break;
+      case 3:
+        if (_isMobile) {
+          _selectMainTab(3);
+        } else {
+          _openHistory();
+        }
+        break;
+    }
+  }
+
+  Widget _buildDesktop(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        AiIdeActivityRail(
+          selected: _ideActivity,
+          onSelected: _selectIdeActivity,
+        ),
+        Expanded(
+          child: UiThreePane(
+            railWidth: 264,
+            listRatio: 0.58,
+            rail: _historyRail(context),
+            list: _chatView(context, showHeader: true),
+            detail: _desktopSidePanel(context),
+          ),
+        ),
+      ],
     );
   }
 
@@ -438,20 +511,14 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   // Desktop: thread rail + chat + insights side panel
   // ---------------------------------------------------------------------------
 
-  Widget _buildDesktop(BuildContext context) {
-    return UiThreePane(
-      railWidth: 240,
-      listRatio: 0.6,
-      rail: _historyRail(context),
-      list: _chatView(context, showHeader: true),
-      detail: _desktopSidePanel(context),
-    );
-  }
-
   /// Desktop right side-panel with tabs for Insights and Create.
   Widget _desktopSidePanel(BuildContext context) {
     return Column(
       children: <Widget>[
+        const AiConsoleHeader(
+          title: 'Workspace',
+          subtitle: 'Signals, notes, and ideas',
+        ),
         AppPaneHeader(
           title: _sideTab == 0 ? 'Market Insights' : 'AI Creation Studio',
           subtitle: _sideTab == 0
@@ -477,12 +544,28 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _chatView(BuildContext context, {bool showHeader = false}) {
-    return AiChatView(
+    final Widget chat = AiChatView(
       repository: _repo,
       onCreateFromChat: _handleCreateFromChat,
       onOpenRef: widget.onOpenRef ?? (_) {},
       onOpenPersona: _changePersona,
       onOpenHistory: _isMobile ? _openHistory : null,
+    );
+    if (_isMobile) return chat;
+    return Column(
+      children: <Widget>[
+        AiIdeEditorTab(
+          title: _repo.activeThread.title,
+          persona: _repo.persona,
+          onNew: () => _repo.newThread(),
+        ),
+        Expanded(child: chat),
+        AiIdeStatusBar(
+          persona: _repo.persona,
+          connected: _repo.serviceAvailable,
+          setupCount: _repo.chartSetups.length,
+        ),
+      ],
     );
   }
 
@@ -517,11 +600,8 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   Widget _historyRail(BuildContext context) {
     return Column(
       children: <Widget>[
-        AppPaneHeader(
-          title: 'Conversations',
-          subtitle: 'AI history & setups',
-          dense: true,
-        ),
+        AiIdeExplorerHeader(onNewThread: () => _repo.newThread()),
+        const AiIdeSectionLabel(label: 'OPEN CONVERSATIONS'),
         Expanded(
           child: AiHistoryView(
             repository: _repo,

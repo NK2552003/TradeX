@@ -31,19 +31,21 @@ class AiThreadTile extends StatelessWidget {
       onLongPress: onLongPress,
       selected: selected,
       accentColor: selected ? colors.primary : null,
+      variant: UiCardVariant.ghost,
+      borderless: true,
       padding: EdgeInsets.symmetric(
-        horizontal: context.sp(theme.spacing.sm),
-        vertical: context.sp(theme.spacing.sm),
+        horizontal: context.sp(theme.spacing.md),
+        vertical: context.sp(theme.spacing.xs),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Icon(
-            thread.persona.icon,
-            size: context.sz(18),
-            color: colors.foregroundMuted,
+            thread.pinned ? Icons.push_pin_rounded : Icons.description_outlined,
+            size: context.sz(16),
+            color: selected ? colors.foreground : colors.foregroundMuted,
           ),
-          SizedBox(width: context.sp(theme.spacing.sm)),
+          SizedBox(width: context.sp(theme.spacing.xs)),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,14 +53,6 @@ class AiThreadTile extends StatelessWidget {
               children: <Widget>[
                 Row(
                   children: <Widget>[
-                    if (thread.pinned) ...<Widget>[
-                      Icon(
-                        Icons.push_pin_rounded,
-                        size: context.sz(theme.sizes.iconXs),
-                        color: colors.foregroundMuted,
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.xxs)),
-                    ],
                     Expanded(
                       child: Text(
                         thread.title,
@@ -72,42 +66,27 @@ class AiThreadTile extends StatelessWidget {
                       AppTokens.relativeTime(thread.updatedAt),
                       style: context.uiText.caption.copyWith(
                         color: colors.foregroundSubtle,
-                        fontSize: context.fs(10.5),
+                        fontSize: context.fs(10),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: context.sp(theme.spacing.xxs)),
+                SizedBox(height: context.sp(theme.spacing.xs)),
                 Text(
                   thread.preview,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: context.uiText.caption.copyWith(
                     color: colors.foregroundMuted,
                   ),
                 ),
-                SizedBox(height: context.sp(theme.spacing.xs)),
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  runSpacing: context.sp(theme.spacing.xxs),
-                  children: <Widget>[
-                    UiBadge(
-                      label: thread.persona.shortLabel,
-                      icon: thread.persona.icon,
-                      intent: UiIntent.primary,
-                      variant: UiBadgeVariant.soft,
-                      size: UiSize.xs,
-                    ),
-                    if (thread.messageCount > 0)
-                      Text(
-                        '${thread.messageCount} msgs',
-                        style: context.uiText.caption.copyWith(
-                          color: colors.foregroundSubtle,
-                          fontSize: context.fs(10.5),
-                        ),
-                      ),
-                  ],
+                SizedBox(height: context.sp(theme.spacing.xxs)),
+                Text(
+                  '${thread.persona.shortLabel}  ·  ${thread.messageCount} messages',
+                  style: context.uiText.caption.copyWith(
+                    color: colors.foregroundSubtle,
+                    fontSize: context.fs(10),
+                  ),
                 ),
               ],
             ),

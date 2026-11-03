@@ -67,39 +67,21 @@ class _AiCreateViewState extends State<AiCreateView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Studio Hero Banner
+            // Studio hero — deliberately quiet, like a workspace cover page.
             Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: context.sp(theme.spacing.md),
                 vertical: context.sp(theme.spacing.xs),
               ),
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.md),
-                  vertical: context.sp(theme.spacing.sm),
-                ),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: context.radius(theme.radii.lg),
-                  border: Border.all(
-                    color: colors.border.withValues(alpha: 0.8),
-                    width: theme.borders.hairline,
-                  ),
-                ),
+              child: UiCard(
+                variant: UiCardVariant.subtle,
+                padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
                 child: Row(
                   children: [
-                    Container(
-                      width: context.sz(36),
-                      height: context.sz(36),
-                      decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: 0.12),
-                        borderRadius: context.radius(theme.radii.md),
-                      ),
-                      child: Icon(
-                        Icons.auto_awesome_rounded,
-                        color: colors.primary,
-                        size: context.sz(20),
-                      ),
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      color: colors.primary,
+                      size: context.sz(24),
                     ),
                     SizedBox(width: context.sp(theme.spacing.sm)),
                     Expanded(
@@ -107,14 +89,14 @@ class _AiCreateViewState extends State<AiCreateView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'AI Creation Studio',
-                            style: context.uiText.subheading.copyWith(
-                              fontWeight: FontWeight.bold,
+                            'Make something useful.',
+                            style: context.uiText.heading.copyWith(
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                           SizedBox(height: 2),
                           Text(
-                            'Turn market observations into structured journals, notes, & playbooks.',
+                            'Turn a market observation into a note, trade, or playbook.',
                             style: context.uiText.caption.copyWith(
                               color: colors.foregroundMuted,
                             ),
@@ -186,13 +168,17 @@ class _AiCreateViewState extends State<AiCreateView> {
                     children: categories.map((cat) {
                       final isSelected = _selectedCategory == cat;
                       return Padding(
-                        padding: EdgeInsets.only(right: context.sp(theme.spacing.xs)),
+                        padding: EdgeInsets.only(
+                          right: context.sp(theme.spacing.xs),
+                        ),
                         child: UiBadge(
                           label: cat,
                           variant: isSelected
                               ? UiBadgeVariant.solid
                               : UiBadgeVariant.outline,
-                          intent: isSelected ? UiIntent.primary : UiIntent.neutral,
+                          intent: isSelected
+                              ? UiIntent.primary
+                              : UiIntent.neutral,
                           size: UiSize.sm,
                           onTap: () => setState(() => _selectedCategory = cat),
                         ),
@@ -257,39 +243,43 @@ class _AiCreateViewState extends State<AiCreateView> {
               Wrap(
                 spacing: context.sp(theme.spacing.xs),
                 runSpacing: context.sp(theme.spacing.xs),
-                children: library[filteredSections[s]]!.where((p) {
-                  if (_searchQuery.trim().isEmpty) return true;
-                  final q = _searchQuery.trim().toLowerCase();
-                  return p.label.toLowerCase().contains(q) ||
-                      p.prompt.toLowerCase().contains(q);
-                }).map((p) {
-                  return UiCard(
-                    variant: UiCardVariant.surface,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.sp(theme.spacing.sm),
-                      vertical: context.sp(theme.spacing.xs),
-                    ),
-                    onTap: () => widget.onCreateTarget(null, prompt: p.prompt),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          p.icon ?? Icons.auto_awesome_rounded,
-                          size: context.sz(14),
-                          color: colors.primary,
+                children: library[filteredSections[s]]!
+                    .where((p) {
+                      if (_searchQuery.trim().isEmpty) return true;
+                      final q = _searchQuery.trim().toLowerCase();
+                      return p.label.toLowerCase().contains(q) ||
+                          p.prompt.toLowerCase().contains(q);
+                    })
+                    .map((p) {
+                      return UiCard(
+                        variant: UiCardVariant.surface,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.sp(theme.spacing.sm),
+                          vertical: context.sp(theme.spacing.xs),
                         ),
-                        SizedBox(width: context.sp(theme.spacing.xs)),
-                        Text(
-                          p.label,
-                          style: context.uiText.caption.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: colors.foreground,
-                          ),
+                        onTap: () =>
+                            widget.onCreateTarget(null, prompt: p.prompt),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              p.icon ?? Icons.auto_awesome_rounded,
+                              size: context.sz(14),
+                              color: colors.primary,
+                            ),
+                            SizedBox(width: context.sp(theme.spacing.xs)),
+                            Text(
+                              p.label,
+                              style: context.uiText.caption.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                }).toList(),
+                      );
+                    })
+                    .toList(),
               ),
             ],
           ],

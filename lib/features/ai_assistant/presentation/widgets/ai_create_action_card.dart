@@ -26,28 +26,13 @@ class AiCreateActionCard extends StatelessWidget {
       onTap: onTap,
       semanticLabel: target.actionLabel,
       variant: UiCardVariant.surface,
+      borderless: true,
       accentColor: intentColor,
       padding: EdgeInsets.all(context.sp(theme.spacing.md)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: context.sz(40),
-            height: context.sz(40),
-            decoration: BoxDecoration(
-              color: intentColor.withValues(alpha: 0.12),
-              borderRadius: context.radius(theme.radii.md),
-              border: Border.all(
-                color: intentColor.withValues(alpha: 0.25),
-                width: theme.borders.hairline,
-              ),
-            ),
-            child: Icon(
-              target.icon,
-              size: context.sz(20),
-              color: intentColor,
-            ),
-          ),
+          Icon(target.icon, size: context.sz(20), color: intentColor),
           SizedBox(width: context.sp(theme.spacing.sm)),
           Expanded(
             child: Column(

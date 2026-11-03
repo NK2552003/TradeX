@@ -23,6 +23,8 @@ class AiCapabilityCard extends StatelessWidget {
     final UiColors colors = theme.colors;
     return UiCard(
       onTap: onTap,
+      variant: UiCardVariant.ghost,
+      borderless: true,
       padding: EdgeInsets.all(context.sp(theme.spacing.md)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -30,10 +32,24 @@ class AiCapabilityCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(
-                capability.icon,
-                size: context.sz(22),
-                color: colors.foregroundMuted,
+              Row(
+                children: <Widget>[
+                  Icon(
+                    capability.icon,
+                    size: context.sz(18),
+                    color: colors.foregroundMuted,
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  Text(
+                    'COMMAND',
+                    style: context.uiText.caption.copyWith(
+                      color: colors.foregroundSubtle,
+                      fontSize: context.fs(9),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.9,
+                    ),
+                  ),
+                ],
               ),
               const Spacer(),
               if (capability.badge != null)
@@ -60,6 +76,24 @@ class AiCapabilityCard extends StatelessWidget {
             ),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Row(
+            children: <Widget>[
+              Text(
+                'Run command',
+                style: context.uiText.caption.copyWith(
+                  color: colors.foregroundMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.arrow_forward_rounded,
+                size: context.sz(15),
+                color: colors.foregroundMuted,
+              ),
+            ],
           ),
         ],
       ),

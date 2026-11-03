@@ -174,111 +174,92 @@ class _AiChatViewState extends State<AiChatView> {
     return AiDensityScope(
       child: Column(
         children: [
-          UiBadge(
-            label: CustomerDataPolicy.allowDemo && !_repository.usesLiveService
-                ? 'Demo assistant · Responses are simulated'
+          AppPaneHeader(
+            leading: AiPersonaChip(
+              persona: persona,
+              onTap: widget.onOpenPersona,
+              dense: true,
+            ),
+            title: activeThread.title,
+            subtitle:
+                CustomerDataPolicy.allowDemo && !_repository.usesLiveService
+                ? 'Demo mode · responses are simulated'
                 : (_repository.serviceAvailable
                       ? 'Connected assistant service'
                       : 'Assistant service unavailable'),
-            intent: UiIntent.info,
-          ),
-          // Header area
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(context.ui.spacing.md),
-              vertical: context.sp(context.ui.spacing.xs),
-            ),
-            child: Row(
-              children: [
-                AiPersonaChip(
-                  persona: persona,
-                  onTap: widget.onOpenPersona,
-                  dense: true,
-                ),
-                SizedBox(width: context.sp(context.ui.spacing.sm)),
-                Expanded(
-                  child: Text(
-                    activeThread.title,
-                    style: context.uiText.title.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                UiIconButton(
-                  icon: Icons.add_comment_outlined,
-                  tooltip: 'New chat',
-                  size: UiSize.sm,
-                  onPressed: () => _repository.newThread(),
-                ),
-                UiDropdownMenu(
-                  alignRight: true,
-                  items: <UiMenuItem>[
-                    UiMenuItem(
-                      label: 'Share to Messages',
-                      icon: Icons.send_outlined,
-                      onPressed: () {
-                        final msgs = _repository.messages;
-                        if (msgs.isNotEmpty) {
-                          final last =
-                              msgs
-                                  .where((m) => m.role == AppAiRole.assistant)
-                                  .lastOrNull ??
-                              msgs.last;
-                          ShareToConversationDialog.show(
-                            context,
-                            initialText:
-                                '🤖 alphajournal AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
-                          );
-                        }
-                      },
-                    ),
-                    UiMenuItem(
-                      label: 'Export transcript',
-                      icon: Icons.copy_all_outlined,
-                      onPressed: () => _exportConversation(context),
-                    ),
-                    UiMenuItem(
-                      label: 'Rename chat',
-                      icon: Icons.edit_outlined,
-                      onPressed: () => _showRenameDialog(context),
-                    ),
-                    const UiMenuItem.divider(),
-                    UiMenuItem(
-                      label: 'Clear messages',
-                      icon: Icons.delete_sweep_outlined,
-                      intent: UiIntent.warning,
-                      onPressed: () {
-                        _repository.clearActiveThread();
-                        UiToastScope.maybeOf(context)?.show(
-                          UiToastData(
-                            title: 'Chat Cleared',
-                            message: 'Conversation messages cleared.',
-                            intent: UiIntent.neutral,
-                          ),
+            dense: true,
+            trailing: <Widget>[
+              UiIconButton(
+                icon: Icons.add_comment_outlined,
+                tooltip: 'New chat',
+                size: UiSize.sm,
+                onPressed: () => _repository.newThread(),
+              ),
+              UiDropdownMenu(
+                alignRight: true,
+                items: <UiMenuItem>[
+                  UiMenuItem(
+                    label: 'Share to Messages',
+                    icon: Icons.send_outlined,
+                    onPressed: () {
+                      final msgs = _repository.messages;
+                      if (msgs.isNotEmpty) {
+                        final last =
+                            msgs
+                                .where((m) => m.role == AppAiRole.assistant)
+                                .lastOrNull ??
+                            msgs.last;
+                        ShareToConversationDialog.show(
+                          context,
+                          initialText:
+                              '🤖 alphajournal AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
                         );
-                      },
-                    ),
-                  ],
-                  child: UiIconButton(
-                    icon: Icons.more_vert_rounded,
-                    tooltip: 'Options',
-                    size: UiSize.sm,
-                    onPressed: null,
+                      }
+                    },
                   ),
+                  UiMenuItem(
+                    label: 'Export transcript',
+                    icon: Icons.copy_all_outlined,
+                    onPressed: () => _exportConversation(context),
+                  ),
+                  UiMenuItem(
+                    label: 'Rename chat',
+                    icon: Icons.edit_outlined,
+                    onPressed: () => _showRenameDialog(context),
+                  ),
+                  const UiMenuItem.divider(),
+                  UiMenuItem(
+                    label: 'Clear messages',
+                    icon: Icons.delete_sweep_outlined,
+                    intent: UiIntent.warning,
+                    onPressed: () {
+                      _repository.clearActiveThread();
+                      UiToastScope.maybeOf(context)?.show(
+                        UiToastData(
+                          title: 'Chat Cleared',
+                          message: 'Conversation messages cleared.',
+                          intent: UiIntent.neutral,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+                child: UiIconButton(
+                  icon: Icons.more_horiz_rounded,
+                  tooltip: 'Options',
+                  size: UiSize.sm,
+                  onPressed: null,
                 ),
-                if (widget.onOpenHistory != null)
-                  UiIconButton(
-                    icon: Icons.history_rounded,
-                    tooltip: 'History',
-                    size: UiSize.sm,
-                    onPressed: widget.onOpenHistory,
-                  ),
-              ],
-            ),
+              ),
+              if (widget.onOpenHistory != null)
+                UiIconButton(
+                  icon: Icons.history_rounded,
+                  tooltip: 'History',
+                  size: UiSize.sm,
+                  onPressed: widget.onOpenHistory,
+                ),
+            ],
           ),
-          const UiDivider(),
           Expanded(
             child: Center(
               child: ConstrainedBox(
@@ -310,110 +291,46 @@ class _AiChatViewState extends State<AiChatView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Hero Terminal Status Banner
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.sp(theme.spacing.md),
-                    vertical: context.sp(theme.spacing.sm),
+                Text(
+                  'Ask sharper questions.',
+                  style: context.uiText.display.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1.2,
                   ),
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: context.radius(theme.radii.lg),
-                    border: Border.all(
-                      color: colors.border.withValues(alpha: 0.8),
-                      width: theme.borders.hairline,
+                ),
+                SizedBox(height: context.sp(theme.spacing.xs)),
+                Text(
+                  'Turn market noise into a clear next move — with your journal, setups, and risk in context.',
+                  style: context.uiText.body.copyWith(
+                    color: colors.foregroundMuted,
+                    height: 1.45,
+                  ),
+                ),
+                SizedBox(height: context.sp(theme.spacing.md)),
+                Wrap(
+                  spacing: context.sp(theme.spacing.xs),
+                  runSpacing: context.sp(theme.spacing.xs),
+                  children: <Widget>[
+                    UiBadge(
+                      label: persona.label,
+                      icon: persona.icon,
+                      intent: UiIntent.primary,
+                      variant: UiBadgeVariant.soft,
+                      onTap: widget.onOpenPersona,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.primary.withValues(alpha: 0.04),
-                        blurRadius: 12,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: context.sz(38),
-                        height: context.sz(38),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              colors.primary,
-                              colors.bullish,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: context.radius(theme.radii.md),
-                        ),
-                        child: Icon(
-                          Icons.auto_awesome_rounded,
-                          color: colors.onPrimary,
-                          size: context.sz(20),
-                        ),
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.sm)),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'Quant Trading Copilot',
-                                  style: context.uiText.subheading.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(width: context.sp(theme.spacing.xs)),
-                                UiBadge(
-                                  label: 'L2 Engine',
-                                  intent: UiIntent.bullish,
-                                  variant: UiBadgeVariant.soft,
-                                  size: UiSize.xs,
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.xxs)),
-                            Wrap(
-                              spacing: context.sp(theme.spacing.xs),
-                              runSpacing: context.sp(theme.spacing.xxs),
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                UiBadge(
-                                  label: 'Lens: ${persona.label}',
-                                  icon: persona.icon,
-                                  intent: UiIntent.primary,
-                                  variant: UiBadgeVariant.soft,
-                                  size: UiSize.xs,
-                                  onTap: widget.onOpenPersona,
-                                ),
-                                UiBadge(
-                                  label: _repository.serviceAvailable
-                                      ? 'Online'
-                                      : 'Simulated',
-                                  icon: Icons.wifi_tethering_rounded,
-                                  intent: _repository.serviceAvailable
-                                      ? UiIntent.bullish
-                                      : UiIntent.neutral,
-                                  variant: UiBadgeVariant.soft,
-                                  size: UiSize.xs,
-                                ),
-                                UiBadge(
-                                  label: '${_repository.chartSetups.length} Live Setups',
-                                  icon: Icons.candlestick_chart_rounded,
-                                  intent: UiIntent.info,
-                                  variant: UiBadgeVariant.soft,
-                                  size: UiSize.xs,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    UiBadge(
+                      label: '${_repository.chartSetups.length} live setups',
+                      icon: Icons.show_chart_rounded,
+                      intent: UiIntent.bullish,
+                      variant: UiBadgeVariant.soft,
+                    ),
+                    UiBadge(
+                      label: 'Private by default',
+                      icon: Icons.lock_outline_rounded,
+                      intent: UiIntent.neutral,
+                      variant: UiBadgeVariant.outline,
+                    ),
+                  ],
                 ),
 
                 SizedBox(height: context.sp(theme.spacing.md)),
@@ -423,13 +340,13 @@ class _AiChatViewState extends State<AiChatView> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Core Capabilities',
+                      'Start with a direction',
                       style: context.uiText.subheading.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      '${_repository.capabilities.length} available',
+                      'Built for the way you trade',
                       style: context.uiText.caption.copyWith(
                         color: colors.foregroundMuted,
                       ),
@@ -535,7 +452,9 @@ class _AiChatViewState extends State<AiChatView> {
                                 width: ctx.sz(36),
                                 height: ctx.sz(36),
                                 decoration: BoxDecoration(
-                                  color: p.intent.color(ctx).withValues(alpha: 0.12),
+                                  color: p.intent
+                                      .color(ctx)
+                                      .withValues(alpha: 0.12),
                                   borderRadius: ctx.radius(theme.radii.md),
                                 ),
                                 child: Icon(
@@ -586,7 +505,10 @@ class _AiChatViewState extends State<AiChatView> {
 
                 if (_repository.quickPrompts.isNotEmpty) ...[
                   SizedBox(height: context.sp(theme.spacing.xl)),
-                  Text('Trending Market Inquiries', style: context.uiText.subheading),
+                  Text(
+                    'Trending Market Inquiries',
+                    style: context.uiText.subheading,
+                  ),
                   SizedBox(height: context.sp(theme.spacing.xs)),
                   Wrap(
                     spacing: context.sp(theme.spacing.xs),
@@ -611,128 +533,55 @@ class _AiChatViewState extends State<AiChatView> {
 
   Widget _buildComposerBar(BuildContext context) {
     final UiTheme theme = context.ui;
-    final UiColors colors = theme.colors;
+    final bool canSend =
+        _repository.serviceAvailable && !_repository.generating;
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(theme.spacing.md),
-        vertical: context.sp(theme.spacing.sm),
-      ),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border(
-          top: BorderSide(
-            color: colors.border.withValues(alpha: 0.8),
-            width: theme.borders.hairline,
-          ),
-        ),
+    void submit() {
+      final String trimmed = _emptyComposerController.text.trim();
+      if (trimmed.isEmpty || !canSend) return;
+      _emptyComposerController.clear();
+      _repository.sendPrompt(trimmed);
+    }
+
+    return UiCard(
+      variant: UiCardVariant.surface,
+      borderRadius: BorderRadius.zero,
+      padding: EdgeInsets.fromLTRB(
+        context.sp(theme.spacing.md),
+        context.sp(theme.spacing.sm),
+        context.sp(theme.spacing.md),
+        context.sp(theme.spacing.md),
       ),
       child: SafeArea(
         top: false,
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: <Widget>[
-            Tooltip(
-              message: 'Attach Trading Context',
-              child: Container(
-                width: context.sz(40),
-                height: context.sz(40),
-                decoration: BoxDecoration(
-                  color: colors.surfaceMuted,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: colors.border.withValues(alpha: 0.8),
-                    width: theme.borders.hairline,
-                  ),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.add_link_rounded,
-                    size: context.sz(20),
-                    color: colors.foreground,
-                  ),
-                  onPressed: () => _showAttachmentPicker(context),
-                  splashRadius: 20,
-                  padding: EdgeInsets.zero,
-                ),
-              ),
+            UiIconButton(
+              icon: Icons.add_link_rounded,
+              tooltip: 'Attach trading context',
+              size: UiSize.md,
+              onPressed: () => _showAttachmentPicker(context),
             ),
             SizedBox(width: context.sp(theme.spacing.xs)),
             Expanded(
-              child: Container(
-                constraints: BoxConstraints(
-                  minHeight: context.sz(40),
-                  maxHeight: context.sz(140),
-                ),
-                decoration: BoxDecoration(
-                  color: colors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(context.sz(20)),
-                  border: Border.all(
-                    color: colors.border.withValues(alpha: 0.8),
-                    width: theme.borders.hairline,
-                  ),
-                ),
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
-                ),
-                child: TextField(
-                  controller: _emptyComposerController,
-                  enabled: _repository.serviceAvailable && !_repository.generating,
-                  minLines: 1,
-                  maxLines: 4,
-                  style: context.uiText.body.copyWith(color: colors.foreground),
-                  decoration: InputDecoration(
-                    hintText: 'Message your AI trading coach…',
-                    hintStyle: context.uiText.body.copyWith(
-                      color: colors.foregroundMuted,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      vertical: context.sp(theme.spacing.xs),
-                    ),
-                  ),
-                  onSubmitted: (text) {
-                    final trimmed = text.trim();
-                    if (trimmed.isNotEmpty &&
-                        _repository.serviceAvailable &&
-                        !_repository.generating) {
-                      _emptyComposerController.clear();
-                      _repository.sendPrompt(trimmed);
-                    }
-                  },
-                ),
+              child: UiInput(
+                controller: _emptyComposerController,
+                hintText: 'Ask about a setup, risk, or your journal…',
+                enabled: canSend,
+                maxLines: 4,
+                minLines: 1,
+                onSubmitted: (_) => submit(),
+                semanticLabel: 'Copilot prompt',
               ),
             ),
             SizedBox(width: context.sp(theme.spacing.xs)),
-            Tooltip(
-              message: 'Send',
-              child: Container(
-                width: context.sz(40),
-                height: context.sz(40),
-                decoration: BoxDecoration(
-                  color: colors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.arrow_upward_rounded,
-                    size: context.sz(20),
-                    color: colors.onPrimary,
-                  ),
-                  onPressed: () {
-                    final trimmed = _emptyComposerController.text.trim();
-                    if (trimmed.isNotEmpty &&
-                        _repository.serviceAvailable &&
-                        !_repository.generating) {
-                      _emptyComposerController.clear();
-                      _repository.sendPrompt(trimmed);
-                    }
-                  },
-                  splashRadius: 20,
-                  padding: EdgeInsets.zero,
-                ),
-              ),
+            UiIconButton(
+              icon: Icons.arrow_upward_rounded,
+              tooltip: 'Send prompt',
+              intent: UiIntent.primary,
+              size: UiSize.md,
+              onPressed: canSend ? submit : null,
             ),
           ],
         ),

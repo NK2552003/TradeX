@@ -80,15 +80,104 @@ class AiSectionHeader extends StatelessWidget {
             child: Text(
               title,
               style: context.uiText.caption.copyWith(
-                color: theme.colors.foregroundSubtle,
+                color: theme.colors.foregroundMuted,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 0,
-                fontSize: context.fs(10.5),
+                letterSpacing: 1.15,
+                fontSize: context.fs(10),
               ),
             ),
           ),
           ?trailing,
         ],
+      ),
+    );
+  }
+}
+
+/// Quiet, editorial chrome for the Copilot workspace.
+///
+/// Omnirush keeps its product surface intentionally calm: one strong wordmark,
+/// a tiny status signal, and a single action. Keeping that hierarchy here makes
+/// the feature feel like a focused workbench instead of another dashboard.
+class AiConsoleHeader extends StatelessWidget {
+  const AiConsoleHeader({
+    super.key,
+    this.title = 'Copilot',
+    this.subtitle = 'Your market workspace',
+    this.trailing = const <Widget>[],
+  });
+
+  final String title;
+  final String subtitle;
+  final List<Widget> trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.background,
+        border: Border(
+          bottom: BorderSide(
+            color: colors.border,
+            width: theme.borders.hairline,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(theme.spacing.lg),
+            vertical: context.sp(theme.spacing.md),
+          ),
+          child: Row(
+            children: <Widget>[
+              Text(
+                'AJ',
+                style: context.uiText.label.copyWith(
+                  color: colors.foreground,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.8,
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.md)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style: context.uiText.heading.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: context.uiText.caption.copyWith(
+                        color: colors.foregroundMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              UiBadge(
+                label: 'LIVE',
+                icon: Icons.circle,
+                intent: UiIntent.bullish,
+                variant: UiBadgeVariant.soft,
+                size: UiSize.xs,
+              ),
+              for (final Widget action in trailing) ...<Widget>[
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                action,
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,0 +1,178 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1320" viewBox="0 0 1800 1320" role="img" aria-labelledby="title desc">
+  <title id="title">alphajournal AI Copilot IDE redesign mockups</title>
+  <desc id="desc">Static design preview showing desktop, tablet, and mobile AI Copilot IDE layouts.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d0d0d"/>
+      <stop offset="1" stop-color="#171717"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d1d1d"/>
+      <stop offset="1" stop-color="#151515"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity=".45"/>
+    </filter>
+    <style>
+      .ui { font-family: "DejaVu Sans", sans-serif; fill: #f2f2f0; }
+      .muted { fill: #92918e; }
+      .subtle { fill: #5f5e5b; }
+      .line { stroke: #30302f; stroke-width: 1; }
+      .tiny { font-size: 10px; letter-spacing: 1.4px; font-weight: 700; }
+      .label { font-size: 12px; }
+      .body { font-size: 13px; }
+      .title { font-size: 18px; font-weight: 700; }
+      .hero { font-size: 35px; font-weight: 800; letter-spacing: -1.8px; }
+      .green { fill: #83d2a3; }
+      .green-bg { fill: #193b2a; }
+      .surface { fill: #181818; }
+      .surface2 { fill: #20201f; }
+      .blue { fill: #9bb8e8; }
+      .yellow { fill: #e6c879; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1320" fill="url(#bg)"/>
+  <text x="70" y="74" class="ui title">AI COPILOT / IDE WORKSPACE</text>
+  <text x="70" y="104" class="ui muted body">A focused workbench for market questions, setups, and decisions.</text>
+  <text x="1730" y="74" text-anchor="end" class="ui subtle tiny">STATIC DESIGN PREVIEW · 2026</text>
+
+  <!-- Desktop frame -->
+  <g filter="url(#shadow)">
+    <rect x="70" y="150" width="1660" height="710" rx="14" fill="#0f0f0f" stroke="#383836"/>
+    <rect x="70" y="150" width="1660" height="42" rx="14" fill="#20201f"/>
+    <circle cx="96" cy="171" r="5" fill="#555451"/><circle cx="114" cy="171" r="5" fill="#555451"/><circle cx="132" cy="171" r="5" fill="#555451"/>
+    <text x="158" y="176" class="ui muted label">alphajournal / copilot</text>
+
+    <!-- activity rail -->
+    <rect x="70" y="192" width="68" height="668" fill="#171717"/>
+    <line x1="138" y1="192" x2="138" y2="860" class="line"/>
+    <text x="104" y="232" text-anchor="middle" class="ui title">AJ</text>
+    <rect x="86" y="254" width="36" height="36" rx="9" fill="#282827" stroke="#555451"/>
+    <text x="104" y="278" text-anchor="middle" class="ui body">⌁</text>
+    <text x="104" y="332" text-anchor="middle" class="ui muted body">◎</text>
+    <text x="104" y="382" text-anchor="middle" class="ui muted body">✦</text>
+    <text x="104" y="790" text-anchor="middle" class="ui muted body">◷</text>
+    <text x="104" y="826" text-anchor="middle" class="ui subtle body">⚙</text>
+
+    <!-- explorer -->
+    <rect x="138" y="192" width="292" height="668" fill="#181818"/>
+    <line x1="430" y1="192" x2="430" y2="860" class="line"/>
+    <text x="166" y="225" class="ui muted tiny">EXPLORER</text>
+    <text x="366" y="225" class="ui muted label">⌕  ＋</text>
+    <line x1="138" y1="244" x2="430" y2="244" class="line"/>
+    <text x="166" y="275" class="ui muted tiny">OPEN CONVERSATIONS</text>
+    <text x="166" y="316" class="ui label">▣  NIFTY50 breakout plan</text>
+    <text x="391" y="316" text-anchor="end" class="ui subtle label">12m</text>
+    <text x="184" y="340" class="ui muted label">Swing · 4 messages</text>
+    <rect x="154" y="363" width="258" height="62" rx="7" fill="#252524" stroke="#484846"/>
+    <rect x="154" y="363" width="2" height="62" fill="#f1f1ed"/>
+    <text x="171" y="389" class="ui label">▣  RELIANCE earnings setup</text>
+    <text x="395" y="389" text-anchor="end" class="ui subtle label">3h</text>
+    <text x="171" y="410" class="ui muted label">Momentum · 2 messages</text>
+    <text x="166" y="466" class="ui label">▣  Weekly options income</text>
+    <text x="391" y="466" text-anchor="end" class="ui subtle label">1d</text>
+    <text x="184" y="490" class="ui muted label">Options · 2 messages</text>
+    <line x1="154" y1="532" x2="414" y2="532" class="line"/>
+    <text x="166" y="566" class="ui muted tiny">WORKSPACE FILES</text>
+    <text x="166" y="606" class="ui label">◇  active-setups.json</text>
+    <text x="166" y="640" class="ui label">◇  journal-review.md</text>
+    <text x="166" y="674" class="ui label">◇  risk-playbook.md</text>
+
+    <!-- editor -->
+    <rect x="430" y="192" width="780" height="668" fill="#101010"/>
+    <line x1="430" y1="238" x2="1210" y2="238" class="line"/>
+    <rect x="430" y="192" width="2" height="46" fill="#f1f1ed"/>
+    <text x="454" y="220" class="ui muted body">⌁</text>
+    <text x="482" y="220" class="ui label">NIFTY50 breakout plan</text>
+    <text x="1174" y="220" text-anchor="end" class="ui muted body">＋  ×</text>
+    <text x="476" y="302" class="ui hero">Ask sharper<br/>questions.</text>
+    <text x="476" y="398" class="ui muted body">Turn market noise into a clear next move — with your journal,</text>
+    <text x="476" y="420" class="ui muted body">setups, and risk in context.</text>
+    <rect x="476" y="452" width="96" height="26" rx="13" class="green-bg"/>
+    <text x="524" y="469" text-anchor="middle" class="ui green tiny">SWING LENS</text>
+    <rect x="584" y="452" width="130" height="26" rx="13" fill="#252525"/>
+    <text x="649" y="469" text-anchor="middle" class="ui muted tiny">3 LIVE SETUPS</text>
+    <rect x="726" y="452" width="142" height="26" rx="13" fill="#252525"/>
+    <text x="797" y="469" text-anchor="middle" class="ui muted tiny">PRIVATE BY DEFAULT</text>
+    <text x="476" y="538" class="ui muted tiny">START WITH A DIRECTION</text>
+    <rect x="476" y="562" width="330" height="86" rx="8" fill="#1a1a1a" stroke="#30302f"/>
+    <text x="498" y="590" class="ui muted label">⌁  COMMAND</text>
+    <text x="498" y="616" class="ui body">Analyze a chart</text>
+    <text x="498" y="638" class="ui muted label">Detect structure, levels, and risk.</text>
+    <text x="781" y="616" text-anchor="end" class="ui muted body">→</text>
+    <rect x="824" y="562" width="330" height="86" rx="8" fill="#1a1a1a" stroke="#30302f"/>
+    <text x="846" y="590" class="ui muted label">◎  COMMAND</text>
+    <text x="846" y="616" class="ui body">Review my journal</text>
+    <text x="846" y="638" class="ui muted label">Find where edge is leaking.</text>
+    <text x="1129" y="616" text-anchor="end" class="ui muted body">→</text>
+    <rect x="462" y="718" width="716" height="58" rx="9" fill="#1d1d1d" stroke="#41413f"/>
+    <text x="486" y="753" class="ui muted body">＋  Ask about a setup, risk, or your journal…</text>
+    <circle cx="1144" cy="747" r="17" fill="#f1f1ed"/>
+    <text x="1144" y="753" text-anchor="middle" fill="#151515" class="body">↑</text>
+    <line x1="430" y1="810" x2="1210" y2="810" class="line"/>
+    <circle cx="458" cy="835" r="4" fill="#83d2a3"/>
+    <text x="470" y="839" class="ui muted tiny">CONNECTED</text>
+    <text x="1176" y="839" text-anchor="end" class="ui subtle tiny">SWING · 3 SETUPS    AI COPILOT</text>
+
+    <!-- inspector -->
+    <rect x="1210" y="192" width="520" height="668" fill="#181818"/>
+    <line x1="1210" y1="192" x2="1210" y2="860" class="line"/>
+    <text x="1240" y="225" class="ui muted tiny">WORKSPACE</text>
+    <text x="1240" y="264" class="ui title">Signal desk</text>
+    <text x="1240" y="287" class="ui muted label">Signals, notes, and ideas</text>
+    <line x1="1210" y1="310" x2="1730" y2="310" class="line"/>
+    <text x="1240" y="346" class="ui muted tiny">MARKET INSIGHTS</text>
+    <rect x="1240" y="370" width="460" height="102" rx="8" fill="#20201f" stroke="#30302f"/>
+    <text x="1265" y="402" class="ui muted label">ACTIVE</text><text x="1265" y="432" class="ui title">3</text>
+    <line x1="1358" y1="390" x2="1358" y2="450" class="line"/>
+    <text x="1385" y="402" class="ui muted label">HIGH CONVICTION</text><text x="1385" y="432" class="ui title">1</text>
+    <line x1="1518" y1="390" x2="1518" y2="450" class="line"/>
+    <text x="1545" y="402" class="ui muted label">LONG BIAS</text><text x="1545" y="432" class="ui title">2</text>
+    <text x="1240" y="518" class="ui muted tiny">ACTIONABLE SETUPS</text>
+    <rect x="1240" y="542" width="460" height="74" rx="8" fill="#1e1e1e" stroke="#30302f"/>
+    <circle cx="1266" cy="568" r="5" fill="#83d2a3"/>
+    <text x="1282" y="573" class="ui body">NIFTY50  /  Bull flag</text><text x="1675" y="573" text-anchor="end" class="ui green label">82%</text>
+    <text x="1282" y="596" class="ui muted label">15m · Trigger 24,280 · Target 24,540</text>
+    <rect x="1240" y="630" width="460" height="74" rx="8" fill="#1e1e1e" stroke="#30302f"/>
+    <circle cx="1266" cy="656" r="5" fill="#83d2a3"/>
+    <text x="1282" y="661" class="ui body">RELIANCE  /  Ascending triangle</text><text x="1675" y="661" text-anchor="end" class="ui green label">76%</text>
+    <text x="1282" y="684" class="ui muted label">1h · Trigger 2,985 · Target 3,060</text>
+  </g>
+
+  <!-- Tablet -->
+  <g filter="url(#shadow)">
+    <rect x="70" y="930" width="1010" height="320" rx="14" fill="#101010" stroke="#383836"/>
+    <text x="96" y="966" class="ui muted tiny">TABLET · 768 PX</text>
+    <rect x="70" y="986" width="52" height="264" fill="#171717"/>
+    <text x="96" y="1022" text-anchor="middle" class="ui title">AJ</text>
+    <rect x="82" y="1040" width="28" height="30" rx="7" fill="#2b2b2a"/>
+    <text x="96" y="1061" text-anchor="middle" class="ui body">⌁</text>
+    <text x="96" y="1100" text-anchor="middle" class="ui muted body">◎</text><text x="96" y="1135" text-anchor="middle" class="ui muted body">✦</text>
+    <rect x="122" y="986" width="246" height="264" fill="#181818"/>
+    <text x="146" y="1024" class="ui muted tiny">EXPLORER</text>
+    <text x="146" y="1070" class="ui label">▣  NIFTY50 breakout plan</text>
+    <rect x="136" y="1088" width="220" height="48" rx="7" fill="#252524" stroke="#484846"/>
+    <text x="150" y="1110" class="ui label">▣  RELIANCE earnings setup</text><text x="150" y="1127" class="ui muted label">Momentum · 2 messages</text>
+    <text x="146" y="1175" class="ui label">▣  Weekly options income</text>
+    <rect x="368" y="986" width="712" height="264" fill="#101010"/>
+    <text x="400" y="1030" class="ui title">Ask sharper questions.</text>
+    <text x="400" y="1058" class="ui muted body">Your setups and journal, in one focused workspace.</text>
+    <rect x="400" y="1085" width="294" height="70" rx="8" fill="#1a1a1a" stroke="#30302f"/><text x="420" y="1113" class="ui muted label">⌁  COMMAND</text><text x="420" y="1138" class="ui body">Analyze a chart</text>
+    <rect x="708" y="1085" width="294" height="70" rx="8" fill="#1a1a1a" stroke="#30302f"/><text x="728" y="1113" class="ui muted label">◎  COMMAND</text><text x="728" y="1138" class="ui body">Review my journal</text>
+    <rect x="400" y="1180" width="602" height="44" rx="8" fill="#1d1d1d" stroke="#41413f"/><text x="420" y="1207" class="ui muted body">＋  Ask a question…</text><circle cx="968" cy="1202" r="14" fill="#f1f1ed"/><text x="968" y="1207" text-anchor="middle" fill="#151515" class="body">↑</text>
+  </g>
+
+  <!-- Mobile -->
+  <g filter="url(#shadow)">
+    <rect x="1140" y="930" width="590" height="320" rx="14" fill="#101010" stroke="#383836"/>
+    <text x="1168" y="966" class="ui muted tiny">MOBILE · COMPACT EDITOR</text>
+    <rect x="1168" y="990" width="534" height="232" rx="10" fill="#181818" stroke="#30302f"/>
+    <text x="1192" y="1022" class="ui muted label">AJ</text><text x="1230" y="1022" class="ui title">Copilot</text><text x="1675" y="1022" text-anchor="end" class="ui green tiny">● LIVE</text>
+    <line x1="1168" y1="1044" x2="1702" y2="1044" class="line"/>
+    <text x="1192" y="1084" class="ui hero" style="font-size:25px">Ask sharper questions.</text>
+    <text x="1192" y="1114" class="ui muted body">Turn noise into a clear next move.</text>
+    <rect x="1192" y="1140" width="156" height="26" rx="13" class="green-bg"/><text x="1270" y="1157" text-anchor="middle" class="ui green tiny">SWING LENS</text>
+    <rect x="1192" y="1180" width="510" height="32" rx="8" fill="#20201f" stroke="#41413f"/><text x="1210" y="1202" class="ui muted label">＋  Ask about a setup…</text><text x="1678" y="1202" text-anchor="end" class="ui body">↑</text>
+  </g>
+</svg>

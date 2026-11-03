@@ -147,8 +147,15 @@ class _AiInsightsViewState extends State<AiInsightsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const AiSectionHeader(
-              title: 'Market Intelligence',
-              icon: Icons.lightbulb_outline_rounded,
+              title: 'Signal desk',
+              icon: Icons.radar_rounded,
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.md),
+                vertical: context.sp(theme.spacing.xs),
+              ),
+              child: _buildSignalSummary(allSetups),
             ),
             Padding(
               padding: EdgeInsets.symmetric(
@@ -167,11 +174,10 @@ class _AiInsightsViewState extends State<AiInsightsView> {
             ),
             SizedBox(height: context.sp(theme.spacing.sm)),
             const AiSectionHeader(
-              title: 'Institutional Setups',
+              title: 'Actionable setups',
               icon: Icons.candlestick_chart_rounded,
             ),
-            if (allSetups.length >= 2)
-              _buildSetupAnalytics(allSetups),
+            if (allSetups.length >= 2) _buildSetupAnalytics(allSetups),
             SizedBox(height: context.sp(theme.spacing.xs)),
 
             // Filter Tabs
@@ -191,21 +197,24 @@ class _AiInsightsViewState extends State<AiInsightsView> {
                     ),
                     SizedBox(width: context.sp(theme.spacing.xs)),
                     _filterChip(
-                      label: 'Longs (${allSetups.where((s) => s.direction == AiTradeDirection.long).length})',
+                      label:
+                          'Longs (${allSetups.where((s) => s.direction == AiTradeDirection.long).length})',
                       selected: _selectedFilter == 1,
                       intent: UiIntent.bullish,
                       onTap: () => setState(() => _selectedFilter = 1),
                     ),
                     SizedBox(width: context.sp(theme.spacing.xs)),
                     _filterChip(
-                      label: 'Shorts (${allSetups.where((s) => s.direction == AiTradeDirection.short).length})',
+                      label:
+                          'Shorts (${allSetups.where((s) => s.direction == AiTradeDirection.short).length})',
                       selected: _selectedFilter == 2,
                       intent: UiIntent.bearish,
                       onTap: () => setState(() => _selectedFilter = 2),
                     ),
                     SizedBox(width: context.sp(theme.spacing.xs)),
                     _filterChip(
-                      label: 'High Conviction ≥80% (${allSetups.where((s) => s.confidence >= 80).length})',
+                      label:
+                          'High Conviction ≥80% (${allSetups.where((s) => s.confidence >= 80).length})',
                       selected: _selectedFilter == 3,
                       intent: UiIntent.primary,
                       onTap: () => setState(() => _selectedFilter = 3),
@@ -219,6 +228,99 @@ class _AiInsightsViewState extends State<AiInsightsView> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSignalSummary(List<AiChartSetup> setups) {
+    final UiColors colors = context.ui.colors;
+    final int highConviction = setups.where((s) => s.confidence >= 80).length;
+    final int longs = setups
+        .where((s) => s.direction == AiTradeDirection.long)
+        .length;
+    return UiCard(
+      variant: UiCardVariant.subtle,
+      padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final List<Widget> stats = <Widget>[
+            _signalStat(
+              context,
+              'Active',
+              '${setups.length}',
+              Icons.radar_rounded,
+            ),
+            _signalStat(
+              context,
+              'High conviction',
+              '$highConviction',
+              Icons.bolt_rounded,
+            ),
+            _signalStat(
+              context,
+              'Long bias',
+              '$longs',
+              Icons.trending_up_rounded,
+            ),
+          ];
+          if (constraints.maxWidth < 360) {
+            return Wrap(
+              spacing: context.sp(context.ui.spacing.lg),
+              runSpacing: context.sp(context.ui.spacing.sm),
+              children: stats,
+            );
+          }
+          return Row(
+            children: <Widget>[
+              for (int i = 0; i < stats.length; i++) ...<Widget>[
+                if (i > 0)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.sp(context.ui.spacing.md),
+                    ),
+                    child: SizedBox(
+                      height: context.sz(32),
+                      child: VerticalDivider(color: colors.border),
+                    ),
+                  ),
+                Expanded(child: stats[i]),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _signalStat(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+  ) {
+    final UiColors colors = context.ui.colors;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(icon, size: context.sz(16), color: colors.foregroundMuted),
+        SizedBox(width: context.sp(context.ui.spacing.xs)),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(value, style: context.uiText.bodyStrong),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.uiText.caption.copyWith(
+                  color: colors.foregroundMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -336,7 +438,10 @@ class _AiInsightsViewState extends State<AiInsightsView> {
                 color: colors.foregroundMuted,
               ),
               SizedBox(height: context.sp(theme.spacing.xs)),
-              Text('No chart setups match this filter.', style: context.uiText.body),
+              Text(
+                'No chart setups match this filter.',
+                style: context.uiText.body,
+              ),
             ],
           ),
         ),
@@ -411,7 +516,9 @@ class _AiInsightsViewState extends State<AiInsightsView> {
                       SizedBox(width: context.sp(theme.spacing.xxs)),
                       UiBadge(
                         label: '${setup.confidence}%',
-                        intent: setup.confidence >= 80 ? UiIntent.primary : UiIntent.neutral,
+                        intent: setup.confidence >= 80
+                            ? UiIntent.primary
+                            : UiIntent.neutral,
                         variant: UiBadgeVariant.outline,
                         size: UiSize.xs,
                       ),
