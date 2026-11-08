@@ -39,7 +39,7 @@ import 'package:tradex/features/settings/presentation/pages/shared/settings_root
 import 'package:tradex/features/strategies/ui/strategies_screen.dart';
 import 'package:tradex/features/community/community.dart';
 import 'package:tradex/features/messages/messages.dart';
-import 'package:tradex/features/ai_assistant/ai_assistant.dart';
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/core/widgets/app_global_notifications_page.dart';
 import 'package:tradex/core/widgets/app_notifications_overlay.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
@@ -138,13 +138,11 @@ class _AppScaffoldState extends State<AppScaffold> {
   AffiliateApplicationStatus? _affiliateApplicationStatus;
   late final CommunityRepository _communityRepo = CommunityRepository();
   late final MessagesRepository _messagesRepo = MessagesRepository();
-  late final AiAssistantRepository _aiRepo = AiAssistantRepository(
-    communityRepository: _communityRepo,
-  );
+  late final CopilotController _aiRepo = CopilotController();
   final GlobalKey<MessagesRootScreenState> _messagesKey =
       GlobalKey<MessagesRootScreenState>();
-  final GlobalKey<AiAssistantRootScreenState> _aiKey =
-      GlobalKey<AiAssistantRootScreenState>();
+  final GlobalKey<CopilotScreenState> _aiKey =
+      GlobalKey<CopilotScreenState>();
   String _messagesQuery = '';
   String _aiQuery = '';
 
@@ -249,7 +247,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     // own detached repository and messages sent from other features never
     // appear in the Messages tab.
     MessagesRepositoryScope.repository = _messagesRepo;
-    AiAssistantRepositoryScope.repository = _aiRepo;
+    CopilotScope.repository = _aiRepo;
 
     _loadIdentity();
     _loadUnread();
@@ -1243,7 +1241,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   Widget _aiAssistantPage() {
-    return AiAssistantRootScreen(
+    return CopilotScreen(
       key: _aiKey,
       userRole: _effectiveRole,
       currentUser: _chromeIdentity,

@@ -145,67 +145,41 @@ class _UiCardState extends State<UiCard> {
         EdgeInsets.all(
           context.sp(r.isMobile ? theme.spacing.md : theme.spacing.lg) * f,
         );
-    final bool tappable = widget.enabled && widget.onTap != null;
+    final bool hasAction = widget.onTap != null || widget.onLongPress != null;
+    final bool tappable = widget.enabled && hasAction;
 
-    return UiInteractive(
-      enabled: tappable,
-      onTap: widget.onTap,
-      onLongPress: widget.onLongPress,
-      selected: widget.selected,
-      semanticLabel: widget.semanticLabel ?? widget.title,
-      cursor: tappable ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      trackHover: widget.motion && widget.hoverLift,
-      builder: (BuildContext ctx, UiInteractiveState s) {
-        final bool active = widget.motion && tappable && s.active;
-        final _CardSkin skin = _skin(ctx, active, tint);
-        final BoxDecoration decoration = BoxDecoration(
-          color: skin.gradient == null
-              ? (widget.selected
-                    ? Color.alphaBlend(
-                        tint.withValues(alpha: 0.06),
-                        skin.background,
-                      )
-                    : skin.background)
-              : null,
-          gradient: skin.gradient,
-          borderRadius: radius,
-          border: widget.borderless
-              ? null
-              : Border.all(
-                  color: widget.selected
-                      ? tint.withValues(alpha: 0.45)
-                      : skin.borderColor,
-                  width: theme.borders.hairline,
-                ),
-          boxShadow: skin.shadow,
-        );
+    Widget surface(BuildContext ctx, UiInteractiveState s) {
+      final bool active = widget.motion && tappable && s.active;
+      final _CardSkin skin = _skin(ctx, active, tint);
+      final BoxDecoration decoration = BoxDecoration(
+        color: skin.gradient == null
+            ? (widget.selected
+                  ? Color.alphaBlend(
+                      tint.withValues(alpha: 0.06),
+                      skin.background,
+                    )
+                  : skin.background)
+            : null,
+        gradient: skin.gradient,
+        borderRadius: radius,
+        border: widget.borderless
+            ? null
+            : Border.all(
+                color: widget.selected
+                    ? tint.withValues(alpha: 0.45)
+                    : skin.borderColor,
+                width: theme.borders.hairline,
+              ),
+        boxShadow: skin.shadow,
+      );
 
-        final Widget inner = Opacity(
-          opacity: widget.enabled ? 1 : 0.55,
-          child: _cardContent(ctx, pad, f, radius),
-        );
+      final Widget inner = Opacity(
+        opacity: widget.enabled ? 1 : 0.55,
+        child: _cardContent(ctx, pad, f, radius),
+      );
 
-        if (!widget.motion) {
-          return Container(
-            constraints: widget.minHeight == null
-                ? null
-                : BoxConstraints(minHeight: widget.minHeight!),
-            decoration: decoration,
-            foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
-            clipBehavior: Clip.antiAlias,
-            child: inner,
-          );
-        }
-
-        return AnimatedContainer(
-          duration: theme.motion.fast,
-          curve: theme.motion.curve,
-          transform: s.pressed
-              ? Matrix4.diagonal3Values(0.985, 0.985, 1)
-              : widget.hoverLift && s.hovered
-              ? Matrix4.translationValues(0.0, -ctx.sz(2), 0.0)
-              : Matrix4.identity(),
-          transformAlignment: Alignment.center,
+      if (!widget.motion) {
+        return Container(
           constraints: widget.minHeight == null
               ? null
               : BoxConstraints(minHeight: widget.minHeight!),
@@ -214,7 +188,54 @@ class _UiCardState extends State<UiCard> {
           clipBehavior: Clip.antiAlias,
           child: inner,
         );
-      },
+      }
+
+      return AnimatedContainer(
+        duration: theme.motion.fast,
+        curve: theme.motion.curve,
+        transform: s.pressed
+            ? Matrix4.diagonal3Values(0.985, 0.985, 1)
+            : widget.hoverLift && s.hovered
+            ? Matrix4.translationValues(0.0, -ctx.sz(2), 0.0)
+            : Matrix4.identity(),
+        transformAlignment: Alignment.center,
+        constraints: widget.minHeight == null
+            ? null
+            : BoxConstraints(minHeight: widget.minHeight!),
+        decoration: decoration,
+        foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
+        clipBehavior: Clip.antiAlias,
+        child: inner,
+      );
+    }
+
+    // A surface containing form controls is not a disabled button. Avoid an
+    // interaction wrapper so its cursor, semantics and tab order stay neutral.
+    if (!hasAction) {
+      return Semantics(
+        label: widget.semanticLabel,
+        enabled: widget.enabled ? null : false,
+        child: surface(
+          context,
+          UiInteractiveState(
+            hovered: false,
+            pressed: false,
+            focused: false,
+            enabled: widget.enabled,
+            selected: widget.selected,
+          ),
+        ),
+      );
+    }
+    return UiInteractive(
+      enabled: widget.enabled,
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
+      selected: widget.selected,
+      semanticLabel: widget.semanticLabel ?? widget.title,
+      cursor: SystemMouseCursors.click,
+      trackHover: widget.motion && widget.hoverLift,
+      builder: surface,
     );
   }
 
@@ -514,10 +535,7 @@ class _UiCardHeader extends StatelessWidget {
                 ],
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
-              Align(
-                alignment: Alignment.centerRight,
-                child: trailing!,
-              ),
+              Align(alignment: Alignment.centerRight, child: trailing!),
             ],
           );
         }

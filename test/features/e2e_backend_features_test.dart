@@ -1,3 +1,4 @@
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
@@ -18,7 +19,6 @@ import 'package:tradex/features/settings/data/repositories/billing_settings_repo
 import 'package:tradex/features/settings/data/repositories/notification_prefs_repository.dart';
 import 'package:tradex/features/settings/models/notification_prefs_model.dart';
 import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
-import 'package:tradex/features/ai_assistant/data/ai_repository.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -367,21 +367,12 @@ void main() {
       expect(exportStatus.downloadUrl, isNull);
     });
 
-    test('12. AI Trading Assistant End-to-End', () async {
-      final repo = AiRepositoryImpl();
-      final insights = await repo.getInsights();
-      expect(insights, isNotEmpty);
-
-      final firstInsight = insights.first;
-      expect(firstInsight.confidence, greaterThan(0.0));
-      expect(firstInsight.title, isNotEmpty);
-
-      final requested = await repo.requestInsight(
-        kind: 'pattern_scan',
-        ticker: 'NIFTY50',
-      );
-      expect(requested.tickers, contains('NIFTY50'));
-      expect(requested.confidence, greaterThan(0.8));
+    test('12. Copilot starts without invented account content', () {
+      final controller = CopilotController(autoLoad: false);
+      addTearDown(controller.dispose);
+      expect(controller.workspace.threads, isEmpty);
+      expect(controller.workspace.pages, isEmpty);
+      expect(controller.workspace.specialists, isNotEmpty);
     });
   });
 }

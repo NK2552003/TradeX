@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/ai_assistant/ai_assistant.dart';
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_send_dm_dialog.dart';
 
@@ -111,9 +111,9 @@ class CommunityShareSheet extends StatelessWidget {
                 '"${post.body}"\n\n'
                 'Provide sentiment breakdown, technical setup validity, and potential counter-thesis risks.';
 
-            AiAssistantOverlaySheet.show(
+            CopilotSheet.show(
               context,
-              repository: AiAssistantRepositoryScope.repository,
+              repository: CopilotScope.repository,
               initialPrompt: prompt,
               contextTitle: 'Post by @${post.author.handle}',
               contextSubtitle: post.body.length > 50

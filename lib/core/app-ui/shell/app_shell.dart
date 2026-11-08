@@ -577,17 +577,17 @@ class _AppShellState extends State<AppShell> {
           pageDuration: theme.motion.normal,
         ),
       );
-      Widget dockLayer = dockScaffold;
-
       // The selected More destination owns the center slot. Keep the dock's
       // original hit target underneath so tapping it reopens the chooser, and
       // add a small arrow overlay to communicate that it can be changed.
-      if (moreRouteSelected && !keyboardVisible) {
-        const double centerSlotSize = 56;
-        dockLayer = Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            dockScaffold,
+      // Keep this Stack mounted when the keyboard opens. Switching between
+      // Stack -> dock and a bare dock disposes the page (including form state).
+      const double centerSlotSize = 56;
+      final Widget dockLayer = Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          dockScaffold,
+          if (moreRouteSelected && !keyboardVisible)
             Positioned(
               left: (mediaQuery.size.width - centerSlotSize) / 2,
               bottom: mediaQuery.padding.bottom + dockMargin,
@@ -609,9 +609,8 @@ class _AppShellState extends State<AppShell> {
                 ),
               ),
             ),
-          ],
-        );
-      }
+        ],
+      );
 
       // The header is intentionally outside QuietDockScaffold's PageView so
       // only screen content participates in destination swipe transitions.

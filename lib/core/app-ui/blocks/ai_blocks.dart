@@ -26,6 +26,10 @@ class AppAiChatBlock extends StatefulWidget {
     this.emptyTitle = 'Ask about your trading',
     this.emptyMessage =
         'Summarise this week, review a setup, or stress-test a strategy.',
+    this.emptyState,
+    this.composerController,
+    this.composerHint = 'Message your AI trading coach',
+    this.canSend = true,
   });
 
   final List<AppAiMessage> messages;
@@ -48,23 +52,55 @@ class AppAiChatBlock extends StatefulWidget {
   messageBuilder;
   final String emptyTitle;
   final String emptyMessage;
+  final Widget? emptyState;
+  final TextEditingController? composerController;
+  final String composerHint;
+  final bool canSend;
 
   @override
   State<AppAiChatBlock> createState() => _AppAiChatBlockState();
 }
 
 class _AppAiChatBlockState extends State<AppAiChatBlock> {
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller =
+      widget.composerController ?? TextEditingController();
   final ScrollController _scroll = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    _followEnd();
+  }
+
+  @override
+  void didUpdateWidget(AppAiChatBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.messages.length != widget.messages.length ||
+        oldWidget.messages.lastOrNull?.body !=
+            widget.messages.lastOrNull?.body) {
+      if (!_scroll.hasClients || _scroll.position.extentAfter < 100) {
+        _followEnd();
+      }
+    }
+  }
+
+  void _followEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
   void dispose() {
-    _controller.dispose();
+    if (widget.composerController == null) _controller.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
   void _send() {
+    if (!widget.canSend || widget.generating) return;
     final String text = _controller.text.trim();
     if (text.isEmpty) return;
     widget.onSend(text);
@@ -87,11 +123,12 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
       children: <Widget>[
         Expanded(
           child: widget.messages.isEmpty
-              ? UiEmptyState(
-                  title: widget.emptyTitle,
-                  message: widget.emptyMessage,
-                  icon: Icons.auto_awesome,
-                )
+              ? widget.emptyState ??
+                    UiEmptyState(
+                      title: widget.emptyTitle,
+                      message: widget.emptyMessage,
+                      icon: Icons.auto_awesome,
+                    )
               : ListView.builder(
                   controller: _scroll,
                   padding: EdgeInsets.symmetric(
@@ -140,7 +177,8 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
             Expanded(
               child: UiInput(
                 controller: _controller,
-                hintText: 'Message your AI trading coach',
+                hintText: widget.composerHint,
+                enabled: widget.canSend && !widget.generating,
                 maxLines: 4,
                 minLines: 1,
                 onSubmitted: (_) => _send(),
@@ -159,7 +197,7 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
                 icon: Icons.arrow_upward,
                 variant: UiVariant.primary,
                 tooltip: 'Send',
-                onPressed: _send,
+                onPressed: widget.canSend ? _send : null,
               ),
           ],
         ),

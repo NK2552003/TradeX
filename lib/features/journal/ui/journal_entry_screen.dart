@@ -16,7 +16,7 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 import '../data/journal_attachments.dart';
 import '../data/journal_repository.dart';
 import 'package:tradex/features/community/data/unified_comments_repository.dart';
-import 'package:tradex/features/ai_assistant/ai_assistant.dart';
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
 import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
@@ -549,9 +549,9 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
         'Trader Notes:\n${_entry.content.isNotEmpty ? _entry.content : (_entry.notes ?? '')}\n\n'
         'Evaluate execution discipline, risk management, and recommend actionable adjustments for future setups.';
 
-    AiAssistantOverlaySheet.show(
+    CopilotSheet.show(
       context,
-      repository: AiAssistantRepositoryScope.repository,
+      repository: CopilotScope.repository,
       initialPrompt: prompt,
       contextTitle: '${_entry.ticker} (${_entry.side.name.toUpperCase()})',
       contextSubtitle:

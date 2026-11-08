@@ -16,7 +16,7 @@ import 'package:tradex/features/community/presentation/views/community_moderatio
 import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
 import 'package:tradex/features/community/presentation/views/community_profile_view.dart';
 import 'package:tradex/features/community/presentation/views/community_search_page.dart';
-import 'package:tradex/features/community/presentation/widgets/community_ai_assistant_dialog.dart';
+import 'package:tradex/features/community/presentation/widgets/community_copilot_launcher.dart';
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
@@ -673,8 +673,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
               Positioned(
                 right: floatingRight,
                 bottom: floatingBottom,
-                child: CommunityAiFloatingBar(
-                  repository: _repo,
+                child: CommunityCopilotLauncher(
                   onCompose: _showComposer,
                   showCompose: isMobile && onFeedTab,
                 ),

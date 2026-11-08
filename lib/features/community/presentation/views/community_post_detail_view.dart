@@ -11,7 +11,7 @@ import 'package:tradex/features/community/presentation/widgets/community_trade_s
 import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
-import 'package:tradex/features/ai_assistant/ai_assistant.dart';
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/community/presentation/widgets/community_send_dm_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_share_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
@@ -437,9 +437,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                         '"${post.body}"\n\n'
                         'Provide sentiment breakdown, technical setup validity, and potential counter-thesis risks.';
 
-                    AiAssistantOverlaySheet.show(
+                    CopilotSheet.show(
                       context,
-                      repository: AiAssistantRepositoryScope.repository,
+                      repository: CopilotScope.repository,
                       initialPrompt: prompt,
                       contextTitle: 'Post by @${post.author.handle}',
                       contextSubtitle: post.body.length > 50
@@ -547,9 +547,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                   '"${post.body}"\n\n'
                   'Provide sentiment breakdown, technical setup validity, and potential counter-thesis risks.';
 
-              AiAssistantOverlaySheet.show(
+              CopilotSheet.show(
                 context,
-                repository: AiAssistantRepositoryScope.repository,
+                repository: CopilotScope.repository,
                 initialPrompt: prompt,
                 contextTitle: 'Post by @${post.author.handle}',
                 contextSubtitle: post.body.length > 50
