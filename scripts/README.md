@@ -38,3 +38,51 @@ The refresh orchestrator removes `DATABASE_URL` from child processes, so this
 command changes local assets and SQL files only. Applying SQL to a database is a
 separate operation. Yahoo failures may retain older snapshots or leave a category
 empty; inspect timestamps and refresh logs before treating bundled data as current.
+
+### Production market/news workflow
+
+`.github/workflows/supabase-market-sync.yml` validates pull requests and the
+`fix/copilot` branch without publishing. Scheduled runs (every six hours),
+`main` changes, and manual live runs publish through
+`scripts/sync_market_pipeline.py`. Set repository secrets `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY`; no extra market/news API key is required.
+`OPEN_AI_KEY` remains exclusively for the Dart copilot service.
+
+The pipeline preserves the existing database fields. It fetches two years of
+real daily OHLCV, authenticated Yahoo company profiles/fundamentals via
+`yfinance`, fresh quotes with **provider timestamps**, ranked screeners and
+Yahoo/RSS news. Existing quoted symbols are included alongside the full curated
+US/India/crypto universe. No historical prices are deleted. Missing provider
+values preserve stored details instead of replacing them with zero or null.
+
+News uses the provider's best thumbnail, RSS media/enclosures, then publisher
+Open Graph/Twitter images and descriptions. Original publication dates and all
+reported ticker associations survive deduplication. Recent articles with missing
+images are rechecked; only the previous pipeline's six generic photo placeholders
+are removed. A publisher may provide no accessible image; the UI retains its
+honest fallback in that case.
+
+Scopes `all`, `quotes`, `history`, `news`, and `screeners` perform only the
+selected dataset work and required dependencies. `fetch_live: false` in Actions
+runs offline checks only. There is no automatic fallback to stale bundled data.
+Confirmed writes, per-symbol coverage, latest dates, missing fields, publisher
+coverage and failures appear in the job summary and a 30-day JSON artifact.
+Incomplete market coverage preserves the previous screener ranking and fails
+the run. Database errors fail immediately; partial successful writes remain
+safe to rerun. Market publishing jobs queue rather than cancel one another.
+
+Read-only diagnostics (no Supabase credentials needed):
+
+```sh
+python -m pip install -r scripts/requirements.txt
+python -m unittest discover -s test/scripts -p 'test_*.py' -v
+python scripts/sync_market_pipeline.py --dry-run --symbols AAPL,RELIANCE.NS,BTC-USD --report /tmp/market-report.json
+```
+
+For a provider outage, inspect the artifact, then rerun the affected scope.
+Retired SQ, ZOMATO.NS, LTIM.NS and TATAMOTORS.NS remain archived;
+the universe fetches XYZ, ETERNAL.NS, LTM.NS and the separate TMCV.NS/TMPV.NS
+listings. Historical bars are never copied across a rename or demerger. Other
+delisted/renamed symbols are reported explicitly. An empty or stale feed fails coverage checks; archived records
+remain available. The app loads the latest history in chronological order and
+fetches sparklines for visible instruments that were not prefetched.

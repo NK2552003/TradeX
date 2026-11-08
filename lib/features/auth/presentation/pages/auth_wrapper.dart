@@ -467,24 +467,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Widget build(BuildContext context) {
     final colors = context.uiColors;
 
-    // Route Guard Splash / Loading State:
-    // Shows the animated brand splash screen while restoring session or on cold launch.
-    // On web, the kinetic HTML splash screen in index.html is used; in-app splash is disabled.
-    if (!kIsWeb &&
-        ((_isAuthLoading && !_splashCompleted) ||
-            _sessionState.stage == AuthStage.splash)) {
+    // Keep the same brand splash visible until session restoration resolves.
+    // Completing its animation never bypasses the pending authentication check.
+    if (_isAuthLoading || _sessionState.stage == AuthStage.splash) {
       return ColoredBox(
         color: colors.background,
-        child: SplashScreen(
-          onFinish: _onSplashFinish,
-        ),
-      );
-    }
-
-    if (_isAuthLoading) {
-      return ColoredBox(
-        color: colors.background,
-        child: kIsWeb ? const SizedBox.shrink() : const _AuthLoadingScreen(),
+        child: SplashScreen(onFinish: _onSplashFinish),
       );
     }
 
@@ -738,60 +726,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
     return ColoredBox(
       color: colors.background,
       child: UiStaggeredPageTransition(child: stageWidget),
-    );
-  }
-}
-
-/// Minimalist, high-performance loading screen matching the design system
-/// shown during auth session verification to prevent UI flashing.
-class _AuthLoadingScreen extends StatelessWidget {
-  const _AuthLoadingScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.ui;
-    final colors = theme.colors;
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const AppLogoMark(size: 40, progress: 1.0),
-            SizedBox(height: context.sp(theme.spacing.lg)),
-            Text(
-              'alphajournal',
-              style: context.uiText.display.copyWith(
-                fontSize: 32,
-                color: colors.foreground,
-                fontWeight: FontWeight.w500,
-                letterSpacing: -1.0,
-              ),
-            ),
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Text(
-              'Restoring secure session...',
-              style: context.uiText.caption.copyWith(
-                color: colors.foregroundSubtle,
-                letterSpacing: 0.2,
-              ),
-            ),
-            SizedBox(height: context.sp(theme.spacing.xl)),
-            SizedBox(
-              width: context.sz(120),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: LinearProgressIndicator(
-                  minHeight: 2,
-                  backgroundColor: colors.border,
-                  valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

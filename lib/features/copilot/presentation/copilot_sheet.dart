@@ -19,50 +19,35 @@ class CopilotSheet {
     VoidCallback? onOpenFullScreen,
   }) {
     if (!repository.generating) repository.newConversation();
-    return UiDialog.present<void>(
-      context: context,
-      builder: (context) => Padding(
-        padding: MediaQuery.viewInsetsOf(context),
-        child: UiCard(
-          padding: EdgeInsets.zero,
-          borderless: true,
-          child: Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.all(context.sp(context.ui.spacing.sm)),
-                child: Row(
-                  children: [
-                    UiIconButton(
-                      icon: Icons.close,
-                      tooltip: 'Close copilot',
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    Expanded(
-                      child: Text(
-                        contextTitle ?? 'Copilot',
-                        style: context.uiText.heading,
-                      ),
-                    ),
-                    if (onOpenFullScreen != null)
-                      UiButton(
-                        label: 'Open workspace',
-                        variant: UiVariant.ghost,
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          onOpenFullScreen();
-                        },
-                      ),
-                  ],
-                ),
+    return UiDrawer.show<void>(
+      context,
+      title: contextTitle ?? 'Copilot',
+      width: 600,
+      fromRight: true,
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
+      footer: onOpenFullScreen == null
+          ? null
+          : Builder(
+              builder: (context) => UiButton(
+                label: 'Open workspace',
+                variant: UiVariant.ghost,
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  onOpenFullScreen();
+                },
               ),
-              Expanded(
-                child: CopilotScreen(
-                  repository: repository,
-                  initialPrompt: initialPrompt,
-                  onOpenRef: onOpenRef,
-                ),
-              ),
-            ],
+            ),
+      child: LayoutBuilder(
+        builder: (context, constraints) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(size: constraints.biggest, viewInsets: EdgeInsets.zero),
+          child: CopilotScreen(
+            repository: repository,
+            initialPrompt: initialPrompt,
+            onOpenRef: onOpenRef,
+            embedInScaffold: false,
           ),
         ),
       ),

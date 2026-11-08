@@ -33,6 +33,7 @@ class UiDrawer extends StatelessWidget {
     required Widget child,
     Widget? footer,
     bool fromRight = true,
+    double width = 420,
     bool scrollable = true,
     bool showHeader = true,
     EdgeInsetsGeometry? contentPadding,
@@ -59,7 +60,7 @@ class UiDrawer extends StatelessWidget {
                   ? Alignment.bottomCenter
                   : (fromRight ? Alignment.centerRight : Alignment.centerLeft),
               child: SizedBox(
-                width: mobile ? double.infinity : ctx.sz(420),
+                width: mobile ? double.infinity : ctx.sz(width),
                 height: mobile ? box.maxHeight * .94 : box.maxHeight,
                 child: UiCard(
                   key: const ValueKey('ui-drawer-surface'),

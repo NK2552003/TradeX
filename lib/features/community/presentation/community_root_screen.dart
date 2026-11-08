@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
@@ -316,9 +318,8 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   void _openSubpage({
     required Widget page,
     required String title,
-    bool forceInline = false,
   }) {
-    if (context.uiRes.isDesktop && !forceInline && _activeSubpage == null) {
+    if (context.uiRes.isDesktop && _activeSubpage == null) {
       _desktopPanelDepth++;
       unawaited(
         showSettingsSideSheet<void>(
@@ -335,7 +336,12 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
               child: page,
             ),
           ),
-        ).whenComplete(() => _desktopPanelDepth--),
+        ).whenComplete(() {
+          _desktopPanelDepth--;
+          if (page is CommunityPostDetailView && _activePostId == page.post.id) {
+            _activePostId = null;
+          }
+        }),
       );
       return;
     }
@@ -430,7 +436,8 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       );
       return;
     }
-    if (_activePostId == post.id && _activeSubpage is CommunityPostDetailView) {
+    if (_activePostId == post.id &&
+        (_activeSubpage is CommunityPostDetailView || _desktopPanelDepth > 0)) {
       return;
     }
     _activePostId = post.id;
@@ -438,7 +445,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       _lastHandledRequestSeq = widget.openRequest!.seq;
     }
 
-    // Dismiss any active desktop side sheet so the full desktop view is displayed cleanly
+    // Replace the active panel when following another post.
     if (_desktopPanelDepth > 0) {
       Navigator.of(context, rootNavigator: true).maybePop();
     }
@@ -465,7 +472,6 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         onTagTap: _handleTagTap,
         onPostTap: _openPostDetail,
       ),
-      forceInline: true,
     );
   }
 

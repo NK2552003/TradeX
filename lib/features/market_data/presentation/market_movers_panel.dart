@@ -56,21 +56,7 @@ class MarketQuoteRow extends StatelessWidget {
                 flex: 2,
                 child: UiTooltip(
                   message: 'Daily closing prices',
-                  child: quote.spark.length > 1
-                      ? UiSparkChart(
-                          data: quote.spark
-                              .skip(
-                                (quote.spark.length - 24).clamp(
-                                  0,
-                                  quote.spark.length,
-                                ),
-                              )
-                              .toList(),
-                          color: color,
-                          filled: true,
-                          height: context.sz(36),
-                        )
-                      : Text('No history', style: context.uiText.caption),
+                  child: _QuoteHistory(quote: quote, color: color),
                 ),
               ),
             ],
@@ -191,6 +177,51 @@ class _MarketMoversPanelState extends State<MarketMoversPanel> {
             onTap: _open,
           ),
         ],
+      );
+    },
+  );
+}
+
+class _QuoteHistory extends StatefulWidget {
+  const _QuoteHistory({required this.quote, required this.color});
+  final MarketInstrument quote;
+  final Color color;
+
+  @override
+  State<_QuoteHistory> createState() => _QuoteHistoryState();
+}
+
+class _QuoteHistoryState extends State<_QuoteHistory> {
+  late Future<List<double>> _history = _load();
+
+  Future<List<double>> _load() => widget.quote.spark.length > 1
+      ? Future.value(widget.quote.spark)
+      : AssetMarketRepository.shared.getSpark(widget.quote.symbol);
+
+  @override
+  void didUpdateWidget(covariant _QuoteHistory oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.quote != widget.quote) _history = _load();
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<double>>(
+    future: _history,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done) {
+        return UiSkeleton(height: context.sz(36));
+      }
+      final points = snapshot.data ?? const <double>[];
+      if (points.length < 2) {
+        return Text('No history', style: context.uiText.caption);
+      }
+      return UiSparkChart(
+        data: points
+            .skip((points.length - 24).clamp(0, points.length))
+            .toList(),
+        color: widget.color,
+        filled: true,
+        height: context.sz(36),
       );
     },
   );
