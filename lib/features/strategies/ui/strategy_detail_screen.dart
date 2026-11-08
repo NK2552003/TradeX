@@ -16,7 +16,7 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 import '../data/strategies_repository.dart';
 import '../data/strategy_attachments.dart';
 import 'revision_note_prompt.dart';
-import 'package:tradex/features/ai_assistant/ai_assistant.dart';
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/community/data/unified_comments_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
@@ -638,9 +638,9 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
         'Playbook Rules:\n${_strategy.content}\n\n'
         'Provide mathematical risk analysis, edge evaluation, failure modes to protect against, and proposed rule enhancements.';
 
-    AiAssistantOverlaySheet.show(
+    CopilotSheet.show(
       context,
-      repository: AiAssistantRepositoryScope.repository,
+      repository: CopilotScope.repository,
       initialPrompt: prompt,
       contextTitle: _strategy.name,
       contextSubtitle:

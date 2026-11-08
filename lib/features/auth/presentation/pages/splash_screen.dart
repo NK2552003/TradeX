@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 
 /// Elegant, minimalist splash screen inspired by Claude's own launch screen —
 /// the animated brand mark is painted in pure Dart (see `AppLogoMark`),
@@ -95,16 +97,10 @@ class _SplashScreenState extends State<SplashScreen>
                       SizedBox(height: context.sp(theme.spacing.xl)),
                       SizedBox(
                         width: context.sz(120),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: _animController.value,
-                            backgroundColor: colors.border,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              colors.primary,
-                            ),
-                            minHeight: 1.5,
-                          ),
+                        child: UiProgressBar(
+                          value: _animController.value,
+                          showValue: false,
+                          thickness: 1.5,
                         ),
                       ),
                     ],

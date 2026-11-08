@@ -15,7 +15,7 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 
 import '../data/note_attachments.dart';
 import '../data/notes_repository.dart';
-import 'package:tradex/features/ai_assistant/ai_assistant.dart';
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/community/data/unified_comments_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
@@ -273,9 +273,9 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         'Instruments: ${_note.linkedTickers.join(', ')}\n\n'
         'Provide a critical review, key takeaways, and suggested trade setups or risk warnings.';
 
-    AiAssistantOverlaySheet.show(
+    CopilotSheet.show(
       context,
-      repository: AiAssistantRepositoryScope.repository,
+      repository: CopilotScope.repository,
       initialPrompt: prompt,
       contextTitle: _note.title.isNotEmpty ? _note.title : 'Untitled Note',
       contextSubtitle: _note.noteType.label,

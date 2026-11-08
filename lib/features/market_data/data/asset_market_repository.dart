@@ -14,10 +14,12 @@ import 'package:tradex/features/market_data/models/market_snapshot.dart';
 /// `screener_categories`, `screener_results`) without reading any bundled files
 /// from `assets/data/`.
 class AssetMarketRepository {
-  AssetMarketRepository({AssetBundle? bundle})
+  AssetMarketRepository({AssetBundle? bundle, this.client})
     : _customBundle = bundle,
       _bundle = bundle ?? rootBundle;
   static AssetMarketRepository shared = AssetMarketRepository();
+  final SupabaseClient? client;
+  SupabaseClient get _database => client ?? SupabaseConfig.client!;
   final AssetBundle? _customBundle;
   final AssetBundle _bundle;
   final Map<String, Future<dynamic>> _cache = {};
@@ -28,7 +30,8 @@ class AssetMarketRepository {
 
   /// True when this repository should query live Supabase tables instead of
   /// reading bundled JSON assets.
-  bool get usesDatabase => _customBundle == null && SupabaseConfig.isConfigured;
+  bool get usesDatabase =>
+      _customBundle == null && (client != null || SupabaseConfig.isConfigured);
 
   Future<dynamic> read(String path) => _cache.putIfAbsent(
     path,
@@ -44,7 +47,7 @@ class AssetMarketRepository {
   );
 
   Future<dynamic> _readFromDatabase(String path) async {
-    final SupabaseClient client = SupabaseConfig.client!;
+    final SupabaseClient client = _database;
     if (path == 'tickers/universe') {
       final rows = await client
           .from('tickers')
@@ -181,12 +184,12 @@ class AssetMarketRepository {
           .from('stock_price_history')
           .select('date, open, high, low, close, volume')
           .eq('ticker', symbol)
-          .order('date', ascending: true)
-          .limit(365);
+          .order('date', ascending: false)
+          .limit(730);
       return <String, dynamic>{
         'ticker': symbol,
         'data': [
-          for (final r in (rows as List).whereType<Map>())
+          for (final r in (rows as List).reversed.whereType<Map>())
             Map<String, dynamic>.from(r),
         ],
       };
@@ -509,7 +512,8 @@ class AssetMarketRepository {
                 : a.market.compareTo(b.market),
           );
 
-    // Fetch sparks in batch for top movers and active symbols from stock_price_history
+    // A per-symbol limit prevents the server row cap from starving later
+    // symbols. Other visible rows load their history on demand.
     final ranked = [...instruments]
       ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
     final active = [...instruments]
@@ -519,24 +523,14 @@ class AssetMarketRepository {
       for (final q in ranked.reversed.take(12)) q.symbol,
       for (final q in active.take(12)) q.symbol,
     };
-
     final sparks = <String, List<double>>{};
-    if (candidateSymbols.isNotEmpty) {
-      try {
-        final rows = await SupabaseConfig.client!
-            .from('stock_price_history')
-            .select('ticker, date, close')
-            .inFilter('ticker', candidateSymbols.toList())
-            .order('date', ascending: true)
-            .limit(2000);
-        for (final r in (rows as List).whereType<Map>()) {
-          final sym = '${r['ticker'] ?? ''}';
-          final close = (r['close'] as num?)?.toDouble();
-          if (sym.isNotEmpty && close != null && close.isFinite) {
-            (sparks[sym] ??= <double>[]).add(close);
-          }
-        }
-      } catch (_) {}
+    final symbols = candidateSymbols.toList();
+    for (var offset = 0; offset < symbols.length; offset += 6) {
+      await Future.wait(
+        symbols.skip(offset).take(6).map((symbol) async {
+          sparks[symbol] = await getSpark(symbol);
+        }),
+      );
     }
 
     final enriched = instruments
@@ -635,7 +629,7 @@ class AssetMarketRepository {
   }
 
   Future<Map<String, dynamic>> _loadDatabaseDetail(String symbol) async {
-    final SupabaseClient client = SupabaseConfig.client!;
+    final SupabaseClient client = _database;
     final results = await Future.wait<dynamic>([
       client.from('tickers').select('*').eq('ticker', symbol).maybeSingle(),
       client
@@ -652,8 +646,8 @@ class AssetMarketRepository {
           .from('stock_price_history')
           .select('date, open, high, low, close, volume')
           .eq('ticker', symbol)
-          .order('date', ascending: true)
-          .limit(365),
+          .order('date', ascending: false)
+          .limit(730),
       client
           .from('analyst_recommendations')
           .select('*')
@@ -662,6 +656,7 @@ class AssetMarketRepository {
       client.from('holders').select('*').eq('ticker', symbol).limit(30),
       client.from('dividends').select('*').eq('ticker', symbol).limit(30),
       client.from('stock_splits').select('*').eq('ticker', symbol).limit(20),
+      client.from('stock_details').select('detail').eq('ticker', symbol).maybeSingle(),
     ]);
 
     final tickerRow = results[0] is Map
@@ -674,6 +669,7 @@ class AssetMarketRepository {
         ? Map<String, dynamic>.from(results[2] as Map)
         : <String, dynamic>{};
     final historyRows = (results[3] as List? ?? const <dynamic>[])
+        .reversed
         .whereType<Map>()
         .map((r) => Map<String, dynamic>.from(r))
         .toList();
@@ -729,7 +725,10 @@ class AssetMarketRepository {
           tickerRow['currency'] ?? (symbol.endsWith('.NS') ? 'INR' : 'USD'),
     };
 
+    final storedDetail = results[8] is Map ? (results[8] as Map)['detail'] : null;
+    final storedSummary = storedDetail is Map ? storedDetail['summary'] : null;
     final mergedSummary = <String, dynamic>{
+      if (storedSummary is Map) ...Map<String, dynamic>.from(storedSummary),
       'name': tickerRow['name'] ?? symbol,
       'market': mergedQuote['market'],
       'exchange': tickerRow['exchange'],
@@ -883,8 +882,23 @@ class AssetMarketRepository {
     if (_sparkCache.containsKey(symbol)) {
       return _sparkCache[symbol]!;
     }
-    final hist = await history(symbol);
-    final rows = hist['data'] as List? ?? [];
+    final List rows;
+    if (usesDatabase) {
+      try {
+        final result = await _database
+            .from('stock_price_history')
+            .select('date, close')
+            .eq('ticker', symbol)
+            .order('date', ascending: false)
+            .limit(36);
+        rows = result.reversed.toList();
+      } catch (_) {
+        return const []; // Allow the next request to retry a temporary outage.
+      }
+    } else {
+      final hist = await history(symbol);
+      rows = hist['data'] as List? ?? [];
+    }
     final spark = rows
         .map((c) => (c['close'] as num?)?.toDouble())
         .whereType<double>()

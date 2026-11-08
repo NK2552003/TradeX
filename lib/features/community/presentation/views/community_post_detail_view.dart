@@ -11,7 +11,7 @@ import 'package:tradex/features/community/presentation/widgets/community_trade_s
 import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
-import 'package:tradex/features/ai_assistant/ai_assistant.dart';
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/community/presentation/widgets/community_send_dm_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_share_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
@@ -68,12 +68,16 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   final ScrollController _rightSidebarController = ScrollController();
   bool _mobileSubmitting = false;
   bool? _authorFollowingOverride;
+  late CommunityPost _currentPost = widget.post;
 
   @override
   void initState() {
     super.initState();
-    widget.repository.recordDetailExpand(widget.post.id);
-    widget.repository.recordView(widget.post.id);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.repository.recordDetailExpand(widget.post.id);
+      widget.repository.recordView(widget.post.id);
+    });
     widget.repository.addListener(_onDataChanged);
   }
 
@@ -87,24 +91,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   }
 
   void _onDataChanged() {
-    if (mounted) setState(() {});
-  }
-
-  /// Finds the freshest instance of this post from the repository.
-  CommunityPost get _currentPost {
-    for (final p in widget.repository.forYouPosts) {
-      if (p.id == widget.post.id) return p;
-    }
-    for (final p in widget.repository.followingPosts) {
-      if (p.id == widget.post.id) return p;
-    }
-    for (final p in widget.repository.signalPosts) {
-      if (p.id == widget.post.id) return p;
-    }
-    for (final p in widget.repository.bookmarkedPosts) {
-      if (p.id == widget.post.id) return p;
-    }
-    return widget.post;
+    if (!mounted) return;
+    final updated = widget.repository.loadPostById(widget.post.id);
+    setState(() => _currentPost = updated ?? widget.post);
   }
 
   void _handleLike() {
@@ -437,9 +426,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                         '"${post.body}"\n\n'
                         'Provide sentiment breakdown, technical setup validity, and potential counter-thesis risks.';
 
-                    AiAssistantOverlaySheet.show(
+                    CopilotSheet.show(
                       context,
-                      repository: AiAssistantRepositoryScope.repository,
+                      repository: CopilotScope.repository,
                       initialPrompt: prompt,
                       contextTitle: 'Post by @${post.author.handle}',
                       contextSubtitle: post.body.length > 50
@@ -547,9 +536,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                   '"${post.body}"\n\n'
                   'Provide sentiment breakdown, technical setup validity, and potential counter-thesis risks.';
 
-              AiAssistantOverlaySheet.show(
+              CopilotSheet.show(
                 context,
-                repository: AiAssistantRepositoryScope.repository,
+                repository: CopilotScope.repository,
                 initialPrompt: prompt,
                 contextTitle: 'Post by @${post.author.handle}',
                 contextSubtitle: post.body.length > 50
@@ -614,10 +603,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                       alignment: Alignment.topCenter,
                       child: ConstrainedBox(
                         constraints: BoxConstraints(maxWidth: context.sz(700)),
-                        child: _buildDesktopHeader(
-                          context,
-                          theme,
-                        ),
+                        child: _buildDesktopHeader(context, theme),
                       ),
                     ),
                   ),
@@ -766,8 +752,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   ) {
     final double clearance = widget.showHeader
         ? (context.sz(44) +
-            context.sp(theme.spacing.sm) +
-            context.sp(theme.spacing.xs))
+              context.sp(theme.spacing.sm) +
+              context.sp(theme.spacing.xs))
         : context.sp(theme.spacing.xs);
 
     return Stack(

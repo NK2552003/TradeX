@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/core/navigation/feature_location_scope.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/presentation/views/community_feed_view.dart';
-import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
-import 'package:tradex/features/ai_assistant/presentation/ai_assistant_root_screen.dart';
-import 'package:tradex/features/ai_assistant/presentation/views/ai_insights_view.dart';
-import 'package:tradex/features/ai_assistant/presentation/views/ai_create_view.dart';
 
 void main() {
   void viewport(WidgetTester tester) {
@@ -56,31 +54,35 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
-  testWidgets(
-    'AI tabs restore from URLs and keep browser selections synchronized',
-    (tester) async {
-      viewport(tester);
-      final repo = AiAssistantRepository();
-      addTearDown(repo.dispose);
-      Uri? next;
-      Widget page(Uri location) => MaterialApp(
-        home: FeatureLocationScope(
-          location: location,
+  testWidgets('Copilot tablet restores and publishes workspace URL selection', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(768, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = CopilotController(autoLoad: false)..connected = true;
+    addTearDown(controller.dispose);
+    Uri? next;
+    Widget page(String location) => MaterialApp(
+      home: Scaffold(
+        body: FeatureLocationScope(
+          location: Uri.parse(location),
           onNavigate: (uri) => next = uri,
-          child: Scaffold(body: AiAssistantRootScreen(repository: repo)),
+          child: CopilotScreen(repository: controller),
         ),
-      );
-      await tester.pumpWidget(page(Uri.parse('/ai_copilot?tab=insights')));
-      await tester.pumpAndSettle();
-      expect(find.byType(AiInsightsView), findsWidgets);
-      await tester.tap(find.text('Chat').last);
-      await tester.pumpAndSettle();
-      expect(next!.queryParameters['tab'], 'chat');
-      await tester.pumpWidget(page(Uri.parse('/ai_copilot?tab=create')));
-      await tester.pumpAndSettle();
-      expect(find.byType(AiCreateView), findsWidgets);
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
+      ),
+    );
+    await tester.pumpWidget(page('/ai_copilot?tab=workspace'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<UiTabs>(find.byType(UiTabs).first).index, 1);
+    await tester.tap(find.text('Conversation').first);
+    await tester.pumpAndSettle();
+    expect(next?.queryParameters['tab'], 'chat');
+    await tester.pumpWidget(page('/ai_copilot?tab=chat'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<UiTabs>(find.byType(UiTabs).first).index, 0);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }

@@ -37,6 +37,8 @@ class UiRemoteImage extends StatelessWidget {
     }
     return Image.network(
       src,
+      // Publishers often allow browser <img> embedding but not canvas CORS.
+      webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
       fit: fit,
       semanticLabel: semanticLabel,
       // Fade only when the frame arrived asynchronously. A cached image is

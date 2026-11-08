@@ -22,6 +22,7 @@ class AppAiMessageBubble extends StatelessWidget {
     this.onSourceTap,
     this.onOpenRef,
     this.actionsBuilder,
+    this.minimal = false,
   });
 
   final AppAiMessage message;
@@ -35,6 +36,7 @@ class AppAiMessageBubble extends StatelessWidget {
   /// e.g. "Save note", "Log trade". Returns null/empty to add nothing, so
   /// existing call sites that omit it are unaffected.
   final List<Widget>? Function(AppAiMessage message)? actionsBuilder;
+  final bool minimal;
 
   @override
   Widget build(BuildContext context) {
@@ -61,14 +63,18 @@ class AppAiMessageBubble extends StatelessWidget {
 
     final Widget bubble = Container(
       constraints: BoxConstraints(
-        maxWidth: context.uiRes.isMobile ? double.infinity : context.sz(560),
+        maxWidth: context.uiRes.isMobile
+            ? double.infinity
+            : context.sz(minimal ? 760 : 560),
       ),
       padding: EdgeInsets.symmetric(
         horizontal: context.sp(theme.spacing.md),
         vertical: context.sp(theme.spacing.sm),
       ),
       decoration: BoxDecoration(
-        color: mine ? theme.colors.primary : theme.colors.surfaceMuted,
+        color: minimal
+            ? (mine ? theme.colors.surfaceMuted : Colors.transparent)
+            : (mine ? theme.colors.primary : theme.colors.surfaceMuted),
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(context.sz(theme.radii.lg)),
           topRight: Radius.circular(context.sz(theme.radii.lg)),
@@ -112,6 +118,11 @@ class AppAiMessageBubble extends StatelessWidget {
                       return;
                     }
                   }
+                }
+                if (href != null &&
+                    (href.startsWith('https://') ||
+                        href.startsWith('http://'))) {
+                  onSourceTap?.call(href);
                 }
               },
               styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
@@ -220,7 +231,7 @@ class AppAiMessageBubble extends StatelessWidget {
 
   Widget _buildUserMessageText(BuildContext context, UiTheme theme) {
     final TextStyle baseStyle = context.uiText.body.copyWith(
-      color: theme.colors.onPrimary,
+      color: minimal ? theme.colors.foreground : theme.colors.onPrimary,
     );
     final String text = message.body;
     final Iterable<Match> matches = _tickerRegex.allMatches(text);

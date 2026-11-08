@@ -1,3 +1,4 @@
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
@@ -5,8 +6,6 @@ import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/watchlists/data/watchlist_repository.dart';
-import 'package:tradex/features/ai_assistant/data/ai_repository.dart';
-import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 
 void main() {
   test(
@@ -40,7 +39,7 @@ void main() {
       addTearDown(() => CustomerDataPolicy.allowDemo = true);
       final community = CommunityRepository();
       final messages = MessagesRepository();
-      final ai = AiAssistantRepository();
+      final ai = CopilotController(autoLoad: false);
       expect(community.forYouPosts, isEmpty);
       final insights = community.getPostInsights('missing-post');
       expect(insights.impressions, 0);
@@ -52,16 +51,15 @@ void main() {
       expect(messages.requests, isEmpty);
       expect(await WatchlistRepositoryImpl().getWatchlists(), isEmpty);
       expect(await WatchlistRepositoryImpl().getWatchlistTickers(), isEmpty);
-      expect(await AiRepositoryImpl().getInsights(), isEmpty);
-      expect(ai.insights, isEmpty);
-      expect(ai.chartSetups, isEmpty);
+      expect(ai.workspace.threads, isEmpty);
+      expect(ai.workspace.pages, isEmpty);
       final auth = await SupabaseAuthBackendService.instance.signIn(
         role: UserRole.customer,
         emailOrHandle: 'trader@example.com',
         password: 'valid-pass-123',
       );
       expect(auth.isSuccess, isFalse);
-      expect(ai.activeThread.messages, isEmpty);
+      expect(ai.activeThread, isNull);
       community.dispose();
       messages.dispose();
       ai.dispose();

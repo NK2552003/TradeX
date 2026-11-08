@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
@@ -16,7 +18,7 @@ import 'package:tradex/features/community/presentation/views/community_moderatio
 import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
 import 'package:tradex/features/community/presentation/views/community_profile_view.dart';
 import 'package:tradex/features/community/presentation/views/community_search_page.dart';
-import 'package:tradex/features/community/presentation/widgets/community_ai_assistant_dialog.dart';
+import 'package:tradex/features/community/presentation/widgets/community_copilot_launcher.dart';
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
@@ -128,6 +130,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   /// Selected bottom-nav index on mobile (0–3), kept in sync with
   /// [_tabController] so [_buildTabPages] is the single source of truth.
   int _mobileNavIndex = 0;
+  int _lastTabIndex = 0;
 
   /// Active drill-in sub-page (post thread, profile, network page).
   Widget? _activeSubpage;
@@ -135,6 +138,11 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   String? _activePostId;
   int? _lastHandledRequestSeq;
   int _desktopPanelDepth = 0;
+  final _panelPost = ValueNotifier<CommunityPost?>(null);
+  Route<void>? _postPanelRoute;
+  bool _postPanelOpen = false;
+  int _postRequestVersion = 0;
+  String? _pendingPostId;
 
   final ScrollController _desktopSidebarController = ScrollController();
   final ScrollController _tabletSidebarController = ScrollController();
@@ -157,6 +165,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       initialIndex: widget.initialTabIndex.clamp(0, _hubTabs.length - 1),
     );
     _mobileNavIndex = _tabController.index.clamp(0, _mobileNavTabs.length - 1);
+    _lastTabIndex = _tabController.index;
     // Rebuild on tab change so FAB / badges stay current.
     _tabController.addListener(_onTabChanged);
 
@@ -171,6 +180,9 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     _repo.updateCurrentAuthor(_currentAuthor);
     if (widget.initialTabIndex != oldWidget.initialTabIndex) {
       final int idx = widget.initialTabIndex.clamp(0, _hubTabs.length - 1);
+      _postRequestVersion++;
+      _pendingPostId = null;
+      _lastTabIndex = idx;
       _subpageStack.clear();
       _activeSubpage = null;
       _activePostId = null;
@@ -189,27 +201,32 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
 
   void _applyRequest(AppLinkOpenRequest request) {
     _lastHandledRequestSeq = request.seq;
-    if (_activePostId == request.id &&
-        _activeSubpage is CommunityPostDetailView) {
+    if (_pendingPostId == request.id ||
+        (_activePostId == request.id &&
+            (_postPanelOpen || _activeSubpage is CommunityPostDetailView))) {
       return;
     }
+    final version = ++_postRequestVersion;
+    _pendingPostId = request.id;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      if (_activePostId == request.id &&
-          _activeSubpage is CommunityPostDetailView) {
-        return;
-      }
+      if (!mounted || version != _postRequestVersion) return;
       CommunityPost? post = _repo.loadPostById(request.id);
       post ??= await _repo.fetchPostById(request.id);
-      if (post != null && mounted) {
-        _openPostDetail(post);
-      }
+      if (!mounted || version != _postRequestVersion) return;
+      _pendingPostId = null;
+      if (post != null) _openPostDetail(post);
     });
   }
 
   void _onTabChanged() {
-    if (!_tabController.indexIsChanging &&
-        _tabController.index != widget.initialTabIndex) {
+    if (_tabController.indexIsChanging ||
+        _tabController.index == _lastTabIndex) {
+      return;
+    }
+    _lastTabIndex = _tabController.index;
+    _postRequestVersion++;
+    _pendingPostId = null;
+    if (_tabController.index != widget.initialTabIndex) {
       widget.onTabChanged?.call(_tabController.index);
     }
     if (mounted) {
@@ -237,6 +254,14 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     _tabController.dispose();
     _desktopSidebarController.dispose();
     _tabletSidebarController.dispose();
+    _postRequestVersion++;
+    final route = _postPanelRoute;
+    if (route != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (route.isActive) route.navigator?.removeRoute(route);
+      });
+    }
+    _panelPost.dispose();
     _repo.removeListener(_onRepoChanged);
     if (_ownsRepo) {
       _repo.dispose();
@@ -313,12 +338,8 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // Navigation helpers
   // -------------------------------------------------------------------------
 
-  void _openSubpage({
-    required Widget page,
-    required String title,
-    bool forceInline = false,
-  }) {
-    if (context.uiRes.isDesktop && !forceInline && _activeSubpage == null) {
+  void _openSubpage({required Widget page, required String title}) {
+    if (context.uiRes.isDesktop && _activeSubpage == null) {
       _desktopPanelDepth++;
       unawaited(
         showSettingsSideSheet<void>(
@@ -335,7 +356,13 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
               child: page,
             ),
           ),
-        ).whenComplete(() => _desktopPanelDepth--),
+        ).whenComplete(() {
+          _desktopPanelDepth--;
+          if (page is CommunityPostDetailView &&
+              _activePostId == page.post.id) {
+            _activePostId = null;
+          }
+        }),
       );
       return;
     }
@@ -371,7 +398,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     if (trimmed.startsWith(r'$')) {
       final String symbol = trimmed.substring(1).trim().toUpperCase();
       if (symbol.isNotEmpty && widget.onOpenRef != null) {
-        widget.onOpenRef!(
+        _openLinkedFeature(
           AppLinkRef(kind: AppLinkKind.ticker, id: symbol, title: symbol),
         );
         return;
@@ -390,7 +417,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
           }
         }
         if (widget.onOpenRef != null) {
-          widget.onOpenRef!(target.copyWith(isPublicContext: true));
+          _openLinkedFeature(target.copyWith(isPublicContext: true));
           return;
         }
       }
@@ -430,19 +457,30 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       );
       return;
     }
-    if (_activePostId == post.id && _activeSubpage is CommunityPostDetailView) {
+    final existingRoute = _postPanelRoute;
+    if (existingRoute != null &&
+        existingRoute.isActive &&
+        !existingRoute.isCurrent) {
+      existingRoute.navigator?.popUntil((route) => route == existingRoute);
+    }
+    if (_activePostId == post.id &&
+        (_postPanelOpen || _activeSubpage is CommunityPostDetailView)) {
       return;
     }
+    _postRequestVersion++;
+    _pendingPostId = null;
     _activePostId = post.id;
-    if (widget.openRequest != null && widget.openRequest!.id == post.id) {
+    if (widget.openRequest?.id == post.id) {
       _lastHandledRequestSeq = widget.openRequest!.seq;
     }
 
-    // Dismiss any active desktop side sheet so the full desktop view is displayed cleanly
-    if (_desktopPanelDepth > 0) {
-      Navigator.of(context, rootNavigator: true).maybePop();
+    // Establish the open state before the app echoes a deep-link route update.
+    final desktop = context.uiRes.isDesktop;
+    final alreadyOpen = _postPanelOpen;
+    if (desktop) {
+      _postPanelOpen = true;
+      _panelPost.value = post;
     }
-
     widget.onOpenRecord?.call(
       AppLinkRef(
         kind: AppLinkKind.communityPost,
@@ -451,22 +489,80 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         isPublicContext: true,
       ),
     );
-    _openSubpage(
-      title: 'Post',
-      page: CommunityPostDetailView(
-        post: post,
-        repository: _repo,
-        currentUser: _currentAuthor,
-        onAuthorTap: _openAuthorProfile,
-        onStartDirectMessage: widget.onStartDirectMessage,
-        onBack: _closeSubpage,
-        showHeader: !widget.embedInScaffold,
-        onOpenRef: widget.onOpenRef,
-        onTagTap: _handleTagTap,
-        onPostTap: _openPostDetail,
-      ),
-      forceInline: true,
+    if (!desktop) {
+      _openSubpage(title: 'Post', page: _postDetail(post));
+      return;
+    }
+    if (alreadyOpen) {
+      return; // Change the current panel's content, never stack the same route.
+    }
+    _desktopPanelDepth++;
+    unawaited(
+      showSettingsSideSheet<void>(
+        context,
+        title: 'Post',
+        desktopWidthRatio: .48,
+        minDesktopWidth: 540,
+        maxWidth: 760,
+        child: Builder(
+          builder: (panelContext) {
+            _postPanelRoute = ModalRoute.of(panelContext);
+            return LayoutBuilder(
+              builder: (context, constraints) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(size: constraints.biggest),
+                child: ValueListenableBuilder<CommunityPost?>(
+                  valueListenable: _panelPost,
+                  builder: (context, post, _) => !mounted || post == null
+                      ? const SizedBox.shrink()
+                      : _postDetail(post),
+                ),
+              ),
+            );
+          },
+        ),
+      ).whenComplete(() {
+        _desktopPanelDepth--;
+        _postPanelOpen = false;
+        _postPanelRoute = null;
+        _activePostId = null;
+      }),
     );
+  }
+
+  Widget _postDetail(CommunityPost post) => CommunityPostDetailView(
+    key: ValueKey(post.id),
+    post: post,
+    repository: _repo,
+    currentUser: _currentAuthor,
+    onAuthorTap: _openAuthorProfile,
+    onStartDirectMessage: widget.onStartDirectMessage == null
+        ? null
+        : _startDirectMessage,
+    onBack: _closeSubpage,
+    showHeader: !widget.embedInScaffold,
+    onOpenRef: widget.onOpenRef == null ? null : _openLinkedFeature,
+    onTagTap: _handleTagTap,
+    onPostTap: _openPostDetail,
+  );
+
+  void _dismissPostPanel() {
+    final route = _postPanelRoute;
+    if (route == null || !route.isActive) return;
+    final navigator = route.navigator;
+    navigator?.popUntil((candidate) => candidate == route);
+    navigator?.removeRoute(route);
+  }
+
+  void _openLinkedFeature(AppLinkRef ref) {
+    _dismissPostPanel();
+    widget.onOpenRef?.call(ref);
+  }
+
+  void _startDirectMessage(AppTrader trader) {
+    _dismissPostPanel();
+    widget.onStartDirectMessage?.call(trader);
   }
 
   bool _isMe(CommunityAuthor author) {
@@ -492,8 +588,10 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         showHeader: !widget.embedInScaffold,
         onBack: _closeSubpage,
         onPostTap: _openPostDetail,
-        onOpenRef: widget.onOpenRef,
-        onDirectMessage: widget.onStartDirectMessage,
+        onOpenRef: widget.onOpenRef == null ? null : _openLinkedFeature,
+        onDirectMessage: widget.onStartDirectMessage == null
+            ? null
+            : _startDirectMessage,
       ),
     );
   }
@@ -673,8 +771,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
               Positioned(
                 right: floatingRight,
                 bottom: floatingBottom,
-                child: CommunityAiFloatingBar(
-                  repository: _repo,
+                child: CommunityCopilotLauncher(
                   onCompose: _showComposer,
                   showCompose: isMobile && onFeedTab,
                 ),

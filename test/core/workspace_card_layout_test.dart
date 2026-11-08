@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
-import 'package:tradex/features/ai_assistant/presentation/widgets/ai_create_action_card.dart';
 
 void main() {
   testWidgets('card grid uses the pane width for two desktop action columns', (
@@ -40,32 +38,4 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final target in AiCreateTarget.values) {
-    testWidgets('${target.label} remains actionable in a narrow desktop rail', (
-      tester,
-    ) async {
-      var tapped = false;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 280,
-                child: AiCreateActionCard(
-                  target: target,
-                  onTap: () => tapped = true,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      expect(tester.takeException(), isNull);
-      final title = tester.widget<Text>(find.text(target.label).first);
-      expect(title.maxLines, isNull);
-      await tester.tap(find.byType(AiCreateActionCard));
-      expect(tapped, isTrue);
-    });
-  }
 }

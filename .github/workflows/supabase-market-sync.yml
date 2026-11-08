@@ -2,77 +2,97 @@ name: Supabase Market & News Database Sync
 
 on:
   schedule:
-    # Runs every 6 hours to refresh live market quotes, OHLCV history, screeners, and financial news
-    - cron: '0 */6 * * *'
+    - cron: '17 */6 * * *'
   workflow_dispatch:
     inputs:
       sync_scope:
-        description: 'Dataset scope to synchronize (all, quotes, history, news, screeners)'
-        required: false
-        default: 'all'
+        description: Dataset to synchronize
+        default: all
         type: choice
-        options:
-          - all
-          - quotes
-          - history
-          - news
-          - screeners
+        options: [all, quotes, history, news, screeners]
       fetch_live:
-        description: 'Fetch live quotes & RSS market news before syncing to Supabase'
-        required: false
+        description: Fetch and publish live data (false runs offline validation only)
         default: true
         type: boolean
+  pull_request:
+    paths: ['scripts/**', 'test/scripts/**', '.github/workflows/supabase-market-sync.yml']
   push:
-    branches:
-      - main
-      - feature/admin
-    paths:
-      - 'scripts/**'
-      - '.github/workflows/supabase-market-sync.yml'
-      - 'database/schema.sql'
+    branches: [main, feature/admin, fix/copilot]
+    paths: ['scripts/**', 'test/scripts/**', '.github/workflows/supabase-market-sync.yml', 'database/schema.sql']
 
 permissions:
   contents: read
 
-concurrency:
-  group: supabase-market-sync
-  cancel-in-progress: true
-
 jobs:
-  sync-supabase-market-db:
-    name: Sync Market Assets, History & News to Supabase
+  validate:
+    name: Validate provider parsing and database failure handling
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - run: python -m pip install -r scripts/requirements.txt
+      - run: python -m unittest discover -s test/scripts -p 'test_*.py' -v
+      - run: python -m compileall -q scripts
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+  sync:
+    name: Fetch, validate and publish real market data
+    needs: validate
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.fetch_live) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: supabase-market-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: '20'
-
-      - name: Install Python Market Sync Dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          pip install requests urllib3
-
-      - name: Run Supabase Database Cleaning & 200-Ticker Market Sync Pipeline
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - run: python -m pip install -r scripts/requirements.txt
+      - name: Synchronize selected dataset
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_ADMIN_EMAIL: ${{ secrets.SUPABASE_ADMIN_EMAIL }}
-          SUPABASE_ADMIN_PASSWORD: ${{ secrets.SUPABASE_ADMIN_PASSWORD }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          SYNC_SCOPE: ${{ github.event.inputs.sync_scope || 'all' }}
-          FETCH_LIVE: ${{ github.event.inputs.fetch_live == 'false' && 'false' || 'true' }}
+          SYNC_SCOPE: ${{ inputs.sync_scope || 'all' }}
+        run: python scripts/sync_market_pipeline.py --report market-sync-report.json
+      - name: Publish coverage and failure summary
+        if: always()
         run: |
-          python3 scripts/sync_market_pipeline.py || node scripts/sync_market_data_to_supabase.mjs
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path('market-sync-report.json')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              if not path.exists():
+                  out.write('Market sync did not produce a report. See the failed step.\n')
+              else:
+                  r = json.loads(path.read_text())
+                  out.write(f"## Market sync: {r['status']}\n\nScope: {r['scope']}\n\n")
+                  out.write('| Dataset | Coverage |\n|---|---|\n')
+                  for k in ['requested_symbols', 'archived_symbols', 'market', 'news', 'screeners', 'confirmed_writes']:
+                      out.write(f'| {k} | {json.dumps(r.get(k, {}))} |\n')
+                  out.write('\n### Provider issues\n\n')
+                  issues = r['errors'] + r['warnings']
+                  issues += [f"{s}: {w}" for s, v in r['symbols'].items() for w in v['warnings']]
+                  for issue in issues:
+                      out.write(f'- {issue}\n')
+                  if not issues:
+                      out.write('No issues reported.\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: market-sync-report-${{ github.run_id }}
+          path: market-sync-report.json
+          retention-days: 30
+          if-no-files-found: warn

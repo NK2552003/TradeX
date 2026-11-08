@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/features/ai_assistant/presentation/ai_assistant_root_screen.dart';
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/market_data/presentation/market_root_screen.dart';
 import 'package:tradex/features/messages/presentation/messages_root_screen.dart';
 
@@ -85,7 +85,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(AiAssistantRootScreen), findsOneWidget);
+      expect(find.byType(CopilotScreen), findsOneWidget);
     });
   });
 }

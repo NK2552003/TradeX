@@ -47,7 +47,7 @@ class UiDivider extends StatelessWidget {
           : Row(
               children: <Widget>[
                 line,
-                Flexible(
+                Expanded(
                   flex: 3,
                   child: Padding(
                     padding: EdgeInsets.symmetric(

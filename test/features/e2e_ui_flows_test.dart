@@ -9,7 +9,7 @@ import 'package:tradex/features/journal/presentation/journal_page.dart';
 import 'package:tradex/features/watchlists/presentation/watchlists_page.dart';
 import 'package:tradex/features/strategies/presentation/strategies_page.dart';
 import 'package:tradex/features/community/presentation/community_page.dart';
-import 'package:tradex/features/ai_assistant/presentation/ai_page.dart';
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
 
 void main() {
@@ -128,7 +128,7 @@ void main() {
       expect(find.byType(CommunityPage), findsOneWidget);
     });
 
-    testWidgets('6. AI Assistant Screen renders insights and signal generators', (
+    testWidgets('6. Copilot workspace renders', (
       WidgetTester tester,
     ) async {
       tester.view.physicalSize = const Size(1280, 800);
@@ -138,12 +138,12 @@ void main() {
 
       await tester.pumpWidget(
         buildTestableWidget(
-          const AiPage(),
+          const CopilotScreen(),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(AiPage), findsOneWidget);
+      expect(find.byType(CopilotScreen), findsOneWidget);
     });
 
     testWidgets('7. Settings Root Screen renders all configuration modules', (

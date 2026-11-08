@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/ai_assistant/ai_assistant.dart';
+import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
@@ -243,9 +243,9 @@ class MessageActionsSheet extends StatelessWidget {
         'Analyze this message/trade setup from our conversation:\n\n"$content"\n\n'
         'Provide technical setup validation, risk:reward assessment, and key levels to monitor.';
 
-    AiAssistantOverlaySheet.show(
+    CopilotSheet.show(
       context,
-      repository: AiAssistantRepositoryScope.repository,
+      repository: CopilotScope.repository,
       initialPrompt: prompt,
       contextTitle: 'Chat Message',
       contextSubtitle: content.length > 50

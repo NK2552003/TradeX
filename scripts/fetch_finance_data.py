@@ -427,10 +427,8 @@ def main():
     if conn:
         for article in all_news:
             dbmod.insert_news_article(conn, article)  # links article to its related_tickers automatically
-        deleted_hist = dbmod.cleanup_old_history(conn, days=30)
         deleted_news = dbmod.cleanup_old_news(conn, days=NEWS_RETENTION_DAYS)
-        print(f"  [db] cleanup: removed {deleted_hist} old price_history rows, "
-              f"{deleted_news} news articles past {NEWS_RETENTION_DAYS} days")
+        print(f"  [db] cleanup: removed {deleted_news} news articles past {NEWS_RETENTION_DAYS} days")
         conn.close()
 
     save_json(os.path.join(DATA_DIR, "quotes.json"), all_quotes)
