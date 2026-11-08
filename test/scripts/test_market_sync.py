@@ -16,7 +16,8 @@ class MarketSyncTests(unittest.TestCase):
     def args(self, scope):
         return Namespace(dry_run=True, symbols='AAPL', scope=scope, workers=1,
                          symbols_file=None, max_symbols=5000, select_only=None,
-                         shard_index=0, shard_count=1, market_only=False, finalize_market=False)
+                         prune_market_data=False, shard_index=0, shard_count=1,
+                         market_only=False, finalize_market=False)
 
     def test_bars_require_real_complete_ohlc(self):
         chart = {'timestamp': [1704205800, 1704292200, 1704378600], 'indicators': {'quote': [{
@@ -71,6 +72,29 @@ class MarketSyncTests(unittest.TestCase):
             ['Fewer than two valid daily bars'],
         )
 
+    def test_missing_quote_with_short_provider_history_is_discarded(self):
+        report = {'errors': [], 'warnings': [], 'symbols': {}}
+        with patch.object(
+            pipeline,
+            'fetch_symbol',
+            return_value=(
+                {
+                    'history': [],
+                    'quote': None,
+                    'fundamental': {},
+                    'ticker': {'ticker': 'UNAVAILABLE'},
+                    'detail': {},
+                },
+                [],
+            ),
+        ):
+            pipeline.sync_market(None, ['UNAVAILABLE'], 'all', 1, report)
+        self.assertEqual(report['errors'], [])
+        self.assertEqual(
+            report['discarded_symbols']['UNAVAILABLE'],
+            ['Missing quote', 'Fewer than two valid daily bars'],
+        )
+
     def database(self):
         with patch.dict('os.environ', {'SUPABASE_URL': 'https://example.test', 'SUPABASE_SERVICE_ROLE_KEY': 'test-key'}):
             return pipeline.Database()
@@ -81,6 +105,26 @@ class MarketSyncTests(unittest.TestCase):
             with self.assertRaises(pipeline.PipelineError):
                 db.upsert('stock_quotes', [{'ticker': 'AAPL', 'price': 10}], 'ticker')
         self.assertEqual(dict(db.written), {})
+
+    def test_prune_market_data_deletes_pipeline_tables_without_tickers(self):
+        db = self.database()
+        with patch.object(db, 'call', return_value=None) as call:
+            db.prune_market_data()
+        self.assertEqual(
+            [(c.args[0], c.args[1]) for c in call.call_args_list],
+            [
+                ('DELETE', 'news_articles'),
+                ('DELETE', 'news_topics'),
+                ('DELETE', 'affiliate_assets'),
+                ('DELETE', 'screener_results'),
+                ('DELETE', 'screener_categories'),
+                ('DELETE', 'stock_details'),
+                ('DELETE', 'stock_fundamentals'),
+                ('DELETE', 'stock_quotes'),
+                ('DELETE', 'stock_price_history'),
+            ],
+        )
+        self.assertTrue(all(c.kwargs['prefer'] == 'return=minimal' for c in call.call_args_list))
 
     def test_null_refresh_fields_do_not_erase_metadata(self):
         db = self.database()
