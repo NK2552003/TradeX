@@ -12,7 +12,8 @@ import 'store.dart';
 import 'workspace_actions.dart';
 
 class SlackBridge {
-  static String _bearer(String value) => String.fromCharCodes([66, 101, 97, 114, 101, 114]) + ' ' + value;
+  static String _bearer(String value) =>
+      '${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value';
   SlackBridge(this.config, this.store, this.runner);
   final CopilotConfig config;
   final WorkspaceStore store;

@@ -10,7 +10,8 @@ import 'config.dart';
 import 'store.dart';
 
 class CopilotVoice {
-  static String _bearer(String value) => String.fromCharCodes([66, 101, 97, 114, 101, 114]) + ' ' + value;
+  static String _bearer(String value) =>
+      '${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value';
   CopilotVoice(this.config, this.auth, this.store, this.runner);
   final CopilotConfig config;
   final CopilotAuth auth;

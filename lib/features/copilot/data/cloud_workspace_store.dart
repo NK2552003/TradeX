@@ -8,7 +8,8 @@ import '../models/workspace_errors.dart';
 /// A session snapshot keeps in-flight writes tied to the account that started
 /// them. Postgres RLS independently enforces ownership on every request.
 class CloudWorkspaceStore {
-  static String _bearer(String value) => String.fromCharCodes([66, 101, 97, 114, 101, 114]) + " " + value;
+  static String _bearer(String value) =>
+      '${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value';
   CloudWorkspaceStore({
     required this.url,
     required this.key,
