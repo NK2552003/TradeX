@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/data/account_access_repository.dart';
+import 'package:tradex/core/config/startup_ready.dart';
+import 'package:tradex/features/auth/presentation/pages/splash_screen.dart';
 
 /// Suspended accounts never render cached private screens. Access is refreshed
 /// on resume and periodically; database checks also protect every request.
@@ -106,6 +108,12 @@ class _AccountAccessGateState extends State<AccountAccessGate>
 
   @override
   Widget build(BuildContext context) {
+    if (_loading && _access == null && _error == null) {
+      return SplashScreen(onFinish: () {});
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) finishWebStartup();
+    });
     if (_error == null && _access?.isActive == true) {
       return widget.builder(context);
     }
@@ -132,186 +140,11 @@ class _AccountAccessGateState extends State<AccountAccessGate>
   }
 
   Widget _buildSurface(BuildContext context, bool isSuspended) {
-    final bool isChecking = _loading && _access == null;
-
-    if (isChecking) {
-      return _buildCheckingState(context);
-    }
-
     if (_error != null) {
       return _buildErrorState(context);
     }
 
     return _buildRestrictedState(context, isSuspended);
-  }
-
-  // ── 1. Checking Session / Verification State ────────────────────────────────
-  Widget _buildCheckingState(BuildContext context) {
-    final theme = context.ui;
-    final colors = theme.colors;
-
-    return UiCard(
-      variant: UiCardVariant.surface,
-      padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          // Security Status Pill
-          UiBadge(
-            label: 'TERMINAL SECURITY GATE',
-            intent: UiIntent.primary,
-            variant: UiBadgeVariant.soft,
-            size: UiSize.sm,
-          ),
-          UiGap.v(theme.spacing.lg),
-
-          // Animated Glowing Core Shield
-          Stack(
-            alignment: Alignment.center,
-            children: <Widget>[
-              Container(
-                width: context.sz(92),
-                height: context.sz(92),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.primary.withValues(alpha: 0.08),
-                  border: Border.all(
-                    color: colors.primary.withValues(alpha: 0.28),
-                    width: theme.borders.hairline,
-                  ),
-                ),
-              ),
-              Container(
-                width: context.sz(72),
-                height: context.sz(72),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.primary.withValues(alpha: 0.15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.primary.withValues(alpha: 0.25),
-                      blurRadius: 24,
-                      spreadRadius: 4,
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.shield_outlined,
-                  size: context.sz(36),
-                  color: colors.primary,
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: colors.border,
-                      width: theme.borders.hairline,
-                    ),
-                  ),
-                  child: UiProgressCircle(
-                    size: context.sz(18),
-                    thickness: 2,
-                    showLabel: false,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          UiGap.v(theme.spacing.lg),
-
-          // Titles
-          Text(
-            'Verifying Terminal Session',
-            style: context.uiText.heading.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          UiGap.v(theme.spacing.xs),
-          Text(
-            'Establishing authenticated handshake with TraderHub security perimeter and validating user clearance for ${widget.destination}.',
-            style: context.uiText.body.copyWith(
-              color: colors.foregroundMuted,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          UiGap.v(theme.spacing.lg),
-
-          // Verification checklist
-          Container(
-            padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-            decoration: BoxDecoration(
-              color: colors.surfaceMuted.withValues(alpha: 0.5),
-              borderRadius: context.radius(theme.radii.md),
-              border: Border.all(
-                color: colors.border.withValues(alpha: 0.5),
-                width: theme.borders.hairline,
-              ),
-            ),
-            child: Column(
-              children: <Widget>[
-                _buildVerificationRow(
-                  context,
-                  title: 'Cryptographic Auth Token',
-                  status: 'Active',
-                  isDone: true,
-                ),
-                const UiDivider(spacing: 8),
-                _buildVerificationRow(
-                  context,
-                  title: 'Trading Clearance & Permissions',
-                  status: 'Validating',
-                  isDone: false,
-                  inProgress: true,
-                ),
-                const UiDivider(spacing: 8),
-                _buildVerificationRow(
-                  context,
-                  title: 'Destination Session Gate',
-                  status: widget.destination,
-                  isDone: false,
-                ),
-              ],
-            ),
-          ),
-          UiGap.v(theme.spacing.lg),
-
-          // Indeterminate progress bar
-          Container(
-            height: 4,
-            decoration: BoxDecoration(
-              color: colors.surfaceMuted,
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: LinearProgressIndicator(
-                backgroundColor: colors.surfaceMuted,
-                color: colors.primary,
-                minHeight: 4,
-              ),
-            ),
-          ),
-          UiGap.v(theme.spacing.md),
-
-          if (widget.onLogout != null)
-            UiButton(
-              label: 'Cancel & Sign out',
-              variant: UiVariant.ghost,
-              size: UiSize.sm,
-              onPressed: widget.onLogout,
-            ),
-        ],
-      ),
-    );
   }
 
   // ── 2. Restricted / Suspended State ────────────────────────────────────────
@@ -520,48 +353,6 @@ class _AccountAccessGateState extends State<AccountAccessGate>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildVerificationRow(
-    BuildContext context, {
-    required String title,
-    required String status,
-    required bool isDone,
-    bool inProgress = false,
-  }) {
-    final colors = context.uiColors;
-    return Row(
-      children: <Widget>[
-        Icon(
-          isDone
-              ? Icons.check_circle_rounded
-              : (inProgress ? Icons.hourglass_top_rounded : Icons.radio_button_unchecked),
-          size: context.sz(16),
-          color: isDone
-              ? colors.bullish
-              : (inProgress ? colors.primary : colors.foregroundSubtle),
-        ),
-        UiGap.h(context.ui.spacing.xs),
-        Expanded(
-          child: Text(
-            title,
-            style: context.uiText.body.copyWith(
-              fontSize: context.fs(13),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        Text(
-          status,
-          style: context.uiText.caption.copyWith(
-            color: isDone
-                ? colors.bullish
-                : (inProgress ? colors.primary : colors.foregroundMuted),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
     );
   }
 

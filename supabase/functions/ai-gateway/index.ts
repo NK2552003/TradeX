@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
+import { generateResponses } from './responses.ts';
 
 const cors = {
   'Content-Type': 'application/json',
@@ -90,52 +91,6 @@ async function generate(
   throw new Error('AI providers are unavailable. Please try again later.');
 }
 
-async function generateResponses(
-  messages: Message[],
-  attachments: unknown[],
-  mode: string,
-  model: string,
-  key: string,
-  send: typeof fetch,
-): Promise<ProviderResult> {
-  const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n');
-  const input = messages.filter((m) => m.role !== 'system').map((message) => ({
-    role: message.role,
-    content: [
-      { type: 'input_text', text: message.content },
-      ...(message.role === 'user' && message === messages.at(-1) ? attachments : []),
-    ],
-  }));
-  const tools = mode === 'auto' ? [] : [{ type: 'web_search', ...(mode === 'research' ? { search_context_size: 'high' } : {}) }];
-  const response = await send('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: bearer(key) },
-    body: JSON.stringify({
-      model,
-      instructions: system,
-      input,
-      tools,
-      ...(tools.length > 0 ? { tool_choice: { type: 'web_search' } } : {}),
-      max_output_tokens: 4096,
-    }),
-    signal: AbortSignal.timeout(60000),
-  });
-  if (!response.ok) throw new Error('OpenAI could not complete this request.');
-  const data = await response.json();
-  const text = data.output?.flatMap((item: { content?: { type: string; text?: string }[] }) => item.content ?? [])
-    .filter((content: { type: string }) => content.type === 'output_text')
-    .map((content: { text?: string }) => content.text ?? '')
-    .join('');
-  if (typeof text !== 'string' || !text.trim()) throw new Error('The AI service returned an empty response.');
-  return {
-    text: text.trim(),
-    provider: 'openai',
-    model: typeof data.model === 'string' ? data.model : model,
-    input: tokenCount(data.usage?.input_tokens),
-    output: tokenCount(data.usage?.output_tokens),
-  };
-}
-
 export async function handleRequest(request: Request, dependencies: Dependencies = {}): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
   if (request.method !== 'POST') return reply(405, { error: 'Method not allowed.' });
@@ -161,6 +116,9 @@ export async function handleRequest(request: Request, dependencies: Dependencies
   const persona = body.persona ?? 'swing';
   const mode = body.mode ?? 'auto';
   const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+  if (mode !== 'auto' && body.allow_web_search === false) {
+    return reply(403, { error: 'Enable research for this workspace and specialist to use web search.' });
+  }
   if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 40000 ||
       typeof kind !== 'string' || !['chat', 'regenerate', 'completion'].includes(kind) ||
       typeof persona !== 'string' || persona.length > 80 ||
@@ -196,9 +154,9 @@ export async function handleRequest(request: Request, dependencies: Dependencies
   if (typeof reservation?.request_id !== 'string' || reservation.user_id !== user.user.id) return reply(500, { error: 'Unable to reserve AI request.' });
   try {
     const openAiKey = env('OPENAI_API_KEY') ?? env('OPEN_AI_KEY');
-    const result = mode !== 'auto' || attachments.length > 0
+    const result = mode !== 'auto' || attachments.length > 0 || (body.allow_web_search === true && !!openAiKey)
       ? openAiKey
-        ? await generateResponses(messages, attachments, mode, env('OPENAI_MODEL') || 'gpt-5.4', openAiKey, send)
+        ? await generateResponses(messages, attachments, mode, env('OPENAI_MODEL') || 'gpt-5.4', openAiKey, send, body.allow_web_search === true)
         : (() => { throw new Error('OpenAI is required for web search and file attachments.'); })()
       : await generate(messages,
         typeof body.max_tokens === 'number' ? Math.max(128, Math.min(4096, Math.floor(body.max_tokens))) : 2048,

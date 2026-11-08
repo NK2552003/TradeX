@@ -232,8 +232,9 @@
           }, 450);
         }
       }
-      window.addEventListener('flutter-first-frame', hideSplash);
-      setTimeout(hideSplash, 4500);
+      // Flutter calls this after authentication AND account access resolve.
+      // A first frame or a timer alone can expose intermediate loading screens.
+      window.alphajournalReady = hideSplash;
     })();
   </script>
   <script src="flutter_bootstrap.js" async></script>

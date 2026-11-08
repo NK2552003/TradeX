@@ -27,6 +27,29 @@ Hosted mode supports saved conversations, specialist prompts, spaces/pages with 
 
 After deployment, sign in on `alphajournal.in`, send a message, reload to confirm persistence, and check a second account cannot see that conversation. A successful build alone does not verify live storage migration or provider quotas.
 
+### Web search configuration
+
+Use `OPENAI_MODEL=gpt-5.4` in the backend environment. For hosted mode,
+set this value and `OPENAI_API_KEY` (or `OPEN_AI_KEY`) in Supabase Edge Function
+secrets; the repository `.env` only configures the separately running Dart worker.
+Deploy `ai-gateway` including its `responses.ts` module after updating the code.
+
+With Supabase CLI 3, after authenticating to the project:
+
+```sh
+npx supabase secrets set OPENAI_MODEL=gpt-5.4 --remote=ylxwgkhtwrizdmuhlhxs
+npx supabase functions deploy ai-gateway --remote=ylxwgkhtwrizdmuhlhxs --use-api
+```
+
+Keep the provider key server-side. Search and Deep research require OpenAI;
+Auto can use web search when an OpenAI key is configured and research is enabled
+for both the workspace and specialist. Source citations are rendered as links.
+Provider errors distinguish invalid keys, quota exhaustion, rate limits, and
+model permissions. Without an OpenAI key, Auto retains the text-only provider fallback.
+
+Run `scripts/verify_copilot_community_startup.sh` for the automated search,
+community navigation, and startup regression checks (Node 22.18+ and Flutter).
+
 ## Dedicated Dart worker
 
 ## Run it

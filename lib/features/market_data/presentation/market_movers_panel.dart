@@ -5,6 +5,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
 import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// Reference-style quote row: identity, actual closing-price spark, quote/change.
 class MarketQuoteRow extends StatelessWidget {
@@ -141,14 +142,29 @@ class _MarketMoversPanelState extends State<MarketMoversPanel> {
   late final AssetMarketRepository _repo =
       widget.repository ?? AssetMarketRepository.shared;
   late Future<MarketSnapshot> _future = _repo.snapshot();
-  void _open(MarketInstrument quote) => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => Scaffold(
-        appBar: AppBar(title: Text(quote.symbol)),
-        body: MarketInstrumentView(instrument: quote, repository: _repo),
-      ),
-    ),
-  );
+  bool _detailOpen = false;
+
+  Future<void> _open(MarketInstrument quote) async {
+    if (_detailOpen) return;
+    _detailOpen = true;
+    try {
+      await showSettingsSideSheet<void>(
+        context,
+        title: quote.symbol,
+        subtitle: quote.name,
+        desktopWidthRatio: .48,
+        minDesktopWidth: 540,
+        maxWidth: 760,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+          child: MarketInstrumentView(instrument: quote, repository: _repo),
+        ),
+      );
+    } finally {
+      _detailOpen = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<MarketSnapshot>(
     future: _future,

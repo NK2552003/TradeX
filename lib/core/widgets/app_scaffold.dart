@@ -357,7 +357,16 @@ class _AppScaffoldState extends State<AppScaffold> {
   @override
   void didUpdateWidget(AppScaffold oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // A post opened in Explore/Profile/Bookmarks updates the browser URL to
+    // community_feed. That echo must not remount the feed and its open panel.
+    final request = widget.initialOpenRequest;
+    final isOpenPostEcho = _isCommunityFeature &&
+        widget.initialDestination == 'community_feed' &&
+        request?.kind == AppLinkKind.communityPost &&
+        _linkRequest?.kind == request?.kind &&
+        _linkRequest?.id == request?.id;
     if (oldWidget.initialDestination != widget.initialDestination &&
+        !isOpenPostEcho &&
         _canReach(widget.initialDestination)) {
       if (_selectedId != widget.initialDestination) {
         _destinationHistory.clear();
@@ -370,7 +379,6 @@ class _AppScaffoldState extends State<AppScaffold> {
       _activeSubpageOnBack = null;
       _linkRequest = widget.initialOpenRequest;
     }
-    final request = widget.initialOpenRequest;
     if (request != null &&
         (request.id != _linkRequest?.id ||
             request.kind != _linkRequest?.kind ||

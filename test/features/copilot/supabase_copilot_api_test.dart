@@ -19,7 +19,10 @@ class HostedFixture {
   late final client = MockClient((request) async {
     requests.add(request);
     expect(request.url.host, 'project.supabase.co');
-    expect(request.headers['authorization'], String.fromCharCodes([66, 101, 97, 114, 101, 114]) + ' account-token');
+    expect(
+      request.headers['authorization'],
+      '${String.fromCharCodes([66, 101, 97, 114, 101, 114])} account-token',
+    );
     expect(request.headers['apikey'], 'public-key');
     if (request.url.path == '/functions/v1/ai-gateway') {
       // The Edge Function CORS allowlist does not permit PostgREST's Prefer.
@@ -81,6 +84,74 @@ class HostedFixture {
 }
 
 void main() {
+  test(
+    'Auto passes research permission and permits actual web search',
+    () async {
+      final fixture = HostedFixture();
+      addTearDown(fixture.api.dispose);
+      final id = await fixture.thread();
+      await fixture.api.run(id, {
+        'prompt': 'Find current news',
+        'mode': 'auto',
+      }).toList();
+      final request = fixture.requests.singleWhere(
+        (r) => r.url.path.endsWith('ai-gateway'),
+      );
+      final body = jsonDecode(request.body) as Json;
+      expect(body['allow_web_search'], isTrue);
+      expect(
+        body['system_prompt'],
+        contains('Never claim to have searched without tool results'),
+      );
+      expect(body['system_prompt'], isNot(contains('Do not claim to browse')));
+    },
+  );
+
+  for (final scope in ['workspace', 'specialist']) {
+    test(
+      '$scope research permission prevents forced hosted searches',
+      () async {
+        final fixture = HostedFixture();
+        addTearDown(fixture.api.dispose);
+        final id = await fixture.thread();
+        if (scope == 'workspace') {
+          await fixture.api.action({
+            'action': 'settings.save',
+            'research': false,
+          });
+        } else {
+          final state = await fixture.api.getWorkspace();
+          final specialist =
+              (state['specialists'] as List).firstWhere(
+                    (s) => s['id'] == 'analyst',
+                  )
+                  as Json;
+          await fixture.api.action({
+            ...specialist,
+            'action': 'specialist.save',
+            'research': false,
+          });
+        }
+        await expectLater(
+          fixture.api.run(id, {
+            'prompt': 'Search now',
+            'mode': 'search',
+          }).toList(),
+          throwsA(predicate((e) => '$e'.contains('Enable research'))),
+        );
+        expect(fixture.gatewayCalls, 0);
+        await fixture.api.run(id, {
+          'prompt': 'Explain risk',
+          'mode': 'auto',
+        }).toList();
+        final request = fixture.requests.singleWhere(
+          (r) => r.url.path.endsWith('ai-gateway'),
+        );
+        expect(jsonDecode(request.body)['allow_web_search'], isFalse);
+      },
+    );
+  }
+
   test(
     'hosted mode persists conversation and calls only the authenticated Edge gateway',
     () async {

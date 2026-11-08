@@ -137,6 +137,16 @@ class SupabaseCopilotApi extends CopilotApi {
         'specialists',
         thread['specialistId'] as String,
       );
+      final mode = textOf(body, 'mode', 'auto');
+      final allowWebSearch =
+          (state['settings'] as Json)['research'] == true &&
+          specialist['research'] == true;
+      if (mode != 'auto' && !allowWebSearch) {
+        throw const CopilotFailure(
+          'Enable research for this workspace and specialist to use web search.',
+          403,
+        );
+      }
       final allowed = List<String>.from(specialist['spaceIds'] ?? []);
       final pages = records(
         state['pages'],
@@ -156,7 +166,7 @@ class SupabaseCopilotApi extends CopilotApi {
           .toList();
       final instructions = StringBuffer(textOf(specialist, 'instructions'))
         ..write(
-          '\nAnswer using supplied context. Do not claim to browse, execute code, schedule work, or save documents. Offer document drafts in your reply.',
+          '\nAnswer using supplied context. Use web search when available for current information and cite sources. Never claim to have searched without tool results. Do not claim to execute code, schedule work, or save documents. Offer document drafts in your reply.',
         );
       if (specialist['memory'] == true &&
           (state['settings'] as Json)['memory'] == true) {
@@ -201,7 +211,8 @@ class SupabaseCopilotApi extends CopilotApi {
         'prompt': prompt,
         'kind': 'completion',
         'system_prompt': system,
-        'mode': textOf(body, 'mode', 'auto'),
+        'mode': mode,
+        'allow_web_search': allowWebSearch,
         'attachments': records(body['attachments']),
         'messages': messages
             .skip(messages.length > 40 ? messages.length - 40 : 0)

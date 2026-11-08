@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
+import 'package:tradex/core/config/startup_ready.dart';
 import 'package:tradex/features/auth/auth.dart';
 
 class TradeXApp extends StatefulWidget {
@@ -48,17 +49,21 @@ class _TradeXAppState extends State<TradeXApp> {
           pageBuilder: (context, state) => _routePage(context, state),
         ),
     ],
-    errorBuilder: (context, state) => const Scaffold(
-      body: UiEmptyState(
-        title: 'Page not found',
-        message: 'Check the link and try again.',
-      ),
-    ),
+    errorBuilder: (context, state) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => finishWebStartup());
+      return const Scaffold(
+        body: UiEmptyState(
+          title: 'Page not found',
+          message: 'Check the link and try again.',
+        ),
+      );
+    },
   );
 
   Page<void> _routePage(BuildContext context, GoRouterState state) {
     final route = CustomerRoute.parse(state.uri);
     if (!route.valid) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => finishWebStartup());
       return NoTransitionPage(
         key: state.pageKey,
         child: Scaffold(

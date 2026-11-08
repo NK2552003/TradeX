@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
@@ -628,6 +629,18 @@ class AssetMarketRepository {
     );
   }
 
+  // Older deployments may not have every supplemental market table. Only
+  // missing relations are optional; authentication and transport errors surface.
+  Future<T?> _optionalDetailQuery<T>(String table, Future<T> query) async {
+    try {
+      return await query;
+    } on PostgrestException catch (error) {
+      if (error.code != 'PGRST205' && error.code != '42P01') rethrow;
+      debugPrint('[AssetMarketRepository] Optional table $table is unavailable.');
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>> _loadDatabaseDetail(String symbol) async {
     final SupabaseClient client = _database;
     final results = await Future.wait<dynamic>([
@@ -648,15 +661,35 @@ class AssetMarketRepository {
           .eq('ticker', symbol)
           .order('date', ascending: false)
           .limit(730),
-      client
-          .from('analyst_recommendations')
-          .select('*')
-          .eq('ticker', symbol)
-          .limit(20),
-      client.from('holders').select('*').eq('ticker', symbol).limit(30),
-      client.from('dividends').select('*').eq('ticker', symbol).limit(30),
-      client.from('stock_splits').select('*').eq('ticker', symbol).limit(20),
-      client.from('stock_details').select('detail').eq('ticker', symbol).maybeSingle(),
+      _optionalDetailQuery(
+        'analyst_recommendations',
+        client
+            .from('analyst_recommendations')
+            .select('*')
+            .eq('ticker', symbol)
+            .limit(20),
+      ),
+      _optionalDetailQuery(
+        'holders',
+        client.from('holders').select('*').eq('ticker', symbol).limit(30),
+      ),
+      _optionalDetailQuery(
+        'dividends',
+        client.from('dividends').select('*').eq('ticker', symbol).limit(30),
+      ),
+      _optionalDetailQuery(
+        'stock_splits',
+        client.from('stock_splits').select('*').eq('ticker', symbol).limit(20),
+      ),
+      _optionalDetailQuery(
+        'stock_details',
+        client
+            .from('stock_details')
+            .select('detail')
+            .eq('ticker', symbol)
+            .limit(1)
+            .then((rows) => rows.firstOrNull),
+      ),
     ]);
 
     final tickerRow = results[0] is Map

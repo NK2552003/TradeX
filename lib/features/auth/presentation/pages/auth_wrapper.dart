@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/startup_ready.dart';
 import 'package:tradex/core/billing/revenuecat_billing.dart';
 import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
@@ -476,6 +477,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
+    if (_sessionState.stage != AuthStage.authenticated ||
+        !SupabaseConfig.isConfigured) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) finishWebStartup();
+      });
+    }
+
     if (_sessionState.stage == AuthStage.authenticated &&
         !SupabaseConfig.isConfigured &&
         !CustomerDataPolicy.allowDemo) {
@@ -654,6 +662,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
                       requestedDest == 'admin_console' ||
                       requestedDest.startsWith('admin_')) &&
                   !isAdminUser) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) finishWebStartup();
+                });
                 return Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 460),
