@@ -263,11 +263,15 @@ class _AppGlobalNotificationsPageState
               children: <Widget>[
                 Row(
                   children: <Widget>[
-                    Text(
-                      'Notifications',
-                      style: context.uiText.heading.copyWith(
-                        fontSize: context.fs(18),
-                        fontWeight: FontWeight.w700,
+                    Flexible(
+                      child: Text(
+                        'Notifications',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.heading.copyWith(
+                          fontSize: context.fs(18),
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     if (_totalUnreadCount > 0) ...<Widget>[

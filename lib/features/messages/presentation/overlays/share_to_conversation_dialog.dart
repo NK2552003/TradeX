@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Sends a Writing-Desk record ([AppLinkRef]) into a direct conversation.
 ///
@@ -85,115 +87,196 @@ class ShareToConversationDialog extends StatefulWidget {
     final colors = theme.colors;
     final repo = repository ?? MessagesRepositoryScope.repository;
 
+    final String fullShareText =
+        '${reference.title}${reference.subtitle != null && reference.subtitle!.isNotEmpty ? '\n${reference.subtitle}' : ''}\n\n$shareUrl';
+
     return showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => Container(
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(ctx.sp(theme.radii.lg)),
+      builder: (BuildContext ctx) => Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: ctx.sz(520),
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.85,
           ),
-          border: Border.all(
-            color: colors.border,
-            width: theme.borders.hairline,
-          ),
-        ),
-        padding: EdgeInsets.fromLTRB(
-          ctx.sp(theme.spacing.md),
-          ctx.sp(theme.spacing.sm),
-          ctx.sp(theme.spacing.md),
-          ctx.sp(theme.spacing.lg),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Center(
-                child: Container(
-                  width: ctx.sz(36),
-                  height: ctx.sz(4),
-                  margin: EdgeInsets.only(bottom: ctx.sp(theme.spacing.sm)),
-                  decoration: BoxDecoration(
-                    color: colors.borderStrong,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(ctx.sp(theme.radii.lg)),
               ),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      'Share ${reference.kind.label}',
-                      style: ctx.uiText.heading.copyWith(
-                        fontSize: ctx.fs(16),
-                        fontWeight: FontWeight.w700,
+              border: Border.all(
+                color: colors.border,
+                width: theme.borders.hairline,
+              ),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              ctx.sp(theme.spacing.md),
+              ctx.sp(theme.spacing.sm),
+              ctx.sp(theme.spacing.md),
+              ctx.sp(theme.spacing.lg),
+            ),
+            child: SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Center(
+                      child: Container(
+                        width: ctx.sz(36),
+                        height: ctx.sz(4),
+                        margin: EdgeInsets.only(bottom: ctx.sp(theme.spacing.sm)),
+                        decoration: BoxDecoration(
+                          color: colors.borderStrong,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
-                  UiIconButton(
-                    icon: Icons.close_rounded,
-                    size: UiSize.xs,
-                    tooltip: 'Close',
-                    onPressed: () => Navigator.of(ctx).pop(),
-                  ),
-                ],
-              ),
-              SizedBox(height: ctx.sp(theme.spacing.sm)),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            'Share ${reference.kind.label}',
+                            style: ctx.uiText.heading.copyWith(
+                              fontSize: ctx.fs(16),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        UiIconButton(
+                          icon: Icons.close_rounded,
+                          size: UiSize.xs,
+                          tooltip: 'Close',
+                          onPressed: () => Navigator.of(ctx).pop(),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: ctx.sp(theme.spacing.sm)),
 
-              _buildShareAction(
-                ctx,
-                icon: Icons.send_rounded,
-                title: 'Send via alphajournal Messages',
-                subtitle: 'Share privately into trader conversation',
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  ShareToConversationDialog.show(
-                    context,
-                    repository: repo,
-                    reference: reference,
-                    onShared: (threadId) {
-                      UiToast.show(
-                        context,
-                        title: 'Sent to conversation',
-                        message: 'Shared ${reference.title}',
-                        intent: UiIntent.success,
-                      );
-                    },
-                  );
-                },
-              ),
+                    _buildShareAction(
+                      ctx,
+                      icon: Icons.send_rounded,
+                      title: 'Send via alphajournal Messages',
+                      subtitle: 'Share privately into trader conversation',
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        ShareToConversationDialog.show(
+                          context,
+                          repository: repo,
+                          reference: reference,
+                          onShared: (threadId) {
+                            UiToast.show(
+                              context,
+                              title: 'Sent to conversation',
+                              message: 'Shared ${reference.title}',
+                              intent: UiIntent.success,
+                            );
+                          },
+                        );
+                      },
+                    ),
 
-              _buildShareAction(
-                ctx,
-                icon: Icons.link_rounded,
-                title: 'Copy Public Link',
-                subtitle: shareUrl,
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: shareUrl));
-                  Navigator.of(ctx).pop();
-                  UiToast.show(
-                    context,
-                    title: 'Link copied',
-                    message: 'Share URL copied to clipboard',
-                    intent: UiIntent.success,
-                  );
-                },
-              ),
+                    _buildShareAction(
+                      ctx,
+                      icon: Icons.link_rounded,
+                      title: 'Copy Public Link',
+                      subtitle: shareUrl,
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: shareUrl));
+                        Navigator.of(ctx).pop();
+                        UiToast.show(
+                          context,
+                          title: 'Link copied',
+                          message: 'Share URL copied to clipboard',
+                          intent: UiIntent.success,
+                        );
+                      },
+                    ),
 
-              if (onExportPdf != null)
-                _buildShareAction(
-                  ctx,
-                  icon: Icons.picture_as_pdf_outlined,
-                  title: 'Export as PDF',
-                  subtitle: 'Save a publication-grade PDF file',
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    onExportPdf();
-                  },
+                    _buildShareAction(
+                      ctx,
+                      icon: Icons.chat_rounded,
+                      title: 'Share via WhatsApp',
+                      subtitle: 'Send to trading channels & groups',
+                      onTap: () async {
+                        Navigator.of(ctx).pop();
+                        await Clipboard.setData(
+                          ClipboardData(text: fullShareText),
+                        );
+                        final Uri uri = Uri.parse(
+                          'https://wa.me/?text=${Uri.encodeComponent(fullShareText)}',
+                        );
+                        try {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } catch (_) {}
+                      },
+                    ),
+
+                    _buildShareAction(
+                      ctx,
+                      icon: Icons.alternate_email_rounded,
+                      title: 'Share on X / Twitter',
+                      subtitle: 'Broadcast to external audience',
+                      onTap: () async {
+                        Navigator.of(ctx).pop();
+                        await Clipboard.setData(
+                          ClipboardData(text: fullShareText),
+                        );
+                        final Uri uri = Uri.parse(
+                          'https://x.com/intent/tweet?text=${Uri.encodeComponent(reference.title)}&url=${Uri.encodeComponent(shareUrl)}',
+                        );
+                        try {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } catch (_) {}
+                      },
+                    ),
+
+                    _buildShareAction(
+                      ctx,
+                      icon: Icons.ios_share_rounded,
+                      title: 'System Share...',
+                      subtitle: 'Share via OS share sheet',
+                      onTap: () async {
+                        Navigator.of(ctx).pop();
+                        await Clipboard.setData(
+                          ClipboardData(text: fullShareText),
+                        );
+                        try {
+                          await SharePlus.instance.share(
+                            ShareParams(
+                              text: fullShareText,
+                              subject: reference.title,
+                            ),
+                          );
+                        } catch (_) {}
+                      },
+                    ),
+
+                    if (onExportPdf != null)
+                      _buildShareAction(
+                        ctx,
+                        icon: Icons.picture_as_pdf_outlined,
+                        title: 'Export as PDF',
+                        subtitle: 'Save a publication-grade PDF file',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          onExportPdf();
+                        },
+                      ),
+                  ],
                 ),
-            ],
+              ),
+            ),
           ),
         ),
       ),

@@ -270,8 +270,24 @@ class _UiInputState extends State<UiInput> {
         widget.controller ?? TextEditingController(text: widget.value ?? '');
     _ownsFocus = widget.focusNode == null;
     _focus = widget.focusNode ?? FocusNode();
+    _focus.onKeyEvent = _handleKeyEvent;
     _focus.addListener(_onFocus);
     _controller.addListener(_onText);
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (widget.maxLines > 1 &&
+        widget.onSubmitted != null &&
+        widget.enabled &&
+        !widget.readOnly &&
+        event is KeyDownEvent &&
+        (event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.numpadEnter) &&
+        !HardwareKeyboard.instance.isShiftPressed) {
+      widget.onSubmitted!(_controller.text);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   void _onFocus() {

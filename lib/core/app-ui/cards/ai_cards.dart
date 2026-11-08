@@ -1,8 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:markdown/markdown.dart' as md;
-import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/core/markdown_kit/markdown_kit.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
@@ -11,8 +10,10 @@ import '../models/app_models_extra.dart';
 import '../theme/app_tokens.dart';
 
 /// One AI chat bubble. User messages align right on a filled surface,
-/// assistant messages align left with sources and copy/retry affordances.
-class AppAiMessageBubble extends StatelessWidget {
+/// assistant messages align left with rich markdown (charts, tables,
+/// flowcharts, callouts, math, code blocks), smooth streaming typewriter
+/// reveal, sources, and copy/retry affordances.
+class AppAiMessageBubble extends StatefulWidget {
   const AppAiMessageBubble({
     super.key,
     required this.message,
@@ -39,11 +40,129 @@ class AppAiMessageBubble extends StatelessWidget {
   final bool minimal;
 
   @override
+  State<AppAiMessageBubble> createState() => _AppAiMessageBubbleState();
+}
+
+class _AppAiMessageBubbleState extends State<AppAiMessageBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _streamController;
+  int _fromChars = 0;
+  int _toChars = 0;
+  bool _streamedInSession = false;
+
+  bool get _isAssistant => widget.message.role == AppAiRole.assistant;
+
+  @override
+  void initState() {
+    super.initState();
+    _streamController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    )..addListener(() {
+        if (mounted) setState(() {});
+      });
+
+    final int len = widget.message.body.length;
+    if (_isAssistant && widget.message.pending) {
+      _streamedInSession = true;
+      _fromChars = 0;
+      _toChars = len;
+      if (len > 0) {
+        _animateTo(len);
+      }
+    } else {
+      _fromChars = len;
+      _toChars = len;
+      _streamController.value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant AppAiMessageBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final String newBody = widget.message.body;
+    final String oldBody = oldWidget.message.body;
+
+    if (widget.message.id != oldWidget.message.id) {
+      _streamedInSession = _isAssistant && widget.message.pending;
+      if (_streamedInSession) {
+        _fromChars = 0;
+        _toChars = newBody.length;
+        if (newBody.isNotEmpty) {
+          _animateTo(newBody.length);
+        } else {
+          _streamController.value = 1.0;
+        }
+      } else {
+        _fromChars = newBody.length;
+        _toChars = newBody.length;
+        _streamController.value = 1.0;
+      }
+      return;
+    }
+
+    if (!_isAssistant) {
+      _fromChars = newBody.length;
+      _toChars = newBody.length;
+      _streamController.value = 1.0;
+      return;
+    }
+
+    if (widget.message.pending || oldWidget.message.pending) {
+      _streamedInSession = true;
+    }
+
+    if (_streamedInSession && newBody.length > oldBody.length) {
+      _animateTo(newBody.length);
+    } else if (newBody != oldBody) {
+      _fromChars = newBody.length;
+      _toChars = newBody.length;
+      _streamController.value = 1.0;
+    }
+  }
+
+  void _animateTo(int targetLength) {
+    final int current = _currentRevealedLength(widget.message.body);
+    _fromChars = math.min(current, targetLength);
+    _toChars = targetLength;
+    final int delta = math.max(1, _toChars - _fromChars);
+    final int ms = (delta * 7).clamp(180, 680);
+    _streamController.duration = Duration(milliseconds: ms);
+    _streamController.forward(from: 0.0);
+  }
+
+  int _currentRevealedLength(String fullText) {
+    if (fullText.isEmpty) return 0;
+    if (!_streamedInSession || !_streamController.isAnimating) {
+      return fullText.length;
+    }
+    final double t = Curves.easeOutCubic.transform(_streamController.value);
+    final int raw = (_fromChars + (_toChars - _fromChars) * t).round();
+    return raw.clamp(0, fullText.length);
+  }
+
+  String _visibleAssistantBody(String fullText) {
+    final int count = _currentRevealedLength(fullText);
+    if (count >= fullText.length) return fullText;
+    if (count <= 0) return '';
+    return fullText.substring(0, count);
+  }
+
+  @override
+  void dispose() {
+    _streamController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final AppAiMessage message = widget.message;
     final bool mine = message.role == AppAiRole.user;
+    final bool isAnimatingStream =
+        _isAssistant && (message.pending || _streamController.isAnimating);
     final List<Widget> extraActions =
-        (message.pending ? null : actionsBuilder?.call(message)) ??
+        (message.pending ? null : widget.actionsBuilder?.call(message)) ??
         const <Widget>[];
 
     if (message.role == AppAiRole.system) {
@@ -61,18 +180,22 @@ class AppAiMessageBubble extends StatelessWidget {
       );
     }
 
+    final String displayedBody = _isAssistant
+        ? _visibleAssistantBody(message.body)
+        : message.body;
+
     final Widget bubble = Container(
       constraints: BoxConstraints(
         maxWidth: context.uiRes.isMobile
             ? double.infinity
-            : context.sz(minimal ? 760 : 560),
+            : context.sz(widget.minimal ? 780 : 600),
       ),
       padding: EdgeInsets.symmetric(
         horizontal: context.sp(theme.spacing.md),
         vertical: context.sp(theme.spacing.sm),
       ),
       decoration: BoxDecoration(
-        color: minimal
+        color: widget.minimal
             ? (mine ? theme.colors.surfaceMuted : Colors.transparent)
             : (mine ? theme.colors.primary : theme.colors.surfaceMuted),
         borderRadius: BorderRadius.only(
@@ -90,55 +213,36 @@ class AppAiMessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          if (message.pending && message.body.isEmpty)
+          if (message.pending && displayedBody.isEmpty)
             const UiTypingIndicator(label: 'Thinking…')
           else if (mine)
             _buildUserMessageText(context, theme)
-          else
-            MarkdownBody(
-              data: message.body,
-              selectable: true,
-              inlineSyntaxes: <md.InlineSyntax>[TickerInlineSyntax()],
-              builders: <String, MarkdownElementBuilder>{
-                'ticker': TickerElementBuilder(onOpenRef: onOpenRef),
-              },
-              onTapLink: (text, href, title) {
-                if (href != null) {
-                  final Uri? uri = Uri.tryParse(href);
-                  if (uri != null && AppDeepLink.isInternal(uri)) {
-                    final target = AppDeepLink.target(uri);
-                    if (target != null && onOpenRef != null) {
-                      onOpenRef!(
-                        AppLinkRef(
-                          kind: target.kind,
-                          id: target.id,
-                          title: text.isNotEmpty ? text : target.id,
-                        ),
-                      );
-                      return;
-                    }
-                  }
-                }
+          else ...<Widget>[
+            RichMarkdownPreview(
+              data: displayedBody,
+              emptyPlaceholder: '',
+              selectable: !isAnimatingStream,
+              onOpenRef: widget.onOpenRef,
+              imageResolver: (BuildContext ctx, Uri uri) => ClipRRect(
+                borderRadius: ctx.radius(ctx.ui.radii.md),
+                child: UiRemoteImage(
+                  url: uri.toString(),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              onTapLink: (String text, String? href, String title) {
                 if (href != null &&
                     (href.startsWith('https://') ||
                         href.startsWith('http://'))) {
-                  onSourceTap?.call(href);
+                  widget.onSourceTap?.call(href);
                 }
               },
-              styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
-                  .copyWith(
-                    p: context.uiText.body.copyWith(
-                      color: theme.colors.foreground,
-                    ),
-                    code: context.uiText.numeric.copyWith(
-                      color: theme.colors.foreground,
-                      backgroundColor: theme.colors.surface,
-                    ),
-                    blockquote: context.uiText.body.copyWith(
-                      color: theme.colors.foregroundMuted,
-                    ),
-                  ),
             ),
+            if (isAnimatingStream && displayedBody.isNotEmpty) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.xs)),
+              const UiTypingIndicator(),
+            ],
+          ],
           if (message.sources.isNotEmpty) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.sm)),
             Wrap(
@@ -150,7 +254,9 @@ class AppAiMessageBubble extends StatelessWidget {
                     label: s,
                     icon: Icons.link,
                     intent: UiIntent.info,
-                    onTap: onSourceTap == null ? null : () => onSourceTap!(s),
+                    onTap: widget.onSourceTap == null
+                        ? null
+                        : () => widget.onSourceTap!(s),
                   ),
               ],
             ),
@@ -179,45 +285,55 @@ class AppAiMessageBubble extends StatelessWidget {
           if (!mine && !message.pending)
             Padding(
               padding: EdgeInsets.only(top: context.sp(theme.spacing.xxs)),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  UiIconButton(
-                    icon: Icons.copy_all_outlined,
-                    size: UiSize.sm,
-                    tooltip: 'Copy',
-                    onPressed: onCopy,
-                  ),
-                  UiIconButton(
-                    icon: Icons.refresh,
-                    size: UiSize.sm,
-                    tooltip: 'Regenerate',
-                    onPressed: onRetry,
-                  ),
-                  if (onShare != null)
-                    UiIconButton(
-                      icon: Icons.send_outlined,
-                      size: UiSize.sm,
-                      tooltip: 'Share in message',
-                      onPressed: onShare,
-                    ),
-                  if (message.sentAt != null)
-                    Text(
-                      AppTokens.relativeTime(message.sentAt!),
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundSubtle,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    if (widget.onCopy != null)
+                      UiIconButton(
+                        icon: Icons.copy_all_outlined,
+                        size: UiSize.xs,
+                        tooltip: 'Copy',
+                        onPressed: widget.onCopy,
                       ),
-                    ),
-                ],
-              ),
-            ),
-          if (extraActions.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.only(top: context.sp(theme.spacing.xxs)),
-              child: Wrap(
-                spacing: context.sp(theme.spacing.xs),
-                runSpacing: context.sp(theme.spacing.xs),
-                children: extraActions,
+                    if (widget.onRetry != null)
+                      UiIconButton(
+                        icon: Icons.refresh,
+                        size: UiSize.xs,
+                        tooltip: 'Regenerate',
+                        onPressed: widget.onRetry,
+                      ),
+                    if (widget.onShare != null)
+                      UiIconButton(
+                        icon: Icons.send_outlined,
+                        size: UiSize.xs,
+                        tooltip: 'Share in message',
+                        onPressed: widget.onShare,
+                      ),
+                    if (message.sentAt != null)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          left: context.sp(theme.spacing.xxs),
+                          right: context.sp(theme.spacing.xs),
+                        ),
+                        child: Text(
+                          AppTokens.relativeTime(message.sentAt!),
+                          style: context.uiText.caption.copyWith(
+                            color: theme.colors.foregroundSubtle,
+                            fontSize: context.fs(11),
+                          ),
+                        ),
+                      ),
+                    if (extraActions.isNotEmpty) ...<Widget>[
+                      for (int i = 0; i < extraActions.length; i++) ...<Widget>[
+                        if (i > 0 || widget.onCopy != null || widget.onRetry != null || message.sentAt != null)
+                          SizedBox(width: context.sp(theme.spacing.xxs)),
+                        extraActions[i],
+                      ],
+                    ],
+                  ],
+                ),
               ),
             ),
         ],
@@ -231,9 +347,9 @@ class AppAiMessageBubble extends StatelessWidget {
 
   Widget _buildUserMessageText(BuildContext context, UiTheme theme) {
     final TextStyle baseStyle = context.uiText.body.copyWith(
-      color: minimal ? theme.colors.foreground : theme.colors.onPrimary,
+      color: widget.minimal ? theme.colors.foreground : theme.colors.onPrimary,
     );
-    final String text = message.body;
+    final String text = widget.message.body;
     final Iterable<Match> matches = _tickerRegex.allMatches(text);
     if (matches.isEmpty) {
       return Text(text, style: baseStyle);
@@ -260,11 +376,11 @@ class AppAiMessageBubble extends StatelessWidget {
             decoration: TextDecoration.underline,
             decorationColor: theme.colors.onPrimary.withValues(alpha: 0.6),
           ),
-          recognizer: onOpenRef == null
+          recognizer: widget.onOpenRef == null
               ? null
               : (TapGestureRecognizer()
                   ..onTap = () {
-                    onOpenRef!(
+                    widget.onOpenRef!(
                       AppLinkRef(
                         kind: AppLinkKind.ticker,
                         id: symbol,

@@ -37,26 +37,36 @@ class CopilotSchedulePanel extends StatelessWidget {
       UiGap.v(context.ui.spacing.md),
       for (final task in controller.workspace.schedules.where(
         (t) => textOf(t, 'prompt').toLowerCase().contains(query.toLowerCase()),
-      ))
+      )) ...[
         UiCard(
           variant: UiCardVariant.outlined,
+          density: UiDensity.compact,
           title: textOf(task, 'prompt'),
           subtitle:
               'Next: ${DateTime.tryParse(textOf(task, 'nextRunAt'))?.toLocal().toString().substring(0, 16) ?? '—'}',
           trailing: UiBadge(
             label: textOf(task, 'status'),
-            intent: UiIntent.neutral,
+            size: UiSize.xs,
+            intent: switch (textOf(task, 'status')) {
+              'scheduled' => UiIntent.success,
+              'running' => UiIntent.info,
+              'paused' => UiIntent.warning,
+              'failed' || 'error' => UiIntent.danger,
+              _ => UiIntent.neutral,
+            },
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Wrap(
-                spacing: context.sp(context.ui.spacing.sm),
+                spacing: context.sp(context.ui.spacing.xs),
+                runSpacing: context.sp(context.ui.spacing.xs),
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   UiButton(
                     label: 'Open conversation',
-                    size: UiSize.sm,
-                    variant: UiVariant.ghost,
+                    size: UiSize.xs,
+                    variant: UiVariant.soft,
                     onPressed: controller.conversationLocked
                         ? null
                         : () {
@@ -67,8 +77,8 @@ class CopilotSchedulePanel extends StatelessWidget {
                   if (task['status'] != 'running') ...[
                     UiButton(
                       label: task['status'] == 'scheduled' ? 'Pause' : 'Resume',
-                      size: UiSize.sm,
-                      variant: UiVariant.ghost,
+                      size: UiSize.xs,
+                      variant: UiVariant.outline,
                       onPressed: () => controller.action({
                         'action': 'schedule.control',
                         'id': task['id'],
@@ -79,8 +89,8 @@ class CopilotSchedulePanel extends StatelessWidget {
                     ),
                     UiButton(
                       label: 'Retry after review',
-                      size: UiSize.sm,
-                      variant: UiVariant.ghost,
+                      size: UiSize.xs,
+                      variant: UiVariant.outline,
                       onPressed: () => controller.action({
                         'action': 'schedule.control',
                         'id': task['id'],
@@ -89,6 +99,7 @@ class CopilotSchedulePanel extends StatelessWidget {
                     ),
                     UiIconButton(
                       icon: Icons.delete_outline,
+                      size: UiSize.xs,
                       tooltip: 'Delete schedule',
                       onPressed: () => controller.action({
                         'action': 'schedule.control',
@@ -99,7 +110,8 @@ class CopilotSchedulePanel extends StatelessWidget {
                   ],
                 ],
               ),
-              if (records(task['runs']).isNotEmpty)
+              if (records(task['runs']).isNotEmpty) ...[
+                UiGap.v(context.ui.spacing.sm),
                 UiAccordion(
                   sections: [
                     UiAccordionSection(
@@ -110,18 +122,27 @@ class CopilotSchedulePanel extends StatelessWidget {
                           for (final run in records(
                             task['runs'],
                           ).reversed.take(10))
-                            Text(
-                              '${run['status']} · ${run['startedAt']}\n${run['error'] ?? ''}',
-                              style: context.uiText.caption,
+                            Padding(
+                              padding: EdgeInsets.only(
+                                bottom: context.sp(context.ui.spacing.xs),
+                              ),
+                              child: Text(
+                                '${run['status']} · ${run['startedAt']}\n${run['error'] ?? ''}'
+                                    .trim(),
+                                style: context.uiText.caption,
+                              ),
                             ),
                         ],
                       ),
                     ),
                   ],
                 ),
+              ],
             ],
           ),
         ),
+        UiGap.v(context.ui.spacing.md),
+      ],
       if (controller.workspace.schedules.isEmpty)
         const UiEmptyState(
           icon: Icons.schedule,

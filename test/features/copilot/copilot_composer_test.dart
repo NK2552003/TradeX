@@ -254,4 +254,172 @@ void main() {
       controller.dispose();
     },
   );
+
+  testWidgets('pressing Enter clears input immediately before async completion', (
+    tester,
+  ) async {
+    size(tester, 768);
+    final controller = _RecordingController()..accept = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: CopilotChatPane(controller: controller)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final textFieldFinder = find.byType(TextField);
+    await tester.tap(textFieldFinder);
+    await tester.enterText(textFieldFinder, 'What is the NVDA price today?');
+    await tester.pump();
+    final textController = tester.widget<TextField>(textFieldFinder).controller!;
+    expect(textController.text, 'What is the NVDA price today?');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(textController.text, isEmpty);
+    expect(controller.sends, 1);
+    expect(controller.prompt, 'What is the NVDA price today?');
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
+  testWidgets(
+    'voice button on composer card starts natural-language voice assistant and processes spoken turns',
+    (tester) async {
+      size(tester, 1024);
+      final controller = _RecordingController()..accept = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: CopilotScreen(repository: controller)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify Voice button is visible right on the AI Composer card and matches Send button size & alignment
+      final voiceBtn = find.byKey(
+        const ValueKey('copilot-composer-voice-button'),
+      );
+      final sendBtn = find.byWidgetPredicate(
+        (w) => w is UiButton && w.label == 'Send message',
+      );
+      expect(voiceBtn, findsOneWidget);
+      expect(sendBtn, findsOneWidget);
+      expect(
+        tester.getSize(voiceBtn).height,
+        closeTo(tester.getSize(sendBtn).height, 0.5),
+      );
+      expect(
+        tester.getCenter(voiceBtn).dy,
+        closeTo(tester.getCenter(sendBtn).dy, 0.5),
+      );
+
+      // Tap Voice button on composer card to launch Live Natural-Language Voice Panel
+      await tester.tap(voiceBtn);
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey('copilot-voice-panel')),
+        findsOneWidget,
+      );
+      expect(find.text('Listening'), findsOneWidget);
+
+      // Verify no bottom overflow even if an error callout is shown while Voice Panel is open on a short viewport
+      tester.view.physicalSize = const Size(1024, 560);
+      controller.error = 'Temporary network warning';
+      // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+      controller.notifyListeners();
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      tester.view.physicalSize = const Size(1024, 900);
+      await tester.pump();
+
+      // Tap a natural-language voice prompt chip inside the Voice Panel
+      await tester.tap(find.text('Summarize my notes & journal'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(controller.sends, 1);
+      expect(controller.prompt, 'Summarize my notes & journal');
+      expect(tester.takeException(), isNull);
+
+      // End call
+      await tester.tap(find.text('End call'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('copilot-voice-panel')), findsNothing);
+      expect(controller.workspace.calls, isNotEmpty);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
+    'CopilotFeatureConnector bridges Notes, Journal, Strategies, Community, and Watchlists',
+    (tester) async {
+      size(tester, 1280);
+      final controller = _RecordingController()..accept = true;
+
+      // 1. Save an AI Copilot response to Notes, Journal, Strategy, and Community
+      final noteRes = await CopilotFeatureConnector.saveAsNote(
+        body: '## \$NVDA Breakout Analysis\nStrong institutional volume above \$135.',
+        title: 'NVDA Breakout Research',
+      );
+      expect(noteRes.note.title, 'NVDA Breakout Research');
+      expect(noteRes.note.linkedTickers, contains('NVDA'));
+
+      final tradeRes = await CopilotFeatureConnector.logAsJournalTrade(
+        body: 'Executed \$NVDA long breakout with 2.4R reward.',
+        ticker: 'NVDA',
+        entry: 132.0,
+        exit: 139.5,
+        pnl: 750.0,
+      );
+      expect(tradeRes.trade.ticker, 'NVDA');
+      expect(tradeRes.trade.pnl, 750.0);
+
+      final stratRes = await CopilotFeatureConnector.saveAsStrategy(
+        body: '### Opening Range Momentum\nWait for 15m candle close above VWAP.',
+        name: 'Opening Range VWAP Playbook',
+      );
+      expect(stratRes.strategy.name, 'Opening Range VWAP Playbook');
+
+      final postRes = await CopilotFeatureConnector.publishCommunityPost(
+        body: 'Shared \$NVDA desk thesis from AI Copilot.',
+        title: 'NVDA Desk Thesis',
+      );
+      expect(postRes.post.postTitle, 'NVDA Desk Thesis');
+
+      // 2. Verify fetchConnectableItems returns connected items across features
+      final items = await CopilotFeatureConnector.fetchConnectableItems();
+      expect(items, isNotEmpty);
+      expect(
+        items.any((i) => i.category == CopilotFeatureCategory.notes),
+        isTrue,
+      );
+      expect(
+        items.any((i) => i.category == CopilotFeatureCategory.journal),
+        isTrue,
+      );
+      expect(
+        items.any((i) => i.category == CopilotFeatureCategory.strategies),
+        isTrue,
+      );
+      expect(
+        items.any((i) => i.category == CopilotFeatureCategory.community),
+        isTrue,
+      );
+
+      // 3. Verify natural-language connected workspace reply includes KPI & table
+      final reply =
+          await CopilotFeatureConnector.buildConnectedNaturalLanguageReply(
+            'Summarize my notes, journal trades, strategies, and community posts',
+            controller,
+          );
+      expect(reply, contains('```kpi'));
+      expect(reply, contains('Trade Journal & Execution Review'));
+
+      controller.dispose();
+    },
+  );
 }

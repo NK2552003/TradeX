@@ -25,7 +25,8 @@ class UserProfileModel {
     this.primaryMarket,
     this.topStrategy,
     this.riskMantra,
-    this.publicJournals = false,
+    this.publicStats = true,
+    this.publicJournals = true,
     this.subscriptionTier = 'free',
     this.followers = 0,
     this.following = 0,
@@ -55,6 +56,7 @@ class UserProfileModel {
   final String? primaryMarket;
   final String? topStrategy;
   final String? riskMantra;
+  final bool publicStats;
   final bool publicJournals;
   final String subscriptionTier;
   final int followers;
@@ -66,6 +68,12 @@ class UserProfileModel {
   final DateTime? updatedAt;
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) {
+    final Map<String, dynamic>? notif =
+        json['notification_settings'] is Map<String, dynamic>
+            ? json['notification_settings'] as Map<String, dynamic>
+            : (json['notification_settings'] is Map
+                ? Map<String, dynamic>.from(json['notification_settings'] as Map)
+                : null);
     return UserProfileModel(
       id: json['id'] as String,
       handle: json['handle'] as String,
@@ -86,7 +94,14 @@ class UserProfileModel {
       primaryMarket: json['primary_market'] as String?,
       topStrategy: json['top_strategy'] as String?,
       riskMantra: json['risk_mantra'] as String?,
-      publicJournals: json['public_journals'] as bool? ?? false,
+      publicStats:
+          json['public_stats'] as bool? ??
+          notif?['public_stats'] as bool? ??
+          true,
+      publicJournals:
+          json['public_journals'] as bool? ??
+          notif?['public_journals'] as bool? ??
+          true,
       subscriptionTier: json['subscription_tier'] as String? ?? 'free',
       followers:
           (json['followers_count'] as num?)?.toInt() ??
@@ -129,6 +144,7 @@ class UserProfileModel {
       'primary_market': primaryMarket,
       'top_strategy': topStrategy,
       'risk_mantra': riskMantra,
+      'public_stats': publicStats,
       'public_journals': publicJournals,
       'subscription_tier': subscriptionTier,
       'followers_count': followers,
@@ -161,6 +177,7 @@ class UserProfileModel {
     String? primaryMarket,
     String? topStrategy,
     String? riskMantra,
+    bool? publicStats,
     bool? publicJournals,
     String? subscriptionTier,
     int? followers,
@@ -191,6 +208,7 @@ class UserProfileModel {
       primaryMarket: primaryMarket ?? this.primaryMarket,
       topStrategy: topStrategy ?? this.topStrategy,
       riskMantra: riskMantra ?? this.riskMantra,
+      publicStats: publicStats ?? this.publicStats,
       publicJournals: publicJournals ?? this.publicJournals,
       subscriptionTier: subscriptionTier ?? this.subscriptionTier,
       followers: followers ?? this.followers,

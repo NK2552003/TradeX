@@ -67,7 +67,10 @@ class UiDialog extends StatelessWidget {
         child: Align(
           alignment: mobile ? Alignment.bottomCenter : Alignment.center,
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: ctx.sz(maxWidth)),
+            constraints: BoxConstraints(
+              maxWidth: ctx.sz(maxWidth),
+              maxHeight: MediaQuery.sizeOf(ctx).height * (mobile ? 0.92 : 0.88),
+            ),
             child: UiCard(
               key: const ValueKey('ui-dialog-surface'),
               padding: EdgeInsets.zero,
@@ -196,11 +199,14 @@ class UiDialog extends StatelessWidget {
               ],
             )
           else
-            Wrap(
-              alignment: WrapAlignment.end,
-              spacing: context.sp(theme.spacing.sm),
-              runSpacing: context.sp(theme.spacing.sm),
-              children: actions,
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: context.sp(theme.spacing.sm),
+                runSpacing: context.sp(theme.spacing.sm),
+                children: actions,
+              ),
             ),
         ],
       ],

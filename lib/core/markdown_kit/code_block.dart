@@ -43,14 +43,40 @@ class RichCodeBlockBuilder extends MarkdownElementBuilder {
 
     final String cls = code.attributes['class'] ?? '';
     final String rawLang = cls.replaceFirst('language-', '').trim();
+    final String langKey = rawLang.toLowerCase();
     final String source = code.textContent;
     if (source.trim().isEmpty) return null;
 
-    if (rawLang == 'mermaid') {
+    if (langKey == 'mermaid' || langKey == 'flowchart') {
       return _MermaidBlock(source: source.trim(), dark: dark);
     }
-    if (rawLang == 'chart') {
-      return ChartBlock(spec: source.trim());
+    const Set<String> chartFenceTags = <String>{
+      'chart',
+      'graph',
+      'plot',
+      'bar',
+      'line',
+      'area',
+      'combo',
+      'pie',
+      'donut',
+      'candle',
+      'candles',
+      'ohlc',
+      'waterfall',
+      'barlist',
+      'ranking',
+      'kpi',
+      'metrics',
+      'spark',
+      'sparkline',
+    };
+    if (chartFenceTags.contains(langKey)) {
+      final String? defaultType =
+          (langKey == 'chart' || langKey == 'graph' || langKey == 'plot')
+          ? null
+          : langKey;
+      return ChartBlock(spec: source.trim(), defaultType: defaultType);
     }
     return _CodeBlock(
       source: source.trimRight(),

@@ -300,10 +300,10 @@ class MarketNewsCard extends StatelessWidget {
           }
           if (row && box.maxWidth >= 380) {
             return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(flex: 3, child: _copy(context)),
-                UiGap.h(context.ui.spacing.md),
+                UiGap.h(context.ui.spacing.lg),
                 Expanded(child: _image(context)),
               ],
             );

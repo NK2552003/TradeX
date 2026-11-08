@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -572,20 +574,24 @@ class _FeatureGuideSpotlightOverlayState
             .intersect(Offset.zero & viewport);
     final Color veil = colors.overlay.withValues(alpha: .82);
     final double gap = context.sp(theme.spacing.sm);
-    final double cardWidth = (viewport.width - gap * 2).clamp(
-      context.sz(280),
+    final double availWidth = math.max(120.0, viewport.width - gap * 2);
+    final double cardWidth = availWidth.clamp(
+      math.min(availWidth, context.sz(280)),
       context.sz(390),
     );
     final bool placeBelow = focus.bottom + context.sz(240) < viewport.height;
+    final double minTop = safe.top + gap;
+    final double maxTop = math.max(
+      minTop,
+      viewport.height - context.sz(230) - safe.bottom,
+    );
     final double cardTop = placeBelow
         ? focus.bottom + gap
-        : (focus.top - context.sz(220) - gap).clamp(
-            safe.top + gap,
-            viewport.height - context.sz(230) - safe.bottom,
-          );
+        : (focus.top - context.sz(220) - gap).clamp(minTop, maxTop);
+    final double maxLeft = math.max(gap, viewport.width - cardWidth - gap);
     final double cardLeft = (focus.center.dx - cardWidth / 2).clamp(
       gap,
-      viewport.width - cardWidth - gap,
+      maxLeft,
     );
     final FeatureGuideStep step = widget.steps[_index];
 

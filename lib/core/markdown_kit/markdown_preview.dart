@@ -161,7 +161,9 @@ class RichMarkdownPreview extends StatelessWidget {
     final List<Widget> children = <Widget>[];
     for (final _SourcePiece piece in pieces) {
       Widget? child;
-      if (piece.isTable) {
+      if (piece.alertKind != null) {
+        child = _buildAlertCallout(piece);
+      } else if (piece.isTable) {
         final md.Element? table = _parseSingleTable(piece.text);
         if (table != null) child = tableBuilder.buildTable(table);
       }
@@ -341,16 +343,48 @@ class RichMarkdownPreview extends StatelessWidget {
       blockSpacing: 14,
     );
   }
+  static Widget _buildAlertCallout(_SourcePiece piece) {
+    final String kind = (piece.alertKind ?? 'NOTE').toUpperCase();
+    final (UiIntent intent, IconData icon, String defaultTitle) = switch (kind) {
+      'TIP' => (UiIntent.bullish, Icons.lightbulb_outline, 'Tip'),
+      'IMPORTANT' => (UiIntent.primary, Icons.campaign_outlined, 'Important'),
+      'WARNING' => (UiIntent.warning, Icons.warning_amber_rounded, 'Warning'),
+      'CAUTION' => (UiIntent.bearish, Icons.error_outline, 'Caution'),
+      _ => (UiIntent.info, Icons.info_outline, 'Note'),
+    };
+    final String title =
+        (piece.alertTitle != null && piece.alertTitle!.trim().isNotEmpty)
+        ? piece.alertTitle!.trim()
+        : defaultTitle;
+    return UiCallout(
+      title: title,
+      message: piece.text.trim().isEmpty ? null : piece.text.trim(),
+      intent: intent,
+      icon: icon,
+    );
+  }
 }
 
 /// One piece of a document produced by [extractTableBlocks]: either an
-/// ordinary markdown chunk, or the raw source of one GFM table block pulled
-/// out to be rendered directly by [ScrollableTableBuilder.buildTable].
+/// ordinary markdown chunk, a standalone GFM table block, or a GitHub-style
+/// alert blockquote (`> [!NOTE]`, `> [!TIP]`, `> [!WARNING]`, etc.).
 class _SourcePiece {
-  const _SourcePiece({required this.text, required this.isTable});
+  const _SourcePiece({
+    required this.text,
+    required this.isTable,
+    this.alertKind,
+    this.alertTitle,
+  });
   final String text;
   final bool isTable;
+  final String? alertKind;
+  final String? alertTitle;
 }
+
+final RegExp _alertHeaderRow = RegExp(
+  r'^ {0,3}>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:[ \t]+(.*))?$',
+  caseSensitive: false,
+);
 
 /// A GFM table delimiter row: optional leading/trailing `|`, one or more
 /// `---`/`:--`/`--:`/`:-:` cells separated by `|`. This is the one line in a
@@ -361,13 +395,9 @@ final RegExp _tableDelimiterRow = RegExp(
   r'^ {0,3}\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$',
 );
 
-/// Splits [source] into ordinary markdown chunks and standalone GFM table
-/// blocks (header row + delimiter row + every following non-blank line that
-/// contains a `|`), skipping anything inside a fenced code block. Table
-/// detection anchors on the delimiter row specifically — the one line that
-/// cannot be mistaken for ordinary prose — rather than guessing from `|`
-/// characters alone, so a stray pipe in normal text is never misread as a
-/// table.
+/// Splits [source] into ordinary markdown chunks, standalone GFM table
+/// blocks, and GitHub-style alert callouts, skipping anything inside a fenced
+/// code block.
 List<_SourcePiece> _extractTableBlocks(String source) {
   final List<String> lines = source.split('\n');
   final List<_SourcePiece> pieces = <_SourcePiece>[];
@@ -390,6 +420,36 @@ List<_SourcePiece> _extractTableBlocks(String source) {
       buffer.add(line);
       i++;
       continue;
+    }
+
+    if (!inFence) {
+      final RegExpMatch? alertMatch = _alertHeaderRow.firstMatch(line);
+      if (alertMatch != null) {
+        flushMarkdown();
+        final String kind = (alertMatch.group(1) ?? 'NOTE').toUpperCase();
+        final String? customTitle = alertMatch.group(2);
+        final List<String> bodyLines = <String>[];
+        int j = i + 1;
+        while (j < lines.length) {
+          final String next = lines[j];
+          final RegExpMatch? quoteLine = RegExp(
+            r'^ {0,3}> ?(.*)$',
+          ).firstMatch(next);
+          if (quoteLine == null) break;
+          bodyLines.add(quoteLine.group(1) ?? '');
+          j++;
+        }
+        pieces.add(
+          _SourcePiece(
+            text: bodyLines.join('\n').trim(),
+            isTable: false,
+            alertKind: kind,
+            alertTitle: customTitle,
+          ),
+        );
+        i = j;
+        continue;
+      }
     }
 
     final bool looksLikeDelimiter =

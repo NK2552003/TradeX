@@ -6,35 +6,50 @@ class _ComposerActions extends StatelessWidget {
     required this.compact,
     required this.editable,
     required this.submitting,
+    required this.dictating,
     required this.canSend,
     required this.onSend,
     required this.onPaste,
     required this.onCopy,
     required this.onPrompt,
+    required this.onToggleDictation,
   });
   final CopilotComposer config;
-  final bool compact, editable, submitting, canSend;
-  final VoidCallback onSend, onPaste, onCopy, onPrompt;
+  final bool compact, editable, submitting, dictating, canSend;
+  final VoidCallback onSend, onPaste, onCopy, onPrompt, onToggleDictation;
+
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
+    final btnSize = compact ? UiSize.xs : UiSize.sm;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Wrap(
             spacing: context.sp(theme.spacing.xs),
             runSpacing: context.sp(theme.spacing.xs),
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               UiIconButton(
                 icon: Icons.add,
                 tooltip: 'Attach files',
                 variant: UiVariant.outline,
-                size: UiSize.sm,
+                size: btnSize,
+                rounded: true,
                 onPressed: editable && !config.attaching
                     ? config.onAttach
                     : null,
               ),
+              if (!compact && config.onConnectWorkspace != null)
+                UiButton(
+                  label: 'Connect',
+                  icon: Icons.hub_outlined,
+                  rounded: true,
+                  size: UiSize.sm,
+                  variant: UiVariant.outline,
+                  onPressed: editable ? config.onConnectWorkspace : null,
+                ),
               if (!compact) ...[
                 _ModeButton(
                   label: 'Search',
@@ -87,7 +102,7 @@ class _ComposerActions extends StatelessWidget {
                     },
                     icon: Icons.language,
                     variant: UiVariant.outline,
-                    size: UiSize.sm,
+                    size: btnSize,
                     rounded: true,
                     onPressed: () {},
                   ),
@@ -95,6 +110,27 @@ class _ComposerActions extends StatelessWidget {
               UiDropdownMenu(
                 semanticLabel: 'Composer actions',
                 actions: [
+                  if (config.onConnectWorkspace != null)
+                    UiMenuItem(
+                      label: 'Connect workspace (Notes, Journal, Strategy)',
+                      icon: Icons.hub_outlined,
+                      enabled: editable,
+                      onPressed: config.onConnectWorkspace!,
+                    ),
+                  UiMenuItem(
+                    label: dictating ? 'Stop voice dictation' : 'Voice dictation',
+                    icon: dictating ? Icons.mic_off_outlined : Icons.mic_none_rounded,
+                    enabled: editable,
+                    onPressed: onToggleDictation,
+                  ),
+                  if (config.onVoice != null)
+                    UiMenuItem(
+                      label: config.voiceActive
+                          ? 'End live voice assistant'
+                          : 'Start live voice assistant',
+                      icon: Icons.graphic_eq_rounded,
+                      onPressed: config.onVoice!,
+                    ),
                   UiMenuItem(
                     label: 'Paste text',
                     icon: Icons.content_paste,
@@ -124,7 +160,8 @@ class _ComposerActions extends StatelessWidget {
                   icon: Icons.more_horiz,
                   tooltip: 'Composer actions',
                   variant: UiVariant.outline,
-                  size: UiSize.sm,
+                  size: btnSize,
+                  rounded: true,
                   onPressed: () {},
                 ),
               ),
@@ -137,28 +174,42 @@ class _ComposerActions extends StatelessWidget {
             icon: Icons.stop_rounded,
             tooltip: 'Stop response',
             variant: UiVariant.solid,
+            size: btnSize,
+            rounded: true,
             onPressed: config.onStop,
           )
-        else if (config.onVoice != null &&
-            config.controller.text.trim().isEmpty &&
-            config.attachments.isEmpty)
-          UiButton(
-            label: config.voiceActive ? 'End voice call' : 'Start voice call',
-            icon: Icons.graphic_eq,
-            iconOnly: true,
+        else ...[
+          UiIconButton(
+            key: const ValueKey('copilot-composer-voice-button'),
+            icon: config.voiceActive
+                ? Icons.graphic_eq_rounded
+                : (dictating ? Icons.mic_rounded : Icons.mic_none_rounded),
+            tooltip: config.voiceActive
+                ? 'End voice call'
+                : (config.onVoice != null
+                      ? 'Start voice call'
+                      : (dictating ? 'Stop voice input' : 'Voice input')),
+            variant: (config.voiceActive || dictating)
+                ? UiVariant.solid
+                : UiVariant.outline,
+            intent: config.voiceActive
+                ? UiIntent.primary
+                : (dictating ? UiIntent.success : null),
+            size: btnSize,
             rounded: true,
-            variant: UiVariant.solid,
-            onPressed: config.onVoice,
-          )
-        else
+            onPressed: config.onVoice ?? (editable ? onToggleDictation : null),
+          ),
+          UiGap.h(theme.spacing.xs),
           UiButton(
             label: 'Send message',
             icon: Icons.arrow_upward,
             iconOnly: true,
             rounded: true,
+            size: btnSize,
             variant: UiVariant.solid,
             onPressed: canSend ? onSend : null,
           ),
+        ],
       ],
     );
   }

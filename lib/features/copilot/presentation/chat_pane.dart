@@ -11,10 +11,12 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 
 import '../data/copilot_controller.dart';
+import '../data/copilot_feature_connector.dart';
 import '../models/workspace.dart';
+import 'copilot_composer.dart';
+import 'copilot_feature_modals.dart';
 import 'review_card.dart';
 import 'save_page_dialog.dart';
-import 'copilot_composer.dart';
 
 class CopilotChatPane extends StatefulWidget {
   const CopilotChatPane({
@@ -23,12 +25,16 @@ class CopilotChatPane extends StatefulWidget {
     this.initialPrompt,
     this.onPage,
     this.onVoice,
+    this.onSpeakMessage,
+    this.onOpenRef,
     this.voiceActive = false,
   });
   final CopilotController controller;
   final String? initialPrompt;
   final ValueChanged<WorkspacePage>? onPage;
   final VoidCallback? onVoice;
+  final ValueChanged<String>? onSpeakMessage;
+  final ValueChanged<AppLinkRef>? onOpenRef;
   final bool voiceActive;
   @override
   State<CopilotChatPane> createState() => _CopilotChatPaneState();
@@ -38,6 +44,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
   final _composer = TextEditingController();
   final List<({String name, Json input})> _attachments = [];
   bool _attaching = false;
+  String? _optimisticPrompt;
   CopilotPromptMode _mode = CopilotPromptMode.auto;
   CopilotController get controller => widget.controller;
 
@@ -142,9 +149,23 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
   }
 
   Future<void> _send(String prompt) async {
-    final attachments = _attachments.map((a) => a.input).toList();
+    final trimmed = prompt.trim();
+    if (trimmed.isEmpty) return;
+    final previousDraft = _composer.text;
+    final savedAttachments = List<({String name, Json input})>.from(
+      _attachments,
+    );
+    final attachments = savedAttachments.map((a) => a.input).toList();
+
+    // Clear composer and attachments immediately on Enter/Send for snappy UX.
+    _composer.clear();
+    setState(() {
+      _attachments.clear();
+      _optimisticPrompt = trimmed;
+    });
+
     final accepted = await controller.sendPrompt(
-      prompt,
+      trimmed,
       attachments: attachments,
       mode:
           controller.specialist?.research == true &&
@@ -154,10 +175,19 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
     );
     if (!mounted) return;
     if (accepted) {
-      _composer.clear();
-      setState(_attachments.clear);
-    } else if (_composer.text.isEmpty) {
-      _composer.text = prompt;
+      setState(() => _optimisticPrompt = null);
+    } else {
+      final restoredText = previousDraft.isNotEmpty ? previousDraft : prompt;
+      _composer.value = TextEditingValue(
+        text: restoredText,
+        selection: TextSelection.collapsed(offset: restoredText.length),
+      );
+      setState(() {
+        _optimisticPrompt = null;
+        if (_attachments.isEmpty && savedAttachments.isNotEmpty) {
+          _attachments.addAll(savedAttachments);
+        }
+      });
     }
   }
 
@@ -196,13 +226,46 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
             id: message.id,
             role: message.isUser ? AppAiRole.user : AppAiRole.assistant,
             body: message.id == controller.streamingMessageId
-                ? controller.streamingText
+                ? (controller.streamingText.isNotEmpty
+                      ? controller.streamingText
+                      : message.body)
                 : message.body,
-            pending: message.status == 'streaming' && controller.generating,
+            pending:
+                (message.status == 'streaming' ||
+                    message.id == controller.streamingMessageId) &&
+                controller.generating,
             sources: message.sources.map((s) => textOf(s, 'url')).toList(),
           ),
         )
         .toList();
+    final bool hasStreamingAssistant = displayed.any(
+      (m) => m.role == AppAiRole.assistant && m.pending,
+    );
+    if (_optimisticPrompt != null &&
+        controller.generating &&
+        !hasStreamingAssistant) {
+      final bool userAlreadyListed =
+          displayed.isNotEmpty &&
+          displayed.last.role == AppAiRole.user &&
+          displayed.last.body.trim() == _optimisticPrompt;
+      if (!userAlreadyListed) {
+        displayed.add(
+          AppAiMessage(
+            id: '__optimistic_user__',
+            role: AppAiRole.user,
+            body: _optimisticPrompt!,
+          ),
+        );
+      }
+      displayed.add(
+        const AppAiMessage(
+          id: '__optimistic_assistant__',
+          role: AppAiRole.assistant,
+          body: '',
+          pending: true,
+        ),
+      );
+    }
     return LayoutBuilder(
       builder: (context, constraints) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,15 +283,21 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
               ),
             ),
           if (controller.error != null)
-            UiCallout(
-              title: 'Could not finish',
-              message: controller.error!,
-              intent: UiIntent.warning,
-              action: UiButton(
-                label: 'Reconnect',
-                size: UiSize.sm,
-                variant: UiVariant.ghost,
-                onPressed: () => controller.reload(),
+            Padding(
+              padding: EdgeInsets.only(
+                bottom: context.sp(context.ui.spacing.sm),
+              ),
+              child: UiCallout(
+                title: 'Could not finish',
+                message: controller.error!,
+                intent: UiIntent.warning,
+                onClose: () => setState(() => controller.error = null),
+                action: UiButton(
+                  label: 'Reconnect',
+                  size: UiSize.xs,
+                  variant: UiVariant.outline,
+                  onPressed: () => controller.reload(),
+                ),
               ),
             ),
           Expanded(
@@ -249,10 +318,11 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                   controller.workspace.settings['paused'] != true,
               composer: CopilotComposer(
                 controller: _composer,
-                compactHeight: constraints.maxHeight < 440,
+                compactHeight:
+                    constraints.maxHeight < 520 || widget.voiceActive,
                 enabled:
                     controller.connected &&
-                    !controller.voiceBusy &&
+                    (!controller.voiceBusy || widget.voiceActive) &&
                     !controller.hasPendingReview &&
                     controller.workspace.settings['paused'] != true,
                 busy: controller.generating || thread?.status == 'running',
@@ -282,9 +352,22 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                 onRemoveAttachment: (i) =>
                     setState(() => _attachments.removeAt(i)),
                 onStop: controller.stop,
-                onVoice: controller.workspace.setup['voice'] == false
-                    ? null
-                    : widget.onVoice,
+                onVoice: widget.onVoice,
+                onConnectWorkspace: () => showCopilotConnectDialog(
+                  context,
+                  onAttach: (CopilotConnectedItem item) {
+                    if (!mounted) return;
+                    setState(() {
+                      if (_attachments.length >= 4) {
+                        _attachments.removeAt(0);
+                      }
+                      _attachments.add((
+                        name: '${item.category.label}: ${item.title}',
+                        input: item.toAttachmentJson(),
+                      ));
+                    });
+                  },
+                ),
                 voiceActive: widget.voiceActive,
               ),
               composerController: _composer,
@@ -300,15 +383,30 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                 },
               ),
               messageBuilder: (context, message) {
-                final model = messages.where((m) => m.id == message.id).first;
+                final model = messages
+                    .where((m) => m.id == message.id)
+                    .firstOrNull;
+                final bool isLastAssistant =
+                    model != null &&
+                    !model.isUser &&
+                    model.id == messages.lastOrNull?.id;
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     AppAiMessageBubble(
                       message: message,
                       minimal: true,
-                      onCopy: () =>
-                          Clipboard.setData(ClipboardData(text: message.body)),
+                      onOpenRef: widget.onOpenRef,
+                      onCopy: message.body.isEmpty
+                          ? null
+                          : () => Clipboard.setData(
+                              ClipboardData(text: message.body),
+                            ),
+                      onRetry: isLastAssistant && !controller.generating
+                          ? () => _send(
+                              'Please regenerate and refine your previous response.',
+                            )
+                          : null,
                       onSourceTap: (url) {
                         final uri = Uri.tryParse(url);
                         if (uri != null &&
@@ -316,7 +414,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                           launchUrl(uri, mode: LaunchMode.externalApplication);
                         }
                       },
-                      actionsBuilder: (_) => model.isUser
+                      actionsBuilder: (_) => (model == null || model.isUser)
                           ? []
                           : [
                               UiButton(
@@ -332,6 +430,78 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                                         message.body,
                                       ),
                               ),
+                              UiButton(
+                                label: 'Save note',
+                                icon: Icons.note_add_outlined,
+                                size: UiSize.xs,
+                                variant: UiVariant.ghost,
+                                onPressed: message.body.isEmpty
+                                    ? null
+                                    : () => showSaveToFeatureDialog(
+                                        context,
+                                        initialTarget:
+                                            CopilotFeatureTarget.note,
+                                        markdownBody: message.body,
+                                        onOpenRef: widget.onOpenRef,
+                                      ),
+                              ),
+                              UiButton(
+                                label: 'Log trade',
+                                icon: Icons.candlestick_chart_outlined,
+                                size: UiSize.xs,
+                                variant: UiVariant.ghost,
+                                onPressed: message.body.isEmpty
+                                    ? null
+                                    : () => showSaveToFeatureDialog(
+                                        context,
+                                        initialTarget:
+                                            CopilotFeatureTarget.journal,
+                                        markdownBody: message.body,
+                                        onOpenRef: widget.onOpenRef,
+                                      ),
+                              ),
+                              UiButton(
+                                label: 'Strategy',
+                                icon: Icons.psychology_outlined,
+                                size: UiSize.xs,
+                                variant: UiVariant.ghost,
+                                onPressed: message.body.isEmpty
+                                    ? null
+                                    : () => showSaveToFeatureDialog(
+                                        context,
+                                        initialTarget:
+                                            CopilotFeatureTarget.strategy,
+                                        markdownBody: message.body,
+                                        onOpenRef: widget.onOpenRef,
+                                      ),
+                              ),
+                              UiButton(
+                                label: 'Share post',
+                                icon: Icons.forum_outlined,
+                                size: UiSize.xs,
+                                variant: UiVariant.ghost,
+                                onPressed: message.body.isEmpty
+                                    ? null
+                                    : () => showSaveToFeatureDialog(
+                                        context,
+                                        initialTarget:
+                                            CopilotFeatureTarget.community,
+                                        markdownBody: message.body,
+                                        onOpenRef: widget.onOpenRef,
+                                      ),
+                              ),
+                              if (widget.onSpeakMessage != null)
+                                UiButton(
+                                  label: 'Listen',
+                                  icon: Icons.volume_up_outlined,
+                                  size: UiSize.xs,
+                                  variant: UiVariant.ghost,
+                                  onPressed: message.body.isEmpty
+                                      ? null
+                                      : () => widget.onSpeakMessage!(
+                                          message.body,
+                                        ),
+                                ),
                               if (model.status == 'failed' ||
                                   model.status == 'interrupted')
                                 UiButton(
@@ -346,8 +516,10 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                                 ),
                             ],
                     ),
-                    if (model.artifacts.isNotEmpty)
+                    if (model != null && model.artifacts.isNotEmpty) ...[
                       Wrap(
+                        spacing: context.sp(context.ui.spacing.xs),
+                        runSpacing: context.sp(context.ui.spacing.xs),
                         children: [
                           for (final file in model.artifacts)
                             UiButton(
@@ -363,65 +535,95 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                             ),
                         ],
                       ),
-                    for (final receipt in thread?.approvals ?? <Json>[])
-                      if (receipt['kind'] == 'propose_page' &&
-                          receipt['status'] == 'approved' &&
-                          receipt['messageId'] == model.id &&
-                          receipt['result']?['id'] != null)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: UiButton(
-                            label: 'Open saved page',
-                            icon: Icons.description_outlined,
-                            variant: UiVariant.soft,
-                            size: UiSize.sm,
-                            onPressed: () {
-                              final page = controller.workspace.pages
-                                  .where((p) => p.id == receipt['result']['id'])
-                                  .firstOrNull;
-                              if (page != null) widget.onPage?.call(page);
-                            },
-                          ),
-                        ),
-                    if (model.activity.isNotEmpty)
-                      UiAccordion(
-                        sections: [
-                          UiAccordionSection(
-                            title: 'Work log · ${model.activity.length} steps',
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                for (final item in model.activity)
-                                  Text(
-                                    textOf(item, 'name').replaceAll('_', ' '),
-                                    style: context.uiText.caption,
-                                  ),
-                              ],
+                      UiGap.v(context.ui.spacing.sm),
+                    ],
+                    if (model != null)
+                      for (final receipt in thread?.approvals ?? <Json>[])
+                        if (receipt['kind'] == 'propose_page' &&
+                            receipt['status'] == 'approved' &&
+                            receipt['messageId'] == model.id &&
+                            receipt['result']?['id'] != null)
+                          Padding(
+                            padding: EdgeInsets.only(
+                              bottom: context.sp(context.ui.spacing.sm),
+                            ),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: UiButton(
+                                label: 'Open saved page',
+                                icon: Icons.description_outlined,
+                                variant: UiVariant.soft,
+                                size: UiSize.sm,
+                                onPressed: () {
+                                  final page = controller.workspace.pages
+                                      .where(
+                                        (p) =>
+                                            p.id == receipt['result']['id'],
+                                      )
+                                      .firstOrNull;
+                                  if (page != null) widget.onPage?.call(page);
+                                },
+                              ),
                             ),
                           ),
-                        ],
+                    if (model != null && model.activity.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom: context.sp(context.ui.spacing.sm),
+                        ),
+                        child: UiAccordion(
+                          sections: [
+                            UiAccordionSection(
+                              title:
+                                  'Work log · ${model.activity.length} steps',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  for (final item in model.activity)
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        bottom: context.sp(
+                                          context.ui.spacing.xxs,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        textOf(
+                                          item,
+                                          'name',
+                                        ).replaceAll('_', ' '),
+                                        style: context.uiText.caption,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    if (model.id == messages.lastOrNull?.id)
+                    if (model != null && model.id == messages.lastOrNull?.id)
                       for (final approval in approvals)
-                        CopilotReviewCard(
-                          controller: controller,
-                          approval: approval,
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom: context.sp(context.ui.spacing.sm),
+                          ),
+                          child: CopilotReviewCard(
+                            controller: controller,
+                            approval: approval,
+                          ),
                         ),
                   ],
                 );
               },
             ),
           ),
-          if (controller.generating)
+          if (controller.generating && controller.activity.isNotEmpty)
             Padding(
-              padding: EdgeInsets.only(top: context.sp(context.ui.spacing.sm)),
+              padding: EdgeInsets.only(top: context.sp(context.ui.spacing.xs)),
               child: Text(
-                controller.activity.isEmpty
-                    ? 'Thinking…'
-                    : textOf(
-                        controller.activity.last,
-                        'name',
-                      ).replaceAll('_', ' '),
+                textOf(
+                  controller.activity.last,
+                  'name',
+                ).replaceAll('_', ' '),
                 textAlign: TextAlign.center,
                 style: context.uiText.caption.copyWith(
                   color: context.ui.colors.foregroundSubtle,

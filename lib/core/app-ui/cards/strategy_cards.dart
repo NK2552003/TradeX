@@ -403,13 +403,11 @@ class PlaybookCard extends StatelessWidget {
     return UiCard(
       variant: UiCardVariant.surface,
       padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      child: InkWell(
-        borderRadius: context.radius(theme.radii.lg),
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
             // ── Top Section: Header, Thesis, Metrics, Status Badges ──────────
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -742,7 +740,6 @@ class PlaybookCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

@@ -402,7 +402,7 @@ class CommunityNewsWidget extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.sm)),
           UiButton(
             label: 'Show more',
-            variant: UiVariant.ghost,
+            variant: UiVariant.outline,
             size: UiSize.sm,
             expand: true,
             onPressed: onShowMore,
@@ -418,8 +418,12 @@ class CommunityNewsWidget extends StatelessWidget {
         ? UiIntent.success
         : (item.sentimentScore < -0.2 ? UiIntent.danger : UiIntent.info);
 
+    final String metadataText =
+        '${item.source} · ${AppTokens.relativeTime(item.publishedAt)}'
+        '${item.postCount != null ? ' · ${item.postCount}' : ''}';
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Text(
           item.headline,
@@ -445,38 +449,32 @@ class CommunityNewsWidget extends StatelessWidget {
         ],
         SizedBox(height: context.sp(theme.spacing.xs)),
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            Flexible(
-              child: UiBadge(
-                label: item.category,
-                intent: sentimentIntent,
-                variant: UiBadgeVariant.soft,
-                size: UiSize.xs,
-                maxWidth: context.sz(110),
-              ),
+            UiBadge(
+              label: item.category,
+              intent: sentimentIntent,
+              variant: UiBadgeVariant.soft,
+              size: UiSize.xs,
+              maxWidth: context.sz(110),
             ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
+            const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                '${item.source} · ${AppTokens.relativeTime(item.publishedAt)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.caption.copyWith(
-                  color: theme.colors.foregroundSubtle,
-                  fontSize: context.fs(11),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  metadataText,
+                  maxLines: 1,
+                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                    fontSize: context.fs(11),
+                  ),
                 ),
               ),
             ),
-            if (item.postCount != null) ...<Widget>[
-              SizedBox(width: context.sp(theme.spacing.xxs)),
-              Text(
-                item.postCount!,
-                style: context.uiText.caption.copyWith(
-                  color: theme.colors.foregroundMuted,
-                  fontSize: context.fs(11),
-                ),
-              ),
-            ],
           ],
         ),
       ],
@@ -521,7 +519,7 @@ class CommunityTrendingWidget extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.sm)),
           UiButton(
             label: 'Show more',
-            variant: UiVariant.ghost,
+            variant: UiVariant.outline,
             size: UiSize.sm,
             expand: true,
             onPressed: onShowMore,
@@ -625,7 +623,7 @@ class CommunityWhoToFollowCard extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.sm)),
           UiButton(
             label: 'Show more',
-            variant: UiVariant.ghost,
+            variant: UiVariant.outline,
             size: UiSize.sm,
             expand: true,
             onPressed: onShowMore,
@@ -675,7 +673,11 @@ class CommunityPushNotificationsCard extends StatelessWidget {
             label: 'Turn on notifications',
             variant: UiVariant.outline,
             size: UiSize.sm,
-            expandOnMobile: false,
+            expand: true,
+            style: UiButtonStyle(
+              borderColor: theme.colors.border.withValues(alpha: 0.35),
+              foreground: theme.colors.foregroundMuted,
+            ),
             onPressed: () {
               UiToast.show(
                 context,
@@ -737,27 +739,38 @@ class CommunityDisclaimerCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
-          Wrap(
-            spacing: context.sp(theme.spacing.xs),
-            runSpacing: context.sp(theme.spacing.xs),
+          Row(
             children: <Widget>[
-              UiButton(
-                label: 'Advisors',
-                variant: UiVariant.ghost,
-                size: UiSize.xs,
-                expandOnMobile: false,
-                onPressed: () {
-                  CommunityAdvisorDisclosureSheet.show(context);
-                },
+              Expanded(
+                child: UiButton(
+                  label: 'Advisors',
+                  variant: UiVariant.outline,
+                  size: UiSize.xs,
+                  expand: true,
+                  style: UiButtonStyle(
+                    borderColor: theme.colors.border.withValues(alpha: 0.35),
+                    foreground: theme.colors.foregroundMuted,
+                  ),
+                  onPressed: () {
+                    CommunityAdvisorDisclosureSheet.show(context);
+                  },
+                ),
               ),
-              UiButton(
-                label: 'Guidelines',
-                variant: UiVariant.ghost,
-                size: UiSize.xs,
-                expandOnMobile: false,
-                onPressed: () {
-                  CommunityGuidelinesDialog.show(context);
-                },
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Expanded(
+                child: UiButton(
+                  label: 'Guidelines',
+                  variant: UiVariant.outline,
+                  size: UiSize.xs,
+                  expand: true,
+                  style: UiButtonStyle(
+                    borderColor: theme.colors.border.withValues(alpha: 0.35),
+                    foreground: theme.colors.foregroundMuted,
+                  ),
+                  onPressed: () {
+                    CommunityGuidelinesDialog.show(context);
+                  },
+                ),
               ),
             ],
           ),

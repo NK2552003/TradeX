@@ -335,6 +335,9 @@ class _DesktopCalculator extends StatelessWidget {
                 ],
               );
 
+        final bool hasEmbeddedHeader =
+            AppCalculatorWorkspaceScope.hasEmbeddedHeader(context);
+
         return DecoratedBox(
           decoration: BoxDecoration(
             color: c.surface,
@@ -351,14 +354,16 @@ class _DesktopCalculator extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: bounded ? MainAxisSize.max : MainAxisSize.min,
               children: <Widget>[
-                _CalcHeader(
-                  meta: layout.meta,
-                  onBack: layout.onBack,
-                  actions: layout.actions,
-                  dense: false,
-                  backgroundColor: c.surfaceMuted,
-                ),
-                _rule(ctx),
+                if (!hasEmbeddedHeader) ...<Widget>[
+                  _CalcHeader(
+                    meta: layout.meta,
+                    onBack: layout.onBack,
+                    actions: layout.actions,
+                    dense: false,
+                    backgroundColor: c.surfaceMuted,
+                  ),
+                  _rule(ctx),
+                ],
                 if (bounded) Expanded(child: body) else body,
               ],
             ),

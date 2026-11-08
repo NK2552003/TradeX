@@ -32,26 +32,34 @@ class CopilotConnections extends StatelessWidget {
       UiGap.v(context.ui.spacing.md),
       for (final connection in controller.workspace.connections.where(
         (c) => textOf(c, 'name').toLowerCase().contains(query.toLowerCase()),
-      ))
+      )) ...[
         UiCard(
           variant: UiCardVariant.outlined,
+          density: UiDensity.compact,
           title: textOf(connection, 'name'),
           subtitle: textOf(connection, 'url'),
           trailing: UiBadge(
             label: connection['enabled'] == true ? 'Enabled' : 'Disabled',
-            intent: UiIntent.neutral,
+            size: UiSize.xs,
+            intent: connection['enabled'] == true
+                ? UiIntent.success
+                : UiIntent.neutral,
           ),
           child: Wrap(
+            spacing: context.sp(context.ui.spacing.xs),
+            runSpacing: context.sp(context.ui.spacing.xs),
             children: [
               UiButton(
                 label: 'Settings & tools',
                 icon: Icons.tune,
-                variant: UiVariant.ghost,
+                size: UiSize.xs,
+                variant: UiVariant.soft,
                 onPressed: () => _edit(context, connection),
               ),
               UiButton(
                 label: 'Disconnect',
-                variant: UiVariant.ghost,
+                size: UiSize.xs,
+                variant: UiVariant.outline,
                 intent: UiIntent.danger,
                 onPressed: () => confirmWorkspaceDelete(
                   context,
@@ -64,6 +72,8 @@ class CopilotConnections extends StatelessWidget {
             ],
           ),
         ),
+        UiGap.v(context.ui.spacing.md),
+      ],
       UiGap.v(context.ui.spacing.lg),
       const UiCallout(
         title: 'Accounts are connected separately',

@@ -97,6 +97,7 @@ class UiDatePicker extends StatelessWidget {
           ),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
               Icons.calendar_today_outlined,
@@ -104,7 +105,7 @@ class UiDatePicker extends StatelessWidget {
               color: c.foregroundMuted,
             ),
             SizedBox(width: ctx.sp(theme.spacing.sm)),
-            Expanded(
+            Flexible(
               child: Text(
                 _text,
                 overflow: TextOverflow.ellipsis,

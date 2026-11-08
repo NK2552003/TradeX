@@ -224,7 +224,14 @@ class _CopilotVisualPageEditorState extends State<CopilotVisualPageEditor> {
               ),
             ),
           ),
-          if (_slash != null)
+          if (_slash != null &&
+              const [
+                UiEditorAction.heading,
+                UiEditorAction.quote,
+                UiEditorAction.bulletList,
+                UiEditorAction.numberedList,
+                UiEditorAction.codeBlock,
+              ].any((a) => a.label.toLowerCase().contains(_slash!)))
             ConstrainedBox(
               constraints: BoxConstraints(maxHeight: context.sz(200)),
               child: UiCard(

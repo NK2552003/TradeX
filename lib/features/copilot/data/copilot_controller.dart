@@ -5,6 +5,7 @@ import 'package:tradex/core/config/supabase_config.dart';
 
 import '../models/workspace.dart';
 import 'copilot_api.dart';
+import 'copilot_feature_connector.dart';
 import 'supabase_copilot_api.dart';
 
 class CopilotController extends ChangeNotifier {
@@ -246,8 +247,44 @@ class CopilotController extends ChangeNotifier {
       if (epoch == _epoch) error = '$failure';
     } finally {
       if (epoch == _epoch && !_disposed) {
+        if (streamingMessageId != null && streamingText.isNotEmpty) {
+          final thread = activeThread;
+          final msg = thread?.messages
+              .where((m) => m.id == streamingMessageId)
+              .firstOrNull;
+          if (msg != null) {
+            msg.json['body'] = streamingText;
+            if (msg.json['status'] == 'streaming') {
+              msg.json['status'] = 'done';
+            }
+          }
+        }
         generating = false;
         await reload(quiet: true);
+        if (error != null &&
+            (error!.toLowerCase().contains('ai_queries_per_month') ||
+                error!.toLowerCase().contains('limit reached'))) {
+          final fallback =
+              await CopilotFeatureConnector.buildConnectedNaturalLanguageReply(
+                textOf(body, 'prompt'),
+                this,
+              );
+          final thread = activeThread;
+          if (thread != null) {
+            thread.json['status'] = 'idle';
+            final rawMsgs = thread.json['messages'] as List?;
+            if (rawMsgs != null && rawMsgs.isNotEmpty) {
+              final last = rawMsgs.last as Map<String, dynamic>;
+              if (last['role'] == 'assistant') {
+                last['body'] = fallback;
+                last['status'] = 'complete';
+              }
+            }
+            workspace = CopilotWorkspace.fromJson(workspace.json);
+          }
+          error = null;
+          accepted = true;
+        }
         streamingText = '';
         streamingMessageId = null;
         _notify();

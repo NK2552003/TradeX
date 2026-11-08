@@ -260,6 +260,15 @@ class _UiCardState extends State<UiCard> {
     );
   }
 
+  static bool _isEmptyWidget(Widget w) {
+    if (w is SizedBox) {
+      return w.child == null &&
+          (w.width == null || w.width == 0) &&
+          (w.height == null || w.height == 0);
+    }
+    return false;
+  }
+
   Widget _body(BuildContext ctx, EdgeInsetsGeometry pad, double f) {
     final theme = ctx.ui;
     final bool hasHeader =
@@ -268,6 +277,8 @@ class _UiCardState extends State<UiCard> {
         widget.trailing != null ||
         widget.leading != null ||
         widget.collapsible;
+    final bool hasBodyContent =
+        widget.loading || !_isEmptyWidget(widget.child);
 
     final Widget content = widget.collapsible || widget.loading
         ? AnimatedCrossFade(
@@ -315,17 +326,17 @@ class _UiCardState extends State<UiCard> {
                 ),
               ),
             ),
-            if (widget.headerDivider) ...<Widget>[
+            if (widget.headerDivider && hasBodyContent) ...<Widget>[
               SizedBox(height: ctx.sp(theme.spacing.md) * f),
               Divider(
                 height: theme.borders.hairline,
                 color: theme.colors.border,
               ),
             ],
-            if (widget.headerPadding == null)
+            if (widget.headerPadding == null && hasBodyContent)
               SizedBox(height: ctx.sp(theme.spacing.md) * f),
           ],
-          content,
+          if (hasBodyContent) content,
           if (_expanded &&
               widget.actions != null &&
               widget.actions!.isNotEmpty) ...<Widget>[
@@ -475,10 +486,11 @@ class _UiCardHeader extends StatelessWidget {
     final theme = context.ui;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isNarrow =
-            constraints.maxWidth < context.sz(440) || context.uiRes.isMobile;
+        final bool isUltraNarrow =
+            constraints.maxWidth.isFinite && constraints.maxWidth < 180;
         final Widget titleColumn = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (titleWidget != null)
               titleWidget!
@@ -501,7 +513,7 @@ class _UiCardHeader extends StatelessWidget {
           ],
         );
 
-        if (isNarrow && trailing != null) {
+        if (isUltraNarrow && trailing != null) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -540,6 +552,10 @@ class _UiCardHeader extends StatelessWidget {
           );
         }
 
+        final double maxTrailingWidth = constraints.maxWidth.isFinite
+            ? (constraints.maxWidth * 0.58).clamp(48.0, constraints.maxWidth)
+            : double.infinity;
+
         return Row(
           crossAxisAlignment: subtitle != null
               ? CrossAxisAlignment.start
@@ -552,7 +568,13 @@ class _UiCardHeader extends StatelessWidget {
             Expanded(child: titleColumn),
             if (trailing != null) ...<Widget>[
               SizedBox(width: context.sp(theme.spacing.sm)),
-              trailing!,
+              Flexible(
+                flex: 0,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxTrailingWidth),
+                  child: trailing!,
+                ),
+              ),
             ],
             if (collapsible) ...<Widget>[
               SizedBox(width: context.sp(theme.spacing.xs)),

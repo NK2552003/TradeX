@@ -39,52 +39,77 @@ class CopilotMemorySettings extends StatelessWidget {
           multiline: {'text'},
         ),
       ),
+      UiGap.v(context.ui.spacing.sm),
       for (final memory in controller.workspace.memories.where(
         (m) => textOf(m, 'text').toLowerCase().contains(query.toLowerCase()),
-      ))
+      )) ...[
         UiCard(
-          variant: UiCardVariant.ghost,
-          trailing: UiDropdownMenu(
-            actions: [
-              UiMenuItem(
-                label: 'Edit',
-                onPressed: () => showWorkspaceTextForm(
-                  context,
-                  controller,
-                  title: 'Edit preference',
-                  action: 'memory.save',
-                  initial: memory,
-                  fields: {'text': 'Preference'},
-                  multiline: {'text'},
+          variant: UiCardVariant.outlined,
+          density: UiDensity.compact,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  textOf(memory, 'text'),
+                  style: context.uiText.body,
                 ),
               ),
-              UiMenuItem(
-                label: 'Delete',
-                destructive: true,
-                onPressed: () => confirmWorkspaceDelete(
-                  context,
-                  controller,
-                  'memory.delete',
-                  memory['id'],
-                  'preference',
+              UiGap.h(context.ui.spacing.xs),
+              UiDropdownMenu(
+                alignRight: true,
+                actions: [
+                  UiMenuItem(
+                    label: 'Edit',
+                    icon: Icons.edit_outlined,
+                    onPressed: () => showWorkspaceTextForm(
+                      context,
+                      controller,
+                      title: 'Edit preference',
+                      action: 'memory.save',
+                      initial: memory,
+                      fields: {'text': 'Preference'},
+                      multiline: {'text'},
+                    ),
+                  ),
+                  UiMenuItem(
+                    label: 'Delete',
+                    icon: Icons.delete_outline,
+                    destructive: true,
+                    onPressed: () => confirmWorkspaceDelete(
+                      context,
+                      controller,
+                      'memory.delete',
+                      memory['id'],
+                      'preference',
+                    ),
+                  ),
+                ],
+                child: UiIconButton(
+                  icon: Icons.more_horiz,
+                  size: UiSize.sm,
+                  tooltip: 'Preference actions',
+                  onPressed: () {},
                 ),
               ),
             ],
-            child: const Icon(Icons.more_horiz),
           ),
-          child: Text(textOf(memory, 'text'), style: context.uiText.body),
         ),
+        UiGap.v(context.ui.spacing.sm),
+      ],
       UiGap.v(context.ui.spacing.lg),
       const UiDivider(),
       UiGap.v(context.ui.spacing.md),
       Text('Learning library', style: context.uiText.heading),
+      UiGap.v(context.ui.spacing.xs),
       Text(
         'Review lessons suggested by your specialists. Only published lessons are used in future work.',
         style: context.uiText.caption,
       ),
+      UiGap.v(context.ui.spacing.md),
       for (final skill in controller.workspace.skills.where(
         (s) => textOf(s, 'title').toLowerCase().contains(query.toLowerCase()),
-      ))
+      )) ...[
         UiCard(
           variant: UiCardVariant.outlined,
           title: textOf(skill, 'title'),
@@ -97,6 +122,7 @@ class CopilotMemorySettings extends StatelessWidget {
                 'Evidence: ${textOf(skill, 'evidence')}',
                 style: context.uiText.caption,
               ),
+              UiGap.v(context.ui.spacing.sm),
               UiSwitch(
                 label: 'Published',
                 value: skill['published'] == true,
@@ -106,10 +132,12 @@ class CopilotMemorySettings extends StatelessWidget {
                   'published': v,
                 }),
               ),
+              UiGap.v(context.ui.spacing.xs),
               UiButton(
                 label: 'Delete lesson',
-                variant: UiVariant.ghost,
+                variant: UiVariant.soft,
                 intent: UiIntent.danger,
+                size: UiSize.xs,
                 onPressed: () => confirmWorkspaceDelete(
                   context,
                   controller,
@@ -121,6 +149,8 @@ class CopilotMemorySettings extends StatelessWidget {
             ],
           ),
         ),
+        UiGap.v(context.ui.spacing.md),
+      ],
       if (controller.workspace.skills.isEmpty)
         const UiEmptyState(
           icon: Icons.auto_stories_outlined,
@@ -159,11 +189,14 @@ class CopilotSettings extends StatelessWidget {
         'memory': 'Allow saved preferences',
         'apps': 'Allow connected apps',
       }.entries)
-        UiSwitch(
-          label: entry.value,
-          value: controller.workspace.settings[entry.key] == true,
-          onChanged: (v) =>
-              controller.action({'action': 'settings.save', entry.key: v}),
+        Padding(
+          padding: EdgeInsets.only(bottom: context.sp(context.ui.spacing.sm)),
+          child: UiSwitch(
+            label: entry.value,
+            value: controller.workspace.settings[entry.key] == true,
+            onChanged: (v) =>
+                controller.action({'action': 'settings.save', entry.key: v}),
+          ),
         ),
       UiGap.v(context.ui.spacing.md),
       Text(

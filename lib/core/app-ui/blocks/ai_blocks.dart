@@ -121,53 +121,10 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    return Column(
-      children: <Widget>[
-        Expanded(
-          child: widget.messages.isEmpty
-              ? widget.emptyState ??
-                    UiEmptyState(
-                      title: widget.emptyTitle,
-                      message: widget.emptyMessage,
-                      icon: Icons.auto_awesome,
-                    )
-              : ListView.builder(
-                  controller: _scroll,
-                  padding: EdgeInsets.symmetric(
-                    vertical: context.sp(theme.spacing.md),
-                  ),
-                  itemCount: widget.messages.length,
-                  itemBuilder: (BuildContext ctx, int i) => AppFadeIn(
-                    child:
-                        widget.messageBuilder?.call(ctx, widget.messages[i]) ??
-                        AppAiMessageBubble(
-                          message: widget.messages[i],
-                          onCopy: widget.onCopy == null
-                              ? null
-                              : () => widget.onCopy!(widget.messages[i]),
-                          onRetry: widget.onRetry == null
-                              ? null
-                              : () => widget.onRetry!(widget.messages[i]),
-                          onShare: widget.onShare == null
-                              ? null
-                              : () => widget.onShare!(widget.messages[i]),
-                          onOpenRef: widget.onOpenRef,
-                          actionsBuilder: widget.messageActionsBuilder,
-                        ),
-                  ),
-                ),
-        ),
-        if (widget.prompts.isNotEmpty) ...<Widget>[
-          AppAiPromptChips(
-            prompts: widget.prompts,
-            onSelect: (AppAiPrompt p) {
-              _controller.text = p.prompt;
-              _send();
-            },
-          ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-        ],
-        widget.composer ??
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final Widget composerWidget =
+            widget.composer ??
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
@@ -203,8 +160,73 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
                     onPressed: widget.canSend ? _send : null,
                   ),
               ],
-            ),
-      ],
+            );
+
+        final bool tightHeight =
+            constraints.maxHeight.isFinite && constraints.maxHeight < 280;
+
+        return Column(
+          children: <Widget>[
+            if (!tightHeight)
+              Expanded(
+                child: widget.messages.isEmpty
+                    ? widget.emptyState ??
+                          UiEmptyState(
+                            title: widget.emptyTitle,
+                            message: widget.emptyMessage,
+                            icon: Icons.auto_awesome,
+                          )
+                    : ListView.builder(
+                        controller: _scroll,
+                        padding: EdgeInsets.symmetric(
+                          vertical: context.sp(theme.spacing.md),
+                        ),
+                        itemCount: widget.messages.length,
+                        itemBuilder: (BuildContext ctx, int i) => AppFadeIn(
+                          child:
+                              widget.messageBuilder?.call(
+                                ctx,
+                                widget.messages[i],
+                              ) ??
+                              AppAiMessageBubble(
+                                message: widget.messages[i],
+                                onCopy: widget.onCopy == null
+                                    ? null
+                                    : () => widget.onCopy!(widget.messages[i]),
+                                onRetry: widget.onRetry == null
+                                    ? null
+                                    : () => widget.onRetry!(widget.messages[i]),
+                                onShare: widget.onShare == null
+                                    ? null
+                                    : () => widget.onShare!(widget.messages[i]),
+                                onOpenRef: widget.onOpenRef,
+                                actionsBuilder: widget.messageActionsBuilder,
+                              ),
+                        ),
+                      ),
+              ),
+            if (widget.prompts.isNotEmpty && !tightHeight) ...<Widget>[
+              AppAiPromptChips(
+                prompts: widget.prompts,
+                onSelect: (AppAiPrompt p) {
+                  _controller.text = p.prompt;
+                  _send();
+                },
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+            ],
+            if (tightHeight)
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: composerWidget,
+                ),
+              )
+            else
+              composerWidget,
+          ],
+        );
+      },
     );
   }
 }

@@ -225,7 +225,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       _selectedTopStrategy = profile.topStrategy!;
     }
 
-    _publicStatsEnabled = profile.publicJournals;
+    _publicStatsEnabled = profile.publicStats;
     _publicJournalsEnabled = profile.publicJournals;
   }
 
@@ -303,6 +303,58 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     }
   }
 
+  Future<void> _handleTogglePublicStats(bool val) async {
+    setState(() {
+      _publicStatsEnabled = val;
+      if (_profile != null) {
+        _profile = _profile!.copyWith(publicStats: val);
+      }
+    });
+    try {
+      final updated = await _repo.updateProfile(
+        publicStatsEnabled: val,
+        publicJournalsEnabled: _publicJournalsEnabled,
+      );
+      if (mounted) {
+        setState(() => _profile = updated);
+        UiToast.show(
+          context,
+          title: val ? 'Public Statistics Enabled' : 'Public Statistics Hidden',
+          message: val
+              ? 'Your win-rate, performance metrics, and discipline score are now visible on your profile.'
+              : 'Your win-rate and performance metrics are now hidden from other traders.',
+          intent: val ? UiIntent.success : UiIntent.info,
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _handleTogglePublicJournals(bool val) async {
+    setState(() {
+      _publicJournalsEnabled = val;
+      if (_profile != null) {
+        _profile = _profile!.copyWith(publicJournals: val);
+      }
+    });
+    try {
+      final updated = await _repo.updateProfile(
+        publicStatsEnabled: _publicStatsEnabled,
+        publicJournalsEnabled: val,
+      );
+      if (mounted) {
+        setState(() => _profile = updated);
+        UiToast.show(
+          context,
+          title: val ? 'Public Journal Enabled' : 'Public Journal Disabled',
+          message: val
+              ? 'Broker-hashed executed trade logs are now visible in your public journal tab.'
+              : 'Your executed trade logs are now hidden from your public journal tab.',
+          intent: val ? UiIntent.success : UiIntent.info,
+        );
+      }
+    } catch (_) {}
+  }
+
   Future<void> _saveProfile() async {
     setState(() => _saving = true);
     try {
@@ -327,6 +379,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   : _selectedDeskDivision),
         tradingStyle: _selectedStyle,
         publicStatsEnabled: _publicStatsEnabled,
+        publicJournalsEnabled: _publicJournalsEnabled,
       );
       if (widget.userRole == UserRole.affiliate) {
         try {
@@ -1395,8 +1448,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       icon: Icons.insights_rounded,
                       control: UiSwitch(
                         value: _publicStatsEnabled,
-                        onChanged: (val) =>
-                            setState(() => _publicStatsEnabled = val),
+                        onChanged: _handleTogglePublicStats,
                       ),
                     ),
                     SizedBox(height: context.sp(theme.spacing.xs)),
@@ -1407,8 +1459,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       icon: Icons.auto_stories_outlined,
                       control: UiSwitch(
                         value: _publicJournalsEnabled,
-                        onChanged: (val) =>
-                            setState(() => _publicJournalsEnabled = val),
+                        onChanged: _handleTogglePublicJournals,
                       ),
                     ),
                   ],
@@ -2154,8 +2205,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       icon: Icons.verified_rounded,
                       control: UiSwitch(
                         value: _publicStatsEnabled,
-                        onChanged: (val) =>
-                            setState(() => _publicStatsEnabled = val),
+                        onChanged: _handleTogglePublicStats,
                       ),
                     ),
                     SizedBox(height: context.sp(theme.spacing.xs)),
@@ -2166,8 +2216,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       icon: Icons.insights_rounded,
                       control: UiSwitch(
                         value: _publicJournalsEnabled,
-                        onChanged: (val) =>
-                            setState(() => _publicJournalsEnabled = val),
+                        onChanged: _handleTogglePublicJournals,
                       ),
                     ),
                   ],
@@ -2368,8 +2417,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       icon: Icons.visibility_outlined,
                       control: UiSwitch(
                         value: _publicStatsEnabled,
-                        onChanged: (val) =>
-                            setState(() => _publicStatsEnabled = val),
+                        onChanged: _handleTogglePublicStats,
                       ),
                     ),
                   ],

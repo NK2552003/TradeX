@@ -170,71 +170,101 @@ class UiButton extends StatelessWidget {
     final bool fullWidth =
         !compactLabel && (expand || (expandOnMobile && context.uiRes.isMobile));
 
-    Widget core = UiInteractive(
-      enabled: _enabled,
-      onTap: onPressed,
-      onLongPress: onLongPress,
-      selected: selected,
-      autofocus: autofocus,
-      focusNode: focusNode,
-      semanticLabel: semanticLabel ?? label,
-      builder: (BuildContext ctx, UiInteractiveState s) {
-        final _ButtonStyle st = _resolve(ctx, s);
-        final double h = style?.height ?? size.height(ctx);
-        return AnimatedContainer(
-          duration: theme.motion.fast,
-          curve: theme.motion.curve,
-          height: h,
-          width: compactLabel ? h : null,
-          padding: compactLabel
-              ? EdgeInsets.zero
-              : (style?.padding ?? size.padding(ctx, density: density)),
-          constraints: compactLabel
-              ? null
-              : BoxConstraints(minWidth: ctx.sz(theme.sizes.minTapTarget)),
-          decoration: BoxDecoration(
-            color: st.gradient == null ? st.background : null,
-            gradient: st.gradient,
-            borderRadius: radius,
-            border: st.borderColor == null
-                ? null
-                : Border.all(
-                    color: st.borderColor!,
-                    width: s.focused || selected
-                        ? theme.borders.thick
-                        : theme.borders.hairline,
-                  ),
-            boxShadow:
-                style?.shadow ??
-                (st.elevated && (s.hovered || selected)
-                    ? theme.shadows.md
-                    : (st.elevated ? theme.shadows.sm : null)),
-          ),
-          foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
-          child: ClipRRect(
-            borderRadius: radius,
-            child: alignment != null
-                ? Align(
-                    alignment: alignment!,
-                    child: _content(ctx, st, compactLabel, fullWidth),
-                  )
-                : Center(
-                    widthFactor: fullWidth ? null : 1.0,
-                    child: _content(ctx, st, compactLabel, fullWidth),
-                  ),
-          ),
+    // No LayoutBuilder here: buttons are placed inside IntrinsicHeight /
+    // IntrinsicWidth rows (card grids), which assert on LayoutBuilder.
+    // Ghost/link buttons align left via a shrink-wrapping Align instead.
+    return Builder(
+      builder: (BuildContext context) {
+        final bool effectiveFullWidth = fullWidth;
+        final bool autoAlignLeft =
+            alignment == null &&
+            (variant == UiVariant.ghost || variant == UiVariant.link) &&
+            !compactLabel;
+        final AlignmentGeometry? effectiveAlignment =
+            alignment ?? (autoAlignLeft ? Alignment.centerLeft : null);
+
+        Widget core = UiInteractive(
+          enabled: _enabled,
+          onTap: onPressed,
+          onLongPress: onLongPress,
+          selected: selected,
+          autofocus: autofocus,
+          focusNode: focusNode,
+          semanticLabel: semanticLabel ?? label,
+          builder: (BuildContext ctx, UiInteractiveState s) {
+            final _ButtonStyle st = _resolve(ctx, s);
+            final double h = style?.height ?? size.height(ctx);
+            return AnimatedContainer(
+              duration: theme.motion.fast,
+              curve: theme.motion.curve,
+              height: h,
+              width: compactLabel ? h : null,
+              padding: compactLabel
+                  ? EdgeInsets.zero
+                  : (style?.padding ?? size.padding(ctx, density: density)),
+              constraints: compactLabel
+                  ? null
+                  : BoxConstraints(minWidth: ctx.sz(theme.sizes.minTapTarget)),
+              decoration: BoxDecoration(
+                color: st.gradient == null ? st.background : null,
+                gradient: st.gradient,
+                borderRadius: radius,
+                border: st.borderColor == null
+                    ? null
+                    : Border.all(
+                        color: st.borderColor!,
+                        width: s.focused || selected
+                            ? theme.borders.thick
+                            : theme.borders.hairline,
+                      ),
+                boxShadow:
+                    style?.shadow ??
+                    (st.elevated && (s.hovered || selected)
+                        ? theme.shadows.md
+                        : (st.elevated ? theme.shadows.sm : null)),
+              ),
+              foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
+              child: ClipRRect(
+                borderRadius: radius,
+                child: effectiveAlignment != null
+                    ? Align(
+                        alignment: effectiveAlignment,
+                        widthFactor: autoAlignLeft && !effectiveFullWidth
+                            ? 1.0
+                            : null,
+                        child: _content(
+                          ctx,
+                          st,
+                          compactLabel,
+                          effectiveFullWidth,
+                          effectiveAlignment,
+                        ),
+                      )
+                    : Center(
+                        widthFactor: effectiveFullWidth ? null : 1.0,
+                        child: _content(
+                          ctx,
+                          st,
+                          compactLabel,
+                          effectiveFullWidth,
+                          effectiveAlignment,
+                        ),
+                      ),
+              ),
+            );
+          },
         );
+
+        if (splitAction != null && !compactLabel) {
+          core = _wrapSplit(context, core, radius);
+        }
+        if (fullWidth) {
+          core = SizedBox(width: double.infinity, child: core);
+        }
+        if (tooltip != null) core = Tooltip(message: tooltip!, child: core);
+        return core;
       },
     );
-
-    if (splitAction != null && !compactLabel) {
-      core = _wrapSplit(context, core, radius);
-    }
-    if (fullWidth) {
-      core = SizedBox(width: double.infinity, child: core);
-    }
-    if (tooltip != null) core = Tooltip(message: tooltip!, child: core);
-    return core;
   }
 
   Widget _wrapSplit(BuildContext context, Widget main, BorderRadius radius) {
@@ -262,6 +292,7 @@ class UiButton extends StatelessWidget {
     _ButtonStyle st,
     bool compactLabel,
     bool fullWidth,
+    AlignmentGeometry? effectiveAlignment,
   ) {
     final theme = ctx.ui;
     final double gap = size.gap(ctx, density: density);
@@ -303,20 +334,20 @@ class UiButton extends StatelessWidget {
     }
 
     final bool isLeftAligned =
-        alignment == Alignment.centerLeft ||
-        alignment == AlignmentDirectional.centerStart ||
-        alignment == Alignment.topLeft ||
-        alignment == AlignmentDirectional.topStart ||
-        alignment == Alignment.bottomLeft ||
-        alignment == AlignmentDirectional.bottomStart;
+        effectiveAlignment == Alignment.centerLeft ||
+        effectiveAlignment == AlignmentDirectional.centerStart ||
+        effectiveAlignment == Alignment.topLeft ||
+        effectiveAlignment == AlignmentDirectional.topStart ||
+        effectiveAlignment == Alignment.bottomLeft ||
+        effectiveAlignment == AlignmentDirectional.bottomStart;
 
     final bool isRightAligned =
-        alignment == Alignment.centerRight ||
-        alignment == AlignmentDirectional.centerEnd ||
-        alignment == Alignment.topRight ||
-        alignment == AlignmentDirectional.topEnd ||
-        alignment == Alignment.bottomRight ||
-        alignment == AlignmentDirectional.bottomEnd;
+        effectiveAlignment == Alignment.centerRight ||
+        effectiveAlignment == AlignmentDirectional.centerEnd ||
+        effectiveAlignment == Alignment.topRight ||
+        effectiveAlignment == AlignmentDirectional.topEnd ||
+        effectiveAlignment == Alignment.bottomRight ||
+        effectiveAlignment == AlignmentDirectional.bottomEnd;
 
     final TextAlign effectiveTextAlign = isLeftAligned
         ? TextAlign.left

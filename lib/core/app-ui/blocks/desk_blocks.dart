@@ -638,10 +638,14 @@ class AppWorkspaceCalendarBar extends StatelessWidget {
               color: theme.colors.primary,
             ),
             SizedBox(width: context.sp(theme.spacing.xs)),
-            Text(
-              monthLabel,
-              style: context.uiText.bodyStrong.copyWith(
-                fontWeight: FontWeight.w700,
+            Flexible(
+              child: Text(
+                monthLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.uiText.bodyStrong.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],

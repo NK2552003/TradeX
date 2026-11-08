@@ -97,72 +97,62 @@ class UiDateRangePicker extends StatelessWidget {
       child: Builder(
         builder: (BuildContext ctx) => UiDialog(
           title: 'Date range',
-          content: SafeArea(
-            child: Padding(
-              padding: EdgeInsets.all(ctx.sp(theme.spacing.lg)),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: ctx.sz(760)),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          content: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: ctx.sz(760)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                if (showPresets && items.isNotEmpty) ...<Widget>[
+                  Wrap(
+                    spacing: ctx.sp(theme.spacing.xs),
+                    runSpacing: ctx.sp(theme.spacing.xs),
                     children: <Widget>[
-                      if (showPresets && items.isNotEmpty) ...<Widget>[
-                        Wrap(
-                          spacing: ctx.sp(theme.spacing.xs),
-                          runSpacing: ctx.sp(theme.spacing.xs),
-                          children: <Widget>[
-                            for (final UiDateRangePreset p in items)
-                              UiInteractive(
-                                onTap: () {
-                                  onChanged?.call(p.resolve(DateTime.now()));
-                                  Navigator.of(ctx).pop();
-                                },
-                                builder:
-                                    (BuildContext c2, UiInteractiveState s) =>
-                                        Container(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: c2.sp(theme.spacing.md),
-                                            vertical: c2.sp(theme.spacing.xs),
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: s.hovered
-                                                ? theme.colors.surfaceHover
-                                                : theme.colors.surfaceMuted,
-                                            borderRadius: c2.radius(
-                                              theme.radii.pill,
-                                            ),
-                                            border: Border.all(
-                                              color: theme.colors.border,
-                                              width: theme.borders.hairline,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            p.label,
-                                            style: c2.uiText.caption.copyWith(
-                                              color: theme.colors.foreground,
-                                            ),
-                                          ),
-                                        ),
+                      for (final UiDateRangePreset p in items)
+                        UiInteractive(
+                          onTap: () {
+                            onChanged?.call(p.resolve(DateTime.now()));
+                            Navigator.of(ctx).pop();
+                          },
+                          builder: (BuildContext c2, UiInteractiveState s) =>
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: c2.sp(theme.spacing.md),
+                                  vertical: c2.sp(theme.spacing.xs),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: s.hovered
+                                      ? theme.colors.surfaceHover
+                                      : theme.colors.surfaceMuted,
+                                  borderRadius: c2.radius(theme.radii.pill),
+                                  border: Border.all(
+                                    color: theme.colors.border,
+                                    width: theme.borders.hairline,
+                                  ),
+                                ),
+                                child: Text(
+                                  p.label,
+                                  style: c2.uiText.caption.copyWith(
+                                    color: theme.colors.foreground,
+                                  ),
+                                ),
                               ),
-                          ],
                         ),
-                        SizedBox(height: ctx.sp(theme.spacing.lg)),
-                      ],
-                      UiCalendar(
-                        range: value,
-                        rangeMode: true,
-                        firstDate: firstDate,
-                        lastDate: lastDate,
-                        onRangeSelected: (DateTimeRange r) {
-                          onChanged?.call(r);
-                          Navigator.of(ctx).pop();
-                        },
-                      ),
                     ],
                   ),
+                  SizedBox(height: ctx.sp(theme.spacing.lg)),
+                ],
+                UiCalendar(
+                  range: value,
+                  rangeMode: true,
+                  firstDate: firstDate,
+                  lastDate: lastDate,
+                  onRangeSelected: (DateTimeRange r) {
+                    onChanged?.call(r);
+                    Navigator.of(ctx).pop();
+                  },
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -189,6 +179,7 @@ class UiDateRangePicker extends StatelessWidget {
           ),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
               Icons.date_range_rounded,
@@ -196,7 +187,7 @@ class UiDateRangePicker extends StatelessWidget {
               color: c.foregroundMuted,
             ),
             SizedBox(width: ctx.sp(theme.spacing.xs)),
-            Expanded(
+            Flexible(
               child: Text(
                 _text,
                 overflow: TextOverflow.ellipsis,

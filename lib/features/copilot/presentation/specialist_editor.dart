@@ -29,7 +29,11 @@ class _SpecialistEditorState extends State<_SpecialistEditor> {
   late final Json _values = {...?widget.specialist?.json};
   late List<String> _spaces =
       widget.specialist?.spaceIds ??
-      [widget.controller.workspace.spaces.first['id']];
+      (widget.controller.workspace.spaces.firstOrNull?['id'] != null
+          ? <String>[
+              widget.controller.workspace.spaces.first['id'] as String,
+            ]
+          : <String>[]);
   bool _saving = false;
   String? _error;
   Future<void> _save() async {
@@ -108,10 +112,15 @@ class _SpecialistEditorState extends State<_SpecialistEditor> {
           'apps': 'Use connected apps',
           'learning': 'Suggest reusable lessons',
         }.entries)
-          UiSwitch(
-            label: entry.value,
-            value: _values[entry.key] == true,
-            onChanged: (v) => setState(() => _values[entry.key] = v),
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: context.sp(context.ui.spacing.sm),
+            ),
+            child: UiSwitch(
+              label: entry.value,
+              value: _values[entry.key] == true,
+              onChanged: (v) => setState(() => _values[entry.key] = v),
+            ),
           ),
         if (_error != null)
           UiCallout(

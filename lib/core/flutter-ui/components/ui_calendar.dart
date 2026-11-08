@@ -175,7 +175,9 @@ class _UiCalendarState extends State<UiCalendar> {
     );
 
     return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: context.sz(380)),
+      constraints: BoxConstraints(
+        maxWidth: stacked ? context.sz(380) : context.sz(360.0 * count),
+      ),
       child: Container(
         padding: EdgeInsets.all(context.sp(theme.spacing.md)),
         decoration: BoxDecoration(

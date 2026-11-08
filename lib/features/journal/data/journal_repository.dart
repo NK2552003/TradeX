@@ -769,6 +769,42 @@ class JournalRepositoryImpl implements JournalRepository {
     return _mutate(id, (AppTrade entry) => entry.copyWith(isPublic: isPublic));
   }
 
+  /// Updates the public visibility of all owned journal entries so that
+  /// toggling "Show verified trade logs in public journal" immediately reflects
+  /// across the public journal stream and Supabase.
+  Future<void> setAllVisibility(bool isPublic) async {
+    await _init();
+    final String targetUserId = _resolveUserId();
+    bool changed = false;
+    for (int i = 0; i < _entries.length; i++) {
+      final AppTrade entry = _entries[i];
+      if ((targetUserId.isNotEmpty && entry.userId == targetUserId) ||
+          RecordAccess.owns(entry.userId)) {
+        if (entry.isPublic != isPublic) {
+          _entries[i] = entry.copyWith(isPublic: isPublic);
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      unawaited(_saveLocalCache());
+      _publish();
+    }
+    if (SupabaseConfig.isConfigured && targetUserId.isNotEmpty) {
+      try {
+        await SupabaseConfig.client!
+            .from('journal_entries')
+            .update(<String, dynamic>{
+              'is_public': isPublic,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('user_id', targetUserId);
+      } catch (e) {
+        debugPrint('[JournalRepository] setAllVisibility error: $e');
+      }
+    }
+  }
+
   @override
   Future<void> delete(String id) async {
     RecordAccess.requireService();

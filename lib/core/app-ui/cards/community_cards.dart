@@ -1,4 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
@@ -203,7 +208,8 @@ class AppPostCard extends StatelessWidget {
                     icon: Icons.ios_share,
                     size: UiSize.sm,
                     tooltip: 'Share',
-                    onPressed: onShare,
+                    onPressed:
+                        onShare ?? () => AppPostShareModal.showForPost(context, post),
                   ),
                 ],
               ),
@@ -933,6 +939,439 @@ class AppNotificationCard extends StatelessWidget {
               tooltip: 'Dismiss',
               onPressed: onDismiss,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Built-in real sharing sheet for [AppPostCard] and domain [CommunityPostCard].
+class AppPostShareModal extends StatefulWidget {
+  const AppPostShareModal({
+    super.key,
+    required this.postId,
+    required this.authorName,
+    required this.authorHandle,
+    this.authorAvatarUrl,
+    this.authorBadge,
+    required this.body,
+    this.tickers = const <String>[],
+  });
+
+  final String postId;
+  final String authorName;
+  final String authorHandle;
+  final String? authorAvatarUrl;
+  final String? authorBadge;
+  final String body;
+  final List<String> tickers;
+
+  static String postUrlFor(String postId) =>
+      'https://alphajournal.in/post/$postId';
+
+  static String formatShareText({
+    required String postId,
+    required String authorName,
+    required String authorHandle,
+    required String body,
+    List<String> tickers = const <String>[],
+  }) {
+    final StringBuffer buf = StringBuffer();
+    final String handle = authorHandle.startsWith('@')
+        ? authorHandle
+        : '@$authorHandle';
+    buf.writeln('$authorName ($handle) on alphajournal:');
+    buf.writeln();
+    buf.writeln(body.trim());
+    if (tickers.isNotEmpty) {
+      buf.writeln();
+      buf.writeln(
+        tickers.map((t) => t.startsWith('\$') ? t : '\$$t').join(' '),
+      );
+    }
+    buf.writeln();
+    buf.write(postUrlFor(postId));
+    return buf.toString();
+  }
+
+  static Future<void> showForPost(BuildContext context, AppPost post) {
+    return _present(
+      context,
+      AppPostShareModal(
+        postId: post.id,
+        authorName: post.author.displayName ?? post.author.handle,
+        authorHandle: post.author.handle,
+        authorAvatarUrl: post.author.avatarUrl,
+        body: post.body,
+        tickers: post.tickers,
+      ),
+    );
+  }
+
+  static Future<void> showSimple(
+    BuildContext context, {
+    String? postId,
+    required String authorName,
+    String? authorHandle,
+    String? authorBadge,
+    required String body,
+    List<String> tickers = const <String>[],
+  }) {
+    final String resolvedHandle =
+        authorHandle ??
+        authorName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+    final String resolvedId =
+        postId ?? 'post-${authorName.hashCode.abs()}';
+    return _present(
+      context,
+      AppPostShareModal(
+        postId: resolvedId,
+        authorName: authorName,
+        authorHandle: resolvedHandle,
+        authorBadge: authorBadge,
+        body: body,
+        tickers: tickers,
+      ),
+    );
+  }
+
+  static Future<void> _present(BuildContext context, Widget child) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) => Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: ctx.sz(520),
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.85,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: ctx.uiColors.surface,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(ctx.sp(ctx.ui.radii.lg)),
+              ),
+              border: Border.all(
+                color: ctx.uiColors.border,
+                width: ctx.ui.borders.hairline,
+              ),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              ctx.sp(ctx.ui.spacing.md),
+              ctx.sp(ctx.ui.spacing.sm),
+              ctx.sp(ctx.ui.spacing.md),
+              ctx.sp(ctx.ui.spacing.lg),
+            ),
+            child: SafeArea(top: false, child: child),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  State<AppPostShareModal> createState() => _AppPostShareModalState();
+}
+
+class _AppPostShareModalState extends State<AppPostShareModal> {
+  bool _copied = false;
+
+  String get _url => AppPostShareModal.postUrlFor(widget.postId);
+
+  String get _shareText => AppPostShareModal.formatShareText(
+    postId: widget.postId,
+    authorName: widget.authorName,
+    authorHandle: widget.authorHandle,
+    body: widget.body,
+    tickers: widget.tickers,
+  );
+
+  Future<void> _launchExternal(
+    BuildContext hostContext, {
+    required Uri uri,
+    required String label,
+  }) async {
+    await Clipboard.setData(ClipboardData(text: _shareText));
+    bool launched = false;
+    try {
+      launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        launched = await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (_) {
+      launched = false;
+    }
+    if (!launched) {
+      try {
+        await SharePlus.instance.share(ShareParams(text: _shareText));
+      } catch (_) {}
+    }
+    if (hostContext.mounted) {
+      UiToast.show(
+        hostContext,
+        title: launched ? 'Opening $label' : 'Ready to share on $label',
+        message: 'Post text & link copied to clipboard.',
+        intent: UiIntent.success,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final String cleanHandle = widget.authorHandle.replaceFirst(
+      RegExp(r'^@'),
+      '',
+    );
+
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Center(
+            child: Container(
+              width: context.sz(36),
+              height: context.sz(4),
+              margin: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+              decoration: BoxDecoration(
+                color: theme.colors.borderStrong,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  'Share Post',
+                  style: context.uiText.heading.copyWith(
+                    fontSize: context.fs(16),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              UiIconButton(
+                icon: Icons.close_rounded,
+                size: UiSize.xs,
+                variant: UiVariant.ghost,
+                tooltip: 'Close',
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          UiCard(
+            variant: UiCardVariant.outlined,
+            density: UiDensity.compact,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    UiAvatar(
+                      name: widget.authorName,
+                      imageUrl: widget.authorAvatarUrl,
+                      size: UiSize.xs,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Expanded(
+                      child: Text(
+                        '${widget.authorName} · @$cleanHandle',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foreground,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (widget.authorBadge != null)
+                      UiBadge(
+                        label: widget.authorBadge!,
+                        size: UiSize.xs,
+                        intent: UiIntent.primary,
+                      ),
+                  ],
+                ),
+                SizedBox(height: context.sp(theme.spacing.xs)),
+                Text(
+                  widget.body,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          UiCard(
+            variant: UiCardVariant.surface,
+            density: UiDensity.compact,
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  Icons.link_rounded,
+                  size: context.sz(16),
+                  color: theme.colors.primary,
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Expanded(
+                  child: Text(
+                    _url,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.mono.copyWith(
+                      fontSize: context.fs(11.5),
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                UiButton(
+                  key: const ValueKey('app-post-share-copy-link'),
+                  label: _copied ? 'Copied' : 'Copy Link',
+                  icon: _copied
+                      ? Icons.check_rounded
+                      : Icons.content_copy_rounded,
+                  size: UiSize.xs,
+                  variant: _copied ? UiVariant.solid : UiVariant.soft,
+                  intent: _copied ? UiIntent.success : UiIntent.primary,
+                  onPressed: () {
+                    unawaited(
+                      Clipboard.setData(
+                        ClipboardData(text: _url),
+                      ).catchError((_) {}),
+                    );
+                    setState(() => _copied = true);
+                    UiToast.show(
+                      context,
+                      title: 'Link Copied',
+                      message: _url,
+                      intent: UiIntent.success,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Wrap(
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
+            children: <Widget>[
+              UiButton(
+                key: const ValueKey('app-post-share-whatsapp'),
+                label: 'WhatsApp',
+                icon: Icons.chat_rounded,
+                size: UiSize.xs,
+                variant: UiVariant.outline,
+                onPressed: () async {
+                  final BuildContext host = Navigator.of(context).context;
+                  Navigator.of(context).pop();
+                  await _launchExternal(
+                    host,
+                    uri: Uri.parse(
+                      'https://wa.me/?text=${Uri.encodeComponent(_shareText)}',
+                    ),
+                    label: 'WhatsApp',
+                  );
+                },
+              ),
+              UiButton(
+                key: const ValueKey('app-post-share-x'),
+                label: 'X / Twitter',
+                icon: Icons.alternate_email_rounded,
+                size: UiSize.xs,
+                variant: UiVariant.outline,
+                onPressed: () async {
+                  final BuildContext host = Navigator.of(context).context;
+                  Navigator.of(context).pop();
+                  final String text = '${widget.body} — via @$cleanHandle';
+                  await _launchExternal(
+                    host,
+                    uri: Uri.parse(
+                      'https://x.com/intent/tweet?text=${Uri.encodeComponent(text)}&url=${Uri.encodeComponent(_url)}',
+                    ),
+                    label: 'X / Twitter',
+                  );
+                },
+              ),
+              UiButton(
+                key: const ValueKey('app-post-share-telegram'),
+                label: 'Telegram',
+                icon: Icons.near_me_rounded,
+                size: UiSize.xs,
+                variant: UiVariant.outline,
+                onPressed: () async {
+                  final BuildContext host = Navigator.of(context).context;
+                  Navigator.of(context).pop();
+                  await _launchExternal(
+                    host,
+                    uri: Uri.parse(
+                      'https://t.me/share/url?url=${Uri.encodeComponent(_url)}&text=${Uri.encodeComponent(widget.body)}',
+                    ),
+                    label: 'Telegram',
+                  );
+                },
+              ),
+              UiButton(
+                key: const ValueKey('app-post-share-native'),
+                label: 'System Share...',
+                icon: Icons.ios_share_rounded,
+                size: UiSize.xs,
+                variant: UiVariant.soft,
+                intent: UiIntent.primary,
+                onPressed: () async {
+                  final BuildContext host = Navigator.of(context).context;
+                  Navigator.of(context).pop();
+                  await Clipboard.setData(ClipboardData(text: _shareText));
+                  try {
+                    await SharePlus.instance.share(
+                      ShareParams(
+                        text: _shareText,
+                        subject: 'Post by @$cleanHandle on alphajournal',
+                      ),
+                    );
+                  } catch (_) {}
+                  if (host.mounted) {
+                    UiToast.show(
+                      host,
+                      title: 'Post Shared',
+                      message: 'Shared post and copied to clipboard.',
+                      intent: UiIntent.success,
+                    );
+                  }
+                },
+              ),
+              UiButton(
+                key: const ValueKey('app-post-share-copy-text'),
+                label: 'Copy Formatted Text',
+                icon: Icons.copy_rounded,
+                size: UiSize.xs,
+                variant: UiVariant.ghost,
+                onPressed: () async {
+                  final BuildContext host = Navigator.of(context).context;
+                  await Clipboard.setData(ClipboardData(text: _shareText));
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop();
+                  if (host.mounted) {
+                    UiToast.show(
+                      host,
+                      title: 'Copied to Clipboard',
+                      message: 'Formatted post text & link copied.',
+                      intent: UiIntent.success,
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
         ],
       ),
     );

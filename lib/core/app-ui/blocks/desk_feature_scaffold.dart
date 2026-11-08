@@ -285,67 +285,76 @@ class DeskStatsOverview extends StatelessWidget {
 
     final UiTheme theme = context.ui;
     final double gap = context.sp(theme.spacing.sm);
-    final double width = maxWidth ?? MediaQuery.sizeOf(context).width;
 
-    if (width >= 1024) {
-      return IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double width =
+            maxWidth ??
+            (constraints.maxWidth.isFinite
+                ? constraints.maxWidth
+                : MediaQuery.sizeOf(context).width);
+
+        if (width >= 1024) {
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (int i = 0; i < stats.length; i++) ...<Widget>[
+                  if (i > 0) SizedBox(width: gap),
+                  Expanded(child: _buildCard(context, stats[i])),
+                ],
+              ],
+            ),
+          );
+        }
+
+        if (width >= 640 || stats.length <= 2) {
+          final List<Widget> rows = <Widget>[];
+          for (int i = 0; i < stats.length; i += 2) {
+            if (i > 0) rows.add(SizedBox(height: gap));
+            rows.add(
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Expanded(child: _buildCard(context, stats[i])),
+                    SizedBox(width: gap),
+                    Expanded(
+                      child: (i + 1 < stats.length)
+                          ? _buildCard(context, stats[i + 1])
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          return Column(children: rows);
+        }
+
+        // Narrow mobile layout: 2x2 grid
+        return Column(
           children: <Widget>[
-            for (int i = 0; i < stats.length; i++) ...<Widget>[
-              if (i > 0) SizedBox(width: gap),
-              Expanded(child: _buildCard(context, stats[i])),
+            for (int i = 0; i < stats.length; i += 2) ...<Widget>[
+              if (i > 0) SizedBox(height: gap),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Expanded(child: _buildCard(context, stats[i])),
+                    SizedBox(width: gap),
+                    Expanded(
+                      child: (i + 1 < stats.length)
+                          ? _buildCard(context, stats[i + 1])
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ],
-        ),
-      );
-    }
-
-    if (width >= 640 || stats.length <= 2) {
-      final List<Widget> rows = <Widget>[];
-      for (int i = 0; i < stats.length; i += 2) {
-        if (i > 0) rows.add(SizedBox(height: gap));
-        rows.add(
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Expanded(child: _buildCard(context, stats[i])),
-                SizedBox(width: gap),
-                Expanded(
-                  child: (i + 1 < stats.length)
-                      ? _buildCard(context, stats[i + 1])
-                      : const SizedBox.shrink(),
-                ),
-              ],
-            ),
-          ),
         );
-      }
-      return Column(children: rows);
-    }
-
-    // Narrow mobile layout: 2x2 grid
-    return Column(
-      children: <Widget>[
-        for (int i = 0; i < stats.length; i += 2) ...<Widget>[
-          if (i > 0) SizedBox(height: gap),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Expanded(child: _buildCard(context, stats[i])),
-                SizedBox(width: gap),
-                Expanded(
-                  child: (i + 1 < stats.length)
-                      ? _buildCard(context, stats[i + 1])
-                      : const SizedBox.shrink(),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
+      },
     );
   }
 }

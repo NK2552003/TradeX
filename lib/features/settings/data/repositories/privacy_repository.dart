@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/models/privacy_settings_model.dart';
 
 abstract class PrivacyRepository {
@@ -20,9 +21,13 @@ abstract class PrivacyRepository {
 }
 
 class PrivacyRepositoryImpl implements PrivacyRepository {
-  PrivacyRepositoryImpl() {
+  static final PrivacyRepositoryImpl instance = PrivacyRepositoryImpl._();
+
+  PrivacyRepositoryImpl._() {
     _blockedUsers.clear();
   }
+
+  factory PrivacyRepositoryImpl() => instance;
 
   String _resolveUserId() =>
       SupabaseConfig.client?.auth.currentUser?.id ??
@@ -31,7 +36,7 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
 
   PrivacySettingsModel _settings = const PrivacySettingsModel(
     publicJournals: true,
-    publicStatsEnabled: false,
+    publicStatsEnabled: true,
   );
 
   final List<AppTrader> _blockedUsers = <AppTrader>[
@@ -58,6 +63,11 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
 
   @override
   Future<PrivacySettingsModel> getPrivacySettings() async {
+    final profile = await ProfileSettingsRepositoryImpl.instance.getProfile();
+    _settings = _settings.copyWith(
+      publicJournals: profile.publicJournals,
+      publicStatsEnabled: profile.publicStats,
+    );
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
@@ -66,18 +76,20 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
 
         final res = await client
             .from('profiles')
-            .select('public_journals, public_stats, notification_settings')
+            .select()
             .eq('id', targetUserId)
             .maybeSingle();
 
         if (res != null) {
-          final notif =
-              res['notification_settings'] as Map<String, dynamic>? ?? {};
-          final msgPriv =
-              notif['message_privacy'] as Map<String, dynamic>? ?? {};
+          final notif = res['notification_settings'] is Map
+              ? Map<String, dynamic>.from(res['notification_settings'] as Map)
+              : <String, dynamic>{};
+          final msgPriv = notif['message_privacy'] is Map
+              ? Map<String, dynamic>.from(notif['message_privacy'] as Map)
+              : <String, dynamic>{};
           _settings = PrivacySettingsModel(
-            publicJournals: res['public_journals'] as bool? ?? true,
-            publicStatsEnabled: res['public_stats'] as bool? ?? false,
+            publicJournals: profile.publicJournals,
+            publicStatsEnabled: profile.publicStats,
             messagePermission:
                 msgPriv['message_permission'] as String? ??
                 _settings.messagePermission,
@@ -173,45 +185,17 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
   @override
   Future<void> setPublicJournalsDefault(bool enabled) async {
     _settings = _settings.copyWith(publicJournals: enabled);
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        if (targetUserId.isEmpty) return;
-
-        await client
-            .from('profiles')
-            .update({
-              'public_journals': enabled,
-              'updated_at': DateTime.now().toIso8601String(),
-            })
-            .eq('id', targetUserId);
-      } catch (e) {
-        debugPrint('PrivacyRepositoryImpl.setPublicJournalsDefault error: $e');
-      }
-    }
+    await ProfileSettingsRepositoryImpl.instance.updateProfile(
+      publicJournalsEnabled: enabled,
+    );
   }
 
   @override
   Future<void> setPublicStatsEnabled(bool enabled) async {
     _settings = _settings.copyWith(publicStatsEnabled: enabled);
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        if (targetUserId.isEmpty) return;
-
-        await client
-            .from('profiles')
-            .update({
-              'public_stats': enabled,
-              'updated_at': DateTime.now().toIso8601String(),
-            })
-            .eq('id', targetUserId);
-      } catch (e) {
-        debugPrint('PrivacyRepositoryImpl.setPublicStatsEnabled error: $e');
-      }
-    }
+    await ProfileSettingsRepositoryImpl.instance.updateProfile(
+      publicStatsEnabled: enabled,
+    );
   }
 
   @override

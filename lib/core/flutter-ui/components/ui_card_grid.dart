@@ -105,8 +105,7 @@ class UiCardGrid extends StatelessWidget {
           );
         }
 
-        if (intrinsicHeight ||
-            (childAspectRatio == null && mainAxisExtent == null)) {
+        if (intrinsicHeight || mainAxisExtent == null) {
           // Round down to prevent fractional spacing from wrapping the final tile.
           final width = ((constraints.maxWidth - gap * (cols - 1)) / cols)
               .floorToDouble();
@@ -115,7 +114,7 @@ class UiCardGrid extends StatelessWidget {
             runSpacing: gap,
             children: [
               for (final child in children)
-                SizedBox(width: width, child: child),
+                SizedBox(width: width > 0 ? width : constraints.maxWidth, child: child),
             ],
           );
         }

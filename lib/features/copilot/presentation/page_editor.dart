@@ -289,12 +289,15 @@ class _CopilotPageEditorState extends State<CopilotPageEditor> {
           ),
         ],
       ),
-      if (_error != null)
+      if (_error != null) ...[
+        UiGap.v(context.ui.spacing.sm),
         UiCallout(
           title: 'Your draft is safe',
           message: _error!,
           intent: UiIntent.warning,
           action: Wrap(
+            spacing: context.sp(context.ui.spacing.xs),
+            runSpacing: context.sp(context.ui.spacing.xs),
             children: [
               UiButton(label: 'Save again', size: UiSize.sm, onPressed: _save),
               UiButton(
@@ -306,6 +309,8 @@ class _CopilotPageEditorState extends State<CopilotPageEditor> {
             ],
           ),
         ),
+        UiGap.v(context.ui.spacing.sm),
+      ],
       Expanded(
         child: _restoring
             ? const UiSkeleton(height: 160)

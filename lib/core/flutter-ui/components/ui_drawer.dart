@@ -60,7 +60,9 @@ class UiDrawer extends StatelessWidget {
                   ? Alignment.bottomCenter
                   : (fromRight ? Alignment.centerRight : Alignment.centerLeft),
               child: SizedBox(
-                width: mobile ? double.infinity : ctx.sz(width),
+                width: mobile
+                    ? double.infinity
+                    : ctx.sz(width).clamp(0.0, box.maxWidth),
                 height: mobile ? box.maxHeight * .94 : box.maxHeight,
                 child: UiCard(
                   key: const ValueKey('ui-drawer-surface'),
@@ -105,54 +107,70 @@ class UiDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isOpen) return const SizedBox.shrink();
     final theme = context.ui;
-    return Column(
-      children: <Widget>[
-        if (showHeader)
-          Padding(
-            padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    title,
-                    style: context.uiText.heading.copyWith(
-                      color: theme.colors.foreground,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool boundedHeight = constraints.hasBoundedHeight;
+        final Widget body = scrollable
+            ? SingleChildScrollView(
+                padding:
+                    contentPadding ??
+                    EdgeInsets.all(context.sp(theme.spacing.lg)),
+                child: child,
+              )
+            : Padding(
+                padding:
+                    contentPadding ??
+                    EdgeInsets.all(context.sp(theme.spacing.lg)),
+                child: child,
+              );
+        return Column(
+          mainAxisSize: boundedHeight ? MainAxisSize.max : MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            if (showHeader)
+              Padding(
+                padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: context.uiText.heading.copyWith(
+                          color: theme.colors.foreground,
+                        ),
+                      ),
                     ),
-                  ),
+                    UiIconButton(
+                      icon: Icons.close,
+                      tooltip: 'Close',
+                      onPressed:
+                          onClose ?? () => Navigator.of(context).maybePop(),
+                    ),
+                  ],
                 ),
-                UiIconButton(
-                  icon: Icons.close,
-                  tooltip: 'Close',
-                  onPressed: onClose ?? () => Navigator.of(context).maybePop(),
-                ),
-              ],
-            ),
-          ),
-        if (showHeader)
-          Container(height: theme.borders.hairline, color: theme.colors.border),
-        Expanded(
-          child: scrollable
-              ? SingleChildScrollView(
-                  padding:
-                      contentPadding ??
-                      EdgeInsets.all(context.sp(theme.spacing.lg)),
-                  child: child,
-                )
-              : Padding(
-                  padding:
-                      contentPadding ??
-                      EdgeInsets.all(context.sp(theme.spacing.lg)),
-                  child: child,
-                ),
-        ),
-        if (footer != null) ...<Widget>[
-          Container(height: theme.borders.hairline, color: theme.colors.border),
-          Padding(
-            padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-            child: footer!,
-          ),
-        ],
-      ],
+              ),
+            if (showHeader)
+              Container(
+                height: theme.borders.hairline,
+                color: theme.colors.border,
+              ),
+            if (boundedHeight)
+              Expanded(child: body)
+            else
+              Flexible(fit: FlexFit.loose, child: body),
+            if (footer != null) ...<Widget>[
+              Container(
+                height: theme.borders.hairline,
+                color: theme.colors.border,
+              ),
+              Padding(
+                padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+                child: footer!,
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
@@ -6,8 +7,9 @@ import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_insights_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/community_report_dialog.dart';
+import 'package:tradex/features/community/presentation/widgets/community_share_sheet.dart';
 
-/// Contextual bottom sheet for post management and moderation options.
+/// Contextual bottom sheet for post management, sharing, and moderation options.
 class CommunityPostOptionsSheet extends StatelessWidget {
   const CommunityPostOptionsSheet({
     super.key,
@@ -17,6 +19,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
     this.onDelete,
     this.onEdit,
     this.onQuote,
+    this.onShare,
   });
 
   final CommunityPost post;
@@ -25,6 +28,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onEdit;
   final ValueChanged<CommunityPost>? onQuote;
+  final VoidCallback? onShare;
 
   static Future<void> show(
     BuildContext context, {
@@ -34,35 +38,50 @@ class CommunityPostOptionsSheet extends StatelessWidget {
     VoidCallback? onDelete,
     VoidCallback? onEdit,
     ValueChanged<CommunityPost>? onQuote,
+    VoidCallback? onShare,
   }) {
     return showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => Container(
-        decoration: BoxDecoration(
-          color: ctx.uiColors.surface,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(ctx.sp(ctx.ui.radii.lg)),
+      builder: (BuildContext ctx) => Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: ctx.sz(520),
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.85,
           ),
-          border: Border.all(
-            color: ctx.uiColors.border,
-            width: ctx.ui.borders.hairline,
-          ),
-        ),
-        padding: EdgeInsets.fromLTRB(
-          ctx.sp(ctx.ui.spacing.md),
-          ctx.sp(ctx.ui.spacing.sm),
-          ctx.sp(ctx.ui.spacing.md),
-          ctx.sp(ctx.ui.spacing.lg),
-        ),
-        child: SafeArea(
-          child: CommunityPostOptionsSheet(
-            post: post,
-            repository: repository,
-            isAuthor: isAuthor,
-            onDelete: onDelete,
-            onEdit: onEdit,
-            onQuote: onQuote,
+          child: Container(
+            decoration: BoxDecoration(
+              color: ctx.uiColors.surface,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(ctx.sp(ctx.ui.radii.lg)),
+              ),
+              border: Border.all(
+                color: ctx.uiColors.border,
+                width: ctx.ui.borders.hairline,
+              ),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              ctx.sp(ctx.ui.spacing.md),
+              ctx.sp(ctx.ui.spacing.sm),
+              ctx.sp(ctx.ui.spacing.md),
+              ctx.sp(ctx.ui.spacing.lg),
+            ),
+            child: SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                child: CommunityPostOptionsSheet(
+                  post: post,
+                  repository: repository,
+                  isAuthor: isAuthor,
+                  onDelete: onDelete,
+                  onEdit: onEdit,
+                  onQuote: onQuote,
+                  onShare: onShare,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -89,6 +108,51 @@ class CommunityPostOptionsSheet extends StatelessWidget {
             ),
           ),
         ),
+
+        // Shared Share & Copy Link options for all users
+        _optionRow(
+          context,
+          icon: Icons.ios_share_rounded,
+          title: 'Share Post...',
+          subtitle: 'Send via DM, WhatsApp, X, Telegram, or Notes',
+          onTap: () {
+            final BuildContext host = Navigator.of(context).context;
+            Navigator.of(context).pop();
+            if (onShare != null) {
+              onShare!();
+            } else if (host.mounted) {
+              CommunityShareSheet.show(
+                host,
+                post: post,
+                repository: repository,
+                onQuote: onQuote,
+              );
+            }
+          },
+        ),
+        _optionRow(
+          context,
+          icon: Icons.link_rounded,
+          title: 'Copy Link to Post',
+          subtitle: CommunityShareSheet.postUrl(post),
+          onTap: () async {
+            final BuildContext host = Navigator.of(context).context;
+            final String url = CommunityShareSheet.postUrl(post);
+            await Clipboard.setData(ClipboardData(text: url));
+            repository.recordShare(post.id);
+            if (!context.mounted) return;
+            Navigator.of(context).pop();
+            if (host.mounted) {
+              UiToast.show(
+                host,
+                title: 'Link Copied',
+                message: url,
+                intent: UiIntent.success,
+              );
+            }
+          },
+        ),
+        const UiDivider(),
 
         // Author Options
         if (isAuthor) ...<Widget>[

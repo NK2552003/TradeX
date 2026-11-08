@@ -125,10 +125,16 @@ class UiToggleGroup<T> extends StatelessWidget {
         final BorderRadius radius = ctx.radius(size.radius(ctx));
         final bool vertical = orientation == UiOrientation.vertical;
         final bool hasBoundedWidth = constraints.hasBoundedWidth;
+        final double minSegmentWidth = iconOnly ? ctx.sz(36) : ctx.sz(68);
+        final bool fitsExpanded =
+            !hasBoundedWidth ||
+            constraints.maxWidth >= options.length * minSegmentWidth;
         final bool effectiveExpand =
             (expand ||
-                (ctx.uiRes.isMobile && variant != UiToggleGroupVariant.pill)) &&
-            hasBoundedWidth;
+                (constraints.hasTightWidth &&
+                    variant != UiToggleGroupVariant.pill)) &&
+            hasBoundedWidth &&
+            fitsExpanded;
 
         final List<Widget> items = <Widget>[
           for (int i = 0; i < options.length; i++)

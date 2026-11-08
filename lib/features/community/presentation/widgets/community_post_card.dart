@@ -116,6 +116,13 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   late bool _reposted;
   late int _reposts;
   late bool _bookmarked;
+  late int _shares;
+  bool _shared = false;
+
+  CommunityRepository get _resolvedRepository =>
+      widget.repository is CommunityRepository
+      ? widget.repository as CommunityRepository
+      : CommunityRepository();
 
   @override
   void initState() {
@@ -127,6 +134,11 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     _reposted = widget.post.reposted;
     _reposts = widget.post.reposts;
     _bookmarked = widget.post.bookmarked;
+    _shares = widget.repository is CommunityRepository
+        ? (widget.repository as CommunityRepository).shareCountFor(
+            widget.post.id,
+          )
+        : 0;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && widget.repository is CommunityRepository) {
         (widget.repository as CommunityRepository).recordView(widget.post.id);
@@ -212,48 +224,59 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   }
 
   void _openQuoteComposer(BuildContext context) {
-    if (widget.repository is CommunityRepository) {
-      final isMobile = context.uiRes.isMobile;
-      if (isMobile) {
-        showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          barrierColor: context.uiColors.overlay,
-          builder: (BuildContext ctx) => CommunityDensityScope(
-            child: Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.viewInsetsOf(ctx).bottom,
-              ),
-              child: SingleChildScrollView(
-                child: CommunityComposerCard(
-                  author: widget.currentUser ?? widget.post.author,
-                  repository: widget.repository as CommunityRepository,
-                  quotedPost: widget.post,
-                  isDrawerTile: true,
-                  onPostCreated: () => Navigator.of(ctx).pop(),
-                ),
+    final CommunityRepository repo = _resolvedRepository;
+    final isMobile = context.uiRes.isMobile;
+    if (isMobile) {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        barrierColor: context.uiColors.overlay,
+        builder: (BuildContext ctx) => CommunityDensityScope(
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+            ),
+            child: SingleChildScrollView(
+              child: CommunityComposerCard(
+                author: widget.currentUser ?? repo.currentAuthor,
+                repository: repo,
+                quotedPost: widget.post,
+                isDrawerTile: true,
+                onPostCreated: () => Navigator.of(ctx).pop(),
               ),
             ),
           ),
-        );
-      } else {
-        showSettingsSideSheet<void>(
-          context,
-          title: 'Quote Post',
-          subtitle: 'Share your perspective on this post',
-          desktopWidthRatio: 0.52,
-          maxWidth: 720,
-          minDesktopWidth: 540,
-          scrollable: true,
-          child: CommunityComposerCard(
-            author: widget.currentUser ?? widget.post.author,
-            repository: widget.repository as CommunityRepository,
-            quotedPost: widget.post,
-            onPostCreated: () => Navigator.of(context).pop(),
-          ),
-        );
-      }
+        ),
+      );
+    } else {
+      showSettingsSideSheet<void>(
+        context,
+        title: 'Quote Post',
+        subtitle: 'Share your perspective on this post',
+        desktopWidthRatio: 0.52,
+        maxWidth: 720,
+        minDesktopWidth: 540,
+        scrollable: true,
+        child: CommunityComposerCard(
+          author: widget.currentUser ?? repo.currentAuthor,
+          repository: repo,
+          quotedPost: widget.post,
+          onPostCreated: () => Navigator.of(context).pop(),
+        ),
+      );
+    }
+  }
+
+  void _toggleRepostState() {
+    setState(() {
+      _reposted = !_reposted;
+      _reposts += _reposted ? 1 : -1;
+    });
+    if (widget.onRepost != null) {
+      widget.onRepost!();
+    } else {
+      _resolvedRepository.toggleRepost(widget.post.id);
     }
   }
 
@@ -261,13 +284,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     CommunityRepostDialog.show(
       context,
       post: widget.post,
-      onRepost: () {
-        setState(() {
-          _reposted = !_reposted;
-          _reposts += _reposted ? 1 : -1;
-        });
-        widget.onRepost?.call();
-      },
+      onRepost: _toggleRepostState,
       onQuote: () {
         if (widget.onQuote != null) {
           widget.onQuote!(widget.post);
@@ -282,15 +299,45 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     setState(() {
       _bookmarked = !_bookmarked;
     });
-    widget.onBookmark?.call();
+    if (widget.onBookmark != null) {
+      widget.onBookmark!();
+    } else {
+      _resolvedRepository.toggleBookmark(widget.post.id);
+    }
   }
 
   void _handleShare(BuildContext context) {
-    if (widget.repository is CommunityRepository) {
-      (widget.repository as CommunityRepository).recordShare(widget.post.id);
-    }
-    CommunityShareSheet.show(context, post: widget.post);
-    widget.onShare?.call();
+    final CommunityRepository repo = _resolvedRepository;
+    CommunityShareSheet.show(
+      context,
+      post: widget.post.copyWith(
+        likes: _likes,
+        liked: _liked,
+        reposts: _reposts,
+        reposted: _reposted,
+        bookmarked: _bookmarked,
+        userReaction: _userReaction,
+      ),
+      repository: repo,
+      onRepost: _toggleRepostState,
+      onQuote: (CommunityPost quoted) {
+        if (widget.onQuote != null) {
+          widget.onQuote!(quoted);
+        } else {
+          _openQuoteComposer(context);
+        }
+      },
+      onShared: () {
+        if (mounted) {
+          setState(() {
+            _shared = true;
+            _shares = repo.shareCountFor(widget.post.id);
+            if (_shares <= 0) _shares = 1;
+          });
+        }
+        widget.onShare?.call();
+      },
+    );
   }
 
   bool get _isAuthor {
@@ -612,16 +659,22 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             onBookmark: _handleBookmark,
             bookmarked: _bookmarked,
             onEdit: _isAuthor ? () => _handleEditPost(context) : null,
-            onMoreTap: widget.repository == null
-                ? null
-                : () {
-                    CommunityPostOptionsSheet.show(
-                      context,
-                      post: post,
-                      repository: widget.repository,
-                      isAuthor: _isAuthor,
-                    );
-                  },
+            onMoreTap: () {
+              CommunityPostOptionsSheet.show(
+                context,
+                post: post,
+                repository: _resolvedRepository,
+                isAuthor: _isAuthor,
+                onShare: () => _handleShare(context),
+                onQuote: (CommunityPost quoted) {
+                  if (widget.onQuote != null) {
+                    widget.onQuote!(quoted);
+                  } else {
+                    _openQuoteComposer(context);
+                  }
+                },
+              );
+            },
           )
         else ...[
           Row(
@@ -658,20 +711,34 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                     ),
                     SizedBox(width: context.sp(theme.spacing.xs)),
                   ],
-                  if (widget.repository != null)
-                    UiIconButton(
-                      icon: Icons.more_horiz_rounded,
-                      size: UiSize.xs,
-                      tooltip: 'More options',
-                      onPressed: () {
-                        CommunityPostOptionsSheet.show(
-                          context,
-                          post: post,
-                          repository: widget.repository,
-                          isAuthor: _isAuthor,
-                        );
-                      },
-                    ),
+                  UiIconButton(
+                    icon: Icons.ios_share_rounded,
+                    size: UiSize.xs,
+                    tooltip: 'Share',
+                    onPressed: () => _handleShare(context),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xxs)),
+                  UiIconButton(
+                    icon: Icons.more_horiz_rounded,
+                    size: UiSize.xs,
+                    tooltip: 'More options',
+                    onPressed: () {
+                      CommunityPostOptionsSheet.show(
+                        context,
+                        post: post,
+                        repository: _resolvedRepository,
+                        isAuthor: _isAuthor,
+                        onShare: () => _handleShare(context),
+                        onQuote: (CommunityPost quoted) {
+                          if (widget.onQuote != null) {
+                            widget.onQuote!(quoted);
+                          } else {
+                            _openQuoteComposer(context);
+                          }
+                        },
+                      );
+                    },
+                  ),
                 ],
               ),
             ],
@@ -919,6 +986,8 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             reactions: _reactions,
             reposted: _reposted,
             bookmarked: _bookmarked,
+            shares: _shares,
+            shared: _shared,
             onReply: widget.onReply ?? widget.onTap,
             onRepost: _handleRepost,
             onLike: _handleLike,
@@ -935,9 +1004,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                 bookmarked: _bookmarked,
                 userReaction: _userReaction,
               ),
-              repository: widget.repository is CommunityRepository
-                  ? widget.repository as CommunityRepository
-                  : null,
+              repository: _resolvedRepository,
             ),
             showBorder: true,
           ),

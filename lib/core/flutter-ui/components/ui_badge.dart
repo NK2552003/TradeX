@@ -232,6 +232,14 @@ class UiBadge extends StatelessWidget {
       );
     }
     if (tooltip != null) result = Tooltip(message: tooltip!, child: result);
+    if (maxWidth == null) {
+      result = Align(
+        alignment: AlignmentDirectional.centerStart,
+        widthFactor: 1.0,
+        heightFactor: 1.0,
+        child: result,
+      );
+    }
     return result;
   }
 }

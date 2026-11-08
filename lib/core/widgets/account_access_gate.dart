@@ -372,11 +372,17 @@ class _AccountAccessGateState extends State<AccountAccessGate>
             color: colors.foregroundMuted,
           ),
         ),
-        Text(
-          value,
-          style: context.uiText.caption.copyWith(
-            color: color ?? colors.foreground,
-            fontWeight: FontWeight.w600,
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.uiText.caption.copyWith(
+              color: color ?? colors.foreground,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],

@@ -149,7 +149,7 @@ class _UiLightboxState extends State<UiLightbox> {
                         widget.caption!,
                         textAlign: TextAlign.center,
                         style: context.uiText.caption.copyWith(
-                          color: theme.colors.onPrimary,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -168,8 +168,8 @@ class _UiLightboxState extends State<UiLightbox> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: i == _index
-                                  ? theme.colors.onPrimary
-                                  : theme.colors.onPrimary.withValues(
+                                  ? Colors.white
+                                  : Colors.white.withValues(
                                       alpha: 0.4,
                                     ),
                             ),

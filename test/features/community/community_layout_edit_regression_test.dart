@@ -189,10 +189,6 @@ void main() {
     expect(find.byType(UiCandleChart), findsOneWidget);
     expect(find.text('Setup Blueprint'), findsOneWidget);
     expect(tester.getCenter(find.byType(UiCandleChart)).dx, greaterThan(900));
-    expect(
-      tester.getCenter(find.text(post.author.displayName)).dx,
-      greaterThan(900),
-    );
     expect(find.text(post.author.displayName), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -590,4 +586,91 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets(
+    'post detail author companion card hides profile icon, name, and handle on mobile and desktop',
+    (tester) async {
+      for (final width in [390.0, 1400.0]) {
+        viewport(tester, width);
+        final author = CommunityAuthor(
+          id: 'other-author-123',
+          handle: 'unique_handle_test',
+          displayName: 'Unique Display Name Test',
+          userRole: UserRole.customer,
+          followers: 42,
+          winRate: 68.5,
+        );
+        final post = CommunityPost(
+          id: 'other-author-post-1',
+          author: author,
+          body: 'Post content here.',
+          createdAt: DateTime(2026, 10, 26),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: CommunityPostDetailView(
+              post: post,
+              repository: repo,
+              currentUser: repo.currentAuthor,
+              showHeader: false,
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // Author companion card should NOT display profile icon/avatar or username/handle
+        // The author companion card has semanticLabel 'Post author ...'
+        final companionCard = find.byWidgetPredicate(
+          (w) =>
+              w is UiCard &&
+              w.semanticLabel == 'Post author Unique Display Name Test',
+        );
+        expect(companionCard, findsOneWidget);
+        expect(
+          find.descendant(
+            of: companionCard,
+            matching: find.text('Unique Display Name Test'),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.descendant(
+            of: companionCard,
+            matching: find.textContaining('unique_handle_test'),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.descendant(of: companionCard, matching: find.byType(UiAvatar)),
+          findsNothing,
+        );
+
+        // But Win Rate, Followers, and action buttons in the companion card are displayed
+        expect(
+          find.descendant(of: companionCard, matching: find.text('Win Rate')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: companionCard, matching: find.text('68.5%')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: companionCard, matching: find.text('Followers')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: companionCard, matching: find.text('42')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: companionCard, matching: find.text('Follow')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: companionCard, matching: find.text('Message')),
+          findsOneWidget,
+        );
+      }
+    },
+  );
 }

@@ -37,7 +37,7 @@ class CopilotCallHistory extends StatelessWidget {
     }
     return ListView.separated(
       itemCount: calls.length,
-      separatorBuilder: (_, _) => const UiDivider(),
+      separatorBuilder: (_, _) => UiGap.v(context.ui.spacing.sm),
       itemBuilder: (context, index) {
         final call = calls[index];
         final thread = controller.workspace.threads
@@ -49,11 +49,21 @@ class CopilotCallHistory extends StatelessWidget {
             ? end.difference(start).inSeconds
             : 0;
         return UiCard(
-          variant: UiCardVariant.ghost,
+          variant: UiCardVariant.outlined,
+          density: UiDensity.compact,
           title: thread?.title ?? 'Voice conversation',
           subtitle:
-              '${start?.toString().split('.').first ?? ''} · ${duration ~/ 60}m ${duration % 60}s',
-          trailing: UiBadge(label: textOf(call, 'status')),
+               '${start?.toString().split('.').first ?? ''} · ${duration ~/ 60}m ${duration % 60}s',
+          trailing: UiBadge(
+            label: textOf(call, 'status'),
+            size: UiSize.xs,
+            intent: switch (textOf(call, 'status')) {
+              'completed' || 'done' => UiIntent.success,
+              'active' || 'running' => UiIntent.info,
+              'failed' || 'error' => UiIntent.danger,
+              _ => UiIntent.neutral,
+            },
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -79,9 +89,12 @@ class CopilotCallHistory extends StatelessWidget {
                   ),
                 ],
               ),
+              UiGap.v(context.ui.spacing.sm),
               UiButton(
                 label: 'Open conversation',
-                variant: UiVariant.ghost,
+                trailingIcon: Icons.north_east,
+                variant: UiVariant.soft,
+                size: UiSize.xs,
                 onPressed: thread == null || controller.conversationLocked
                     ? null
                     : () {

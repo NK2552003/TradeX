@@ -25,14 +25,16 @@ class _CopilotPageLibraryState extends State<CopilotPageLibrary> {
   String? _spaceId;
   bool _grid = false;
   Future<void> _newPage({WorkspacePage? parent}) async {
+    final defaultSpaceId =
+        parent?.spaceId ??
+        _spaceId ??
+        widget.controller.workspace.spaces.firstOrNull?['id'];
+    if (defaultSpaceId == null) return;
     final page = await widget.controller.action({
       'action': 'page.save',
       'title': 'Untitled page',
       'body': '',
-      'spaceId':
-          parent?.spaceId ??
-          _spaceId ??
-          widget.controller.workspace.spaces.first['id'],
+      'spaceId': defaultSpaceId,
       if (parent != null) 'parentId': parent.id,
     });
     if (page != null) widget.onOpen(WorkspacePage.fromJson(page));
@@ -55,7 +57,8 @@ class _CopilotPageLibraryState extends State<CopilotPageLibrary> {
         UiCard(
           key: ValueKey(page.id),
           title: page.title,
-          variant: _grid ? UiCardVariant.outlined : UiCardVariant.ghost,
+          variant: UiCardVariant.outlined,
+          density: UiDensity.compact,
           subtitle: page.parentId == null
               ? (controller.workspace.spaces
                         .where((s) => s['id'] == page.spaceId)
@@ -64,6 +67,7 @@ class _CopilotPageLibraryState extends State<CopilotPageLibrary> {
               : '↳ ${controller.workspace.pages.where((p) => p.id == page.parentId).firstOrNull?.title ?? 'Subpage'}',
           onTap: () => widget.onOpen(page),
           trailing: UiDropdownMenu(
+            alignRight: true,
             actions: [
               UiMenuItem(
                 label: 'Add subpage',
@@ -83,7 +87,12 @@ class _CopilotPageLibraryState extends State<CopilotPageLibrary> {
                 ),
               ),
             ],
-            child: const Icon(Icons.more_horiz),
+            child: UiIconButton(
+              icon: Icons.more_horiz,
+              size: UiSize.sm,
+              tooltip: 'Page actions',
+              onPressed: () {},
+            ),
           ),
           child: Text(
             page.body.isEmpty
@@ -121,6 +130,7 @@ class _CopilotPageLibraryState extends State<CopilotPageLibrary> {
               onPressed: () => setState(() => _grid = !_grid),
             ),
             UiDropdownMenu(
+              alignRight: true,
               actions: [
                 UiMenuItem(
                   label: 'New space',
@@ -133,7 +143,10 @@ class _CopilotPageLibraryState extends State<CopilotPageLibrary> {
                     fields: {'name': 'Name', 'description': 'Description'},
                   ),
                 ),
-                if (_spaceId != null) ...[
+                if (_spaceId != null &&
+                    controller.workspace.spaces.any(
+                      (s) => s['id'] == _spaceId,
+                    )) ...[
                   UiMenuItem(
                     label: 'Rename space',
                     icon: Icons.edit_outlined,
@@ -142,9 +155,11 @@ class _CopilotPageLibraryState extends State<CopilotPageLibrary> {
                       controller,
                       title: 'Edit space',
                       action: 'space.save',
-                      initial: controller.workspace.spaces.firstWhere(
-                        (s) => s['id'] == _spaceId,
-                      ),
+                      initial:
+                          controller.workspace.spaces
+                              .where((s) => s['id'] == _spaceId)
+                              .firstOrNull ??
+                          const <String, dynamic>{},
                       fields: {'name': 'Name', 'description': 'Description'},
                     ),
                   ),
@@ -162,7 +177,11 @@ class _CopilotPageLibraryState extends State<CopilotPageLibrary> {
                   ),
                 ],
               ],
-              child: const Icon(Icons.more_horiz),
+              child: UiIconButton(
+                icon: Icons.more_horiz,
+                tooltip: 'Space options',
+                onPressed: () {},
+              ),
             ),
           ],
         ),
@@ -184,8 +203,16 @@ class _CopilotPageLibraryState extends State<CopilotPageLibrary> {
                 )
               : SingleChildScrollView(
                   child: _grid
-                      ? UiCardGrid(children: cards)
-                      : Column(children: cards),
+                      ? UiCardGrid(minTileWidth: 180, children: cards)
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (int i = 0; i < cards.length; i++) ...[
+                              if (i > 0) UiGap.v(context.ui.spacing.sm),
+                              cards[i],
+                            ],
+                          ],
+                        ),
                 ),
         ),
       ],

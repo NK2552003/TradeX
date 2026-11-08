@@ -170,11 +170,15 @@ class UiSelect<T> extends StatelessWidget {
     final theme = context.ui;
     final RenderBox box = context.findRenderObject() as RenderBox;
     final Offset offset = box.localToGlobal(Offset.zero);
+    final Size screenSize = MediaQuery.sizeOf(context);
     return showMenu<T>(
       context: context,
       color: theme.colors.surface,
       elevation: 0,
-      constraints: BoxConstraints(minWidth: box.size.width),
+      constraints: BoxConstraints(
+        minWidth: box.size.width,
+        maxWidth: screenSize.width - 24,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: context.radius(theme.radii.lg),
         side: BorderSide(
@@ -185,8 +189,8 @@ class UiSelect<T> extends StatelessWidget {
       position: RelativeRect.fromLTRB(
         offset.dx,
         offset.dy + box.size.height,
-        offset.dx + box.size.width,
-        offset.dy,
+        screenSize.width - (offset.dx + box.size.width),
+        screenSize.height - offset.dy,
       ),
       items: <PopupMenuEntry<T>>[
         for (final UiOption<T> o in options)
@@ -241,67 +245,96 @@ class UiSelect<T> extends StatelessWidget {
     final Widget selectBox = LayoutBuilder(
       builder: (BuildContext layoutContext, BoxConstraints available) {
         final bool fillsAvailableWidth =
-            explicitlySized || available.hasBoundedWidth;
+            explicitlySized || available.hasTightWidth;
+        final bool isGhost = variant == UiInputVariant.ghost;
+        final bool isFilled = variant == UiInputVariant.filled;
+        final bool isUnderline = variant == UiInputVariant.underline;
         return UiInteractive(
           enabled: enabled && (onChanged != null || onValuesChanged != null),
           onTap: () => _open(layoutContext),
           semanticLabel: label ?? hintText,
-          builder: (BuildContext ctx, UiInteractiveState s) =>
-              AnimatedContainer(
-                duration: theme.motion.fast,
-                height: size.height(ctx),
-                width: expand
-                    ? double.infinity
-                    : (width == null ? null : ctx.sz(width!)),
-                constraints: width != null
-                    ? null
-                    : BoxConstraints(
-                        minWidth: ctx.sz(minWidth ?? 120),
-                        maxWidth: maxWidth == null
-                            ? double.infinity
-                            : ctx.sz(maxWidth!),
-                      ),
-                padding: EdgeInsets.symmetric(
-                  horizontal: ctx.sp(theme.spacing.md),
-                ),
-                decoration: BoxDecoration(
-                  color: enabled ? c.surface : c.disabledBackground,
-                  borderRadius: ctx.radius(theme.radii.lg),
-                  border: Border.all(
-                    color: (error || errorText != null)
-                        ? c.destructive
-                        : s.hovered
-                        ? c.borderStrong
-                        : c.border,
-                    width: theme.borders.hairline,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: fillsAvailableWidth
-                      ? MainAxisSize.max
-                      : MainAxisSize.min,
-                  children: <Widget>[
-                    if (leadingIcon != null || sel?.icon != null) ...<Widget>[
-                      Icon(
-                        sel?.icon ?? leadingIcon,
-                        size: size.icon(ctx),
-                        color: c.foregroundMuted,
-                      ),
-                      SizedBox(width: ctx.sp(theme.spacing.sm)),
-                    ],
-                    if (fillsAvailableWidth)
-                      Expanded(child: selectedLabel)
-                    else
-                      Flexible(child: selectedLabel),
-                    SizedBox(width: ctx.sp(theme.spacing.xs)),
-                    Icon(
-                      Icons.keyboard_arrow_down,
-                      size: size.icon(ctx),
-                      color: c.foregroundSubtle,
+          builder: (BuildContext ctx, UiInteractiveState s) {
+            final Color bgColor = !enabled
+                ? (isGhost ? Colors.transparent : c.disabledBackground)
+                : isGhost
+                ? (s.hovered ? c.surfaceHover : Colors.transparent)
+                : isFilled
+                ? c.surfaceMuted
+                : isUnderline
+                ? Colors.transparent
+                : c.surface;
+            final Color bColor = (error || errorText != null)
+                ? c.destructive
+                : s.hovered
+                ? c.borderStrong
+                : c.border;
+            return AnimatedContainer(
+              duration: theme.motion.fast,
+              height: size.height(ctx),
+              width: expand
+                  ? double.infinity
+                  : (width == null ? null : ctx.sz(width!)),
+              constraints: width != null
+                  ? null
+                  : BoxConstraints(
+                      minWidth: ctx.sz(minWidth ?? (isGhost ? 72 : 120)),
+                      maxWidth: maxWidth == null
+                          ? double.infinity
+                          : ctx.sz(maxWidth!),
                     ),
-                  ],
+              padding: EdgeInsets.symmetric(
+                horizontal: ctx.sp(
+                  isGhost || isUnderline ? theme.spacing.sm : theme.spacing.md,
                 ),
               ),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: isUnderline
+                    ? BorderRadius.zero
+                    : ctx.radius(theme.radii.lg),
+                border: isGhost
+                    ? (s.hovered
+                          ? Border.all(
+                              color: c.border,
+                              width: theme.borders.hairline,
+                            )
+                          : null)
+                    : isUnderline
+                    ? Border(
+                        bottom: BorderSide(
+                          color: bColor,
+                          width: theme.borders.hairline,
+                        ),
+                      )
+                    : Border.all(color: bColor, width: theme.borders.hairline),
+              ),
+              child: Row(
+                mainAxisSize: fillsAvailableWidth
+                    ? MainAxisSize.max
+                    : MainAxisSize.min,
+                children: <Widget>[
+                  if (leadingIcon != null || sel?.icon != null) ...<Widget>[
+                    Icon(
+                      sel?.icon ?? leadingIcon,
+                      size: size.icon(ctx),
+                      color: c.foregroundMuted,
+                    ),
+                    SizedBox(width: ctx.sp(theme.spacing.sm)),
+                  ],
+                  if (fillsAvailableWidth)
+                    Expanded(child: selectedLabel)
+                  else
+                    Flexible(child: selectedLabel),
+                  SizedBox(width: ctx.sp(theme.spacing.xs)),
+                  Icon(
+                    Icons.keyboard_arrow_down,
+                    size: size.icon(ctx),
+                    color: c.foregroundSubtle,
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );

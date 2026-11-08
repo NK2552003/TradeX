@@ -355,17 +355,16 @@ class AppNoteGridBlock extends StatelessWidget {
     required List<Widget> children,
   }) => LayoutBuilder(
     builder: (BuildContext ctx, BoxConstraints constraints) {
-      final int count =
-          columns ??
-          ctx.uiRes.columns(mobile: 1, tablet: 2, desktop: 2, large: 2);
       // `constraints.maxWidth` rather than the screen width: the same grid is
       // used inside the editor's narrow list rail, where the device class would
       // report "desktop" and hand it four columns of 90px.
       final double available = constraints.maxWidth.isFinite
           ? constraints.maxWidth
           : ctx.uiRes.width;
+      final int count = columns ?? (available >= 560 ? 2 : 1);
       final int resolved = count.clamp(1, 2);
-      final double width = (available - gap * (resolved - 1)) / resolved;
+      final double width = ((available - gap * (resolved - 1)) / resolved)
+          .floorToDouble();
       return Wrap(
         spacing: gap,
         runSpacing: gap,

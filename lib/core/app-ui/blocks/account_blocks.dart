@@ -397,28 +397,18 @@ class AppAchievementsBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-    final int cols = context.uiRes.columns(
-      mobile: 2,
-      tablet: 3,
-      desktop: 4,
-      large: 5,
-    );
     return UiCard(
       title: title,
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        itemCount: achievements.length,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: cols,
-          mainAxisSpacing: context.sp(theme.spacing.md),
-          crossAxisSpacing: context.sp(theme.spacing.md),
-          childAspectRatio: 1.1,
-        ),
-        itemBuilder: (BuildContext _, int i) =>
+      child: UiCardGrid(
+        mobileColumns: 2,
+        tabletColumns: 3,
+        desktopColumns: 4,
+        largeColumns: 5,
+        equalHeight: true,
+        children: <Widget>[
+          for (int i = 0; i < achievements.length; i++)
             AppAchievementCard(achievement: achievements[i]),
+        ],
       ),
     );
   }

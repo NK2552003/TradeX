@@ -96,8 +96,16 @@ class UiSwitch extends StatelessWidget {
               ? c.disabledBackground
               : value
               ? onColor
-              : (s.hovered ? c.borderStrong : c.border),
+              : (s.hovered ? c.surfaceHover : c.surfaceMuted),
           borderRadius: ctx.radius(theme.radii.pill),
+          border: Border.all(
+            color: !enabled
+                ? c.border
+                : value
+                ? onColor
+                : (s.hovered ? c. foregroundMuted : c.borderStrong),
+            width: theme.borders.hairline,
+          ),
           boxShadow: value && s.hovered ? uiGlow(ctx, onColor) : null,
         ),
         foregroundDecoration: s.focused
@@ -136,7 +144,11 @@ class UiSwitch extends StatelessWidget {
                 height: knob,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: c.surface,
+                  color: !enabled
+                      ? c.disabledForeground
+                      : value
+                      ? intent.onColor(ctx)
+                      : c.foregroundMuted,
                   boxShadow: theme.shadows.sm,
                 ),
                 child: loading

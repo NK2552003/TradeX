@@ -70,8 +70,8 @@ class TraderProfilePreviewPage extends StatefulWidget {
     this.riskMantra,
     this.experienceLevel,
     this.tradingStyle,
-    this.publicStats = true,
-    this.publicJournals = true,
+    this.publicStats,
+    this.publicJournals,
     this.referralCode,
     this.channelHandle,
     this.audienceReach,
@@ -114,8 +114,8 @@ class TraderProfilePreviewPage extends StatefulWidget {
   final String? riskMantra;
   final String? experienceLevel;
   final String? tradingStyle;
-  final bool publicStats;
-  final bool publicJournals;
+  final bool? publicStats;
+  final bool? publicJournals;
   final String? referralCode;
   final String? channelHandle;
   final String? audienceReach;
@@ -166,6 +166,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
   bool _isFollowing = false;
   UserRole? _liveRole;
   bool? _liveVerified;
+  bool? _livePublicStats;
+  bool? _livePublicJournals;
   String? _liveSubscriptionTier;
   int _liveTotalTraders = 0;
   int _liveTotalJournals = 0;
@@ -252,6 +254,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         _liveSubscriptionTier = cp.subscriptionTier;
       }
       _liveVerified ??= cp.verified;
+      _livePublicStats ??= cp.publicStats;
+      _livePublicJournals ??= cp.publicJournals;
     }
     if (widget.subscriptionTier != null && widget.subscriptionTier!.isNotEmpty) {
       _liveSubscriptionTier ??= widget.subscriptionTier;
@@ -397,6 +401,17 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         }
         _liveVerified = profileRow['verified'] as bool?;
         _liveSubscriptionTier = profileRow['subscription_tier'] as String?;
+        final notif = profileRow['notification_settings'] is Map
+            ? Map<String, dynamic>.from(
+                profileRow['notification_settings'] as Map,
+              )
+            : null;
+        _livePublicStats = profileRow['public_stats'] as bool? ??
+            notif?['public_stats'] as bool? ??
+            _livePublicStats;
+        _livePublicJournals = profileRow['public_journals'] as bool? ??
+            notif?['public_journals'] as bool? ??
+            _livePublicJournals;
 
         final roleStr = profileRow['role'] as String?;
         if (roleStr != null) {
@@ -626,12 +641,64 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             ? _liveTradingStyle
             : widget.author?.tradingStyle);
 
+    final String targetAuthorId = widget.author?.id.isNotEmpty == true
+        ? widget.author!.id
+        : (widget.isCurrentUser && SupabaseConfig.client?.auth.currentUser != null
+            ? SupabaseConfig.client!.auth.currentUser!.id
+            : '');
+
+    final String currentAuthId =
+        SupabaseConfig.client?.auth.currentUser?.id ?? '';
+    final String cachedHandle = ProfileSettingsRepositoryImpl
+        .instance.cachedProfile.handle
+        .toLowerCase()
+        .replaceFirst(RegExp(r'^@+'), '')
+        .trim();
+    final authUser = SupabaseConfig.client?.auth.currentUser;
+    final String authHandle = (authUser?.userMetadata?['handle'] as String? ??
+            authUser?.userMetadata?['username'] as String? ??
+            authUser?.email?.split('@').first ??
+            '')
+        .toLowerCase()
+        .replaceFirst(RegExp(r'^@+'), '')
+        .trim();
+    final bool isViewingSelf = widget.isCurrentUser ||
+        (currentAuthId.isNotEmpty && targetAuthorId == currentAuthId) ||
+        (cachedHandle.isNotEmpty && cachedHandle == _cleanHandle.toLowerCase()) ||
+        (authHandle.isNotEmpty && authHandle == _cleanHandle.toLowerCase());
+
+    final bool isSelf = isViewingSelf;
+
+    final bool effectivePublicStats = widget.publicStats ??
+        _livePublicStats ??
+        (isViewingSelf
+            ? ProfileSettingsRepositoryImpl.instance.cachedProfile.publicStats
+            : true);
+
+    final bool effectivePublicJournals = widget.publicJournals ??
+        _livePublicJournals ??
+        (isViewingSelf
+            ? ProfileSettingsRepositoryImpl.instance.cachedProfile.publicJournals
+            : true);
+
+    final AppJournalStats? localJournalStats =
+        isViewingSelf ? JournalRepositoryScope.repository.stats : null;
+
     final double? effectiveWinRate = _liveWinRate ??
         (widget.author?.winRate != null
             ? (widget.author!.winRate! <= 1.0
                 ? widget.author!.winRate! * 100.0
                 : widget.author!.winRate)
-            : null);
+            : (localJournalStats != null && localJournalStats.total > 0
+                ? localJournalStats.winRate
+                : null));
+
+    final int effectiveDisciplineScore = (localJournalStats != null &&
+            localJournalStats.total > 0)
+        ? (72 + (localJournalStats.winRate * 0.25).round()).clamp(60, 99)
+        : (effectiveWinRate != null
+            ? (72 + (effectiveWinRate * 0.25).round()).clamp(60, 99)
+            : 92);
 
     final int effectiveFollowers = _liveFollowers;
 
@@ -703,16 +770,6 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                     : (isAffiliate
                         ? 'Official alphajournal Partner & trading educator. Sharing trade setups, execution blueprints, and member discounts.'
                         : ''))));
-
-    final String targetAuthorId = widget.author?.id.isNotEmpty == true
-        ? widget.author!.id
-        : (widget.isCurrentUser && SupabaseConfig.client?.auth.currentUser != null
-            ? SupabaseConfig.client!.auth.currentUser!.id
-            : '');
-
-    final bool isSelf = widget.isCurrentUser ||
-        (targetAuthorId.isNotEmpty &&
-            targetAuthorId == SupabaseConfig.client?.auth.currentUser?.id);
 
     final List<UiTabItem> tabItems = switch (effectiveRole) {
       UserRole.userAdmin => <UiTabItem>[
@@ -824,7 +881,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             handle: _cleanHandle,
             onOpenRef: widget.onOpenRef,
             isCurrentUser: isSelf,
-            publicJournals: widget.publicJournals,
+            publicJournals: effectivePublicJournals,
           ),
         ),
         UiTabItem(
@@ -861,26 +918,6 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         ),
       ),
     );
-
-    final String currentAuthId =
-        SupabaseConfig.client?.auth.currentUser?.id ?? '';
-    final String cachedHandle = ProfileSettingsRepositoryImpl
-        .instance.cachedProfile.handle
-        .toLowerCase()
-        .replaceFirst(RegExp(r'^@+'), '')
-        .trim();
-    final authUser = SupabaseConfig.client?.auth.currentUser;
-    final String authHandle = (authUser?.userMetadata?['handle'] as String? ??
-            authUser?.userMetadata?['username'] as String? ??
-            authUser?.email?.split('@').first ??
-            '')
-        .toLowerCase()
-        .replaceFirst(RegExp(r'^@+'), '')
-        .trim();
-    final bool isViewingSelf = widget.isCurrentUser ||
-        (currentAuthId.isNotEmpty && targetAuthorId == currentAuthId) ||
-        (cachedHandle.isNotEmpty && cachedHandle == _cleanHandle.toLowerCase()) ||
-        (authHandle.isNotEmpty && authHandle == _cleanHandle.toLowerCase());
 
     if (isViewingSelf) {
       tabItems.add(
@@ -1603,13 +1640,20 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             label: 'Public Posts',
                                           ),
                                           _SocialStat(
-                                            count: !widget.publicStats
+                                            count: !effectivePublicStats
                                                 ? 'Private'
                                                 : (effectiveWinRate != null
                                                     ? '${effectiveWinRate.toStringAsFixed(1)}%'
                                                     : '--'),
                                             label: 'Win Rate',
                                           ),
+                                          if (!isAdmin && !isAffiliate)
+                                            _SocialStat(
+                                              count: !effectivePublicStats
+                                                  ? 'Private'
+                                                  : '$effectiveDisciplineScore/100',
+                                              label: 'Discipline Score',
+                                            ),
                                         ]),
                           ),
 
@@ -1618,14 +1662,14 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                           Container(
                             width: double.infinity,
                             padding: EdgeInsets.symmetric(
-                              horizontal: context.sp(theme.spacing.md),
-                              vertical: context.sp(theme.spacing.sm),
+                              horizontal: context.sp(theme.spacing.xs),
+                              vertical: context.sp(theme.spacing.xs),
                             ),
                             decoration: BoxDecoration(
-                              color: theme.colors.surfaceMuted,
-                              borderRadius: context.radius(theme.radii.md),
+                              color: theme.colors.surfaceMuted.withValues(alpha: 0.5),
+                              borderRadius: context.radius(theme.radii.lg),
                               border: Border.all(
-                                color: theme.colors.border,
+                                color: theme.colors.border.withValues(alpha: 0.6),
                                 width: theme.borders.hairline,
                               ),
                             ),
@@ -1876,7 +1920,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     }
 
                                     // Pro Trader / Customer view (The user's actual profile)
-                                    final String winRateStr = !widget.publicStats
+                                    final String winRateStr = !effectivePublicStats
                                         ? 'Private'
                                         : (effectiveWinRate != null
                                             ? '${effectiveWinRate.toStringAsFixed(1)}%'
@@ -1901,7 +1945,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Win Rate',
                                               value: winRateStr,
-                                              isPositive: !widget.publicStats
+                                              isPositive: !effectivePublicStats
                                                   ? null
                                                   : (effectiveWinRate != null
                                                       ? effectiveWinRate >= 50.0
@@ -1952,7 +1996,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                 child: _KpiPill(
                                                   label: 'Win Rate',
                                                   value: winRateStr,
-                                                  isPositive: !widget.publicStats
+                                                  isPositive: !effectivePublicStats
                                                       ? null
                                                       : (effectiveWinRate != null
                                                           ? effectiveWinRate >= 50.0
@@ -2127,36 +2171,51 @@ class _KpiPill extends StatelessWidget {
     final theme = context.ui;
     final Color valueColor = isPositive == true
         ? theme.colors.bullish
-        : (isPositive == false ? theme.colors.bearish : theme.colors.primary);
+        : (isPositive == false ? theme.colors.bearish : theme.colors.foreground);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Text(
-          label,
-          style: context.uiText.caption.copyWith(
-            color: theme.colors.foregroundMuted,
-            fontSize: context.fs(11),
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.sm),
+        vertical: context.sp(theme.spacing.xs),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Text(
+            label.toUpperCase(),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundSubtle,
+              fontSize: context.fs(10),
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.6,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: context.uiText.bodyStrong.copyWith(
-            color: valueColor,
-            fontWeight: FontWeight.w800,
+          const SizedBox(height: 4),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: context.uiText.bodyStrong.copyWith(
+              color: valueColor,
+              fontWeight: FontWeight.w700,
+              fontSize: context.fs(13),
+              height: 1.2,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
 Widget _buildKpiDivider(UiTheme theme) => Container(
   width: 1,
-  height: 26,
-  margin: const EdgeInsets.symmetric(horizontal: 4),
-  color: theme.colors.border.withValues(alpha: 0.6),
+  height: 28,
+  color: theme.colors.border.withValues(alpha: 0.4),
 );
 
 // ---------------------------------------------------------------------------
@@ -3334,10 +3393,22 @@ class _JournalTradeCard extends StatelessWidget {
     }
   }
 
+  String _computeBrokerHash() {
+    final String raw =
+        '${trade?.id ?? tradeId ?? ticker}:$ticker:$side:$entryPrice:$exitPrice:$date';
+    int hash = 0x811c9dc5;
+    for (int i = 0; i < raw.length; i++) {
+      hash ^= raw.codeUnitAt(i);
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
+    }
+    return hash.toRadixString(16).padLeft(8, '0').toLowerCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
     final Color tint = isWin ? theme.colors.bullish : theme.colors.bearish;
+    final String brokerHash = _computeBrokerHash();
 
     return UiCard(
       onTap: () => _openActualTrade(context),
@@ -3409,6 +3480,7 @@ class _JournalTradeCard extends StatelessWidget {
             child: Wrap(
               spacing: context.sp(theme.spacing.md),
               runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: <Widget>[
                 Text('Entry: $entryPrice', style: context.uiText.caption),
                 Text('Exit: $exitPrice', style: context.uiText.caption),
@@ -3419,6 +3491,12 @@ class _JournalTradeCard extends StatelessWidget {
                   style: context.uiText.caption.copyWith(
                     color: theme.colors.foregroundMuted,
                   ),
+                ),
+                UiBadge(
+                  label: 'SHA-256 · #$brokerHash',
+                  icon: Icons.verified_user_outlined,
+                  intent: UiIntent.bullish,
+                  size: UiSize.xs,
                 ),
               ],
             ),

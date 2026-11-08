@@ -359,6 +359,7 @@ class AppSettingCard extends StatelessWidget {
     this.description,
     this.icon,
     this.forceStack = false,
+    this.onTap,
   });
 
   final String title;
@@ -366,6 +367,7 @@ class AppSettingCard extends StatelessWidget {
   final String? description;
   final IconData? icon;
   final bool forceStack;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -378,6 +380,13 @@ class AppSettingCard extends StatelessWidget {
         final bool isToggleGroup = control is UiToggleGroup;
         final bool shouldStack =
             !isSwitch && (forceStack || isToggleGroup || stack);
+        final VoidCallback? effectiveOnTap = onTap ??
+            (control is UiSwitch &&
+                    (control as UiSwitch).enabled &&
+                    (control as UiSwitch).onChanged != null
+                ? () => (control as UiSwitch)
+                    .onChanged!(!(control as UiSwitch).value)
+                : null);
         final Widget copy = Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
@@ -431,6 +440,7 @@ class AppSettingCard extends StatelessWidget {
         );
 
         return UiCard(
+          onTap: effectiveOnTap,
           radius: theme.radii.lg,
           padding: mobile
               ? EdgeInsets.symmetric(

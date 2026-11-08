@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:tradex/features/settings/presentation/pages/shared/profile_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
 
 Widget _wrap(Widget child) {
@@ -279,6 +284,103 @@ void main() {
 
         expect(find.text('ENTERPRISE PLAN'), findsOneWidget);
         expect(find.byIcon(Icons.verified_rounded), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Public Statistics & Journal Visibility options in ProfileSettingsPage toggle independently and update TraderProfilePreviewPage',
+      (tester) async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        await tester.binding.setSurfaceSize(const Size(1280, 1200));
+
+        await JournalRepositoryScope.repository.create(
+          AppTrade(
+            id: 'verified-trade-1',
+            ticker: 'NVDA',
+            title: 'NVDA Breakout Execution',
+            side: AppSide.long,
+            entry: 120.50,
+            exit: 128.00,
+            size: 50,
+            pnl: 375.0,
+            pnlPercent: 6.22,
+            rMultiple: 2.5,
+            outcome: AppOutcome.win,
+            openedAt: DateTime(2026, 11, 8, 10, 0),
+            closedAt: DateTime(2026, 11, 8, 11, 30),
+            notes: 'Verified breakout trade log.',
+            tags: const <String>['breakout', 'disciplined'],
+            isPublic: false,
+          ),
+        );
+
+        await tester.pumpWidget(
+          _wrap(
+            const ProfileSettingsPage(
+              userRole: UserRole.customer,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Show win-rate and public stats on profile'),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Show verified trade logs in public journal'),
+          findsOneWidget,
+        );
+
+        // Tap "Show verified trade logs in public journal" card row to toggle ON
+        await tester.ensureVisible(
+          find.text('Show verified trade logs in public journal'),
+        );
+        // Default is ON; first tap turns it OFF, second tap turns it back ON.
+        await tester.tap(
+          find.text('Show verified trade logs in public journal'),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          ProfileSettingsRepositoryImpl.instance.cachedProfile.publicJournals,
+          isFalse,
+        );
+        await tester.tap(
+          find.text('Show verified trade logs in public journal'),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          ProfileSettingsRepositoryImpl.instance.cachedProfile.publicJournals,
+          isTrue,
+        );
+        expect(
+          ProfileSettingsRepositoryImpl.instance.cachedProfile.publicStats,
+          isTrue,
+        );
+
+        // Render TraderProfilePreviewPage using repository state and verify
+        // Discipline Score + broker-hashed trade logs in Public Journal tab
+        await tester.pumpWidget(
+          _wrap(
+            const TraderProfilePreviewPage(
+              displayName: 'Verified Trader',
+              handle: 'verified_trader',
+              userRole: UserRole.customer,
+              isCurrentUser: true,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Discipline Score'), findsOneWidget);
+        expect(find.text('Private'), findsNothing);
+
+        await tester.tap(find.text('Journal'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('NVDA'), findsAtLeastNWidgets(1));
+        expect(find.textContaining('SHA-256 · #'), findsAtLeastNWidgets(1));
       },
     );
   });

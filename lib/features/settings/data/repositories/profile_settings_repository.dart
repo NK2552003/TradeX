@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/utils/attachment_compression_service.dart';
@@ -9,6 +10,7 @@ import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
+import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/settings/models/connected_account_model.dart';
 
 @immutable
@@ -175,6 +177,7 @@ abstract class ProfileSettingsRepository {
     String? topStrategy,
     String? riskMantra,
     bool? publicStatsEnabled,
+    bool? publicJournalsEnabled,
   });
   Future<String> uploadAvatar(Uint8List imageBytes, String contentType);
   Future<void> removeAvatar();
@@ -210,6 +213,9 @@ abstract class ProfileSettingsRepository {
 
 class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
   static const String _deletionQueueKey = 'tradex_account_deletion_requests_v1';
+  static const String _publicStatsPrefKey = 'tradex_profile_public_stats_v1';
+  static const String _publicJournalsPrefKey =
+      'tradex_profile_public_journals_v1';
 
   static final ProfileSettingsRepositoryImpl instance =
       ProfileSettingsRepositoryImpl._();
@@ -226,6 +232,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
         displayName: 'Your account',
       );
     }
+    unawaited(_hydrateLocalVisibilityPrefs());
   }
   factory ProfileSettingsRepositoryImpl() => instance;
 
@@ -237,6 +244,31 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     role: UserRole.customer,
   );
 
+  Future<void> _hydrateLocalVisibilityPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final bool? savedStats = prefs.getBool(_publicStatsPrefKey);
+      final bool? savedJournals = prefs.getBool(_publicJournalsPrefKey);
+      if (savedStats != null || savedJournals != null) {
+        _profile = _profile.copyWith(
+          publicStats: savedStats,
+          publicJournals: savedJournals,
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveLocalVisibilityPrefs({
+    required bool publicStats,
+    required bool publicJournals,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_publicStatsPrefKey, publicStats);
+      await prefs.setBool(_publicJournalsPrefKey, publicJournals);
+    } catch (_) {}
+  }
+
   @override
   UserProfileModel get cachedProfile => _profile.subscriptionTier.isNotEmpty
       ? _profile
@@ -244,6 +276,14 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
 
   @override
   Future<UserProfileModel> getProfile() async {
+    bool? savedStats;
+    bool? savedJournals;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      savedStats = prefs.getBool(_publicStatsPrefKey);
+      savedJournals = prefs.getBool(_publicJournalsPrefKey);
+    } catch (_) {}
+
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
@@ -252,7 +292,15 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
             user?.id ??
             SupabaseAuthBackendService.instance.currentUserProfile?.id ??
             '';
-        if (targetUserId.isEmpty) return cachedProfile;
+        if (targetUserId.isEmpty) {
+          if (savedStats != null || savedJournals != null) {
+            _profile = _profile.copyWith(
+              publicStats: savedStats,
+              publicJournals: savedJournals,
+            );
+          }
+          return cachedProfile;
+        }
 
         final res = await client
             .from('profiles')
@@ -261,7 +309,22 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
             .maybeSingle();
 
         if (res != null) {
-          _profile = UserProfileModel.fromJson(res);
+          final parsed = UserProfileModel.fromJson(res);
+          final notif = res['notification_settings'] is Map
+              ? Map<String, dynamic>.from(res['notification_settings'] as Map)
+              : null;
+          final bool resolvedStats = res['public_stats'] as bool? ??
+              notif?['public_stats'] as bool? ??
+              savedStats ??
+              parsed.publicStats;
+          final bool resolvedJournals = res['public_journals'] as bool? ??
+              notif?['public_journals'] as bool? ??
+              savedJournals ??
+              parsed.publicJournals;
+          _profile = parsed.copyWith(
+            publicStats: resolvedStats,
+            publicJournals: resolvedJournals,
+          );
           final tierFromProfile = appTierFromId(_profile.subscriptionTier);
           AppSession.instance.changeTier(tierFromProfile);
           return _profile;
@@ -271,6 +334,12 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       }
     }
 
+    if (savedStats != null || savedJournals != null) {
+      _profile = _profile.copyWith(
+        publicStats: savedStats,
+        publicJournals: savedJournals,
+      );
+    }
     return cachedProfile;
   }
 
@@ -288,6 +357,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     String? topStrategy,
     String? riskMantra,
     bool? publicStatsEnabled,
+    bool? publicJournalsEnabled,
   }) async {
     final String? effectiveAvatarUrl = avatarUrl ?? _profile.avatarUrl;
     _profile = _profile.copyWith(
@@ -302,8 +372,32 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       primaryMarket: primaryMarket,
       topStrategy: topStrategy,
       riskMantra: riskMantra,
-      publicJournals: publicStatsEnabled,
+      publicStats: publicStatsEnabled,
+      publicJournals: publicJournalsEnabled,
     );
+
+    unawaited(
+      _saveLocalVisibilityPrefs(
+        publicStats: _profile.publicStats,
+        publicJournals: _profile.publicJournals,
+      ),
+    );
+
+    final existingAuthProfile =
+        SupabaseAuthBackendService.instance.currentUserProfile;
+    if (existingAuthProfile != null) {
+      SupabaseAuthBackendService.instance.setCurrentProfile(
+        _profile,
+        affiliateProfile:
+            SupabaseAuthBackendService.instance.currentAffiliateProfile,
+      );
+    }
+
+    if (publicJournalsEnabled != null) {
+      unawaited(
+        JournalRepositoryImpl.instance.setAllVisibility(publicJournalsEnabled),
+      );
+    }
 
     if (SupabaseConfig.isConfigured) {
       try {
@@ -314,6 +408,23 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
             SupabaseAuthBackendService.instance.currentUserProfile?.id ??
             '';
         if (targetUserId.isEmpty) return _profile;
+
+        Map<String, dynamic> notifSettings = <String, dynamic>{};
+        try {
+          final existingRow = await client
+              .from('profiles')
+              .select('notification_settings')
+              .eq('id', targetUserId)
+              .maybeSingle();
+          if (existingRow != null &&
+              existingRow['notification_settings'] is Map) {
+            notifSettings = Map<String, dynamic>.from(
+              existingRow['notification_settings'] as Map,
+            );
+          }
+        } catch (_) {}
+        notifSettings['public_stats'] = _profile.publicStats;
+        notifSettings['public_journals'] = _profile.publicJournals;
 
         final updateData = <String, dynamic>{
           'display_name': _profile.displayName,
@@ -331,6 +442,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
           'top_strategy': _profile.topStrategy,
           'risk_mantra': _profile.riskMantra,
           'public_journals': _profile.publicJournals,
+          'notification_settings': notifSettings,
           'updated_at': DateTime.now().toIso8601String(),
         };
 
@@ -346,6 +458,8 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
           avatarUrl: fetchedProfile.avatarUrl?.isNotEmpty == true
               ? fetchedProfile.avatarUrl
               : effectiveAvatarUrl,
+          publicStats: _profile.publicStats,
+          publicJournals: _profile.publicJournals,
         );
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] updateProfile error: $e');

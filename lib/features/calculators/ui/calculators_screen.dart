@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 
 import '../calculator_registry.dart';
-import '../../settings/presentation/widgets/settings_side_sheet.dart';
 import 'black_scholes_screen.dart';
 import 'brokerage_screen.dart';
 import 'cagr_screen.dart';
@@ -149,95 +148,14 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
 
       return ColoredBox(
         color: theme.colors.background,
-        child: Stack(
-          children: <Widget>[
-            Positioned.fill(
-              child: AppCalculatorWorkspaceScope(
-                embeddedHeader: widget.onSubpageChanged != null,
-                child: _tool(context, onBack: _closeTool),
-              ),
-            ),
-              Positioned(
-                right: context.sp(theme.spacing.md),
-                bottom: context.sp(theme.spacing.md),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: context.radius(theme.radii.lg),
-                        boxShadow: <BoxShadow>[
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.28),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: UiIconButton(
-                        key: const ValueKey<String>('calculator_history_fab'),
-                        icon: Icons.history_rounded,
-                        tooltip: 'Trade & Calculation History',
-                        variant: UiVariant.secondary,
-                        size: UiSize.md,
-                        onPressed: () => showCalculatorHistorySheet(context),
-                      ),
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: context.radius(theme.radii.lg),
-                        boxShadow: <BoxShadow>[
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.28),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: UiIconButton(
-                        key: const ValueKey<String>('calculator_tools_fab'),
-                        icon: Icons.grid_view_rounded,
-                        tooltip: 'All Tools',
-                        variant: UiVariant.primary,
-                        size: UiSize.md,
-                        onPressed: () => _openToolsSidebar(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
+        child: AppCalculatorWorkspaceScope(
+          embeddedHeader: widget.onSubpageChanged != null,
+          child: _tool(context, onBack: _closeTool),
+        ),
+      );
     }
 
     return _indexView(context);
-  }
-
-  void _openToolsSidebar(BuildContext context) {
-    showSettingsSideSheet<void>(
-      context,
-      title: 'Tools',
-      subtitle: '${kAllCalculators.length} available',
-      desktopWidthRatio: 0.28,
-      minDesktopWidth: 340,
-      maxWidth: 420,
-      action: UiBadge(
-        label: '${kAllCalculators.length}',
-        intent: UiIntent.primary,
-        size: UiSize.xs,
-      ),
-      child: _ToolsSideSheetContent(
-        activeId: _activeId,
-        initialQuery: _query,
-        initialCategory: _category,
-        onSelect: (AppCalculatorMeta m) {
-          _openTool(m.id);
-          Navigator.of(context).pop();
-        },
-      ),
-    );
   }
 
   Widget _mobile(BuildContext context) {
@@ -384,109 +302,3 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
   }
 }
 
-class _ToolsSideSheetContent extends StatefulWidget {
-  const _ToolsSideSheetContent({
-    required this.activeId,
-    required this.onSelect,
-    this.initialQuery = '',
-    this.initialCategory,
-  });
-
-  final String activeId;
-  final ValueChanged<AppCalculatorMeta> onSelect;
-  final String initialQuery;
-  final AppCalculatorCategory? initialCategory;
-
-  @override
-  State<_ToolsSideSheetContent> createState() => _ToolsSideSheetContentState();
-}
-
-class _ToolsSideSheetContentState extends State<_ToolsSideSheetContent> {
-  final ScrollController _scroll = ScrollController();
-  late String _query;
-  late AppCalculatorCategory? _category;
-
-  @override
-  void initState() {
-    super.initState();
-    _query = widget.initialQuery;
-    _category = widget.initialCategory;
-  }
-
-  @override
-  void dispose() {
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  List<AppCalculatorMeta> get _visible {
-    final String q = _query.trim().toLowerCase();
-    return kAllCalculators.where((AppCalculatorMeta m) {
-      if (_category != null && m.category != _category) return false;
-      if (q.isEmpty) return true;
-      return m.name.toLowerCase().contains(q) ||
-          m.description.toLowerCase().contains(q) ||
-          m.tags.any((String t) => t.toLowerCase().contains(q));
-    }).toList();
-  }
-
-  Map<AppCalculatorCategory, int> get _counts {
-    final Map<AppCalculatorCategory, int> out = <AppCalculatorCategory, int>{};
-    for (final AppCalculatorMeta m in kAllCalculators) {
-      out[m.category] = (out[m.category] ?? 0) + 1;
-    }
-    return out;
-  }
-
-  void _clearFilters() => setState(() {
-    _query = '';
-    _category = null;
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.ui;
-    final c = theme.colors;
-    final List<AppCalculatorMeta> visible = _visible;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Padding(
-          padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
-          child: AppCalculatorFilterBlock(
-            query: _query,
-            onQueryChanged: (String v) => setState(() => _query = v),
-            category: _category,
-            onCategoryChanged: (AppCalculatorCategory? v) =>
-                setState(() => _category = v),
-            counts: _counts,
-            total: kAllCalculators.length,
-          ),
-        ),
-        SizedBox(
-          height: theme.borders.hairline,
-          child: ColoredBox(color: c.border),
-        ),
-        Expanded(
-          child: UiScrollbar(
-            controller: _scroll,
-            child: SingleChildScrollView(
-              controller: _scroll,
-              primary: false,
-              child: Padding(
-                padding: EdgeInsets.only(bottom: context.sp(theme.spacing.md)),
-                child: AppCalculatorToolIndex(
-                  tools: visible,
-                  selectedId: widget.activeId,
-                  onSelect: widget.onSelect,
-                  onClear: _clearFilters,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}

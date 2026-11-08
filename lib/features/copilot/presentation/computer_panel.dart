@@ -124,7 +124,13 @@ class _CopilotComputerPanelState extends State<CopilotComputerPanel> {
         UiGap.v(context.ui.spacing.md),
         UiBadge(
           label: textOf(_status, 'state', 'Connecting'),
-          intent: UiIntent.neutral,
+          size: UiSize.xs,
+          intent: switch (textOf(_status, 'state', 'Connecting')) {
+            'running' => UiIntent.success,
+            'stopped' => UiIntent.neutral,
+            'error' || 'failed' => UiIntent.danger,
+            _ => UiIntent.info,
+          },
         ),
         if (_status['configured'] == false) ...[
           UiGap.v(context.ui.spacing.md),
@@ -135,21 +141,28 @@ class _CopilotComputerPanelState extends State<CopilotComputerPanel> {
             intent: UiIntent.neutral,
           ),
         ],
+        UiGap.v(context.ui.spacing.md),
         for (final permission in ['enabled', 'browser', 'files', 'shell'])
-          UiSwitch(
-            label: switch (permission) {
-              'enabled' => 'Enable computer',
-              'browser' => 'Browser',
-              'files' => 'Workspace files',
-              _ => 'Terminal',
-            },
-            value: permissions[permission] == true,
-            enabled: !_busy,
-            onChanged: (v) =>
-                _run('permissions', {...permissions, permission: v}),
+          Padding(
+            padding: EdgeInsets.only(bottom: context.sp(context.ui.spacing.sm)),
+            child: UiSwitch(
+              label: switch (permission) {
+                'enabled' => 'Enable computer',
+                'browser' => 'Browser',
+                'files' => 'Workspace files',
+                _ => 'Terminal',
+              },
+              value: permissions[permission] == true,
+              enabled: !_busy,
+              onChanged: (v) =>
+                  _run('permissions', {...permissions, permission: v}),
+            ),
           ),
+        UiGap.v(context.ui.spacing.xs),
         Wrap(
           spacing: context.sp(context.ui.spacing.xs),
+          runSpacing: context.sp(context.ui.spacing.xs),
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             UiButton(
               label: _status['state'] == 'running' ? 'Stop' : 'Start',

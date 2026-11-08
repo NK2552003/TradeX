@@ -85,11 +85,16 @@ class _CopilotWorkspacePaneState extends State<CopilotWorkspacePane> {
                         controller.workspace.setup['apps'] != false,
                       _ => true,
                     })
-                      UiOption(label: section.label, value: section),
+                      UiOption(
+                        label: section.label,
+                        value: section,
+                        icon: section.icon,
+                      ),
                 ],
                 onChanged: (value) => setState(() => _section = value),
               ),
             ),
+            UiGap.h(context.ui.spacing.xs),
             UiIconButton(
               icon: Icons.close_rounded,
               tooltip: 'Close workspace',
@@ -98,14 +103,16 @@ class _CopilotWorkspacePaneState extends State<CopilotWorkspacePane> {
           ],
         ),
         UiGap.v(context.ui.spacing.md),
-        if (_section != WorkspaceSection.settings)
+        if (_section != WorkspaceSection.settings &&
+            _section != WorkspaceSection.computer) ...[
           UiInput.search(
             value: _query,
             hintText: 'Search ${_section.label.toLowerCase()}',
             onChanged: (v) => setState(() => _query = v),
             onClear: () => setState(() => _query = ''),
           ),
-        UiGap.v(context.ui.spacing.md),
+          UiGap.v(context.ui.spacing.md),
+        ],
         Expanded(
           child: switch (_section) {
             WorkspaceSection.conversations => _Conversations(
@@ -209,11 +216,12 @@ class _Conversations extends StatelessWidget {
                 )
               : ListView.separated(
                   itemCount: threads.length,
-                  separatorBuilder: (_, _) => const UiDivider(),
+                  separatorBuilder: (_, _) => UiGap.v(context.ui.spacing.sm),
                   itemBuilder: (context, index) {
                     final thread = threads[index];
                     return UiCard(
-                      variant: UiCardVariant.ghost,
+                      variant: UiCardVariant.outlined,
+                      density: UiDensity.compact,
                       selected: controller.activeThreadId == thread.id,
                       onTap: controller.conversationLocked
                           ? null
@@ -224,50 +232,72 @@ class _Conversations extends StatelessWidget {
                       title: thread.title,
                       subtitle:
                           '${controller.workspace.specialists.where((s) => s.id == thread.specialistId).firstOrNull?.name ?? 'Specialist'} · ${thread.messages.length} messages',
-                      trailing: UiDropdownMenu(
-                        actions: [
-                          UiMenuItem(
-                            label: thread.pinned ? 'Unpin' : 'Pin',
-                            icon: Icons.push_pin_outlined,
-                            onPressed: () => controller.action({
-                              'action': 'thread.update',
-                              'id': thread.id,
-                              'pinned': !thread.pinned,
-                            }),
-                          ),
-                          UiMenuItem(
-                            label: 'Rename',
-                            icon: Icons.edit_outlined,
-                            onPressed: () => showWorkspaceTextForm(
-                              context,
-                              controller,
-                              title: 'Rename conversation',
-                              action: 'thread.update',
-                              initial: {'id': thread.id, 'title': thread.title},
-                              fields: {'title': 'Title'},
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (thread.status != 'idle') ...[
+                            UiBadge(
+                              label: thread.status,
+                              size: UiSize.xs,
+                              intent: switch (thread.status) {
+                                'error' || 'failed' => UiIntent.danger,
+                                'running' => UiIntent.info,
+                                'interrupted' || 'stopped' => UiIntent.warning,
+                                _ => UiIntent.neutral,
+                              },
                             ),
-                          ),
-                          UiMenuItem(
-                            label: 'Delete',
-                            icon: Icons.delete_outline,
-                            destructive: true,
-                            onPressed: () => confirmWorkspaceDelete(
-                              context,
-                              controller,
-                              'thread.delete',
-                              thread.id,
-                              thread.title,
+                            UiGap.h(context.ui.spacing.xs),
+                          ],
+                          UiDropdownMenu(
+                            alignRight: true,
+                            actions: [
+                              UiMenuItem(
+                                label: thread.pinned ? 'Unpin' : 'Pin',
+                                icon: Icons.push_pin_outlined,
+                                onPressed: () => controller.action({
+                                  'action': 'thread.update',
+                                  'id': thread.id,
+                                  'pinned': !thread.pinned,
+                                }),
+                              ),
+                              UiMenuItem(
+                                label: 'Rename',
+                                icon: Icons.edit_outlined,
+                                onPressed: () => showWorkspaceTextForm(
+                                  context,
+                                  controller,
+                                  title: 'Rename conversation',
+                                  action: 'thread.update',
+                                  initial: {
+                                    'id': thread.id,
+                                    'title': thread.title,
+                                  },
+                                  fields: {'title': 'Title'},
+                                ),
+                              ),
+                              UiMenuItem(
+                                label: 'Delete',
+                                icon: Icons.delete_outline,
+                                destructive: true,
+                                onPressed: () => confirmWorkspaceDelete(
+                                  context,
+                                  controller,
+                                  'thread.delete',
+                                  thread.id,
+                                  thread.title,
+                                ),
+                              ),
+                            ],
+                            child: UiIconButton(
+                              icon: Icons.more_horiz,
+                              size: UiSize.sm,
+                              tooltip: 'Conversation actions',
+                              onPressed: () {},
                             ),
                           ),
                         ],
-                        child: const Icon(Icons.more_horiz),
                       ),
-                      child: thread.status == 'idle'
-                          ? const SizedBox.shrink()
-                          : UiBadge(
-                              label: thread.status,
-                              intent: UiIntent.neutral,
-                            ),
+                      child: const SizedBox.shrink(),
                     );
                   },
                 ),
@@ -287,59 +317,79 @@ class _Specialists extends StatelessWidget {
   final String query;
   final VoidCallback onOpen;
   @override
-  Widget build(BuildContext context) => ListView(
-    children: [
-      UiButton(
-        label: 'Create specialist',
-        icon: Icons.add,
-        variant: UiVariant.outline,
-        onPressed: () => showSpecialistEditor(context, controller),
-      ),
-      UiGap.v(context.ui.spacing.md),
-      for (final specialist in controller.workspace.specialists.where(
-        (s) =>
-            '${s.name} ${s.role}'.toLowerCase().contains(query.toLowerCase()),
-      ))
-        UiCard(
-          variant: UiCardVariant.ghost,
-          title: specialist.name,
-          subtitle: specialist.role,
-          leading: UiAvatar(name: specialist.name),
-          trailing: UiIconButton(
-            icon: Icons.edit_outlined,
-            tooltip: 'Edit ${specialist.name}',
-            onPressed: () => showSpecialistEditor(
-              context,
-              controller,
-              specialist: specialist,
+  Widget build(BuildContext context) {
+    final specialists = controller.workspace.specialists
+        .where(
+          (s) => '${s.name} ${s.role} ${s.instructions}'
+              .toLowerCase()
+              .contains(query.toLowerCase()),
+        )
+        .toList();
+    return ListView(
+      children: [
+        UiButton(
+          label: 'Create specialist',
+          icon: Icons.add,
+          variant: UiVariant.outline,
+          onPressed: () => showSpecialistEditor(context, controller),
+        ),
+        UiGap.v(context.ui.spacing.md),
+        if (specialists.isEmpty)
+          const UiEmptyState(
+            icon: Icons.people_outline,
+            title: 'No matching specialists',
+            message: 'Try a different search or create a new specialist.',
+          ),
+        for (int i = 0; i < specialists.length; i++) ...[
+          if (i > 0) UiGap.v(context.ui.spacing.sm),
+          UiCard(
+            variant: UiCardVariant.outlined,
+            density: UiDensity.compact,
+            title: specialists[i].name,
+            subtitle: specialists[i].role,
+            leading: UiAvatar(name: specialists[i].name, size: UiSize.sm),
+            trailing: UiIconButton(
+              icon: Icons.edit_outlined,
+              size: UiSize.sm,
+              tooltip: 'Edit ${specialists[i].name}',
+              onPressed: () => showSpecialistEditor(
+                context,
+                controller,
+                specialist: specialists[i],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  specialists[i].instructions,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: context.ui.colors.foregroundMuted,
+                    height: 1.45,
+                  ),
+                ),
+                UiGap.v(context.ui.spacing.sm),
+                UiButton(
+                  label: 'Start a conversation',
+                  trailingIcon: Icons.north_east,
+                  variant: UiVariant.soft,
+                  size: UiSize.xs,
+                  onPressed: controller.conversationLocked
+                      ? null
+                      : () {
+                          controller.newConversation(
+                            specialist: specialists[i].id,
+                          );
+                          onOpen();
+                        },
+                ),
+              ],
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                specialist.instructions,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.caption.copyWith(
-                  color: context.ui.colors.foregroundMuted,
-                ),
-              ),
-              UiGap.v(context.ui.spacing.sm),
-              UiButton(
-                label: 'Start a conversation',
-                trailingIcon: Icons.north_east,
-                variant: UiVariant.ghost,
-                onPressed: controller.conversationLocked
-                    ? null
-                    : () {
-                        controller.newConversation(specialist: specialist.id);
-                        onOpen();
-                      },
-              ),
-            ],
-          ),
-        ),
-    ],
-  );
+        ],
+      ],
+    );
+  }
 }

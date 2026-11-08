@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
@@ -30,6 +32,7 @@ class CopilotComposer extends StatefulWidget {
     this.canResearch = true,
     this.onStop,
     this.onVoice,
+    this.onConnectWorkspace,
     this.voiceActive = false,
     this.compactHeight = false,
   });
@@ -46,7 +49,7 @@ class CopilotComposer extends StatefulWidget {
   final CopilotPromptMode mode;
   final bool enabled, busy, attaching, canResearch, voiceActive;
   final bool compactHeight;
-  final VoidCallback? onStop, onVoice;
+  final VoidCallback? onStop, onVoice, onConnectWorkspace;
 
   @override
   State<CopilotComposer> createState() => _CopilotComposerState();
@@ -54,13 +57,83 @@ class CopilotComposer extends StatefulWidget {
 
 class _CopilotComposerState extends State<CopilotComposer> {
   final _focus = FocusNode();
+  final SpeechToText _speech = SpeechToText();
   bool _submitting = false;
+  bool _dictating = false;
+  String _dictationBase = '';
+
   bool get _editable => !widget.busy && !_submitting;
 
   @override
   void dispose() {
+    if (_dictating) {
+      _speech.stop();
+    }
     _focus.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggleDictation() async {
+    if (!_editable || !widget.enabled) return;
+    if (_dictating) {
+      try {
+        await _speech.stop();
+      } catch (_) {}
+      if (mounted) setState(() => _dictating = false);
+      return;
+    }
+    try {
+      final bool available = await _speech.initialize(
+        onStatus: (String status) {
+          if ((status == 'done' || status == 'notListening') && mounted) {
+            setState(() => _dictating = false);
+          }
+        },
+        onError: (_) {
+          if (mounted) setState(() => _dictating = false);
+        },
+      );
+      if (!available) {
+        if (widget.onVoice != null) {
+          widget.onVoice!();
+          return;
+        }
+        if (mounted) {
+          UiToast.info(
+            context,
+            title: 'Voice assistant ready',
+            message: 'Speak naturally or use the live voice call panel.',
+          );
+        }
+        return;
+      }
+      _dictationBase = widget.controller.text;
+      if (mounted) setState(() => _dictating = true);
+      await _speech.listen(
+        onResult: (SpeechRecognitionResult result) {
+          if (!mounted) return;
+          final String spoken = result.recognizedWords.trim();
+          if (spoken.isEmpty) return;
+          final String next = _dictationBase.trimRight().isEmpty
+              ? spoken
+              : '${_dictationBase.trimRight()} $spoken';
+          widget.controller.value = TextEditingValue(
+            text: next,
+            selection: TextSelection.collapsed(offset: next.length),
+          );
+          if (result.finalResult && mounted) {
+            setState(() => _dictating = false);
+          }
+        },
+        listenOptions: SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: false,
+        ),
+      );
+    } catch (_) {
+      if (mounted) setState(() => _dictating = false);
+      widget.onVoice?.call();
+    }
   }
 
   Future<void> _send() async {
@@ -69,6 +142,12 @@ class _CopilotComposerState extends State<CopilotComposer> {
         widget.attaching ||
         (widget.controller.text.trim().isEmpty && widget.attachments.isEmpty)) {
       return;
+    }
+    if (_dictating) {
+      try {
+        await _speech.stop();
+      } catch (_) {}
+      _dictating = false;
     }
     setState(() => _submitting = true);
     try {
@@ -163,66 +242,98 @@ class _CopilotComposerState extends State<CopilotComposer> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                UiDropdownMenu(
-                  semanticLabel: 'Conversation options',
-                  actions: [
-                    UiMenuItem(
-                      label: 'New conversation',
-                      icon: Icons.add_comment_outlined,
-                      enabled: _editable && !widget.voiceActive,
-                      onPressed: widget.onNewConversation,
+            if (!widget.voiceActive) ...[
+              Row(
+                children: [
+                  UiDropdownMenu(
+                    semanticLabel: 'Conversation options',
+                    actions: [
+                      UiMenuItem(
+                        label: 'New conversation',
+                        icon: Icons.add_comment_outlined,
+                        enabled: _editable && !widget.voiceActive,
+                        onPressed: widget.onNewConversation,
+                      ),
+                      if (widget.onConnectWorkspace != null)
+                        UiMenuItem(
+                          label: 'Connect workspace data',
+                          icon: Icons.hub_outlined,
+                          enabled: _editable,
+                          onPressed: widget.onConnectWorkspace!,
+                        ),
+                      if (widget.onVoice != null)
+                        UiMenuItem(
+                          label: widget.voiceActive
+                              ? 'End live voice assistant'
+                              : 'Start live voice assistant',
+                          icon: Icons.graphic_eq_rounded,
+                          onPressed: widget.onVoice!,
+                        ),
+                    ],
+                    child: UiButton(
+                      label: 'Copilot',
+                      icon: Icons.more_horiz,
+                      variant: UiVariant.outline,
+                      size: UiSize.sm,
+                      rounded: true,
+                      onPressed: () {},
                     ),
-                  ],
-                  child: UiButton(
-                    label: 'Copilot',
-                    icon: Icons.more_horiz,
-                    variant: UiVariant.outline,
-                    size: UiSize.sm,
-                    rounded: true,
-                    onPressed: () {},
                   ),
-                ),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: UiDropdownMenu(
-                      semanticLabel: 'Select a profile',
-                      alignRight: true,
-                      enabled: _editable && !widget.voiceActive,
-                      actions: [
-                        for (final item in widget.profiles)
-                          UiMenuItem(
-                            label: item.name,
-                            description: item.role,
-                            selected: item.id == widget.profileId,
-                            onPressed: () => widget.onSelectProfile(item.id),
-                          ),
-                      ],
-                      child: UiButton(
-                        label: profile?.name ?? 'Select a profile',
-                        trailingIcon: Icons.expand_more,
-                        variant: UiVariant.outline,
-                        size: UiSize.sm,
-                        rounded: true,
-                        onPressed: () {},
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: UiDropdownMenu(
+                        semanticLabel: 'Select a profile',
+                        alignRight: true,
+                        enabled: _editable && !widget.voiceActive,
+                        actions: [
+                          for (final item in widget.profiles)
+                            UiMenuItem(
+                              label: item.name,
+                              description: item.role,
+                              selected: item.id == widget.profileId,
+                              onPressed: () => widget.onSelectProfile(item.id),
+                            ),
+                        ],
+                        child: UiButton(
+                          label: profile?.name ?? 'Select a profile',
+                          trailingIcon: Icons.expand_more,
+                          variant: UiVariant.outline,
+                          size: UiSize.sm,
+                          rounded: true,
+                          onPressed: () {},
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            UiGap.v(theme.spacing.sm),
+                ],
+              ),
+              UiGap.v(widget.compactHeight ? theme.spacing.xs : theme.spacing.sm),
+            ],
             UiCard(
               key: const ValueKey('copilot-composer-surface'),
               variant: UiCardVariant.elevated,
               borderRadius: context.radius(theme.radii.xl),
-              padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+              padding: EdgeInsets.all(
+                context.sp(
+                  widget.compactHeight ? theme.spacing.sm : theme.spacing.md,
+                ),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (_dictating)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: context.sp(theme.spacing.xs),
+                      ),
+                      child: const UiBadge(
+                        label: 'Listening for natural language…',
+                        intent: UiIntent.success,
+                        size: UiSize.xs,
+                      ),
+                    ),
                   if (widget.attachments.isNotEmpty)
                     Padding(
                       padding: EdgeInsets.only(
@@ -230,11 +341,15 @@ class _CopilotComposerState extends State<CopilotComposer> {
                       ),
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
-                        child: Wrap(
-                          spacing: context.sp(theme.spacing.xs),
-                          runSpacing: context.sp(theme.spacing.xs),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            for (var i = 0; i < widget.attachments.length; i++)
+                            for (
+                              var i = 0;
+                              i < widget.attachments.length;
+                              i++
+                            ) ...[
+                              if (i > 0) UiGap.h(theme.spacing.xs),
                               ConstrainedBox(
                                 constraints: BoxConstraints(
                                   maxWidth:
@@ -254,6 +369,7 @@ class _CopilotComposerState extends State<CopilotComposer> {
                                       : null,
                                 ),
                               ),
+                            ],
                           ],
                         ),
                       ),
@@ -261,6 +377,8 @@ class _CopilotComposerState extends State<CopilotComposer> {
                   Shortcuts(
                     shortcuts: const {
                       SingleActivator(LogicalKeyboardKey.enter):
+                          ActivateIntent(),
+                      SingleActivator(LogicalKeyboardKey.numpadEnter):
                           ActivateIntent(),
                       SingleActivator(LogicalKeyboardKey.enter, control: true):
                           ActivateIntent(),
@@ -271,6 +389,10 @@ class _CopilotComposerState extends State<CopilotComposer> {
                       actions: {
                         ActivateIntent: CallbackAction<ActivateIntent>(
                           onInvoke: (_) {
+                            final composing = widget.controller.value.composing;
+                            if (composing.isValid && !composing.isCollapsed) {
+                              return null;
+                            }
                             _send();
                             return null;
                           },
@@ -282,42 +404,53 @@ class _CopilotComposerState extends State<CopilotComposer> {
                         onSubmitted: (_) => _send(),
                         semanticLabel: 'Message copilot',
                         hintText: compact
-                            ? 'Ask anything, or add a file…'
-                            : 'Ask anything, paste your notes, or add a file…',
+                            ? 'Ask anything, speak, or add a file…'
+                            : 'Ask anything, speak in natural language, or connect notes & journal…',
                         minLines: widget.compactHeight ? 1 : 2,
                         maxLines: widget.compactHeight ? 2 : (compact ? 4 : 6),
                         maxLength: 24000,
                         variant: UiInputVariant.ghost,
-                        readOnly: !_editable,
+                        readOnly: !widget.enabled || _submitting,
                       ),
                     ),
                   ),
                   if (value.text == '/' && _editable)
-                    Wrap(
-                      children: [
-                        for (final prompt in const [
-                          'Summarize these notes',
-                          'Compare these ideas',
-                          'Research this market',
-                        ])
-                          UiButton(
-                            label: prompt,
-                            size: UiSize.xs,
-                            variant: UiVariant.ghost,
-                            onPressed: () => _prompt('$prompt: '),
-                          ),
-                      ],
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: context.sp(theme.spacing.xs),
+                      ),
+                      child: Wrap(
+                        spacing: context.sp(theme.spacing.xs),
+                        runSpacing: context.sp(theme.spacing.xs),
+                        children: [
+                          for (final prompt in const [
+                            'Summarize these notes',
+                            'Review my journal trades',
+                            'Analyze my strategies',
+                            'Draft a community post',
+                            'Research this market',
+                          ])
+                            UiButton(
+                              label: prompt,
+                              size: UiSize.xs,
+                              variant: UiVariant.ghost,
+                              onPressed: () => _prompt('$prompt: '),
+                            ),
+                        ],
+                      ),
                     ),
                   _ComposerActions(
                     config: widget,
                     compact: compact,
                     editable: _editable,
                     submitting: _submitting,
+                    dictating: _dictating,
                     canSend: canSend,
                     onSend: _send,
                     onPaste: _paste,
                     onCopy: _copy,
                     onPrompt: () => _prompt('/'),
+                    onToggleDictation: _toggleDictation,
                   ),
                 ],
               ),
@@ -328,7 +461,7 @@ class _CopilotComposerState extends State<CopilotComposer> {
                 if (!compact)
                   Expanded(
                     child: Text(
-                      'Ctrl/Cmd + Enter to send',
+                      'Enter or Ctrl/Cmd + Enter to send · Voice ready',
                       style: context.uiText.caption.copyWith(
                         color: theme.colors.foregroundSubtle,
                       ),

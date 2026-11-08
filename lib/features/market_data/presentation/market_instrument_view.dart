@@ -551,7 +551,7 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
             UiCard(
               accentColor: plIntent.color(context),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
@@ -573,26 +573,51 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                   ),
                   UiGap.v(context.ui.spacing.md),
                   Text(inst.symbol, style: context.uiText.display),
-                  Text(
-                    inst.name,
-                    style: context.uiText.body.copyWith(
-                      color: context.ui.colors.foregroundMuted,
+                  if (inst.name.trim().isNotEmpty &&
+                      inst.name.trim().toUpperCase() !=
+                          inst.symbol.trim().toUpperCase()) ...[
+                    UiGap.v(context.ui.spacing.xxs),
+                    Text(
+                      inst.name,
+                      style: context.uiText.body.copyWith(
+                        color: context.ui.colors.foregroundMuted,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  UiGap.v(context.ui.spacing.lg),
-                  Text(px(price), style: context.uiText.heading),
-                  UiGap.v(context.ui.spacing.sm),
-                  if (inst.price.isFinite)
-                    UiBadge(
-                      label: AppTokens.signedPercent(inst.changePercent),
-                      intent: plIntent,
-                      icon: AppTokens.plIcon(inst.changePercent),
-                    ),
+                  ],
                   UiGap.v(context.ui.spacing.md),
+                  Wrap(
+                    spacing: context.sp(context.ui.spacing.sm),
+                    runSpacing: context.sp(context.ui.spacing.xs),
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(px(price), style: context.uiText.heading),
+                      if (inst.price.isFinite)
+                        UiBadge(
+                          label: AppTokens.signedPercent(inst.changePercent),
+                          intent: plIntent,
+                          icon: AppTokens.plIcon(inst.changePercent),
+                        ),
+                    ],
+                  ),
+                  UiGap.v(context.ui.spacing.sm),
                   Text(
-                    'Updated: ${detail['quote']?['updated_at'] ?? inst.updatedAt?.toIso8601String() ?? 'Unavailable'}',
+                    () {
+                      final raw =
+                          '${detail['quote']?['updated_at'] ?? inst.updatedAt?.toIso8601String() ?? ''}'
+                              .trim();
+                      final parsed = DateTime.tryParse(raw)?.toUtc();
+                      if (parsed != null) {
+                        final y = parsed.year.toString().padLeft(4, '0');
+                        final m = parsed.month.toString().padLeft(2, '0');
+                        final d = parsed.day.toString().padLeft(2, '0');
+                        final hh = parsed.hour.toString().padLeft(2, '0');
+                        final mm = parsed.minute.toString().padLeft(2, '0');
+                        return 'Updated: $y-$m-$d · $hh:$mm UTC';
+                      }
+                      return 'Updated: ${raw.isEmpty ? 'Unavailable' : raw}';
+                    }(),
                     style: context.uiText.caption.copyWith(
                       color: context.ui.colors.foregroundMuted,
                     ),
@@ -631,15 +656,19 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final section in sections) ...[
+                  for (var idx = 0; idx < sections.length; idx++) ...[
+                    if (idx > 0) UiGap.v(context.ui.spacing.xxs),
                     UiButton(
-                      label: section.title,
-                      leadingIcon: (section.leading as Icon?)?.icon,
-                      variant: UiVariant.ghost,
-                      onPressed: () {
-                        final index = sections.indexOf(section);
-                        setState(() => _section = index);
-                      },
+                      label: sections[idx].title,
+                      leadingIcon: (sections[idx].leading as Icon?)?.icon,
+                      trailingIcon: Icons.chevron_right_rounded,
+                      alignment: Alignment.centerLeft,
+                      expand: true,
+                      selected: _section == idx,
+                      variant: _section == idx
+                          ? UiVariant.soft
+                          : UiVariant.ghost,
+                      onPressed: () => setState(() => _section = idx),
                     ),
                   ],
                 ],

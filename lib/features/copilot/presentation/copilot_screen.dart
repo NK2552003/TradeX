@@ -169,13 +169,13 @@ class CopilotScreenState extends State<CopilotScreen> {
                 key: _chatKey,
                 controller: _controller,
                 voiceActive: _voice.active,
+                onOpenRef: widget.onOpenRef,
                 onVoice: _voice.active
                     ? _voice.end
-                    : (_controller.connected &&
-                              !_voice.connecting &&
-                              !_controller.conversationLocked
+                    : (!_voice.connecting && !_controller.conversationLocked
                           ? _voice.start
                           : null),
+                onSpeakMessage: _voice.speakAssistantMessage,
                 onPage: (page) {
                   setState(() => _page = page);
                   _showWorkspace(true);

@@ -3228,11 +3228,18 @@ class CommunityRepository extends ChangeNotifier {
     _insightsByPost.remove(postId);
   }
 
+  /// Returns the recorded outbound share count for [postId].
+  int shareCountFor(String postId) => _sharesByPost[postId] ?? 0;
+
   /// Records an outbound share (via DM or external app) from this post.
   void recordShare(String postId) {
     if (postId.trim().isEmpty) return;
     _sharesByPost[postId] = (_sharesByPost[postId] ?? 0) + 1;
     _insightsByPost.remove(postId);
+    WorkspacePostService.instance.recordShare(postId);
+    scheduleMicrotask(() {
+      if (!_disposed) notifyListeners();
+    });
   }
 
   /// @backend GET /api/v1/community/posts/{postId}/insights

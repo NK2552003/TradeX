@@ -362,5 +362,150 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets(
+    'UiCard keeps trailing on header row and UiBadge hugs label in stretched column',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 340,
+              child: UiCard(
+                title: 'can you do the web search now',
+                subtitle: 'Atlas · 8 messages',
+                trailing: UiIconButton(
+                  icon: Icons.more_horiz,
+                  size: UiSize.xs,
+                  onPressed: () {},
+                ),
+                child: const UiBadge(
+                  label: 'error',
+                  intent: UiIntent.danger,
+                  variant: UiBadgeVariant.soft,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      final Offset titleTopLeft = tester.getTopLeft(
+        find.text('can you do the web search now'),
+      );
+      final Offset trailingTopLeft = tester.getTopLeft(
+        find.byType(UiIconButton),
+      );
+      // Trailing button stays to the right on the header row, not pushed below subtitle
+      expect(trailingTopLeft.dx, greaterThan(titleTopLeft.dx + 120));
+      expect((trailingTopLeft.dy - titleTopLeft.dy).abs(), lessThan(24));
+
+      // UiBadge hugs its text instead of stretching to 340px card width
+      final Rect badgeRect = tester.getRect(find.text('error'));
+      expect(badgeRect.width, lessThan(120));
+    },
+  );
+
+  testWidgets(
+    'AppAiMessageBubble renders rich reusable charts, tables, callouts and streaming reveal',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      const String richMarkdown = '''
+> [!TIP]
+> Nvidia momentum remains strong above key VWAP support.
+
+| Ticker | Price | Change |
+| :--- | ---: | ---: |
+| NVDA | 138.50 | +4.2% |
+| AAPL | 228.10 | +1.1% |
+
+```kpi
+{
+  "title": "Desk Snapshot",
+  "metrics": [
+    {"label": "Net Worth", "value": "\$124,500", "change": "+12.4%", "isPositive": true},
+    {"label": "Win Rate", "value": "68.4%", "change": "+2.1%", "isPositive": true}
+  ]
+}
+```
+
+```donut
+title: Asset Allocation
+Equities: 65
+Crypto: 25
+Cash: 10
+```
+
+```barlist
+title: Top Holdings
+NVDA: 45.2
+BTC: 31.0
+```
+''';
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: AppAiMessageBubble(
+                message: AppAiMessage(
+                  id: 'm1',
+                  role: AppAiRole.assistant,
+                  body: richMarkdown,
+                  pending: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Advance typewriter streaming animation while pending (UiTypingIndicator active)
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(find.byType(UiTypingIndicator), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Settle stream (pending: false)
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: AppAiMessageBubble(
+                message: AppAiMessage(
+                  id: 'm1',
+                  role: AppAiRole.assistant,
+                  body: richMarkdown,
+                  pending: false,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(UiCallout), findsOneWidget);
+      expect(find.byType(UiMetricCard), findsNWidgets(2));
+      expect(find.byType(UiDonutChart), findsOneWidget);
+      expect(find.byType(UiBarList), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 }
 

@@ -602,4 +602,159 @@ void main() {
       }
     });
   });
+
+  group('Post Card Real Sharing Tests', () {
+    testWidgets(
+      'CommunityPostCard share button opens CommunityShareSheet, copies link, records share count, and clips post to Trader Notes',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(1280, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final repo = CommunityRepository();
+        const author = CommunityAuthor(
+          id: 'author-share-1',
+          displayName: 'Elena Rostova',
+          handle: 'elena_quant',
+          verified: true,
+          userRole: UserRole.customer,
+        );
+        final post = CommunityPost(
+          id: 'post-share-101',
+          author: author,
+          body: 'Watching \$NVDA breakout above 140 resistance with strong volume.',
+          tickers: const <String>['NVDA'],
+          tags: const <String>['breakout'],
+          createdAt: DateTime.now(),
+          tradeSetup: const CommunityTradeSetup(
+            ticker: 'NVDA',
+            side: 'LONG',
+            entry: '140.50',
+            target: '152.00',
+            stopLoss: '136.00',
+            rMultiple: '2.5R',
+          ),
+        );
+
+        bool shareCallbackFired = false;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: CommunityPostCard(
+                  post: post,
+                  repository: repo,
+                  onShare: () => shareCallbackFired = true,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(repo.shareCountFor('post-share-101'), 0);
+
+        // Tap the Share button on the engagement bar
+        await tester.tap(find.byIcon(Icons.ios_share_rounded).last);
+        await tester.pumpAndSettle();
+
+        // Verify CommunityShareSheet opened with post preview, URL, and external share options
+        expect(find.text('Share Post'), findsOneWidget);
+        expect(
+          find.text('https://alphajournal.in/post/post-share-101'),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('share-sheet-whatsapp')),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('share-sheet-x')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('share-sheet-telegram')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('share-sheet-native')),
+          findsOneWidget,
+        );
+
+        // Tap Copy Link inside the share sheet
+        await tester.tap(
+          find.byKey(const ValueKey('share-sheet-copy-link-btn')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 4));
+
+        expect(repo.shareCountFor('post-share-101'), 1);
+        expect(shareCallbackFired, isTrue);
+
+        // Tap Save Post to Trader Notes
+        final int notesBefore =
+            (await NotesRepositoryScope.repository.fetchAll()).length;
+        await tester.tap(find.byKey(const ValueKey('share-sheet-save-note')));
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 4));
+
+        expect(
+          (await NotesRepositoryScope.repository.fetchAll()).length,
+          greaterThan(notesBefore),
+        );
+        expect(repo.shareCountFor('post-share-101'), 2);
+      },
+    );
+
+    testWidgets(
+      'AppPostCard has a working built-in Share button even when onShare is null',
+      (WidgetTester tester) async {
+        final appPost = AppPost(
+          id: 'app-post-77',
+          author: const AppTrader(
+            id: 'trader-77',
+            displayName: 'Marcus Vance',
+            handle: '@mvance',
+          ),
+          body: 'Macro liquidity remains supportive for tech leaders.',
+          tickers: const <String>['QQQ', 'MSFT'],
+          createdAt: DateTime.now(),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: AppPostCard(post: appPost),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Tap the Share button on AppPostCard
+        await tester.tap(find.byIcon(Icons.ios_share));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Share Post'), findsOneWidget);
+        expect(
+          find.text('https://alphajournal.in/post/app-post-77'),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('app-post-share-copy-link')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('app-post-share-whatsapp')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('app-post-share-x')),
+          findsOneWidget,
+        );
+      },
+    );
+  });
 }

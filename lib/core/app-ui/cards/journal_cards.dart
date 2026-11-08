@@ -544,18 +544,17 @@ class AppPsychologyCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
+          Wrap(
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xxs),
             children: List<Widget>.generate(
               max,
-              (int i) => Padding(
-                padding: EdgeInsets.only(right: context.sp(theme.spacing.xs)),
-                child: Icon(
-                  i < score ? Icons.circle : Icons.circle_outlined,
-                  size: context.sz(theme.sizes.iconMd),
-                  color: i < score
-                      ? intent.color(context)
-                      : theme.colors.borderStrong,
-                ),
+              (int i) => Icon(
+                i < score ? Icons.circle : Icons.circle_outlined,
+                size: context.sz(theme.sizes.iconMd),
+                color: i < score
+                    ? intent.color(context)
+                    : theme.colors.borderStrong,
               ),
             ),
           ),

@@ -1,6 +1,7 @@
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/features/market_data/presentation/market_sidebar.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
@@ -143,7 +144,12 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   }
 
   void _handleShare() {
-    CommunityShareSheet.show(context, post: _currentPost);
+    CommunityShareSheet.show(
+      context,
+      post: _currentPost,
+      repository: widget.repository,
+      onQuote: _quotePost,
+    );
   }
 
   Future<void> _togglePostVisibility(bool next) async {
@@ -407,10 +413,13 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     size: UiSize.xs,
                     tooltip: 'Copy Thread Link',
                     onPressed: () {
+                      final String url = CommunityShareSheet.postUrl(post);
+                      Clipboard.setData(ClipboardData(text: url));
+                      widget.repository.recordShare(post.id);
                       UiToast.show(
                         context,
                         title: 'Link Copied',
-                        message: 'Thread URL copied to clipboard.',
+                        message: url,
                         intent: UiIntent.success,
                       );
                     },
@@ -629,7 +638,6 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                               ),
                               post: _currentPost,
                               variant: CommunityPostCardVariant.boxed,
-                              showAuthorHeader: false,
                               showTradeSetup: false,
                               repository: widget.repository,
                               currentUser: widget.currentUser,
@@ -860,7 +868,10 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   // Desktop Sidebar Companion Cards
   // ---------------------------------------------------------------------------
 
-  Widget _buildAuthorProfileCard(UiTheme theme, CommunityAuthor postAuthor) {
+  Widget _buildAuthorProfileCard(
+    UiTheme theme,
+    CommunityAuthor postAuthor,
+  ) {
     final author = widget.repository.authorById(postAuthor.id) ?? postAuthor;
     final bool isCurrentUser = _isAuthor;
     final bool isFollowing = _authorFollowingOverride ?? author.isFollowing;
@@ -873,57 +884,6 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              UiAvatar(
-                name: author.displayName,
-                imageUrl: author.avatarUrl,
-                verified: author.verified,
-                onTap: widget.onAuthorTap == null
-                    ? null
-                    : () => widget.onAuthorTap!(author),
-              ),
-              UiGap.h(theme.spacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            author.displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.uiText.bodyStrong.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        if (author.verified) ...[
-                          UiGap.h(theme.spacing.xxs),
-                          Icon(
-                            Icons.verified_rounded,
-                            size: context.sz(16),
-                            color: author.verifiedColor(theme),
-                          ),
-                        ],
-                      ],
-                    ),
-                    Text(
-                      author.displayHandle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.uiText.caption,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          UiGap.v(theme.spacing.md),
-          UiDivider(),
-          UiGap.v(theme.spacing.sm),
           Row(
             children: [
               Expanded(

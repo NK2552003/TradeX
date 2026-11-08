@@ -44,42 +44,53 @@ class UiPopover extends StatelessWidget {
           final RenderBox? box = context.findRenderObject() as RenderBox?;
           if (box == null || !box.hasSize) return;
           final Offset o = box.localToGlobal(Offset.zero);
-          final double screenWidth = MediaQuery.sizeOf(context).width;
+          final Size screen = MediaQuery.sizeOf(context);
           final double effectiveWidth = math.min(
             context.sz(width ?? 300),
-            screenWidth - 32,
+            math.max(120.0, screen.width - 32),
           );
+          final double left = o.dx.clamp(
+            16.0,
+            math.max(16.0, screen.width - effectiveWidth - 16.0),
+          );
+          final bool openUp = o.dy + box.size.height + 240 > screen.height &&
+              o.dy > screen.height * 0.45;
 
-          showMenu<void>(
+          UiDialog.present<void>(
             context: context,
-            color: theme.colors.surface,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: context.radius(theme.radii.lg),
-              side: BorderSide(
-                color: theme.colors.border,
-                width: theme.borders.hairline,
-              ),
-            ),
-            position: RelativeRect.fromLTRB(
-              o.dx,
-              o.dy + box.size.height,
-              o.dx + box.size.width,
-              o.dy,
-            ),
-            items: <PopupMenuEntry<void>>[
-              PopupMenuItem<void>(
-                enabled: false,
-                padding: EdgeInsets.zero,
-                child: SizedBox(
+            barrierDismissible: true,
+            barrierColor: Colors.transparent,
+            builder: (BuildContext dialogCtx) => Stack(
+              children: <Widget>[
+                Positioned(
+                  left: left,
+                  top: openUp ? null : o.dy + box.size.height + 6,
+                  bottom: openUp ? (screen.height - o.dy + 6) : null,
                   width: effectiveWidth,
-                  child: Padding(
-                    padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-                    child: resolved,
+                  child: Material(
+                    color: theme.colors.surface,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: dialogCtx.radius(theme.radii.lg),
+                      side: BorderSide(
+                        color: theme.colors.border,
+                        width: theme.borders.hairline,
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: screen.height * 0.65,
+                      ),
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.all(dialogCtx.sp(theme.spacing.lg)),
+                        child: resolved,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         }
       },

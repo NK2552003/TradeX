@@ -14,6 +14,7 @@ class UiIconButton extends StatelessWidget {
     this.size = UiSize.md,
     this.tooltip,
     this.badgeCount,
+    this.rounded = false,
   });
 
   final IconData icon;
@@ -23,11 +24,14 @@ class UiIconButton extends StatelessWidget {
   final UiSize size;
   final String? tooltip;
   final int? badgeCount;
+  final bool rounded;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final BorderRadius radius = context.radius(theme.radii.lg);
+    final BorderRadius radius = context.radius(
+      rounded ? theme.radii.pill : theme.radii.lg,
+    );
     final double dim = size.height(context);
 
     Widget child = UiInteractive(
@@ -91,6 +95,13 @@ class UiIconButton extends StatelessWidget {
             border: variant == UiVariant.outline
                 ? Border.all(
                     color: intentColor ?? c.borderStrong,
+                    width: theme.borders.hairline,
+                  )
+                : variant == UiVariant.soft
+                ? Border.all(
+                    color: (intentColor ?? c.borderStrong).withValues(
+                      alpha: 0.28,
+                    ),
                     width: theme.borders.hairline,
                   )
                 : null,

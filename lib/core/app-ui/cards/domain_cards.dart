@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
 import '../theme/app_tokens.dart';
+import 'community_cards.dart';
 import 'notes_cards.dart';
 
 /// 1. PortfolioSummaryCard — Net worth, PnL, cash balance, and daily gain summary card.
@@ -603,7 +604,8 @@ class WatchlistCard extends StatelessWidget {
                 ),
               ),
             ),
-            Divider(height: 1, color: theme.colors.border),
+            if (item != symbols.last)
+              Divider(height: 1, color: theme.colors.border),
           ],
         ],
       ),
@@ -844,11 +846,18 @@ class StrategyCard extends StatelessWidget {
       children: <Widget>[
         Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: context.uiText.caption.copyWith(
             color: context.ui.colors.foregroundMuted,
           ),
         ),
-        Text(value, style: context.uiText.bodyStrong),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.uiText.bodyStrong,
+        ),
       ],
     );
   }
@@ -1151,7 +1160,14 @@ class CommunityPostCard extends StatelessWidget {
                 icon: Icons.share_outlined,
                 size: UiSize.xs,
                 tooltip: 'Share',
-                onPressed: onShare,
+                onPressed:
+                    onShare ??
+                    () => AppPostShareModal.showSimple(
+                      context,
+                      authorName: authorName,
+                      authorBadge: authorTier,
+                      body: content,
+                    ),
               ),
             ],
           ),

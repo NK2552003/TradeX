@@ -53,7 +53,7 @@ class SupabaseCopilotApi extends CopilotApi {
   static const capabilities = <String, dynamic>{
     'backend': 'supabase',
     'chat': true,
-    'voice': false,
+    'voice': true,
     'schedules': false,
     'computer': false,
     'slack': false,

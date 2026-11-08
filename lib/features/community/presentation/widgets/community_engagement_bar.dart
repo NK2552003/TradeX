@@ -17,6 +17,8 @@ class CommunityEngagementBar extends StatefulWidget {
     required this.liked,
     required this.reposted,
     required this.bookmarked,
+    this.shares = 0,
+    this.shared = false,
     this.userReaction,
     this.reactions = const <String>[],
     this.onReply,
@@ -36,6 +38,8 @@ class CommunityEngagementBar extends StatefulWidget {
   final bool liked;
   final bool reposted;
   final bool bookmarked;
+  final int shares;
+  final bool shared;
   final String? userReaction;
   final List<String> reactions;
   final VoidCallback? onReply;
@@ -273,8 +277,9 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
 
     final Widget shareButton = CommunityEngagementButton(
       icon: Icons.ios_share_rounded,
-      count: '',
+      count: widget.shares > 0 ? uiCompactNumber(widget.shares) : '',
       tooltip: 'Share',
+      isActive: widget.shared,
       activeColor: theme.colors.primary,
       hoverColor: theme.colors.primary.withValues(alpha: 0.06),
       onTap: widget.onShare,

@@ -111,29 +111,44 @@ class ScrollableTableBuilder extends MarkdownElementBuilder {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Table(
-          border:
-              styleSheet.tableBorder ??
-              TableBorder.all(color: borderColor, width: 1),
-          columnWidths: <int, TableColumnWidth>{
-            for (int i = 0; i < columns; i++) i: FixedColumnWidth(widths[i]),
-          },
-          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-          children: <TableRow>[
-            for (final md.Element row in rows)
-              TableRow(
-                decoration: _isHeaderRow(row)
-                    ? BoxDecoration(color: borderColor.withValues(alpha: 0.18))
-                    : null,
-                children: <Widget>[
-                  for (int i = 0; i < columns; i++)
-                    _cell(_cellAt(row, i), cellPadding),
-                ],
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: Table(
+            border: TableBorder(
+              horizontalInside: BorderSide(color: borderColor, width: 1),
+              verticalInside: BorderSide(
+                color: borderColor.withValues(alpha: 0.45),
+                width: 1,
               ),
-          ],
+            ),
+            columnWidths: <int, TableColumnWidth>{
+              for (int i = 0; i < columns; i++) i: FixedColumnWidth(widths[i]),
+            },
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            children: <TableRow>[
+              for (int r = 0; r < rows.length; r++)
+                TableRow(
+                  decoration: _isHeaderRow(rows[r])
+                      ? BoxDecoration(color: borderColor.withValues(alpha: 0.22))
+                      : (r.isEven
+                            ? BoxDecoration(
+                                color: borderColor.withValues(alpha: 0.05),
+                              )
+                            : null),
+                  children: <Widget>[
+                    for (int i = 0; i < columns; i++)
+                      _cell(_cellAt(rows[r], i), cellPadding),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
     );

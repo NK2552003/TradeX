@@ -336,6 +336,21 @@ class WorkspacePostService {
     return filtered.fold<int>(0, (sum, p) => sum + p.sharesCount);
   }
 
+  /// Increments the share count on any linked workspace records for [postId].
+  void recordShare(String postId) {
+    if (postId.isEmpty) return;
+    bool changed = false;
+    for (int i = 0; i < _links.length; i++) {
+      if (_links[i].postId == postId) {
+        _links[i] = _links[i].copyWith(sharesCount: _links[i].sharesCount + 1);
+        changed = true;
+      }
+    }
+    if (changed) {
+      _controller.add(allLinks);
+    }
+  }
+
   /// Links a record to a new community post.
   void linkRecord({
     required AppLinkKind kind,
