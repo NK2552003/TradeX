@@ -58,8 +58,8 @@ class SupabaseCopilotApi extends CopilotApi {
     'computer': false,
     'slack': false,
     'apps': false,
-    'research': false,
-    'attachments': false,
+    'research': true,
+    'attachments': true,
   };
 
   @override
@@ -110,11 +110,9 @@ class SupabaseCopilotApi extends CopilotApi {
 
   @override
   Stream<Json> run(String threadId, Json body, {bool approval = false}) async* {
-    if (approval ||
-        (body['attachments'] as List? ?? []).isNotEmpty ||
-        !['', 'auto'].contains(textOf(body, 'mode'))) {
+    if (approval) {
       throw const CopilotFailure(
-        'This request requires a hosted copilot worker.',
+        'Approvals require a hosted copilot worker.',
         501,
       );
     }
@@ -203,6 +201,8 @@ class SupabaseCopilotApi extends CopilotApi {
         'prompt': prompt,
         'kind': 'completion',
         'system_prompt': system,
+        'mode': textOf(body, 'mode', 'auto'),
+        'attachments': records(body['attachments']),
         'messages': messages
             .skip(messages.length > 40 ? messages.length - 40 : 0)
             .toList(),
@@ -257,7 +257,11 @@ class SupabaseCopilotApi extends CopilotApi {
         answer,
         'complete',
       );
-      if (saved) yield {'type': 'delta', 'text': answer};
+      if (saved) {
+        for (final chunk in _streamChunks(answer)) {
+          yield {'type': 'delta', 'text': chunk};
+        }
+      }
       yield {'type': 'done'};
     } catch (error) {
       final message = error is CopilotFailure
@@ -267,6 +271,17 @@ class SupabaseCopilotApi extends CopilotApi {
       yield {'type': 'error', 'message': message};
     } finally {
       if (identical(_stops[runKey], stopped)) _stops.remove(runKey);
+    }
+  }
+
+  static Iterable<String> _streamChunks(String text) sync* {
+    final matches = RegExp(r'\S+\s*').allMatches(text);
+    if (matches.isEmpty) {
+      if (text.isNotEmpty) yield text;
+      return;
+    }
+    for (final match in matches) {
+      yield match.group(0)!;
     }
   }
 

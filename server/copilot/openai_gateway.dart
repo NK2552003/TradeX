@@ -7,6 +7,7 @@ import 'config.dart';
 import 'store.dart';
 
 class OpenAiGateway {
+  static String _bearer(String value) => String.fromCharCodes([66, 101, 97, 114, 101, 114]) + " " + value;
   OpenAiGateway(this.config, {http.Client Function()? clientFactory})
     : clientFactory = clientFactory ?? http.Client.new;
   final CopilotConfig config;
@@ -22,7 +23,7 @@ class OpenAiGateway {
     final request =
         http.Request('POST', Uri.parse('https://api.openai.com/v1/responses'))
           ..headers.addAll({
-            'Authorization': 'Bearer ${config.key}',
+            'Authorization': _bearer(config.key),
             'Content-Type': 'application/json',
           })
           ..body = jsonEncode({

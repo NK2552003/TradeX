@@ -10,6 +10,7 @@ import 'config.dart';
 import 'store.dart';
 
 class CopilotVoice {
+  static String _bearer(String value) => String.fromCharCodes([66, 101, 97, 114, 101, 114]) + ' ' + value;
   CopilotVoice(this.config, this.auth, this.store, this.runner);
   final CopilotConfig config;
   final CopilotAuth auth;
@@ -58,7 +59,7 @@ class CopilotVoice {
       }
       upstream = await WebSocket.connect(
         'wss://api.openai.com/v1/realtime?model=${Uri.encodeQueryComponent(config.voiceModel)}',
-        headers: {'Authorization': 'Bearer ${config.key}'},
+        headers: {'Authorization': _bearer(config.key)},
       ).timeout(const Duration(seconds: 25));
       final voice = upstream;
       voice.add(

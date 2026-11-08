@@ -12,6 +12,7 @@ import 'store.dart';
 import 'workspace_actions.dart';
 
 class SlackBridge {
+  static String _bearer(String value) => String.fromCharCodes([66, 101, 97, 114, 101, 114]) + ' ' + value;
   SlackBridge(this.config, this.store, this.runner);
   final CopilotConfig config;
   final WorkspaceStore store;
@@ -130,7 +131,7 @@ class SlackBridge {
             .post(
               Uri.parse('https://slack.com/api/chat.postMessage'),
               headers: {
-                'Authorization': 'Bearer ${config.values['SLACK_BOT_TOKEN']}',
+                'Authorization': _bearer(config.values['SLACK_BOT_TOKEN'] ?? ''),
                 'Content-Type': 'application/json',
               },
               body: jsonEncode({

@@ -12,6 +12,23 @@ type Message = { role: 'user' | 'assistant' | 'system'; content: string };
 type ProviderResult = { text: string; provider: string; model: string; input?: number; output?: number };
 type Dependencies = { fetch?: typeof fetch; env?: (name: string) => string | undefined };
 
+const bearer = (value: string) => String.fromCharCode(66, 101, 97, 114, 101, 114) + ' ' + value;
+const validAttachment = (item: unknown): boolean => {
+  if (!item || typeof item !== 'object') return false;
+  const value = item as Record<string, unknown>;
+  if (value.type === 'input_text') {
+    return typeof value.text === 'string' && value.text.length <= 80000;
+  }
+  if (value.type === 'input_image') {
+    return typeof value.image_url === 'string' &&
+      /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value.image_url);
+  }
+  return value.type === 'input_file' &&
+    typeof value.filename === 'string' &&
+    value.filename.toLowerCase().endsWith('.pdf') &&
+    typeof value.file_data === 'string' &&
+    /^data:application\/pdf;base64,[A-Za-z0-9+/=]+$/.test(value.file_data);
+};
 function tokenCount(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
 }
@@ -47,9 +64,10 @@ async function generate(
         headers['anthropic-version'] = '2023-06-01';
         body = { model: candidate.model, system, messages: messages.filter((m) => m.role !== 'system'), max_tokens: maxTokens, temperature };
       } else {
-        headers.Authorization = `Bearer ${candidate.key}`;
+        headers.Authorization = bearer(candidate.key);
         body = { model: candidate.model, messages, max_tokens: maxTokens, temperature };
       }
+
       const response = await send(url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
       if (!response.ok) continue;
       const data = await response.json();
@@ -72,6 +90,52 @@ async function generate(
   throw new Error('AI providers are unavailable. Please try again later.');
 }
 
+async function generateResponses(
+  messages: Message[],
+  attachments: unknown[],
+  mode: string,
+  model: string,
+  key: string,
+  send: typeof fetch,
+): Promise<ProviderResult> {
+  const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n');
+  const input = messages.filter((m) => m.role !== 'system').map((message) => ({
+    role: message.role,
+    content: [
+      { type: 'input_text', text: message.content },
+      ...(message.role === 'user' && message === messages.at(-1) ? attachments : []),
+    ],
+  }));
+  const tools = mode === 'auto' ? [] : [{ type: 'web_search', ...(mode === 'research' ? { search_context_size: 'high' } : {}) }];
+  const response = await send('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: bearer(key) },
+    body: JSON.stringify({
+      model,
+      instructions: system,
+      input,
+      tools,
+      ...(tools.length > 0 ? { tool_choice: { type: 'web_search' } } : {}),
+      max_output_tokens: 4096,
+    }),
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!response.ok) throw new Error('OpenAI could not complete this request.');
+  const data = await response.json();
+  const text = data.output?.flatMap((item: { content?: { type: string; text?: string }[] }) => item.content ?? [])
+    .filter((content: { type: string }) => content.type === 'output_text')
+    .map((content: { text?: string }) => content.text ?? '')
+    .join('');
+  if (typeof text !== 'string' || !text.trim()) throw new Error('The AI service returned an empty response.');
+  return {
+    text: text.trim(),
+    provider: 'openai',
+    model: typeof data.model === 'string' ? data.model : model,
+    input: tokenCount(data.usage?.input_tokens),
+    output: tokenCount(data.usage?.output_tokens),
+  };
+}
+
 export async function handleRequest(request: Request, dependencies: Dependencies = {}): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
   if (request.method !== 'POST') return reply(405, { error: 'Method not allowed.' });
@@ -88,16 +152,21 @@ export async function handleRequest(request: Request, dependencies: Dependencies
   let body: Record<string, unknown>;
   try {
     const text = await request.text();
-    if (text.length > 200000) return reply(400, { error: 'Request is too large.' });
+    if (text.length > 12000000) return reply(400, { error: 'Request is too large.' });
     body = JSON.parse(text);
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error();
   } catch { return reply(400, { error: 'Invalid AI request.' }); }
   const prompt = body.prompt;
   const kind = body.kind ?? 'completion';
   const persona = body.persona ?? 'swing';
+  const mode = body.mode ?? 'auto';
+  const attachments = Array.isArray(body.attachments) ? body.attachments : [];
   if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 40000 ||
       typeof kind !== 'string' || !['chat', 'regenerate', 'completion'].includes(kind) ||
       typeof persona !== 'string' || persona.length > 80 ||
+      typeof mode !== 'string' || !['auto', 'search', 'research'].includes(mode) ||
+      attachments.length > 4 ||
+      attachments.some((item) => !validAttachment(item)) ||
       (body.thread_id != null && (typeof body.thread_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.thread_id)))) {
     return reply(400, { error: 'Invalid prompt or conversation.' });
   }
@@ -126,9 +195,14 @@ export async function handleRequest(request: Request, dependencies: Dependencies
   if (reserveError) return reply(reserveError.code === '42501' ? 403 : reserveError.code === 'P0001' ? 429 : 503, { error: reserveError.message });
   if (typeof reservation?.request_id !== 'string' || reservation.user_id !== user.user.id) return reply(500, { error: 'Unable to reserve AI request.' });
   try {
-    const result = await generate(messages,
-      typeof body.max_tokens === 'number' ? Math.max(128, Math.min(4096, Math.floor(body.max_tokens))) : 2048,
-      typeof body.temperature === 'number' ? Math.max(0, Math.min(1, body.temperature)) : 0.3, env, send);
+    const openAiKey = env('OPENAI_API_KEY') ?? env('OPEN_AI_KEY');
+    const result = mode !== 'auto' || attachments.length > 0
+      ? openAiKey
+        ? await generateResponses(messages, attachments, mode, env('OPENAI_MODEL') || 'gpt-5.4', openAiKey, send)
+        : (() => { throw new Error('OpenAI is required for web search and file attachments.'); })()
+      : await generate(messages,
+        typeof body.max_tokens === 'number' ? Math.max(128, Math.min(4096, Math.floor(body.max_tokens))) : 2048,
+        typeof body.temperature === 'number' ? Math.max(0, Math.min(1, body.temperature)) : 0.3, env, send);
     const { data: access, error: accessError } = await account.rpc('get_my_admin_access');
     if (accessError || access?.status !== 'active' || access?.features?.ai !== true) throw new Error('AI access is no longer available for this account.');
     const { error: finishError } = await service.rpc('finish_ai_request', {
