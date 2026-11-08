@@ -149,6 +149,74 @@ void main() {
       expect(tools.any((t) => t['type'] == 'code_interpreter'), isTrue);
     },
   );
+  for (final mode in ['search', 'research']) {
+    test(
+      '$mode uses OpenAI web search without altering the user prompt',
+      () async {
+        final created = await thread();
+        Json? sent;
+        final gateway = OpenAiGateway(
+          CopilotConfig({'OPEN_AI_KEY': 'test'}),
+          clientFactory: () => MockClient((request) async {
+            sent = jsonDecode(request.body) as Json;
+            return http.Response(
+              _sse([
+                {
+                  'type': 'response.completed',
+                  'response': {'id': 'r', 'output': []},
+                },
+              ]),
+              200,
+            );
+          }),
+        );
+        await AgentRunner(
+          store,
+          gateway,
+        ).run('owner', created['id'], prompt: 'Market outlook', mode: mode);
+        expect(sent!['tool_choice'], {'type': 'web_search'});
+        expect(sent!['input'].first['content'].first['text'], 'Market outlook');
+        if (mode == 'research') {
+          expect(
+            records(sent!['tools']).firstWhere(
+              (t) => t['type'] == 'web_search',
+            )['search_context_size'],
+            'high',
+          );
+          expect(
+            sent!['instructions'],
+            contains('Compare multiple relevant sources'),
+          );
+        }
+      },
+    );
+  }
+  test('research mode respects disabled workspace permissions', () async {
+    final created = await thread();
+    await store.change(
+      'owner',
+      (state) => state['settings']['research'] = false,
+    );
+    final runner = AgentRunner(
+      store,
+      OpenAiGateway(CopilotConfig({'OPEN_AI_KEY': 'test'})),
+    );
+    await expectLater(
+      runner.run('owner', created['id'], prompt: 'Research', mode: 'research'),
+      throwsA(isA<CopilotFailure>()),
+    );
+    expect(
+      records(
+        recordById(
+          await store.read('owner'),
+          'threads',
+          created['id'],
+        )['messages'],
+      ),
+      isEmpty,
+    );
+  });
+
   test('streamed answer persists UTF-8 text, sources and files', () async {
     final created = await thread();
     final events = <Json>[];

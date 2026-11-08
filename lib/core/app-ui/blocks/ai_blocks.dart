@@ -27,6 +27,7 @@ class AppAiChatBlock extends StatefulWidget {
     this.emptyMessage =
         'Summarise this week, review a setup, or stress-test a strategy.',
     this.emptyState,
+    this.composer,
     this.composerController,
     this.composerHint = 'Message your AI trading coach',
     this.canSend = true,
@@ -53,6 +54,7 @@ class AppAiChatBlock extends StatefulWidget {
   final String emptyTitle;
   final String emptyMessage;
   final Widget? emptyState;
+  final Widget? composer;
   final TextEditingController? composerController;
   final String composerHint;
   final bool canSend;
@@ -165,42 +167,43 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
         ],
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            if (widget.onAttach != null)
-              UiIconButton(
-                icon: Icons.add_photo_alternate_outlined,
-                tooltip: 'Attach chart',
-                onPressed: widget.onAttach,
-              ),
-            Expanded(
-              child: UiInput(
-                controller: _controller,
-                hintText: widget.composerHint,
-                enabled: widget.canSend && !widget.generating,
-                maxLines: 4,
-                minLines: 1,
-                onSubmitted: (_) => _send(),
-              ),
+        widget.composer ??
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                if (widget.onAttach != null)
+                  UiIconButton(
+                    icon: Icons.add_photo_alternate_outlined,
+                    tooltip: 'Attach chart',
+                    onPressed: widget.onAttach,
+                  ),
+                Expanded(
+                  child: UiInput(
+                    controller: _controller,
+                    hintText: widget.composerHint,
+                    enabled: widget.canSend && !widget.generating,
+                    maxLines: 4,
+                    minLines: 1,
+                    onSubmitted: (_) => _send(),
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                if (widget.generating)
+                  UiIconButton(
+                    icon: Icons.stop_circle_outlined,
+                    variant: UiVariant.outline,
+                    tooltip: 'Stop',
+                    onPressed: widget.onStop,
+                  )
+                else
+                  UiIconButton(
+                    icon: Icons.arrow_upward,
+                    variant: UiVariant.primary,
+                    tooltip: 'Send',
+                    onPressed: widget.canSend ? _send : null,
+                  ),
+              ],
             ),
-            SizedBox(width: context.sp(theme.spacing.sm)),
-            if (widget.generating)
-              UiIconButton(
-                icon: Icons.stop_circle_outlined,
-                variant: UiVariant.outline,
-                tooltip: 'Stop',
-                onPressed: widget.onStop,
-              )
-            else
-              UiIconButton(
-                icon: Icons.arrow_upward,
-                variant: UiVariant.primary,
-                tooltip: 'Send',
-                onPressed: widget.canSend ? _send : null,
-              ),
-          ],
-        ),
       ],
     );
   }

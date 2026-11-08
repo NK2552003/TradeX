@@ -42,6 +42,7 @@ class AgentRunner {
     String threadId, {
     String? prompt,
     List<Json>? attachments,
+    String mode = 'auto',
     bool resume = false,
     Emit? emit,
   }) async {
@@ -69,7 +70,18 @@ class AgentRunner {
           'The workspace is paused. Resume it in settings.',
         );
       }
+      if (!['auto', 'search', 'research'].contains(mode)) {
+        throw const CopilotFailure('Choose Auto, Search, or Deep research.');
+      }
       var thread = recordById(state, 'threads', threadId);
+      final selected = recordById(state, 'specialists', thread['specialistId']);
+      if (mode != 'auto' &&
+          (state['settings']['research'] != true ||
+              selected['research'] != true)) {
+        throw const CopilotFailure(
+          'Enable web research for this profile before using this mode.',
+        );
+      }
       if (!resume &&
           records(
             thread['approvals'],
@@ -179,9 +191,22 @@ class AgentRunner {
         Json? completed;
         final stepStart = body.length;
         await for (final response in gateway.respond(client, {
-          'instructions': instructionsFor(state, specialist, thread),
+          'instructions':
+              '${instructionsFor(state, specialist, thread)}${switch (mode) {
+                'search' => '\nSearch the web for current information and answer concisely with source citations.',
+                'research' => '\nResearch this question in depth using the web. Compare multiple relevant sources, verify dates and conflicting claims, and give a structured, cited synthesis with uncertainties. Do not claim exhaustive coverage.',
+                _ => '',
+              }}',
           'input': input,
-          'tools': toolsFor(state, specialist),
+          'tools': [
+            for (final tool in toolsFor(state, specialist))
+              if (tool['type'] == 'web_search' && mode == 'research')
+                {...tool, 'search_context_size': 'high'}
+              else
+                tool,
+          ],
+          if (mode != 'auto' && !resume && step == 0)
+            'tool_choice': {'type': 'web_search'},
           'previous_response_id': ?previous,
           'max_output_tokens': 8000,
         })) {

@@ -168,6 +168,14 @@ class CopilotScreenState extends State<CopilotScreen> {
               child: CopilotChatPane(
                 key: _chatKey,
                 controller: _controller,
+                voiceActive: _voice.active,
+                onVoice: _voice.active
+                    ? _voice.end
+                    : (_controller.connected &&
+                              !_voice.connecting &&
+                              !_controller.conversationLocked
+                          ? _voice.start
+                          : null),
                 onPage: (page) {
                   setState(() => _page = page);
                   _showWorkspace(true);
@@ -232,63 +240,12 @@ class CopilotScreenState extends State<CopilotScreen> {
                   onPressed: () => _showWorkspace(false),
                 ),
               Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: UiDropdownMenu(
-                    actions: [
-                      for (final specialist
-                          in _controller.workspace.specialists)
-                        UiMenuItem(
-                          label: specialist.name,
-                          description: specialist.role,
-                          enabled:
-                              !_controller.conversationLocked && !_voice.active,
-                          selected: specialist.id == _controller.specialist?.id,
-                          onPressed: () {
-                            _controller.newConversation(
-                              specialist: specialist.id,
-                            );
-                            _showWorkspace(false);
-                          },
-                        ),
-                    ],
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: context.sz(180)),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              _controller.specialist?.name ?? 'Copilot',
-                              overflow: TextOverflow.ellipsis,
-                              style: context.uiText.heading,
-                            ),
-                          ),
-                          UiGap.h(context.ui.spacing.xs),
-                          Icon(
-                            Icons.keyboard_arrow_down,
-                            size: context.sz(20),
-                            color: context.ui.colors.foregroundMuted,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                child: Text(
+                  'Copilot',
+                  style: context.uiText.heading,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              UiIconButton(
-                icon: Icons.add_comment_outlined,
-                tooltip: 'New conversation',
-                onPressed: _controller.conversationLocked || _voice.active
-                    ? null
-                    : () => _controller.newConversation(),
-              ),
-              UiIconButton(
-                icon: Icons.call_outlined,
-                tooltip: 'Start voice call',
-                onPressed: !_controller.connected || _controller.voiceBusy
-                    ? null
-                    : _voice.start,
               ),
               if (!device.isTablet)
                 UiButton(

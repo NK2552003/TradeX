@@ -66,7 +66,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('Less noise.\nMore perspective.'), findsOneWidget);
+        expect(find.text('What can I help with?'), findsOneWidget);
         expect(find.byType(UiThreePane), findsNothing);
         expect(
           find.byType(UiSplitPane),

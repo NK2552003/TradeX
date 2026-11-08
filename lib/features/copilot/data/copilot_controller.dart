@@ -187,6 +187,7 @@ class CopilotController extends ChangeNotifier {
   Future<bool> sendPrompt(
     String prompt, {
     List<Json> attachments = const [],
+    String mode = 'auto',
   }) async {
     if (generating || prompt.trim().isEmpty || hasPendingReview) return false;
     final epoch = _epoch;
@@ -199,7 +200,11 @@ class CopilotController extends ChangeNotifier {
       _notify();
       return false;
     }
-    return _consume(id, {'prompt': prompt, 'attachments': attachments});
+    return _consume(id, {
+      'prompt': prompt,
+      'attachments': attachments,
+      'mode': mode,
+    });
   }
 
   Future<void> decide(Json approval, bool approve) async {

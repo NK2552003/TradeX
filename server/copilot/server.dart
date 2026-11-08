@@ -203,6 +203,7 @@ class CopilotServer {
           owner,
           threadId,
           prompt: input['prompt'] as String?,
+          mode: textOf(input, 'mode', 'auto'),
           resume: input['resume'] == true,
           attachments: attachments,
           emit: (event) {

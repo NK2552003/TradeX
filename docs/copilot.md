@@ -51,6 +51,12 @@ This mode is explicitly restricted to a loopback bind and loopback clients and u
 
 This reimplementation keeps the requested workflows while using different internals. The document editor uses Flutter Quill for visual editing and the project's Markdown editor for source editing. MCP endpoints supply connected-app functionality; no embedded Composio account-onboarding service is included.
 
+### Composer
+
+The composer has a right-aligned specialist selector, file attachments, clipboard actions, a prompt library, voice control, and character/word counts. Enter adds a line; Ctrl/Cmd+Enter sends. The action menu can paste text at the selection, copy the draft, or clear it. Attach up to four PNG, JPEG, WebP, PDF, TXT, Markdown, or CSV files, each under 6 MB and within the combined upload limit. Failed submissions retain the draft and attachments.
+
+On wide layouts, Search and Deep research appear as separate controls. Phones use a compact mode menu; the writing area contracts when the keyboard leaves less room, and attachment chips scroll horizontally. Auto lets the model choose tools. Search explicitly runs OpenAI web search. Deep research uses the configured Responses model with a larger web-search context and instructions to compare and cite sources; it is not a separate dedicated deep-research-model job. Both modes respect workspace and specialist research permissions and use the same server-side `OPEN_AI_KEY`.
+
 ## Configuration
 
 | Variable | Default / purpose |
