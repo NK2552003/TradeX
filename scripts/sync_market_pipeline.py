@@ -261,7 +261,7 @@ def market_rows(symbol, chart, info):
 def fetch_symbol(symbol, scope, history_range=None):
     warnings = []
     encoded = urllib.parse.quote(symbol, safe='')
-    period = history_range or ('2y' if scope in ('all', 'history') else '1mo')
+    period = history_range or ('2mo' if scope in ('all', 'history') else '1mo')
     chart = {}
     try:
         data = request(f'https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?range={period}&interval=1d')
