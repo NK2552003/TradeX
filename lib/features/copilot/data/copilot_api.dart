@@ -38,7 +38,7 @@ class CopilotApi {
     return token == null || token.isEmpty ? null : _bearer(token);
   }
   static String _bearer(String value) =>
-      String.fromCharCodes([66, 101, 97, 114, 101, 114]) + " " + value;
+      "${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value";
   Map<String, String> get headers => {
     'Content-Type': 'application/json',
     'Authorization': ?authorization,

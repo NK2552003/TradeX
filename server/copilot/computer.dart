@@ -8,7 +8,7 @@ import 'config.dart';
 import 'store.dart';
 
 class ComputerBridge {
-  static String _bearer(String value) => String.fromCharCodes([66, 101, 97, 114, 101, 114]) + ' ' + value;
+  static String _bearer(String value) => "${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value";
   ComputerBridge(this.config, this.store);
   final CopilotConfig config;
   final WorkspaceStore store;
