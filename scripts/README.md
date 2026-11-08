@@ -67,9 +67,12 @@ selected dataset work and required dependencies. `fetch_live: false` in Actions
 runs offline checks only. There is no automatic fallback to stale bundled data.
 Confirmed writes, per-symbol coverage, latest dates, missing fields, publisher
 coverage and failures appear in the job summary and a 30-day JSON artifact.
-Incomplete market coverage preserves the previous screener ranking and fails
-the run. Database errors fail immediately; partial successful writes remain
-safe to rerun. Market publishing jobs queue rather than cancel one another.
+Provider outages and database errors fail immediately. Symbols that return an
+unsupported listing or fewer than two usable daily bars are reported as
+discarded and excluded from that run, preserving their previous database rows
+and allowing the remaining market partition to publish. Partial successful
+writes remain safe to rerun. Market publishing jobs queue rather than cancel
+one another.
 
 Read-only diagnostics (no Supabase credentials needed):
 

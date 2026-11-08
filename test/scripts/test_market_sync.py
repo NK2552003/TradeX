@@ -43,6 +43,34 @@ class MarketSyncTests(unittest.TestCase):
         self.assertEqual(rows['history'], [])
         self.assertNotIn('quote', rows['detail'])
 
+    def test_short_provider_history_is_discarded_without_failing_partition(self):
+        report = {'errors': [], 'warnings': [], 'symbols': {}}
+        history = [{'date': '2026-11-08', 'open': 10, 'high': 11,
+                    'low': 9, 'close': 10, 'volume': 1}]
+        with patch.object(
+            pipeline,
+            'fetch_symbol',
+            return_value=(
+                {
+                    'history': history,
+                    'quote': {
+                        'ticker': 'SHORT',
+                        'updated_at': '2026-11-08T10:00:00+00:00',
+                    },
+                    'fundamental': {},
+                    'ticker': {'ticker': 'SHORT'},
+                    'detail': {},
+                },
+                [],
+            ),
+        ):
+            pipeline.sync_market(None, ['SHORT'], 'all', 1, report)
+        self.assertEqual(report['errors'], [])
+        self.assertEqual(
+            report['discarded_symbols']['SHORT'],
+            ['Fewer than two valid daily bars'],
+        )
+
     def database(self):
         with patch.dict('os.environ', {'SUPABASE_URL': 'https://example.test', 'SUPABASE_SERVICE_ROLE_KEY': 'test-key'}):
             return pipeline.Database()

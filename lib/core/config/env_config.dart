@@ -7,6 +7,39 @@ class EnvConfig {
   static bool _isLoaded = false;
   static bool get isLoaded => _isLoaded;
 
+  static const _compileTimeEnv = <String, String>{
+    'SUPABASE_URL': String.fromEnvironment('SUPABASE_URL'),
+    'SUPABASE_ANON_KEY': String.fromEnvironment('SUPABASE_ANON_KEY'),
+    'OPENROUTER_API_KEY': String.fromEnvironment('OPENROUTER_API_KEY'),
+    'GEMINI_API_KEY': String.fromEnvironment('GEMINI_API_KEY'),
+    'OPEN_AI_KEY': String.fromEnvironment('OPEN_AI_KEY'),
+    'OPENAI_API_KEY': String.fromEnvironment('OPENAI_API_KEY'),
+    'TRACKING_ID': String.fromEnvironment('TRACKING_ID'),
+    'CLAUDE_API_KEY': String.fromEnvironment('CLAUDE_API_KEY'),
+    'ANTHROPIC_API_KEY': String.fromEnvironment('ANTHROPIC_API_KEY'),
+    'REVENUECAT_TEST_API_KEY': String.fromEnvironment(
+      'REVENUECAT_TEST_API_KEY',
+    ),
+    'REVENUECAT_ANDROID_API_KEY': String.fromEnvironment(
+      'REVENUECAT_ANDROID_API_KEY',
+    ),
+    'REVENUECAT_IOS_API_KEY': String.fromEnvironment(
+      'REVENUECAT_IOS_API_KEY',
+    ),
+    'RAZORPAY_TEST_KEY_ID': String.fromEnvironment('RAZORPAY_TEST_KEY_ID'),
+    'COPILOT_API_URL': String.fromEnvironment('COPILOT_API_URL'),
+    'ENVIRONMENT': String.fromEnvironment('ENVIRONMENT'),
+    'NEXT_PUBLIC_SUPABASE_URL': String.fromEnvironment(
+      'NEXT_PUBLIC_SUPABASE_URL',
+    ),
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY': String.fromEnvironment(
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    ),
+    'NEXT_PUBLIC_COPILOT_API_URL': String.fromEnvironment(
+      'NEXT_PUBLIC_COPILOT_API_URL',
+    ),
+  };
+
   /// Only allowlisted public settings are bundled. Provider secrets belong in
   /// Supabase Edge Function secrets, never in an application asset.
   static Future<void> init() async {
@@ -54,11 +87,12 @@ class EnvConfig {
       }
     }
 
-    // 5. Dart environment compile-time variables
-    final envVal = String.fromEnvironment(key);
+    // 5. Dart environment compile-time variables. Keep all accesses inside a
+    // const map; String.fromEnvironment cannot be invoked at runtime.
+    final envVal = _compileTimeEnv[key] ?? '';
     if (envVal.isNotEmpty) return envVal;
 
-    final nextPublicEnv = String.fromEnvironment('NEXT_PUBLIC_$key');
+    final nextPublicEnv = _compileTimeEnv['NEXT_PUBLIC_$key'] ?? '';
     if (nextPublicEnv.isNotEmpty) return nextPublicEnv;
 
     return defaultValue;
@@ -103,10 +137,7 @@ class EnvConfig {
   static String get revenueCatIosApiKey => _get('REVENUECAT_IOS_API_KEY');
   static String get razorpayTestKeyId => _get('RAZORPAY_TEST_KEY_ID');
 
-  static String get copilotApiUrl {
-    const configured = String.fromEnvironment('COPILOT_API_URL');
-    return configured.isNotEmpty ? configured : _get('COPILOT_API_URL');
-  }
+  static String get copilotApiUrl => _get('COPILOT_API_URL');
 
   // --- App Environment ---
   static String get environment =>
