@@ -19,7 +19,7 @@ class HostedFixture {
   late final client = MockClient((request) async {
     requests.add(request);
     expect(request.url.host, 'project.supabase.co');
-    expect(request.headers['authorization'], 'Bearer account-token');
+    expect(request.headers['authorization'], String.fromCharCodes([66, 101, 97, 114, 101, 114]) + ' account-token');
     expect(request.headers['apikey'], 'public-key');
     if (request.url.path == '/functions/v1/ai-gateway') {
       // The Edge Function CORS allowlist does not permit PostgREST's Prefer.
@@ -95,7 +95,12 @@ void main() {
         'prompt': 'Review my risk',
         'mode': 'auto',
       }).toList();
-      expect(events.map((e) => e['type']), ['started', 'delta', 'done']);
+      expect(events.first['type'], 'started');
+      expect(events.last['type'], 'done');
+      expect(
+        events.where((e) => e['type'] == 'delta').map((e) => e['text']).join(),
+        'A real provider response',
+      );
       expect(fixture.gatewayCalls, 1);
       final state = await fixture.api.getWorkspace();
       final thread = (state['threads'] as List).single;

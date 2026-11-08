@@ -260,6 +260,8 @@ class _CopilotComposerState extends State<CopilotComposer> {
                     ),
                   Shortcuts(
                     shortcuts: const {
+                      SingleActivator(LogicalKeyboardKey.enter):
+                          ActivateIntent(),
                       SingleActivator(LogicalKeyboardKey.enter, control: true):
                           ActivateIntent(),
                       SingleActivator(LogicalKeyboardKey.enter, meta: true):
@@ -277,6 +279,7 @@ class _CopilotComposerState extends State<CopilotComposer> {
                       child: UiInput.multiline(
                         controller: widget.controller,
                         focusNode: _focus,
+                        onSubmitted: (_) => _send(),
                         semanticLabel: 'Message copilot',
                         hintText: compact
                             ? 'Ask anything, or add a file…'

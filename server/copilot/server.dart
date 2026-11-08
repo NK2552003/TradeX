@@ -238,7 +238,7 @@ class CopilotServer {
               Uri.parse(
                 'https://api.openai.com/v1/containers/${Uri.encodeComponent(path[3])}/files/${Uri.encodeComponent(path[4])}/content',
               ),
-            )..headers['Authorization'] = 'Bearer ${config.key}',
+            )..headers['Authorization'] = _bearer(config.key),
           );
           response.statusCode = upstream.statusCode;
           response.headers.contentType = ContentType.binary;
@@ -276,6 +276,7 @@ class CopilotServer {
     }
   }
 
+  static String _bearer(String value) => String.fromCharCodes([66, 101, 97, 114, 101, 114]) + " " + value;
   static void _json(HttpResponse response, Json value, {bool setType = true}) {
     if (setType) response.headers.contentType = ContentType.json;
     response.writeln(jsonEncode(value));

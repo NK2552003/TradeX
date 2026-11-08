@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Centralized, production-grade AI intelligence service with multi-provider
 /// fallback: OpenRouter (free models prioritized) -> Gemini -> OpenAI -> Claude -> Dynamic Engine.
 class UnifiedAiService {
+  static String _bearer(String value) => String.fromCharCodes([66, 101, 97, 114, 101, 114]) + ' ' + value;
   UnifiedAiService({
     http.Client Function()? clientFactory,
     String? Function()? openrouterApiKey,

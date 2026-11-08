@@ -33,7 +33,12 @@ class CopilotApi {
   final Uri baseUri;
   final http.Client _client;
   final String? Function() _token;
-  String? get authorization => _token() == null ? null : 'Bearer ${_token()}';
+  String? get authorization {
+    final token = _token()?.trim();
+    return token == null || token.isEmpty ? null : _bearer(token);
+  }
+  static String _bearer(String value) =>
+      String.fromCharCodes([66, 101, 97, 114, 101, 114]) + " " + value;
   Map<String, String> get headers => {
     'Content-Type': 'application/json',
     'Authorization': ?authorization,

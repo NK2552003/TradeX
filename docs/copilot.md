@@ -23,7 +23,7 @@ flutter build web --release
 
 Deployment environment values override `.env` and `.env.example`. Only public allowlisted values are bundled. Leave `COPILOT_API_URL` empty for Supabase mode. The existing `ai-gateway` must be deployed with its provider secrets; no new AI key is needed in Cloudflare.
 
-Hosted mode supports saved conversations, specialist prompts, spaces/pages with revision-conflict protection, selected-page context, memories and account settings. Replies arrive when the gateway completes. It does not run the Dart worker's live voice, research tools, attachments, computer/MCP actions or background schedules. Those controls are unavailable in this mode; use a dedicated authenticated HTTPS Dart worker via `COPILOT_API_URL` for those integrations. Existing Dart-worker workspaces are not automatically migrated into Supabase.
+Hosted mode supports saved conversations, specialist prompts, spaces/pages with revision-conflict protection, selected-page context, memories and account settings. The Edge gateway supports OpenAI Responses API web search and image/PDF/text attachments when an OpenAI key is configured; hosted replies are progressively emitted to the composer after the gateway response is saved. It does not run the Dart worker's live voice, computer/MCP actions or background schedules. Use a dedicated authenticated HTTPS Dart worker via `COPILOT_API_URL` for those integrations. Existing Dart-worker workspaces are not automatically migrated into Supabase.
 
 After deployment, sign in on `alphajournal.in`, send a message, reload to confirm persistence, and check a second account cannot see that conversation. A successful build alone does not verify live storage migration or provider quotas.
 
