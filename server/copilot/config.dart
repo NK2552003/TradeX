@@ -28,7 +28,7 @@ class CopilotConfig {
     return CopilotConfig(values);
   }
 
-  String get key => values['OPEN_AI_KEY'] ?? '';
+  String get key => values['OPENAI_API_KEY'] ?? values['OPEN_AI_KEY'] ?? '';
   String get model => values['OPENAI_MODEL'] ?? 'gpt-5.4';
   String get voiceModel => values['OPENAI_VOICE_MODEL'] ?? 'gpt-realtime';
   String get host => values['COPILOT_HOST'] ?? '127.0.0.1';

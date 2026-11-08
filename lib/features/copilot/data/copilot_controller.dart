@@ -5,13 +5,14 @@ import 'package:tradex/core/config/supabase_config.dart';
 
 import '../models/workspace.dart';
 import 'copilot_api.dart';
+import 'supabase_copilot_api.dart';
 
 class CopilotController extends ChangeNotifier {
   CopilotController({
     CopilotApi? api,
     CopilotWorkspace? initialState,
     bool autoLoad = true,
-  }) : api = api ?? CopilotApi(),
+  }) : api = api ?? createCopilotApi(),
        workspace =
            initialState ?? CopilotWorkspace.fromJson(initialWorkspace()) {
     _actor = SupabaseConfig.client?.auth.currentUser?.id;

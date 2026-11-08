@@ -183,3 +183,8 @@ When you are ready to re-enable monthly checkout for Basic and Pro in the future
    https://alphajournal.in/sitemap.xml
    ```
 4. Verify that `https://alphajournal.in/robots.txt` is reachable and returns `200 OK`.
+
+
+## Copilot deployment
+
+The default copilot now uses the existing Supabase `ai-gateway` and its Edge Function secrets. Apply the account-isolated workspace migration before publishing the new frontend, as described in [the copilot deployment guide](copilot.md#hosted-deployment-on-alphajournalin). `COPILOT_API_URL` is optional and must be left empty unless a dedicated Dart worker is actually running at that HTTPS address. The marketing/app domain alone is not a Dart backend.

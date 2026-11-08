@@ -238,7 +238,9 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
               ),
               messages: displayed,
               onSend: _send,
-              onAttach: _attach,
+              onAttach: controller.workspace.setup['attachments'] == false
+                  ? null
+                  : _attach,
               generating: controller.generating || thread?.status == 'running',
               onStop: controller.stop,
               canSend:
@@ -260,6 +262,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                 profileId: controller.specialist?.id,
                 mode: _mode,
                 canResearch:
+                    controller.workspace.setup['research'] != false &&
                     controller.workspace.settings['research'] == true &&
                     controller.specialist?.research == true,
                 onModeChanged: (mode) => setState(() => _mode = mode),
@@ -273,11 +276,15 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                       ? 'Please review the attached files.'
                       : _composer.text.trim(),
                 ),
-                onAttach: _attach,
+                onAttach: controller.workspace.setup['attachments'] == false
+                    ? null
+                    : _attach,
                 onRemoveAttachment: (i) =>
                     setState(() => _attachments.removeAt(i)),
                 onStop: controller.stop,
-                onVoice: widget.onVoice,
+                onVoice: controller.workspace.setup['voice'] == false
+                    ? null
+                    : widget.onVoice,
                 voiceActive: widget.voiceActive,
               ),
               composerController: _composer,

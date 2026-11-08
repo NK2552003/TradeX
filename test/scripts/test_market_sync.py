@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from argparse import Namespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts'))
 import sync_market_pipeline as pipeline
@@ -12,6 +13,11 @@ import market_news as news
 
 
 class MarketSyncTests(unittest.TestCase):
+    def args(self, scope):
+        return Namespace(dry_run=True, symbols='AAPL', scope=scope, workers=1,
+                         symbols_file=None, max_symbols=5000, select_only=None,
+                         shard_index=0, shard_count=1, market_only=False, finalize_market=False)
+
     def test_bars_require_real_complete_ohlc(self):
         chart = {'timestamp': [1704205800, 1704292200, 1704378600], 'indicators': {'quote': [{
             'open': [10, None, 10], 'high': [12, 13, 8], 'low': [9, 9, 7],
@@ -50,9 +56,10 @@ class MarketSyncTests(unittest.TestCase):
 
     def test_null_refresh_fields_do_not_erase_metadata(self):
         db = self.database()
-        with patch.object(db, 'call', return_value=[{'ticker': 'AAPL'}]) as call:
+        with patch.object(db, 'call', return_value=[{'ticker': 'AAPL', 'eps': 0}]) as call:
             db.upsert('stock_fundamentals', [{'ticker': 'AAPL', 'pe_ratio': None, 'eps': 0}], 'ticker')
-            self.assertEqual(call.call_args.kwargs['body'], [{'ticker': 'AAPL', 'eps': 0}])
+            self.assertEqual(call.call_args_list[0].kwargs['body'], [{'ticker': 'AAPL', 'eps': 0}])
+            self.assertEqual(db.verified['stock_fundamentals'], 1)
         merged = pipeline.merge_detail({'summary': {'description': 'Real description', 'eps': 1}},
                                        {'summary': {'description': None, 'eps': 2}})
         self.assertEqual(merged['summary'], {'description': 'Real description', 'eps': 2})
@@ -65,7 +72,7 @@ class MarketSyncTests(unittest.TestCase):
 
     def test_scopes_do_not_run_unrelated_syncs(self):
         for scope in ['news', 'quotes', 'history', 'screeners']:
-            args = MagicMock(dry_run=True, symbols='AAPL', scope=scope, workers=1)
+            args = self.args(scope)
             report = {'errors': [], 'warnings': [], 'symbols': {}}
             with patch.object(pipeline, 'sync_market', return_value=[]) as market, \
                  patch.object(pipeline, 'sync_news') as articles, patch.object(pipeline, 'sync_screeners') as screens:
@@ -75,7 +82,7 @@ class MarketSyncTests(unittest.TestCase):
                 self.assertEqual(screens.called, scope == 'screeners')
 
     def test_partial_market_failure_keeps_screeners(self):
-        args = MagicMock(dry_run=True, symbols='AAPL', scope='all', workers=1)
+        args = self.args('all')
         report = {'errors': ['Missing quote'], 'warnings': [], 'symbols': {}}
         with patch.object(pipeline, 'sync_market', return_value=[]), patch.object(pipeline, 'sync_news'), \
              patch.object(pipeline, 'sync_screeners') as screens:

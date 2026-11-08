@@ -72,7 +72,7 @@ class CopilotApi {
       rethrow;
     } catch (_) {
       throw const CopilotApiException(
-        'The copilot service is offline. Start the Dart service and reconnect.',
+        'The configured copilot service could not be reached. Please reconnect or contact support.',
       );
     }
   }

@@ -139,7 +139,8 @@ class _ComposerActions extends StatelessWidget {
             variant: UiVariant.solid,
             onPressed: config.onStop,
           )
-        else if (config.controller.text.trim().isEmpty &&
+        else if (config.onVoice != null &&
+            config.controller.text.trim().isEmpty &&
             config.attachments.isEmpty)
           UiButton(
             label: config.voiceActive ? 'End voice call' : 'Start voice call',

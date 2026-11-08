@@ -74,7 +74,18 @@ class _CopilotWorkspacePaneState extends State<CopilotWorkspacePane> {
                 variant: UiInputVariant.ghost,
                 options: [
                   for (final section in WorkspaceSection.values)
-                    UiOption(label: section.label, value: section),
+                    if (switch (section) {
+                      WorkspaceSection.work =>
+                        controller.workspace.setup['schedules'] != false,
+                      WorkspaceSection.calls =>
+                        controller.workspace.setup['voice'] != false,
+                      WorkspaceSection.computer =>
+                        controller.workspace.setup['computer'] != false,
+                      WorkspaceSection.connections =>
+                        controller.workspace.setup['apps'] != false,
+                      _ => true,
+                    })
+                      UiOption(label: section.label, value: section),
                 ],
                 onChanged: (value) => setState(() => _section = value),
               ),

@@ -35,7 +35,7 @@ class CopilotComposer extends StatefulWidget {
   });
   final TextEditingController controller;
   final Future<void> Function() onSend;
-  final VoidCallback onAttach;
+  final VoidCallback? onAttach;
   final ValueChanged<int> onRemoveAttachment;
   final ValueChanged<CopilotPromptMode> onModeChanged;
   final ValueChanged<String> onSelectProfile;

@@ -2,6 +2,33 @@
 
 The copilot is a new Dart implementation informed by the behavior of the local OpenDots reference. It uses the TraderHub component library and the existing app authentication. It does not use the OpenDots TypeScript application, CopilotKit Intelligence, Composio, or a second AI provider.
 
+## Hosted deployment on alphajournal.in
+
+With `COPILOT_API_URL` empty, the app uses Supabase workspace storage and the existing authenticated `ai-gateway` Edge Function. AI keys stay in [Edge Function secrets](https://supabase.com/docs/guides/functions/secrets); they are never copied into the browser or downloaded from Supabase. Sign-in and the gateway's account/quota checks are required.
+
+Apply `supabase/migrations/20261108065544_copilot_workspaces.sql` once in the project's SQL editor before deploying the frontend. It adds only account-owned copilot state with RLS; it does not change market data or existing notes. Alternatively, set a scoped `SUPABASE_ACCESS_TOKEN` with database query permission and run:
+
+```sh
+python3 scripts/deploy_copilot_storage.py --project-ref ylxwgkhtwrizdmuhlhxs
+```
+
+The script verifies RLS, owner policy and grants after deployment. It is repeatable and does not replay unrelated migrations. The **Copilot deployment checks** GitHub workflow also offers this as a manual `deploy_storage` option from `main`, using the repository's `SUPABASE_ACCESS_TOKEN` secret.
+
+Configure `SUPABASE_URL` and `SUPABASE_ANON_KEY` in the Cloudflare build environment, then run:
+
+```sh
+python3 scripts/prepare_client_config.py
+flutter build web --release
+```
+
+Deployment environment values override `.env` and `.env.example`. Only public allowlisted values are bundled. Leave `COPILOT_API_URL` empty for Supabase mode. The existing `ai-gateway` must be deployed with its provider secrets; no new AI key is needed in Cloudflare.
+
+Hosted mode supports saved conversations, specialist prompts, spaces/pages with revision-conflict protection, selected-page context, memories and account settings. Replies arrive when the gateway completes. It does not run the Dart worker's live voice, research tools, attachments, computer/MCP actions or background schedules. Those controls are unavailable in this mode; use a dedicated authenticated HTTPS Dart worker via `COPILOT_API_URL` for those integrations. Existing Dart-worker workspaces are not automatically migrated into Supabase.
+
+After deployment, sign in on `alphajournal.in`, send a message, reload to confirm persistence, and check a second account cannot see that conversation. A successful build alone does not verify live storage migration or provider quotas.
+
+## Dedicated Dart worker
+
 ## Run it
 
 From the TradeX directory:
@@ -13,7 +40,7 @@ dart run bin/copilot.dart
 
 The service reads `OPEN_AI_KEY` from the repository's `.env`; process environment variables take precedence. The existing Supabase URL and anonymous key verify the signed-in app user's access token. Each verified account has a separate persisted workspace. The actual OpenAI key stays on the service and is never included in Flutter assets or requests from the client.
 
-The app connects to `http://127.0.0.1:8787` by default. For a different service:
+To use the separately running Dart worker, explicitly configure its URL (use `http://127.0.0.1:8787` locally). For a hosted worker:
 
 ```sh
 flutter run --dart-define=COPILOT_API_URL=https://copilot.example.com

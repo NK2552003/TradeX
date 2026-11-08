@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       sync_scope:
-        description: Dataset to synchronize
+        description: Dataset to synchronize (maximum 5000 popular symbols)
         default: all
         type: choice
         options: [all, quotes, history, news, screeners]
@@ -22,6 +22,14 @@ on:
 
 permissions:
   contents: read
+
+# Serialize entire publications, not individual shards (which must run together).
+concurrency:
+  group: market-sync-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
+
+env:
+  SYNC_SCOPE: ${{ inputs.sync_scope || 'all' }}
 
 jobs:
   validate:
@@ -39,18 +47,52 @@ jobs:
       - run: python -m unittest discover -s test/scripts -p 'test_*.py' -v
       - run: python -m compileall -q scripts
 
-  sync:
-    name: Fetch, validate and publish real market data
+  select:
+    name: Select at most 5000 popular symbols
     needs: validate
     if: >-
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.fetch_live) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    concurrency:
-      group: supabase-market-publish
-      cancel-in-progress: false
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Freeze ranked universe for all workers
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: >-
+          python scripts/sync_market_pipeline.py --max-symbols 5000
+          --select-only market-symbols.json --report market-selection-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: market-symbols
+          overwrite: true
+          path: market-symbols.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: market-selection-report
+          overwrite: true
+          path: market-selection-report.json
+
+  sync:
+    name: Fetch, validate and publish market shard ${{ matrix.shard }}
+    needs: select
+    if: inputs.sync_scope != 'news'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      # 500 symbols per job, at most ten provider requests in flight overall.
+      max-parallel: 5
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -59,40 +101,83 @@ jobs:
           cache: pip
           cache-dependency-path: scripts/requirements.txt
       - run: python -m pip install -r scripts/requirements.txt
-      - name: Synchronize selected dataset
+      - uses: actions/download-artifact@v4
+        with:
+          name: market-symbols
+      - name: Synchronize bounded partition
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SYNC_SCOPE: ${{ inputs.sync_scope || 'all' }}
-        run: python scripts/sync_market_pipeline.py --report market-sync-report.json
+          SHARD: ${{ matrix.shard }}
+        # Allow long publications while reserving 30 minutes for setup and reports.
+        # GitHub-hosted runners enforce a six-hour maximum job duration.
+        run: >-
+          timeout --kill-after=30s 330m python -u scripts/sync_market_pipeline.py
+          --symbols-file market-symbols.json --max-symbols 5000
+          --shard-count 10 --shard-index "$SHARD" --workers 2 --market-only
+          --report market-sync-report-${SHARD}.json
       - name: Publish coverage and failure summary
         if: always()
-        run: |
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          path = Path('market-sync-report.json')
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
-              if not path.exists():
-                  out.write('Market sync did not produce a report. See the failed step.\n')
-              else:
-                  r = json.loads(path.read_text())
-                  out.write(f"## Market sync: {r['status']}\n\nScope: {r['scope']}\n\n")
-                  out.write('| Dataset | Coverage |\n|---|---|\n')
-                  for k in ['requested_symbols', 'archived_symbols', 'market', 'news', 'screeners', 'confirmed_writes']:
-                      out.write(f'| {k} | {json.dumps(r.get(k, {}))} |\n')
-                  out.write('\n### Provider issues\n\n')
-                  issues = r['errors'] + r['warnings']
-                  issues += [f"{s}: {w}" for s, v in r['symbols'].items() for w in v['warnings']]
-                  for issue in issues:
-                      out.write(f'- {issue}\n')
-                  if not issues:
-                      out.write('No issues reported.\n')
-          PY
+        run: python scripts/summarize_market_sync.py market-sync-report-*.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: market-sync-report-${{ github.run_id }}
-          path: market-sync-report.json
+          name: market-sync-report-${{ matrix.shard }}
+          path: market-sync-report-*.json
           retention-days: 30
+          overwrite: true
           if-no-files-found: warn
+
+  screeners:
+    name: Publish screeners after all selected symbols validate
+    needs: [select, sync]
+    if: inputs.sync_scope == 'all' || inputs.sync_scope == 'screeners' || github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: market-symbols
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: market-sync-report-*
+          path: reports
+          merge-multiple: true
+      - env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: >-
+          python scripts/sync_market_pipeline.py --scope screeners --finalize-market
+          --symbols-file market-symbols.json --validated-reports reports --report market-screeners-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: market-screeners-report
+          overwrite: true
+          path: market-screeners-report.json
+
+  news:
+    name: Fetch and publish news independently of market coverage
+    needs: select
+    if: inputs.sync_scope == 'all' || inputs.sync_scope == 'news' || github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/sync_market_pipeline.py --scope news --report market-news-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: market-news-report
+          overwrite: true
+          path: market-news-report.json

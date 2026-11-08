@@ -1,0 +1,59 @@
+name: Copilot deployment checks
+
+on:
+  pull_request:
+    paths: ['lib/features/copilot/**', 'lib/core/config/**', 'server/copilot/**', 'test/features/copilot/**', 'test/database/copilot_workspace_rls_test.cjs', 'scripts/prepare_client_config.py', 'scripts/deploy_copilot_storage.py', 'supabase/migrations/*copilot*', '.github/workflows/copilot.yml']
+  push:
+    branches: [main]
+    paths: ['lib/features/copilot/**', 'lib/core/config/**', 'server/copilot/**', 'test/features/copilot/**', 'test/database/copilot_workspace_rls_test.cjs', 'scripts/prepare_client_config.py', 'scripts/deploy_copilot_storage.py', 'supabase/migrations/*copilot*', '.github/workflows/copilot.yml']
+  workflow_dispatch:
+    inputs:
+      deploy_storage:
+        description: Apply and verify hosted copilot workspace storage (requires SUPABASE_ACCESS_TOKEN)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze lib/features/copilot server/copilot lib/core/config/env_config.dart test/features/copilot/supabase_copilot_api_test.dart
+      - run: flutter test test/features/copilot
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify database isolation and concurrent writes
+        run: |
+          npm install --prefix "$RUNNER_TEMP/copilot-db-tests" --no-audit --no-fund @electric-sql/pglite@0.5.15
+          NODE_PATH="$RUNNER_TEMP/copilot-db-tests/node_modules" node test/database/copilot_workspace_rls_test.cjs
+      - name: Build deployment bundle with public configuration only
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          python3 scripts/prepare_client_config.py
+          flutter build web --release
+
+  deploy_storage:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_storage && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply and verify only copilot storage
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF || 'ylxwgkhtwrizdmuhlhxs' }}
+        run: python3 scripts/deploy_copilot_storage.py --project-ref "$SUPABASE_PROJECT_REF"

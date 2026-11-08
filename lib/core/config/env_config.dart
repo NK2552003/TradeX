@@ -81,6 +81,7 @@ class EnvConfig {
     if (key.isNotEmpty) return key;
     return _get('OPENAI_API_KEY');
   }
+
   static String get trackingId => _get('TRACKING_ID');
   static String get claudeApiKey {
     final claude = _get('CLAUDE_API_KEY');
@@ -101,6 +102,11 @@ class EnvConfig {
       _get('REVENUECAT_ANDROID_API_KEY');
   static String get revenueCatIosApiKey => _get('REVENUECAT_IOS_API_KEY');
   static String get razorpayTestKeyId => _get('RAZORPAY_TEST_KEY_ID');
+
+  static String get copilotApiUrl {
+    const configured = String.fromEnvironment('COPILOT_API_URL');
+    return configured.isNotEmpty ? configured : _get('COPILOT_API_URL');
+  }
 
   // --- App Environment ---
   static String get environment =>

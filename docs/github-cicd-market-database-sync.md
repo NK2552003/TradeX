@@ -1,90 +1,32 @@
-# GitHub CI/CD Pipeline for Direct Supabase Market & News Database Sync
+# Market and news CI
 
-This guide explains how the automated GitHub Actions CI/CD pipeline (`supabase-market-sync.yml`) synchronizes live market quotes, fundamentals, OHLCV price history, screeners, and financial news directly from GitHub into the live Supabase Postgres database — so the customer app (`app.alphajournal.in`, `community.alphajournal.in`) always reads fresh data from Supabase tables and never depends on bundled static assets at runtime.
+The workflow is `.github/workflows/supabase-market-sync.yml` (there is no `ci.yml`). It runs every six hours at minute 17, on relevant main-branch pushes, and on manual dispatch. Pull requests run offline validation only.
 
----
+## Bounded universe
 
-## 1. Architecture Overview
+At most **5,000** symbols are selected before any Yahoo fetch. Curated major stocks, indices, ETFs and crypto pairs come first; remaining stored quotes are ranked by descending positive reported trading volume, with symbol as the deterministic tie-breaker. This is a popularity proxy, not a market-cap ranking. Retired symbols, unsupported `.U`/`.W`/`.WS` notation, and unranked zero/missing-volume additions are excluded. Stored history is retained.
 
-| Component | Path | Purpose |
-| :--- | :--- | :--- |
-| **GitHub Actions Workflow** | `.github/workflows/supabase-market-sync.yml` | Runs automatically every 6 hours (`cron: '0 */6 * * *'`), on every push to `assets/data/**` or `scripts/sync_market_data_to_supabase.mjs`, and on manual trigger (`workflow_dispatch`). |
-| **Node.js Sync Engine** | `scripts/sync_market_data_to_supabase.mjs` | Zero-dependency ESM script (Node 20 native `fetch`) that pulls live Yahoo Finance chart quotes + RSS market news (Economic Times, Moneycontrol, Yahoo Finance), merges with repository market datasets, and batch-upserts into Supabase REST API (`/rest/v1/*`). |
-| **Flutter Runtime Reader** | `lib/features/market_data/data/asset_market_repository.dart` | Queries `tickers`, `stock_quotes`, `stock_fundamentals`, `stock_price_history`, `news_articles`, `news_article_tickers`, `screener_categories`, and `screener_results` directly from Supabase. |
+One frozen manifest feeds ten non-overlapping partitions of at most 500 symbols. Five jobs run at once, each with two fetch workers. Each job allows up to 330 minutes for fetching and verified publication, within a 360-minute job limit. GitHub-hosted runners enforce a six-hour maximum; this is not an unlimited wait. Setup and report upload have 30 minutes of headroom. Completed results are published after every ten valid symbols, without waiting for the whole 50-symbol fetch window. Database writes are batched, details are read only for the current batch, and existing history receives a one-month overlap refresh. New symbols and explicit history runs fetch two years.
 
----
+Known missing listings and stale quotes/history are discarded from this publication and recorded in `discarded_symbols`. Network failures, rate limiting, invalid OHLC coverage and unconfirmed writes remain failures. Screeners publish only after every partition succeeds and its report accounts for every selected symbol. Discarded symbols cannot re-enter via stale database quotes. News runs independently of quote coverage.
 
-## 2. Database Tables Updated by the Pipeline
+Every upsert checks the returned row identities and values, then reads the records back from Supabase and checks them again. `confirmed_writes` counts confirmed write responses; `verified_writes` counts successful read-back checks. A symbol receives `persisted: true` only after all its applicable tables pass verification. Verification failures fail CI; they are never reported as successful publication.
 
-1. `public.tickers` — Master symbol universe (NSE `.NS`, US Equities, Indices, Crypto, Forex, Commodities).
-2. `public.stock_quotes` — Latest price, previous close, day high/low, volume, and daily change %.
-3. `public.stock_fundamentals` — Sector, industry, market cap, P/E, forward P/E, P/B, ROE, dividend yield, 52-week range, and company summary.
-4. `public.stock_price_history` — Daily OHLCV candle bars (`ticker, date` composite key).
-5. `public.news_articles` — Financial news headlines, summaries, publisher, article links, and timestamps.
-6. `public.news_article_tickers` — Join table linking news articles to related ticker symbols.
-7. `public.screener_categories` & `public.screener_results` — Ranked market screeners (Top Gainers, Most Active, India Nifty 50 leaders, High Dividend, etc.).
+Reports are checkpointed after every publication batch. A killed job uploads its last checkpoint with `running`/interrupted status, never a false success. Summaries are bounded to 100 issues; artifacts retain all details.
 
----
+## Required GitHub secrets
 
-## 3. Step-by-Step Setup on GitHub
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY` (server-side writes; public anonymous keys cannot substitute)
 
-### Step 1: Open Repository Actions Secrets
-1. Go to your GitHub repository in the browser.
-2. Click **Settings** (top navigation tab).
-3. In the left sidebar, expand **Secrets and variables** -> click **Actions**.
-4. Click **New repository secret** for each secret listed below.
+Use **Actions → Supabase Market & News Database Sync → Run workflow**. Select `all`, `quotes`, `history`, `news` or `screeners`. Set `fetch_live=false` for offline tests only.
 
-### Step 2: Add Required GitHub Secrets
+## Local checks
 
-| Secret Name | Required | Value / Where to Find It |
-| :--- | :--- | :--- |
-| `SUPABASE_URL` | **Yes** | `https://ylxwgkhtwrizdmuhlhxs.supabase.co` (Supabase Dashboard -> Project Settings -> API -> Project URL) |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Recommended** | Your Supabase `service_role` secret key (Supabase Dashboard -> Project Settings -> API -> `service_role` secret). Bypasses RLS for server-side batch upserts. |
-| `SUPABASE_ANON_KEY` | Fallback | Your Supabase `anon` public key (used if `SUPABASE_SERVICE_ROLE_KEY` is not set). |
-| `SUPABASE_ADMIN_EMAIL` | Optional | `backend.admin@alphajournal.in` (used with `SUPABASE_ANON_KEY` to authenticate as an admin before upserting). |
-| `SUPABASE_ADMIN_PASSWORD` | Optional | `BackendAdmin@2026!` |
-
-> **Security Tip:** If you provide `SUPABASE_SERVICE_ROLE_KEY`, the script writes directly with service-role privileges and does not require `SUPABASE_ADMIN_EMAIL` or `SUPABASE_ADMIN_PASSWORD`. If you only provide `SUPABASE_ANON_KEY`, also set `SUPABASE_ADMIN_EMAIL` and `SUPABASE_ADMIN_PASSWORD` so the script authenticates as the Backend Admin first.
-
----
-
-## 4. Triggering the Pipeline
-
-### A. Automatic Scheduled Updates (Every 6 Hours)
-The workflow is pre-configured with:
-```yaml
-on:
-  schedule:
-    - cron: '0 */6 * * *'
+```sh
+python3 -m pip install -r scripts/requirements.txt
+python3 -m unittest discover -s test/scripts -p 'test_*.py' -v
+python3 scripts/sync_market_pipeline.py --dry-run --symbols AAPL,MSFT,RELIANCE.NS,BTC-USD --market-only
 ```
-GitHub Actions will automatically fetch live quotes and breaking financial news every 6 hours and upsert them into Supabase.
 
-### B. Direct Update on Git Push
-Whenever you commit and push changes to:
-- `assets/data/**` (e.g. adding new tickers in `assets/data/tickers/universe.json` or historical bars in `assets/data/history/*.json`)
-- `scripts/sync_market_data_to_supabase.mjs`
-
-GitHub Actions automatically runs the sync job and updates the live Supabase database within ~45 seconds.
-
-### C. Manual One-Click Trigger (`workflow_dispatch`)
-1. Open your GitHub repository -> click the **Actions** tab.
-2. Select **Supabase Market & News Database Sync** in the left workflow list.
-3. Click **Run workflow** (top-right button).
-4. Choose:
-   - **Dataset scope**: `all` (default), `quotes`, `history`, `news`, or `screeners`
-   - **Fetch live quotes & RSS market news**: `true` (default) or `false`
-5. Click the green **Run workflow** button.
-
----
-
-## 5. Running the Sync Locally from Terminal
-
-You can also run the exact same pipeline from your local machine at any time:
-
-```bash
-SUPABASE_URL="https://ylxwgkhtwrizdmuhlhxs.supabase.co" \
-SUPABASE_ANON_KEY="<your-supabase-anon-key>" \
-SUPABASE_ADMIN_EMAIL="backend.admin@alphajournal.in" \
-SUPABASE_ADMIN_PASSWORD="BackendAdmin@2026!" \
-node scripts/sync_market_data_to_supabase.mjs --scope=all --live=true
-```
+An explicit symbol subset is still capped at 5,000. Provider failures return a nonzero exit code and write `market-sync-report.json`. A dry run never writes to Supabase.

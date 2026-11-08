@@ -3,27 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:uuid/uuid.dart';
 
 import 'package:tradex/features/copilot/models/workspace.dart';
+import 'package:tradex/features/copilot/models/workspace_errors.dart';
 
-class CopilotFailure implements Exception {
-  const CopilotFailure(this.message, [this.status = 400]);
-  final String message;
-  final int status;
-  @override
-  String toString() => message;
-}
-
-String newId() => const Uuid().v4();
-String now() => DateTime.now().toUtc().toIso8601String();
-
-Json recordById(Json state, String collection, String id) {
-  for (final item in (state[collection] as List)) {
-    if (item['id'] == id) return item as Json;
-  }
-  throw const CopilotFailure('This item no longer exists.', 404);
-}
+export 'package:tradex/features/copilot/models/workspace_errors.dart';
 
 void resetContinuation(Json thread) {
   thread.remove('responseId');

@@ -6,7 +6,7 @@ coverage report; incomplete upstream data and database failures exit nonzero.
 """
 import argparse
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 import json
 import math
@@ -20,6 +20,8 @@ from zoneinfo import ZoneInfo
 
 from market_news import enrich_article, legacy_image, merge_articles, rss_articles, yahoo_article
 from market_universe import RETIRED_SYMBOLS, TARGET_TICKERS
+from market_selection import MAX_SYMBOLS, select_symbols, supported_symbol
+from market_verification import confirm_rows, row_key
 
 
 def now_iso():
@@ -69,6 +71,7 @@ class Database:
             raise PipelineError('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for writes')
         self.headers = {'apikey': key, 'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
         self.written = defaultdict(int)
+        self.verified = defaultdict(int)
 
     def call(self, method, table, *, params=None, body=None, prefer=None):
         url = f'{self.url}/rest/v1/{table}'
@@ -105,9 +108,43 @@ class Database:
                 chunk = group[start:start + 200]
                 saved = self.call('POST', table, params={'on_conflict': conflict}, body=chunk,
                                   prefer='resolution=merge-duplicates,return=representation')
-                if not isinstance(saved, list) or len(saved) != len(chunk):
-                    raise PipelineError(f'Unconfirmed write to {table}')
+                self.confirm(table, chunk, saved, conflict)
                 self.written[table] += len(saved)
+                self.verify_readback(table, chunk, saved, conflict)
+
+
+    def confirm(self, table, expected, saved, conflict):
+        try:
+            confirm_rows(expected, saved, conflict, table)
+        except ValueError as error:
+            raise PipelineError(str(error)) from None
+
+    def verify_readback(self, table, expected, saved, conflict):
+        keys = conflict.split(',')
+        wanted = {row_key(row, keys) for row in expected}
+        # Prefer returned primary IDs for history/news to keep URL filters short.
+        filters = ['id'] if all(row.get('id') is not None for row in saved) else keys
+        params = {key: 'in.(' + ','.join(json.dumps(value) for value in
+                  dict.fromkeys(row[key] for row in saved)) + ')' for key in filters}
+        params.update(select=','.join(sorted({key for row in expected for key in row})), order=conflict)
+        found, offset, seen = {}, 0, set()
+        while len(found) < len(wanted):
+            page = self.call('GET', table, params={**params, 'limit': len(expected), 'offset': offset})
+            if not isinstance(page, list) or not page:
+                break
+            previous_size = len(seen)
+            for row in page:
+                if not isinstance(row, dict):
+                    raise PipelineError(f'Invalid verification response from {table}')
+                key = row_key(row, keys)
+                seen.add(key)
+                if key in wanted:
+                    found[key] = row
+            if len(seen) == previous_size:
+                raise PipelineError(f'Verification pagination did not advance for {table}')
+            offset += len(page)
+        self.confirm(table, expected, list(found.values()), conflict)
+        self.verified[table] += len(expected)
 
 
 def finite(value):
@@ -206,18 +243,20 @@ def market_rows(symbol, chart, info):
             'history': [{'ticker': symbol, **bar, 'recorded_at': now_iso()} for bar in bars], 'detail': detail}
 
 
-def fetch_symbol(symbol, scope):
+def fetch_symbol(symbol, scope, history_range=None):
     warnings = []
     encoded = urllib.parse.quote(symbol, safe='')
-    period = '2y' if scope in ('all', 'history') else '1mo'
+    period = history_range or ('2y' if scope in ('all', 'history') else '1mo')
     chart = {}
     try:
         data = request(f'https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?range={period}&interval=1d')
         chart = (data.get('chart', {}).get('result') or [{}])[0]
+        if not chart:
+            warnings.append('chart: symbol unavailable')
     except PipelineError as error:
         warnings.append(f'chart: {error}')
     info = {}
-    if scope in ('all', 'quotes'):
+    if chart and scope in ('all', 'quotes'):
         try:
             import yfinance as yf
             # yfinance handles Yahoo's cookie/crumb authentication for fundamentals.
@@ -240,55 +279,107 @@ def merge_detail(previous, current):
     return result
 
 
+def checkpoint(report):
+    path = report.get('report_path')
+    if path:
+        destination = Path(path)
+        temporary = destination.with_suffix('.tmp')
+        temporary.write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
+        temporary.replace(destination)
+
+
+def selected_rows(db, table, symbols, columns):
+    rows = []
+    for start in range(0, len(symbols), 50):
+        values = ','.join(json.dumps(s) for s in symbols[start:start + 50])
+        rows.extend(db.select(table, select=columns, ticker=f'in.({values})', order='ticker'))
+    return rows
+
+
 def sync_market(db, symbols, scope, workers, report):
     quotes = []
-    existing = {row['ticker']: row['detail'] for row in db.select('stock_details', select='ticker,detail', order='ticker')} if db and scope in ('all', 'quotes') else {}
     counts = defaultdict(int)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    # Bound in-flight requests and memory. Each chunk is published before the
+    # next starts, without thousands of serial single-symbol database writes.
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        for symbol, (rows, warnings) in zip(symbols, pool.map(lambda s: fetch_symbol(s, scope), symbols)):
-            history = rows['history']
-            quote = rows['quote']
-            status = {'bars': len(history), 'latest_date': history[-1]['date'] if history else None,
-                      'quote_time': quote['updated_at'] if quote else None,
-                      'fundamental_fields': max(0, len(rows['fundamental']) - 2), 'warnings': warnings}
-            report['symbols'][symbol] = status
-            errors = []
-            if scope in ('all', 'quotes') and rows['ticker'].get('asset_type') == 'EQUITY' and 'Company profile unavailable' in warnings:
-                errors.append('Company profile unavailable')
-            cutoff = datetime.now(timezone.utc) - timedelta(days=7)
-            if scope in ('all', 'quotes', 'screeners'):
-                if not quote:
-                    errors.append('Missing quote')
-                elif datetime.fromisoformat(quote['updated_at']) < cutoff:
-                    errors.append('Quote older than 7 days')
-                else:
-                    quotes.append(quote)
-            if scope in ('all', 'history'):
-                if len(history) < 2:
-                    errors.append('Fewer than two valid daily bars')
-                elif history[-1]['date'] < cutoff.date().isoformat():
-                    errors.append('History older than 7 days')
-            for error in errors:
-                report['errors'].append(f'{symbol}: {error}')
-            if not quote and not history:
-                continue  # Never replace real data with zero quotes/empty details.
-            if db:
-                db.upsert('tickers', [rows['ticker']], 'ticker')
-                if scope in ('all', 'quotes'):
-                    if quote and datetime.fromisoformat(quote['updated_at']) >= cutoff:
-                        db.upsert('stock_quotes', [quote], 'ticker')
-                    if rows['fundamental']:
-                        db.upsert('stock_fundamentals', [rows['fundamental']], 'ticker')
-                    db.upsert('stock_details', [{'ticker': symbol,
-                        'detail': merge_detail(existing.get(symbol), rows['detail']), 'fetched_at': now_iso()}], 'ticker')
+        for start in range(0, len(symbols), 50):
+            batch = symbols[start:start + 50]
+            existing = {row['ticker']: row['detail'] for row in
+                        selected_rows(db, 'stock_details', batch, 'ticker,detail')} if db and scope in ('all', 'quotes') else {}
+            pending = {pool.submit(fetch_symbol, symbol, scope,
+                '1mo' if scope == 'all' and len(existing.get(symbol, {}).get('history', [])) >= 2 else None): symbol for symbol in batch}
+            writes = defaultdict(list)
+            completed = []
+
+            def publish():
+                if db:
+                    for table, values in writes.items():
+                        db.upsert(table, values, 'ticker,date' if table == 'stock_price_history' else 'ticker')
+                    for symbol in completed:
+                        report['symbols'][symbol]['persisted'] = True
+                writes.clear()
+                completed.clear()
+                report['market'] = dict(counts)
+                report['confirmed_writes'] = dict(db.written) if db else {}
+                report['verified_writes'] = dict(db.verified) if db else {}
+                checkpoint(report)
+                print(f'[market] fetched {len(report["symbols"])}/{len(symbols)}; '
+                      f'verified rows {sum(report["verified_writes"].values())}', flush=True)
+
+            for future in as_completed(pending):
+                symbol = pending[future]
+                try:
+                    rows, warnings = future.result()
+                except Exception as error:
+                    report['symbols'][symbol] = {'bars': 0, 'warnings': [], 'persisted': False}
+                    report['errors'].append(f'{symbol}: fetch failed ({type(error).__name__})')
+                    continue
+                history, quote = rows['history'], rows['quote']
+                report['symbols'][symbol] = {
+                    'bars': len(history), 'latest_date': history[-1]['date'] if history else None,
+                    'quote_time': quote['updated_at'] if quote else None,
+                    'fundamental_fields': max(0, len(rows['fundamental']) - 2), 'warnings': warnings, 'persisted': False}
+                errors = []
+                if scope in ('all', 'quotes', 'screeners'):
+                    if not quote:
+                        errors.append('Missing quote')
+                    elif datetime.fromisoformat(quote['updated_at']) < cutoff:
+                        errors.append('Quote older than 7 days')
                 if scope in ('all', 'history'):
-                    db.upsert('stock_price_history', history, 'ticker,date')
-            counts['quotes'] += int(quote is not None)
-            counts['history_rows'] += len(history)
-            counts['fundamentals'] += int(bool(rows['fundamental']))
-            if len(report['symbols']) % 25 == 0:
-                print(f'[market] fetched {len(report["symbols"])}/{len(symbols)}', flush=True)
-    report['market'] = dict(counts)
+                    if len(history) < 2:
+                        errors.append('Fewer than two valid daily bars')
+                    elif history[-1]['date'] < cutoff.date().isoformat():
+                        errors.append('History older than 7 days')
+                unavailable = any(w in ('chart: HTTP 404', 'chart: HTTP 410', 'chart: symbol unavailable') for w in warnings)
+                stale = errors and all('older than 7 days' in error for error in errors)
+                if unavailable or stale:
+                    report.setdefault('discarded_symbols', {})[symbol] = errors or warnings
+                    continue
+                report['errors'].extend(f'{symbol}: {error}' for error in errors)
+                if errors:
+                    continue  # Invalid provider results never overwrite valid stored data.
+                if quote:
+                    quotes.append(quote)
+                writes['tickers'].append(rows['ticker'])
+                if quote and scope in ('all', 'quotes', 'screeners'):
+                    writes['stock_quotes'].append(quote)
+                if scope in ('all', 'quotes'):
+                    if rows['fundamental']:
+                        writes['stock_fundamentals'].append(rows['fundamental'])
+                    writes['stock_details'].append({'ticker': symbol,
+                        'detail': merge_detail(existing.get(symbol), rows['detail']), 'fetched_at': now_iso()})
+                if scope in ('all', 'history'):
+                    writes['stock_price_history'].extend(history)
+                counts['quotes'] += int(quote is not None)
+                counts['history_rows'] += len(history)
+                counts['fundamentals'] += int(bool(rows['fundamental']))
+                completed.append(symbol)
+                if len(completed) >= 10:
+                    publish()
+            publish()
+    if symbols and not counts:
+        report['errors'].append('No valid market data in this partition')
     return quotes
 
 
@@ -320,9 +411,9 @@ def sync_screeners(db, quotes, report):
         # No unique category/ticker constraint exists. Insert first; prune only
         # this category's older run after confirmed writes and snapshot update.
         saved = db.call('POST', 'screener_results', body=rows, prefer='return=representation')
-        if not isinstance(saved, list) or len(saved) != len(rows):
-            raise PipelineError(f'Unconfirmed screener write: {name}')
+        db.confirm('screener_results', rows, saved, 'category_id,ticker,run_at')
         db.written['screener_results'] += len(saved)
+        db.verify_readback('screener_results', rows, saved, 'category_id,ticker,run_at')
         db.upsert('market_screener_snapshots', [{'category_id': category,
                   'payload': {'name': name, 'quotes': ranked}, 'exported_at': run_at}], 'category_id')
         db.call('DELETE', 'screener_results', params={'category_id': f'eq.{category}', 'run_at': f'lt.{run_at}'})
@@ -386,32 +477,63 @@ def sync_news(db, workers, report):
 
 
 def run(args, report):
-    if args.scope in ('all', 'quotes'):
+    if not args.select_only and args.scope in ('all', 'quotes'):
         try:
             import yfinance  # noqa: F401
         except ImportError:
             raise PipelineError('Install scripts/requirements.txt before syncing company details') from None
     db = None if args.dry_run else Database()
-    symbols = list(dict.fromkeys(args.symbols.split(','))) if args.symbols else list(TARGET_TICKERS)
-    if db and not args.symbols and args.scope in ('all', 'history', 'quotes'):
-        # Existing displayed instruments need history too, not only the curated list.
-        stored = {r['ticker'] for r in db.select('stock_quotes', select='ticker', order='ticker')}
-        report['archived_symbols'] = sorted(stored & RETIRED_SYMBOLS)
-        symbols = sorted((set(symbols) | stored) - RETIRED_SYMBOLS)
+    if args.symbols_file:
+        symbols = json.loads(Path(args.symbols_file).read_text())
+        if not isinstance(symbols, list) or not all(isinstance(s, str) and supported_symbol(s) for s in symbols):
+            raise PipelineError('Invalid selected-symbol manifest')
+        if len(symbols) > args.max_symbols or len(set(symbols)) != len(symbols):
+            raise PipelineError('Symbol manifest exceeds the cap or contains duplicates')
+    elif args.symbols:
+        symbols = list(dict.fromkeys(s.strip().upper() for s in args.symbols.split(',') if supported_symbol(s)))[:args.max_symbols]
+    elif args.scope == 'news':
+        symbols = []
+    else:
+        stored = db.select('stock_quotes', select='ticker,volume', order='ticker') if db else []
+        symbols = select_symbols(stored, args.max_symbols)
+        report['archived_symbols'] = sorted({r['ticker'] for r in stored} & RETIRED_SYMBOLS)
+        report['excluded_symbols'] = len({r['ticker'] for r in stored} - set(symbols))
+        report['selection'] = 'curated benchmarks, then reported volume descending'
+    if args.select_only:
+        Path(args.select_only).write_text(json.dumps(symbols) + '\n')
+        report['requested_symbols'] = len(symbols)
+        return
+    if args.shard_count < 1 or not 0 <= args.shard_index < args.shard_count:
+        raise PipelineError('Invalid shard index/count')
+    symbols = symbols[args.shard_index::args.shard_count]
     report['requested_symbols'] = len(symbols)
+    checkpoint(report)
     quotes = []
     try:
-        if args.scope != 'news':
+        if args.finalize_market:
+            if not db or args.shard_count != 1:
+                raise PipelineError('Finalization requires a database and the full manifest')
+            if not args.validated_reports:
+                raise PipelineError('Finalization requires successful shard reports')
+            from market_selection import validated_symbols
+            symbols = validated_symbols(symbols, Path(args.validated_reports))
+            quotes = selected_rows(db, 'stock_quotes', symbols, 'ticker,price,volume,change_pct,updated_at')
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+            if len(quotes) != len(symbols) or any(q['updated_at'] < cutoff for q in quotes):
+                raise PipelineError('Incomplete fresh quotes; kept previous screeners')
+        elif args.scope != 'news':
             quotes = sync_market(db, symbols, args.scope, args.workers, report)
-        if args.scope in ('all', 'screeners'):
+        if not args.market_only and args.scope in ('all', 'screeners'):
             if report['errors']:
                 report['warnings'].append('Kept screeners unchanged because market coverage is incomplete')
             else:
                 sync_screeners(db, quotes, report)
-        if args.scope in ('all', 'news'):
+        if not args.market_only and args.scope in ('all', 'news'):
             sync_news(db, args.workers, report)
     finally:
         report['confirmed_writes'] = dict(db.written) if db else {}
+        report['verified_writes'] = dict(db.verified) if db else {}
+        checkpoint(report)
 
 
 def main(argv=None):
@@ -420,11 +542,21 @@ def main(argv=None):
     parser.add_argument('--scope', choices=['all', 'quotes', 'history', 'news', 'screeners'], default=os.getenv('SYNC_SCOPE', 'all'))
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--symbols', help='Explicit comma-separated symbol subset for diagnostics')
+    parser.add_argument('--max-symbols', type=int, choices=range(1, MAX_SYMBOLS + 1), default=MAX_SYMBOLS, metavar='1..5000')
+    parser.add_argument('--symbols-file', help='Frozen ranked manifest shared by CI shards')
+    parser.add_argument('--select-only', help='Write the ranked manifest without fetching providers')
+    parser.add_argument('--shard-index', type=int, default=0)
+    parser.add_argument('--shard-count', type=int, default=1)
+    parser.add_argument('--market-only', action='store_true')
+    parser.add_argument('--finalize-market', action='store_true')
+    parser.add_argument('--validated-reports', help='Directory with successful reports for every selected symbol')
     parser.add_argument('--workers', type=int, choices=range(1, 9), default=4)
     parser.add_argument('--report', default='market-sync-report.json')
     args = parser.parse_args(argv)
     report = {'started_at': now_iso(), 'scope': args.scope, 'dry_run': args.dry_run,
-              'symbols': {}, 'errors': [], 'warnings': []}
+              'symbols': {}, 'errors': [], 'warnings': [], 'status': 'running',
+              'report_path': args.report}
+    checkpoint(report)
     try:
         if os.getenv('FETCH_LIVE', 'true').lower() == 'false':
             raise PipelineError('FETCH_LIVE=false cannot publish stale assets; run offline tests instead')
@@ -435,7 +567,7 @@ def main(argv=None):
     finally:
         report['finished_at'] = now_iso()
         report['status'] = 'failed' if report['errors'] else 'passed'
-        Path(args.report).write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
+        checkpoint(report)
         print(json.dumps({k: v for k, v in report.items() if k != 'symbols'}, indent=2))
     return 1 if report['errors'] else 0
 
