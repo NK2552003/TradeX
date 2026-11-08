@@ -23,7 +23,6 @@ CopilotApi createCopilotApi() {
 /// Hosted chat uses the existing authenticated, quota-enforcing Edge gateway.
 /// Provider credentials are read only by the Edge Function from its secrets.
 class SupabaseCopilotApi extends CopilotApi {
-  static String _bearer(String value) => String.fromCharCodes([66, 101, 97, 114, 101, 114]) + ' ' + value;
   SupabaseCopilotApi({
     http.Client? client,
     CloudWorkspaceStore Function()? store,
