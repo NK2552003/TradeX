@@ -96,6 +96,21 @@ class Database:
                 return rows
             rows.extend(page)
 
+    def prune_market_data(self):
+        """Remove market, news, and marketing rows before a full rebuild."""
+        for table, column, predicate in (
+            ('news_articles', 'id', 'gt.0'),
+            ('news_topics', 'id', 'gt.0'),
+            ('affiliate_assets', 'id', 'not.is.null'),
+            ('screener_results', 'id', 'gt.0'),
+            ('screener_categories', 'id', 'gt.0'),
+            ('stock_details', 'ticker', 'not.is.null'),
+            ('stock_fundamentals', 'ticker', 'not.is.null'),
+            ('stock_quotes', 'ticker', 'not.is.null'),
+            ('stock_price_history', 'ticker', 'not.is.null'),
+        ):
+            self.call('DELETE', table, params={column: predicate}, prefer='return=minimal')
+
     def upsert(self, table, rows, conflict):
         # PostgREST bulk rows must have identical keys. Omit absent provider
         # fields so a sparse refresh cannot erase existing fundamentals/images.
@@ -246,7 +261,7 @@ def market_rows(symbol, chart, info):
 def fetch_symbol(symbol, scope, history_range=None):
     warnings = []
     encoded = urllib.parse.quote(symbol, safe='')
-    period = history_range or ('2y' if scope in ('all', 'history') else '1mo')
+    period = history_range or ('2mo' if scope in ('all', 'history') else '1mo')
     chart = {}
     try:
         data = request(f'https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?range={period}&interval=1d')
@@ -356,7 +371,6 @@ def sync_market(db, symbols, scope, workers, report):
                         for w in warnings)
                     or (
                         scope in ('all', 'history')
-                        and quote is not None
                         and len(history) < 2
                     )
                 )
@@ -507,6 +521,15 @@ def run(args, report):
         report['archived_symbols'] = sorted({r['ticker'] for r in stored} & RETIRED_SYMBOLS)
         report['excluded_symbols'] = len({r['ticker'] for r in stored} - set(symbols))
         report['selection'] = 'curated benchmarks, then reported volume descending'
+    if args.prune_market_data:
+        if not args.select_only:
+            raise PipelineError('--prune-market-data is only valid with --select-only')
+        db.prune_market_data()
+        report['pruned_tables'] = [
+            'news_articles', 'news_topics', 'affiliate_assets',
+            'screener_results', 'screener_categories',
+            'stock_details', 'stock_fundamentals', 'stock_quotes', 'stock_price_history',
+        ]
     if args.select_only:
         Path(args.select_only).write_text(json.dumps(symbols) + '\n')
         report['requested_symbols'] = len(symbols)
@@ -553,6 +576,8 @@ def main(argv=None):
     parser.add_argument('--max-symbols', type=int, choices=range(1, MAX_SYMBOLS + 1), default=MAX_SYMBOLS, metavar='1..5000')
     parser.add_argument('--symbols-file', help='Frozen ranked manifest shared by CI shards')
     parser.add_argument('--select-only', help='Write the ranked manifest without fetching providers')
+    parser.add_argument('--prune-market-data', action='store_true',
+                        help='Delete pipeline-owned market/news rows before a full rebuild')
     parser.add_argument('--shard-index', type=int, default=0)
     parser.add_argument('--shard-count', type=int, default=1)
     parser.add_argument('--market-only', action='store_true')
