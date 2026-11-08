@@ -351,7 +351,15 @@ def sync_market(db, symbols, scope, workers, report):
                         errors.append('Fewer than two valid daily bars')
                     elif history[-1]['date'] < cutoff.date().isoformat():
                         errors.append('History older than 7 days')
-                unavailable = any(w in ('chart: HTTP 404', 'chart: HTTP 410', 'chart: symbol unavailable') for w in warnings)
+                unavailable = (
+                    any(w in ('chart: HTTP 404', 'chart: HTTP 410', 'chart: symbol unavailable')
+                        for w in warnings)
+                    or (
+                        scope in ('all', 'history')
+                        and quote is not None
+                        and len(history) < 2
+                    )
+                )
                 stale = errors and all('older than 7 days' in error for error in errors)
                 if unavailable or stale:
                     report.setdefault('discarded_symbols', {})[symbol] = errors or warnings
@@ -378,7 +386,7 @@ def sync_market(db, symbols, scope, workers, report):
                 if len(completed) >= 10:
                     publish()
             publish()
-    if symbols and not counts:
+    if symbols and not counts and not report.get('discarded_symbols'):
         report['errors'].append('No valid market data in this partition')
     return quotes
 
