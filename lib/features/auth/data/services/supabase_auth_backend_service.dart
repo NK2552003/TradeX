@@ -213,7 +213,7 @@ class SupabaseAuthBackendService implements AuthRepository {
                   : 'Successfully registered account with Supabase authentication!'),
       );
     } on AuthException catch (e) {
-      return AuthResult.failure(e.message);
+      return AuthResult.failure(e.message, errorCode: e.code);
     } catch (e) {
       debugPrint(
         '[SupabaseAuthBackendService] SignUp Exception: $e. Falling back to local store.',
@@ -280,10 +280,9 @@ class SupabaseAuthBackendService implements AuthRepository {
     }
 
     final client = SupabaseConfig.client!;
+    String targetEmail = cleanInput.toLowerCase();
 
     try {
-      String targetEmail = cleanInput.toLowerCase();
-
       // 1. Resolve email by handle if input starts with @ or is not an email
       if (cleanInput.startsWith('@') || !cleanInput.contains('@')) {
         final rawHandle = cleanInput.replaceAll('@', '');
@@ -422,7 +421,22 @@ class SupabaseAuthBackendService implements AuthRepository {
         message: 'Successfully signed in with Supabase backend!',
       );
     } on AuthException catch (e) {
-      return AuthResult.failure(e.message);
+      final String msg = e.message.toLowerCase();
+      final bool isUnconfirmed =
+          msg.contains('email not confirmed') || e.code == 'email_not_confirmed';
+      if (isUnconfirmed) {
+        try {
+          await client.auth.resend(
+            type: OtpType.signup,
+            email: targetEmail,
+          );
+        } catch (_) {}
+        return AuthResult.failure(
+          'Email not confirmed. A new verification code has been dispatched to your email.',
+          errorCode: 'email_not_confirmed',
+        );
+      }
+      return AuthResult.failure(e.message, errorCode: e.code);
     } catch (e) {
       debugPrint(
         '[SupabaseAuthBackendService] SignIn Exception: $e. Falling back to local store.',

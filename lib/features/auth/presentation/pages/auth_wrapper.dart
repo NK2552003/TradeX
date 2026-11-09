@@ -567,6 +567,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
                     email: email,
                   );
                 },
+                onRequiresVerification: (role, email) {
+                  _navigateToStage(
+                    AuthStage.signupVerification,
+                    role: role,
+                    email: email,
+                  );
+                },
                 onNavigateToSignup: (role) {
                   _navigateToStage(AuthStage.signup, role: role);
                 },

@@ -29,7 +29,7 @@ After deployment, sign in on `alphajournal.in`, send a message, reload to confir
 
 ### Web search configuration
 
-Use `OPENAI_MODEL=gpt-5.4` in the backend environment. For hosted mode,
+Use `OPENAI_MODEL=gpt-4o` in the backend environment. For hosted mode,
 set this value and `OPENAI_API_KEY` (or `OPEN_AI_KEY`) in Supabase Edge Function
 secrets; the repository `.env` only configures the separately running Dart worker.
 Deploy `ai-gateway` including its `responses.ts` module after updating the code.
@@ -37,7 +37,7 @@ Deploy `ai-gateway` including its `responses.ts` module after updating the code.
 With Supabase CLI 3, after authenticating to the project:
 
 ```sh
-npx supabase secrets set OPENAI_MODEL=gpt-5.4 --remote=ylxwgkhtwrizdmuhlhxs
+npx supabase secrets set OPENAI_MODEL=gpt-4o --remote=ylxwgkhtwrizdmuhlhxs
 npx supabase functions deploy ai-gateway --remote=ylxwgkhtwrizdmuhlhxs --use-api
 ```
 
@@ -112,7 +112,7 @@ On wide layouts, Search and Deep research appear as separate controls. Phones us
 | Variable | Default / purpose |
 | --- | --- |
 | `OPEN_AI_KEY` | Required for model, research, code interpreter, and voice requests. |
-| `OPENAI_MODEL` | `gpt-5.4` |
+| `OPENAI_MODEL` | `gpt-4o` |
 | `OPENAI_VOICE_MODEL` | `gpt-realtime` |
 | `COPILOT_HOST`, `COPILOT_PORT` | `127.0.0.1`, `8787` |
 | `COPILOT_DATA_DIR` | `.copilot-data`, ignored by Git; back this directory up. |

@@ -21,6 +21,7 @@ class LoginPage extends StatefulWidget {
     required this.onNavigateToSignup,
     required this.onNavigateToForgotPassword,
     required this.onNavigateBack,
+    this.onRequiresVerification,
   });
 
   final UserRole initialRole;
@@ -32,6 +33,7 @@ class LoginPage extends StatefulWidget {
   final void Function(UserRole role) onNavigateToSignup;
   final VoidCallback onNavigateToForgotPassword;
   final VoidCallback onNavigateBack;
+  final void Function(UserRole role, String email)? onRequiresVerification;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -120,6 +122,25 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = false);
 
     if (!result.isSuccess) {
+      final bool requiresVerification =
+          result.errorCode == 'email_not_confirmed' ||
+              result.requiresEmailVerification ||
+              result.message.toLowerCase().contains('email not confirmed');
+
+      if (requiresVerification && widget.onRequiresVerification != null) {
+        UiToast.show(
+          context,
+          title: 'Verification Required',
+          message: result.message,
+          intent: UiIntent.info,
+        );
+        widget.onRequiresVerification!(
+          _selectedRole,
+          result.profile?.email ?? email,
+        );
+        return;
+      }
+
       setState(() => _errorText = result.message);
       return;
     }
