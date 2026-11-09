@@ -75,8 +75,8 @@ async function generate(
       const text = candidate.provider === 'gemini'
         ? data.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('')
         : candidate.provider === 'anthropic'
-        ? data.content?.filter((p: { type: string }) => p.type === 'text').map((p: { text: string }) => p.text).join('')
-        : data.choices?.[0]?.message?.content;
+          ? data.content?.filter((p: { type: string }) => p.type === 'text').map((p: { text: string }) => p.text).join('')
+          : data.choices?.[0]?.message?.content;
       if (typeof text !== 'string' || !text.trim() || text.length > 200000) continue;
       return {
         text: text.trim(), provider: candidate.provider, model: typeof data.model === 'string' ? data.model : candidate.model,
@@ -120,12 +120,12 @@ export async function handleRequest(request: Request, dependencies: Dependencies
     return reply(403, { error: 'Enable research for this workspace and specialist to use web search.' });
   }
   if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 40000 ||
-      typeof kind !== 'string' || !['chat', 'regenerate', 'completion'].includes(kind) ||
-      typeof persona !== 'string' || persona.length > 80 ||
-      typeof mode !== 'string' || !['auto', 'search', 'research'].includes(mode) ||
-      attachments.length > 4 ||
-      attachments.some((item) => !validAttachment(item)) ||
-      (body.thread_id != null && (typeof body.thread_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.thread_id)))) {
+    typeof kind !== 'string' || !['chat', 'regenerate', 'completion'].includes(kind) ||
+    typeof persona !== 'string' || persona.length > 80 ||
+    typeof mode !== 'string' || !['auto', 'search', 'research'].includes(mode) ||
+    attachments.length > 4 ||
+    attachments.some((item) => !validAttachment(item)) ||
+    (body.thread_id != null && (typeof body.thread_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.thread_id)))) {
     return reply(400, { error: 'Invalid prompt or conversation.' });
   }
   const messages: Message[] = [];
@@ -156,7 +156,7 @@ export async function handleRequest(request: Request, dependencies: Dependencies
     const openAiKey = env('OPENAI_API_KEY') ?? env('OPEN_AI_KEY');
     const result = mode !== 'auto' || attachments.length > 0 || (body.allow_web_search === true && !!openAiKey)
       ? openAiKey
-        ? await generateResponses(messages, attachments, mode, env('OPENAI_MODEL') || 'gpt-5.4', openAiKey, send, body.allow_web_search === true)
+        ? await generateResponses(messages, attachments, mode, env('OPENAI_MODEL') || 'gpt-4o', openAiKey, send, body.allow_web_search === true)
         : (() => { throw new Error('OpenAI is required for web search and file attachments.'); })()
       : await generate(messages,
         typeof body.max_tokens === 'number' ? Math.max(128, Math.min(4096, Math.floor(body.max_tokens))) : 2048,
