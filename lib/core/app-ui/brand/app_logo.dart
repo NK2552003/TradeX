@@ -15,7 +15,7 @@ class AppLogoMark extends StatelessWidget {
     this.color,
     this.accentColor,
     this.progress = 1,
-    this.rounded = true,
+    this.rounded = false,
   });
 
   final double? size;
@@ -223,9 +223,9 @@ class AppWordmark extends StatelessWidget {
       text: TextSpan(
         style: style,
         children: <TextSpan>[
-          const TextSpan(text: 'alpha'),
+          const TextSpan(text: 'Alpha'),
           TextSpan(
-            text: 'journal',
+            text: 'Journal',
             style: style.copyWith(
               color: accentColor ?? context.uiColors.primary,
             ),
@@ -244,7 +244,7 @@ class AppLogo extends StatelessWidget {
     this.size,
     this.stacked = false,
     this.tagline,
-    this.markRounded = true,
+    this.markRounded = false,
   });
 
   final bool compact;

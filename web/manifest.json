@@ -1,12 +1,11 @@
 {
-    "name": "alphajournal — Institutional Trading Journal & AI Playbooks",
+    "name": "Alphajournal",
     "short_name": "alphajournal",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0D0C0B",
     "theme_color": "#151312",
-    "description": "Log trades, write linked research notes, track strategy playbooks, and collaborate with verified traders on alphajournal.",
-    "orientation": "portrait-primary",
+    "description": "A workspace for trading journals, research notes, and strategy review.",
     "prefer_related_applications": false,
     "categories": [
         "finance",
@@ -42,5 +41,7 @@
             "type": "image/png",
             "purpose": "maskable"
         }
-    ]
+    ],
+    "id": ".",
+    "scope": "."
 }

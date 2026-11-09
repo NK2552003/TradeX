@@ -184,8 +184,9 @@ class _UiCandleChartState extends State<UiCandleChart> {
               void handle(Offset local) {
                 if (!widget.interactive) return;
                 final double w = c.maxWidth;
-                final double step = w / widget.candles.length;
-                final int i = (local.dx / step).floor().clamp(
+                final double gutter = widget.showGrid ? _kAxisGutterWidth : 0;
+                final double step = (w - gutter) / widget.candles.length;
+                final int i = ((local.dx - gutter) / step).floor().clamp(
                   0,
                   widget.candles.length - 1,
                 );
@@ -320,6 +321,9 @@ class _UiCandleReadout extends StatelessWidget {
   }
 }
 
+/// Width reserved on the left for price-axis labels so candles never overlap them.
+const double _kAxisGutterWidth = 56;
+
 class _UiCandlePainter extends CustomPainter {
   _UiCandlePainter({
     required this.candles,
@@ -351,6 +355,9 @@ class _UiCandlePainter extends CustomPainter {
   final String Function(num value) format;
   final double radius;
 
+  /// Space reserved for price-axis labels; none when the axis is hidden.
+  double get _gutter => showGrid ? _kAxisGutterWidth : 0;
+
   @override
   void paint(Canvas canvas, Size size) {
     final double volumeH = showVolume ? size.height * 0.22 : 0;
@@ -379,7 +386,7 @@ class _UiCandlePainter extends CustomPainter {
     hi += pad;
 
     double y(double price) => priceH - ((price - lo) / (hi - lo)) * priceH;
-    final double step = size.width / candles.length;
+    final double step = (size.width - _gutter) / candles.length;
     final double bodyW = math.max(1.0, step * 0.62);
 
     // Grid
@@ -389,7 +396,7 @@ class _UiCandlePainter extends CustomPainter {
         ..strokeWidth = 1;
       for (int i = 0; i <= 4; i++) {
         final double gy = priceH * i / 4;
-        canvas.drawLine(Offset(0, gy), Offset(size.width, gy), grid);
+        canvas.drawLine(Offset(_gutter, gy), Offset(size.width, gy), grid);
         _label(canvas, format(hi - (hi - lo) * i / 4), Offset(4, gy + 2));
       }
     }
@@ -412,7 +419,7 @@ class _UiCandlePainter extends CustomPainter {
           canvas.drawRRect(
             RRect.fromRectAndRadius(
               Rect.fromLTWH(
-                i * step + (step - bodyW) / 2,
+                _gutter + i * step + (step - bodyW) / 2,
                 top + volumeH - h,
                 bodyW,
                 math.max(1, h),
@@ -431,13 +438,13 @@ class _UiCandlePainter extends CustomPainter {
       case UiPriceChartType.area:
         final Path path = Path();
         for (int i = 0; i < candles.length; i++) {
-          final Offset pt = Offset(i * step + step / 2, y(candles[i].close));
+          final Offset pt = Offset(_gutter + i * step + step / 2, y(candles[i].close));
           i == 0 ? path.moveTo(pt.dx, pt.dy) : path.lineTo(pt.dx, pt.dy);
         }
         if (type == UiPriceChartType.area) {
           final Path fill = Path.from(path)
             ..lineTo(size.width, priceH)
-            ..lineTo(0, priceH)
+            ..lineTo(_gutter, priceH)
             ..close();
           canvas.drawPath(
             fill,
@@ -449,7 +456,7 @@ class _UiCandlePainter extends CustomPainter {
                   colors.primary.withValues(alpha: 0.28),
                   colors.primary.withValues(alpha: 0.0),
                 ],
-              ).createShader(Rect.fromLTWH(0, 0, size.width, priceH)),
+              ).createShader(Rect.fromLTWH(_gutter, 0, size.width - _gutter, priceH)),
           );
         }
         canvas.drawPath(
@@ -465,7 +472,7 @@ class _UiCandlePainter extends CustomPainter {
         for (int i = 0; i < candles.length; i++) {
           final UiCandle k = candles[i];
           final Color tint = k.bullish ? colors.bullish : colors.bearish;
-          final double cx = i * step + step / 2;
+          final double cx = _gutter + i * step + step / 2;
           final Paint wick = Paint()
             ..color = tint
             ..strokeWidth = math.max(1, bodyW * 0.14);
@@ -502,7 +509,7 @@ class _UiCandlePainter extends CustomPainter {
       for (int i = 0; i < o.values.length && i < candles.length; i++) {
         final double v = o.values[i];
         if (v.isNaN) continue;
-        final Offset pt = Offset(i * step + step / 2, y(v));
+        final Offset pt = Offset(_gutter + i * step + step / 2, y(v));
         if (!started) {
           path.moveTo(pt.dx, pt.dy);
           started = true;
@@ -522,11 +529,11 @@ class _UiCandlePainter extends CustomPainter {
         ..strokeWidth = 1.2;
       if (line.dashed) {
         const double dash = 5;
-        for (double x = 0; x < size.width; x += dash * 2) {
+        for (double x = _gutter; x < size.width; x += dash * 2) {
           canvas.drawLine(Offset(x, ly), Offset(x + dash, ly), p);
         }
       } else {
-        canvas.drawLine(Offset(0, ly), Offset(size.width, ly), p);
+        canvas.drawLine(Offset(_gutter, ly), Offset(size.width, ly), p);
       }
       _label(
         canvas,
@@ -541,7 +548,7 @@ class _UiCandlePainter extends CustomPainter {
     for (final UiCandleMarker m in markers) {
       if (m.index < 0 || m.index >= candles.length) continue;
       final UiCandle k = candles[m.index];
-      final double cx = m.index * step + step / 2;
+      final double cx = _gutter + m.index * step + step / 2;
       final double my = m.above ? y(k.high) - 12 : y(k.low) + 12;
       final Color tint = _intentColor(m.intent);
       canvas.drawCircle(Offset(cx, my), 4, Paint()..color = tint);
@@ -557,7 +564,7 @@ class _UiCandlePainter extends CustomPainter {
     if (activeIndex != null &&
         activeIndex! >= 0 &&
         activeIndex! < candles.length) {
-      final double cx = activeIndex! * step + step / 2;
+      final double cx = _gutter + activeIndex! * step + step / 2;
       final Paint p = Paint()
         ..color = colors.foregroundSubtle
         ..strokeWidth = 1;
@@ -566,7 +573,7 @@ class _UiCandlePainter extends CustomPainter {
         canvas.drawLine(Offset(cx, yy), Offset(cx, yy + dash), p);
       }
       final double cy = y(candles[activeIndex!].close);
-      for (double xx = 0; xx < size.width; xx += dash * 2) {
+      for (double xx = _gutter; xx < size.width; xx += dash * 2) {
         canvas.drawLine(Offset(xx, cy), Offset(xx + dash, cy), p);
       }
     }

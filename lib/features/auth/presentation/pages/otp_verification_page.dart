@@ -246,7 +246,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                                       width: context.sp(theme.spacing.xs),
                                     ),
                                     Text(
-                                      'alphajournal',
+                                      'AlphaJournal',
                                       style: context.uiText.bodyStrong.copyWith(
                                         fontSize: 16,
                                         letterSpacing: -0.2,

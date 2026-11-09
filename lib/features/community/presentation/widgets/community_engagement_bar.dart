@@ -72,22 +72,29 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
       HapticFeedback.lightImpact();
     }
 
-    final RenderBox? box = _likeButtonKey.currentContext?.findRenderObject() as RenderBox?;
-    final Offset globalPos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final RenderBox? box =
+        _likeButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? overlayBox = overlay.context.findRenderObject() as RenderBox?;
     final Size boxSize = box?.size ?? const Size(44, 44);
-    final Size screenSize = MediaQuery.sizeOf(context);
+    // Convert into the overlay's own coordinate space. Posts shown inside
+    // drawers / side panels live in an offset overlay, so raw global
+    // coordinates would place the pill over the blurred page behind them.
+    final Offset anchor = (box != null && overlayBox != null)
+        ? box.localToGlobal(Offset.zero, ancestor: overlayBox)
+        : (box?.localToGlobal(Offset.zero) ?? Offset.zero);
+    final Size screenSize = overlayBox?.size ?? MediaQuery.sizeOf(context);
 
     const double pillWidth = 216.0;
     const double pillHeight = 44.0;
 
-    // Center pill horizontally on the like button, clamped to screen edges
-    final double left = (globalPos.dx + boxSize.width / 2 - pillWidth / 2)
+    // Center pill horizontally on the like button, clamped to overlay edges
+    final double left = (anchor.dx + boxSize.width / 2 - pillWidth / 2)
         .clamp(8.0, (screenSize.width - pillWidth - 8.0).clamp(8.0, 9999.0));
 
-    // Position above like button; if too close to top of screen, flip below
-    final double top = globalPos.dy > pillHeight + 12
-        ? globalPos.dy - pillHeight - 8
-        : globalPos.dy + boxSize.height + 8;
+    // Position above like button; if too close to top, flip below
+    final double top = anchor.dy > pillHeight + 12
+        ? anchor.dy - pillHeight - 8
+        : anchor.dy + boxSize.height + 8;
 
     final DateTime openedAt = DateTime.now();
 
@@ -309,14 +316,16 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
         builder: (BuildContext ctx, BoxConstraints constraints) {
           final bool isCompact = isMobile || constraints.maxWidth < 560;
           if (isCompact) {
+            // Compact: flexible slots so counts never clip; like gets extra
+            // room for the reaction-emoji cluster, bookmark/share stay tight.
             return Row(
               children: <Widget>[
                 Expanded(child: primaryMetrics[0]),
                 Expanded(child: primaryMetrics[1]),
-                Expanded(child: primaryMetrics[2]),
+                Expanded(flex: 2, child: primaryMetrics[2]),
                 Expanded(child: primaryMetrics[3]),
-                Expanded(child: bookmarkButton),
-                Expanded(child: shareButton),
+                bookmarkButton,
+                shareButton,
               ],
             );
           }

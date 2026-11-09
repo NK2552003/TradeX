@@ -4,7 +4,12 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 
 class AuthCarouselPanel extends StatefulWidget {
-  const AuthCarouselPanel({super.key});
+  const AuthCarouselPanel({
+    super.key,
+    this.bottomAction,
+  });
+
+  final Widget? bottomAction;
 
   @override
   State<AuthCarouselPanel> createState() => _AuthCarouselPanelState();
@@ -133,92 +138,135 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
     ];
 
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        child: Column(
-          children: [
-            // Carousel
-            SizedBox(
-              height: (constraints.maxHeight * 0.55).clamp(180.0, 480.0),
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: (idx) {
-                  setState(() {
-                    _currentFeatureIndex = idx;
-                  });
-                },
-                itemCount: _features.length,
-                itemBuilder: (context, idx) {
-                  final card = carouselCards[idx % carouselCards.length];
+      builder: (context, constraints) {
+        final bool hasBoundedHeight = constraints.maxHeight.isFinite;
 
-                  return Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.sp(theme.spacing.sm),
+        final Widget carousel = PageView.builder(
+          controller: _pageController,
+          onPageChanged: (idx) {
+            setState(() {
+              _currentFeatureIndex = idx;
+            });
+          },
+          itemCount: _features.length,
+          itemBuilder: (context, idx) {
+            final card = carouselCards[idx % carouselCards.length];
+
+            return Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.sm),
+              ),
+              child: Center(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.center,
+                    child: SizedBox(width: 440, child: card),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+
+        final Widget textAndDots = Padding(
+          padding: EdgeInsets.fromLTRB(
+            context.sp(theme.spacing.xl),
+            context.sp(theme.spacing.sm),
+            context.sp(theme.spacing.xl),
+            context.sp(theme.spacing.xl),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Dynamic Feature Title & Description
+              Text(
+                _features[_currentFeatureIndex]['title']!,
+                style: context.uiText.heading,
+                textAlign: TextAlign.left,
+              ),
+              SizedBox(height: context.sp(theme.spacing.xs)),
+              Text(
+                _features[_currentFeatureIndex]['desc']!,
+                style: context.uiText.body.copyWith(
+                  color: colors.foregroundMuted,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.left,
+              ),
+              SizedBox(height: context.sp(theme.spacing.lg)),
+
+              // Carousel Indicator Dots
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(_features.length, (index) {
+                  final isActive = index == _currentFeatureIndex;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: EdgeInsets.only(
+                      right: context.sp(theme.spacing.sm),
                     ),
-                    child: Center(
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.center,
-                          child: SizedBox(width: 440, child: card),
-                        ),
-                      ),
+                    height: 8,
+                    width: isActive ? 24 : 8,
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? colors.primary
+                          : colors.borderStrong,
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   );
-                },
+                }),
               ),
-            ),
+            ],
+          ),
+        );
 
-            // Text & Dots Area
-            Padding(
-              padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Dynamic Feature Title & Description
-                  Text(
-                    _features[_currentFeatureIndex]['title']!,
-                    style: context.uiText.heading,
-                    textAlign: TextAlign.left,
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.xs)),
-                  Text(
-                    _features[_currentFeatureIndex]['desc']!,
-                    style: context.uiText.body.copyWith(
-                      color: colors.foregroundMuted,
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.left,
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.lg)),
+        if (widget.bottomAction != null) {
+          final double screenHeight = MediaQuery.sizeOf(context).height;
+          final double carouselHeight =
+              (screenHeight * 0.36).clamp(180.0, 340.0);
 
-                  // Carousel Indicator Dots
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(_features.length, (index) {
-                      final isActive = index == _currentFeatureIndex;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        margin: EdgeInsets.only(
-                          right: context.sp(theme.spacing.sm),
-                        ),
-                        height: 8,
-                        width: isActive ? 24 : 8,
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? colors.primary
-                              : colors.borderStrong,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      );
-                    }),
-                  ),
-                ],
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: carouselHeight,
+                child: carousel,
               ),
-            ),
-          ],
-        ),
-      ),
+              SizedBox(height: context.sp(theme.spacing.xl)),
+              textAndDots,
+              widget.bottomAction!,
+            ],
+          );
+        }
+
+        final bool shouldExpand =
+            hasBoundedHeight && constraints.maxHeight >= 450;
+
+        if (shouldExpand) {
+          return Column(
+            children: [
+              Expanded(child: carousel),
+              textAndDots,
+            ],
+          );
+        }
+
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              SizedBox(
+                height: (constraints.maxHeight * 0.55).clamp(140.0, 480.0),
+                child: carousel,
+              ),
+              textAndDots,
+            ],
+          ),
+        );
+      },
     );
   }
 }

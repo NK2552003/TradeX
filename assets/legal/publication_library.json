@@ -1,0 +1,995 @@
+[
+  {
+    "id": "privacy",
+    "group": "Privacy and advertising",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "This policy explains how Alphajournal handles information when you use our website, apps, trading journals, research tools, community and affiliate features. It also explains your choices and how to contact us about your data.",
+    "title": "Privacy Policy",
+    "source": "01_Privacy_Policy.docx",
+    "sections": [
+      {
+        "title": "Who we are and how to contact us",
+        "body": "Alphajournal operates the service described in this policy. For support, privacy questions or a grievance, email h82292245@gmail.com with the subject Privacy request. Tell us the issue and the outcome you seek. We may need to verify that you control the relevant account before disclosing or changing personal information. This policy takes effect on 9 November 2026."
+      },
+      {
+        "title": "Information you provide",
+        "body": "We receive account and profile information such as email, handle, display name, authentication details and account role. When you use a feature, we may process the material you provide, including journal entries, notes, strategies, watchlists, messages, community posts, attachments and AI requests. Support correspondence may include a description of a problem and associated records. Provide only what is needed and remove third-party confidential information before uploading."
+      },
+      {
+        "title": "Service billing and affiliate information",
+        "body": "The service uses session, device, browser, network and security information to operate and protect accounts. Billing providers and app stores may provide transaction identifiers, purchase status, invoices and entitlements. Affiliate features can process applications, referral codes, campaign information, commission records and payment or tax details that you submit. Do not send card numbers, passwords or payment credentials to the support mailbox."
+      },
+      {
+        "title": "How information is used",
+        "body": "We use information to provide requested features, authenticate you, save and display your work, calculate workspace summaries, administer account access and plans, resolve support requests, prevent misuse and comply with applicable obligations. We process billing and affiliate records for the relevant transaction or programme. Optional measurement, advertising and automatic referral purposes are subject to the separate controls described below. We do not treat installation or continued browsing as agreement to optional tracking."
+      },
+      {
+        "title": "Visibility and sharing",
+        "body": "The audience for a record depends on the feature and visibility you choose. Review those settings before publishing or sharing. Public posts, links and shared material can be seen, copied or redistributed by recipients, and removing them from Alphajournal cannot recall independent copies. Private content is used to provide the features you request; it is not made public merely because you install the browser app."
+      },
+      {
+        "title": "Service providers and external services",
+        "body": "We use service providers for functions such as hosting, account authentication, data storage and payment administration. The code supports Supabase-backed account and data services and platform-specific billing integrations; actual provider use depends on the service and platform you access. If you invoke an external AI or integration feature, review its disclosure before submitting confidential information. Providers may process information in other countries under their applicable terms and legal safeguards. External websites have their own privacy practices."
+      },
+      {
+        "title": "Cookies analytics and planned advertising",
+        "body": "Essential storage supports sign-in, security and requested settings. Optional analytics, advertising, personalised ads and automatic affiliate attribution start off. Google AdSense is planned to support the free version; it is not active in this release. If enabled, ad requests can disclose device, browser, IP, page-context and identifier information to Google. Private journals, messages, notes, balances, credentials and tax or payment details are not advertising targeting inputs. Read the Cookie Policy and Advertising Policy for the scope of each choice."
+      },
+      {
+        "title": "Keeping information",
+        "body": "We keep account information and user content for the service while the account is active, subject to your deletion requests and the features available for removing individual records. We may retain limited information for legal, accounting, security, fraud prevention or unresolved disputes where necessary. Retained records are restricted to those purposes. Local cookie preferences expire after 180 days; automatic referral attribution is valid for less than 30 days. Backups and third-party records may have separate removal cycles, and account deletion is not a promise of instantaneous removal from every system."
+      },
+      {
+        "title": "Your choices and requests",
+        "body": "Use Privacy settings to review visibility and available export or deletion controls. Use Cookie preferences in Help and policies to withdraw optional choices on this device. For access, correction, erasure, export, information about processing or a grievance, email h82292245@gmail.com. Rights, verification, exceptions and response periods depend on the law that applies to your request. If information must be retained, we will explain the relevant reason where legally permitted. Withdrawal does not retrospectively invalidate earlier processing."
+      },
+      {
+        "title": "Children and account safety",
+        "body": "Alphajournal is intended for adults aged 18 or older who can enter a binding agreement. Do not create an account for a child or provide a child’s data without first contacting us. Use a unique password, keep verification codes private and sign out on shared devices. No online service can guarantee absolute security. Report suspected account compromise or unintended disclosure promptly through the contact above."
+      },
+      {
+        "title": "Updates to this policy",
+        "body": "We may update this policy as the service, providers or applicable requirements change. The current version and its date are available in Help and policies. We will provide notice of material changes and request a new choice where required before processing for a materially different optional purpose. Cookie consent, contract acceptance and device permissions remain separate decisions."
+      }
+    ]
+  },
+  {
+    "id": "terms",
+    "group": "Terms and safety",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "These terms govern access to Alphajournal and its free and paid features. Read them together with the Privacy Policy, applicable purchase terms and any feature-specific agreement.",
+    "title": "Terms of Service",
+    "source": "02_Terms_of_Service.docx",
+    "sections": [
+      {
+        "title": "Eligibility and agreement",
+        "body": "You must be at least 18 and legally able to enter a binding agreement. Provide accurate account information and use only accounts and information you are authorised to use. If you act for an organisation, you confirm you have authority to do so. Creating an account or continuing to use the service after valid notice of these terms constitutes agreement to them, subject to applicable law. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Purpose of the service",
+        "body": "Alphajournal provides tools for self-directed journaling, research, analysis and community participation. Features depend on your plan, role, platform and available integrations. The presence of a preview or roadmap item does not promise production availability. Alphajournal is not a bank, custodian or brokerage and does not take custody of your trading funds. It does not provide individual investment, legal or tax advice."
+      },
+      {
+        "title": "Accounts and access",
+        "body": "Keep account credentials secure and notify us of suspected misuse. Do not share another person’s credentials, impersonate others or evade restrictions. We may apply proportionate security checks, restrict suspicious activity or suspend access for serious misuse or a legal obligation. Where appropriate and legally permitted, we will explain a restriction and provide a route to question it."
+      },
+      {
+        "title": "Plans payments and cancellation",
+        "body": "The offer and checkout identify the actual price, currency, tax treatment, billing period, renewal conditions and included features. Paid access depends on a confirmed purchase or valid entitlement. A locally selected plan is not proof of payment. Store purchases are managed through the relevant store; other purchases through the provider shown on the receipt. Follow the Subscription Cancellation and Refund Policy. Deleting the app or account does not itself cancel a store subscription."
+      },
+      {
+        "title": "Free access and advertising",
+        "body": "The free version may carry clearly labelled advertising after deployment. Google AdSense is planned and is not active in this release. A paid plan is ad-free only if its purchase terms expressly say so. Advertising is not a recommendation, verification of a financial product or promise of returns. Optional tracking choices do not change your billing agreement or prevent necessary account access."
+      },
+      {
+        "title": "Your content",
+        "body": "You retain rights in content you create. You grant Alphajournal the limited rights needed to store, process, display, transmit and back it up to provide the service and your chosen sharing options. You must have the rights needed to upload or share it. Do not submit unlawful content, confidential third-party material without authority, or credentials. Publicly shared content may be copied by others outside our control."
+      },
+      {
+        "title": "Acceptable use and external information",
+        "body": "Follow the Acceptable Use Policy and Community Guidelines. Do not exploit security weaknesses, scrape protected data, manipulate payments or referrals, spam other users or interfere with the service. AI output, calculations, market information and third-party content can be inaccurate, incomplete or delayed. Verify information independently before acting. External services and links may have their own terms."
+      },
+      {
+        "title": "Installation and changes",
+        "body": "Browser installation is optional and does not create a purchase, grant device permissions or accept advertising cookies. Browser and device support varies. We may maintain, update or change the service and will give notice when required, including where a change materially affects paid access. No specific uptime, market latency or offline capability is promised unless included in an express service agreement."
+      },
+      {
+        "title": "Ending use and responsibility",
+        "body": "You may stop using the service, cancel renewal through the appropriate billing channel and request account deletion. We may suspend or end access for material breach, fraud, security risk or legal duty. Each party remains responsible to the extent required by applicable law. Nothing here excludes liability that cannot lawfully be excluded or removes mandatory consumer rights. You remain responsible for your independent trading and investment decisions."
+      },
+      {
+        "title": "Questions disputes and updates",
+        "body": "Contact h82292245@gmail.com with service concerns and relevant account or transaction references. We aim to resolve issues through a documented review; you retain any statutory complaint or legal remedies. These terms are intended for an India-first service and are subject to applicable Indian law and mandatory protections in your jurisdiction. We do not require an unconfirmed exclusive court venue or impose a fixed contractual liability cap here. Material changes will be communicated where required."
+      }
+    ]
+  },
+  {
+    "id": "cookies",
+    "group": "Privacy and advertising",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "This policy explains essential and optional browser or device storage, how you control it, and how the planned Google AdSense service relates to those choices.",
+    "title": "Cookie and Similar Technologies Policy",
+    "source": "03_Cookie_and_Similar_Technologies_Policy.docx",
+    "sections": [
+      {
+        "title": "What these technologies do",
+        "body": "Cookies are small browser records that may accompany matching web requests. Local storage, IndexedDB, app preferences and cache storage can also hold information on a device. Scripts, pixels and identifiers can transmit information without a conventional cookie. Our optional-purpose choices apply to these technologies as relevant, rather than only to files named cookies. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Essential storage",
+        "body": "Essential records support sign-in, account security, session continuity and settings you request. The preference record also remembers your cookie decision so you are not asked on every visit. Rejecting optional tracking does not disable necessary account functions. Browser-level blocking of all site storage can nevertheless interfere with sign-in and saving preferences. Clearing storage may sign you out or remove unsynchronised work."
+      },
+      {
+        "title": "Analytics",
+        "body": "Optional analytics means measurement of how the service is used when an analytics integration is enabled. The choice starts off and is separate from advertising. A saved permission does not itself activate a provider. Necessary operational security and error handling are distinct from optional marketing or usage measurement. We will disclose material optional integrations before enabling them."
+      },
+      {
+        "title": "Advertising and personalised ads",
+        "body": "Google AdSense is planned for the free version and is not active in this release. Advertising permission covers optional ad delivery, measurement and associated storage when enabled. Personalised ads require an additional choice and cannot remain on while advertising is off. Non-personalised advertising can still use identifiers, IP information or storage; it is not automatically exempt from consent. See https://policies.google.com/technologies/partner-sites and https://policies.google.com/technologies/ads for Google information."
+      },
+      {
+        "title": "Automatic affiliate attribution",
+        "body": "With the affiliate choice enabled, a referral visit can store a code, campaign and capture time in affiliate_attribution_v1, with a random visitor identifier in affiliate_visitor_v1. Attribution is valid for less than 30 days and is removed when an expired or invalid record is encountered, after conversion cleanup, or when this choice is withdrawn. Campaign click reporting is also gated by this choice. A code you deliberately enter in signup is a separate user-requested action. Rejecting automatic attribution can prevent automatic commission credit."
+      },
+      {
+        "title": "The local consent record",
+        "body": "alphajournal_consent_v1 contains the preference schema version, UTC saved time and the analytics, advertising, personalisation and affiliate choices. It is stored through SharedPreferences, normally under a flutter. prefix on web. It contains no ad visitor identifier. Its validity is 180 days from saving; absent, invalid, future-dated, expired or older-schema records leave optional processing off. This period is a product setting, not a claim about a universal legal limit."
+      },
+      {
+        "title": "Accept reject and change choices",
+        "body": "The initial notice offers Accept optional, Reject optional and Manage choices. Manage choices provides separate switches and Save choices. Closing or continuing to browse is not acceptance. Reopen Cookie preferences through Help and policies, Privacy settings or available footer links. Save all optional switches off or choose Reject optional to withdraw. Your choices apply to the current browser or device, not automatically to all other devices or accounts."
+      },
+      {
+        "title": "Save failures and withdrawal",
+        "body": "If a choice cannot be saved, the interface explains the problem and keeps optional processing off in the current session. You may retry after allowing device storage or continue with essential storage. A failed save is not reported as success. Withdrawal stops future optional activity from connected integrations and removes first-party optional attribution records; it does not recall data already sent or automatically erase historical billing and security records."
+      },
+      {
+        "title": "Installation preference",
+        "body": "alphajournal_install_dismissed_v1 stores the time you dismissed the browser installation suggestion. It suppresses automatic suggestions for seven days and may physically remain until overwritten or cleared. It is not an advertising identifier. Browser-managed installed state is separate. Installing or uninstalling the web app does not grant or withdraw cookie permission."
+      },
+      {
+        "title": "Third parties and regional choices",
+        "body": "Before advertising is enabled, applicable provider and regional controls must also be satisfied. Google requires a certified consent management platform for covered publisher uses in the EEA, UK and Switzerland. This local preference screen is not a certified CMP and does not generate a TCF consent string. An unknown or missing required permission must not be treated as agreement. Third-party cookies cannot always be removed by our domain; use browser site-data controls and the provider’s privacy controls as needed."
+      },
+      {
+        "title": "Inventory changes and contact",
+        "body": "The Storage Vendor and Retention Register describes known first-party records and the planned provider. Active vendor records and durations depend on the deployed integration and must be disclosed when enabled; example vendor cookie names are not presented as observed facts. We will update this policy for material changes and renew choices where required. Contact h82292245@gmail.com for questions or requests concerning previously collected information."
+      }
+    ]
+  },
+  {
+    "id": "consent-specification",
+    "group": "Publication resources",
+    "updated": "2026-11-09",
+    "status": "Release resource",
+    "intro": "This reference describes the cookie choices provided by Alphajournal and the controls an optional integration must follow.",
+    "title": "Cookie Consent Notice and Deployment Specification",
+    "source": "04_Cookie_Consent_Notice_and_Deployment_Spec.docx",
+    "sections": [
+      {
+        "title": "Initial notice",
+        "body": "Essential storage supports sign-in, security and your choices. Optional tracking is your decision. Closing the notice does not accept it. Google AdSense is planned for the free version and is not active in this release. Change your choices any time in Help and policies. The available actions are Accept optional, Reject optional, Manage choices and Read cookie policy."
+      },
+      {
+        "title": "Granular controls",
+        "body": "The settings view keeps essential storage on and offers independent analytics, advertising and affiliate switches. Personalised ads additionally require advertising; turning advertising off also turns personalisation off. Save choices records the current selection. Accept optional enables all four optional purposes; Reject optional disables them. These choices are separate from service terms, marketing emails and device permissions."
+      },
+      {
+        "title": "Persistence and renewal",
+        "body": "A versioned record stores the UTC time and categories in SharedPreferences. It is valid for 180 days. Missing, corrupt, future-dated, expired or different-version records resolve to optional purposes off. Clearing site storage resets this preference. Another browser or device has its own choices. The record contains no advertising visitor ID and is not a contract-acceptance record."
+      },
+      {
+        "title": "Withdrawal and failures",
+        "body": "Reopen preferences from Help and policies, Privacy settings or available footer links. Rejection removes first-party automatic referral identifiers. If persistence fails, show a clear error, keep optional activity off and provide retry or essential-only continuation. Do not imply that a failed save succeeded. Withdrawal applies to future optional activity and cannot recall information already transmitted."
+      },
+      {
+        "title": "Integrations and regional consent",
+        "body": "An optional SDK must wait for the relevant choice and stop future requests after withdrawal. No AdSense script is active in this release. Before enabling Google advertising, the required publisher configuration and regional consent controls must be in place. The local preference screen is not a Google-certified CMP and does not create an IAB TCF consent string. It must not be used as a substitute where a certified CMP is required."
+      },
+      {
+        "title": "Accessibility and review",
+        "body": "Accept and reject actions have comparable prominence. Controls must remain reachable with keyboard navigation, screen readers, mobile widths and enlarged text. Verify fresh visits, reload, granular choices, rejection, withdrawal, expiry, blocked storage and network traffic. Contact h82292245@gmail.com to report a control that does not behave as described."
+      }
+    ]
+  },
+  {
+    "id": "refunds",
+    "group": "Account and support",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "This policy explains how to review purchases, stop renewal and request a billing or refund review. Your actual checkout and payment provider identify the offer you purchased.",
+    "title": "Subscription Cancellation and Refund Policy",
+    "source": "05_Subscription_Cancellation_and_Refund_Policy.docx",
+    "sections": [
+      {
+        "title": "Purchase information",
+        "body": "Before paying, review the plan, total price, currency, taxes, billing period, any trial and renewal conditions. Keep the receipt and transaction reference. Features depend on the entitlement confirmed by the billing provider. A selected plan, browser installation or incomplete checkout is not a confirmed purchase. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Renewals and trials",
+        "body": "A subscription renews only according to the terms shown when you purchase it. If a trial or introductory offer is available, check when normal billing begins and the cancellation deadline shown by that provider. Do not assume every platform or plan offers the same trial. Review any price-change notice and the available cancellation options."
+      },
+      {
+        "title": "How to cancel",
+        "body": "For an Apple or Google store purchase, use that store’s subscription management controls for the purchasing account. For another billing provider, use the management or cancellation route shown on the receipt or in Billing settings. If you cannot locate it, email h82292245@gmail.com with the transaction reference. Uninstalling, logging out or submitting account deletion is not a substitute for cancelling renewal."
+      },
+      {
+        "title": "What cancellation changes",
+        "body": "Cancellation normally stops the next renewal under the provider’s terms; it does not automatically reverse past charges. Access may continue until the paid period ends unless a refund, chargeback or another entitlement change ends it earlier. Check the provider confirmation for the actual effective date. Download any needed records before losing access to a paid-only export feature."
+      },
+      {
+        "title": "Requesting a refund review",
+        "body": "For store purchases, use the store’s refund process where it controls the payment. For other purchases, contact h82292245@gmail.com with the account email, date, amount, transaction reference and reason. Do not include full card or bank details. We review the purchase conditions, the issue, provider rules and applicable consumer rights; this policy does not create an unconditional refund promise or remove a statutory entitlement."
+      },
+      {
+        "title": "Duplicate charges and missing access",
+        "body": "Report duplicate or incorrect charges and confirmed purchases that did not activate access. Keep the receipt and any error message. Check the purchasing account and use Restore purchases where offered before making another purchase. A support acknowledgement is not a refund settlement; the provider’s transaction status determines whether money was returned."
+      },
+      {
+        "title": "Processing and disputes",
+        "body": "Where a refund is approved, processing and the time funds reach you depend on the payment provider and financial institution. Currency conversion or third-party charges may be governed by their terms. If you dispute the outcome, reply with the prior case details and supporting evidence. You retain applicable statutory and payment-provider remedies."
+      },
+      {
+        "title": "Advertising and account closure",
+        "body": "A paid plan removes advertising only where its purchase terms say so. Withdrawing optional advertising consent does not cancel a subscription or change billing. Account deletion and subscription cancellation are separate actions, and legally required transaction records may remain after closure. Refer to the Terms and Data Retention Policy for related responsibilities."
+      }
+    ]
+  },
+  {
+    "id": "trading-risk",
+    "group": "Terms and safety",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "Alphajournal supports recording, research and review. Its tools, community content and AI output do not replace independent judgment or qualified professional advice.",
+    "title": "Trading and AI Risk Disclaimer",
+    "source": "06_Trading_and_AI_Risk_Disclaimer.docx",
+    "sections": [
+      {
+        "title": "No personalised investment advice",
+        "body": "Content and tools are informational and educational. They do not establish an advisory, brokerage or fiduciary relationship or assess whether a product is suitable for you. Make your own decisions and obtain qualified financial, legal or tax advice when needed. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Risk of loss",
+        "body": "Trading and investing can lose some or all invested capital. Leveraged products, derivatives, short positions and certain arrangements can expose you to losses beyond an initial deposit or to rapid liquidation. Liquidity, volatility, execution, financing, counterparty and operational risks can change unexpectedly. Do not trade funds you cannot afford to lose."
+      },
+      {
+        "title": "Historical results and simulations",
+        "body": "Past performance, backtests, examples, hypothetical returns and journal statistics do not guarantee future results. Results depend on assumptions, fees, slippage, data quality, execution and selection bias. A profitable shared record may be incomplete, unverified or unrepresentative. Check methodology before comparing accounts or strategies."
+      },
+      {
+        "title": "Market information and calculations",
+        "body": "Prices and charts may be delayed, incomplete, incorrect or unavailable. Your entries, imports, time zones, instrument definitions, units, exchange rates and fees affect calculated results. Reconcile important figures against authoritative statements. No alert, chart or notification is a guaranteed execution, liquidation or risk-control mechanism."
+      },
+      {
+        "title": "Artificial intelligence",
+        "body": "AI can invent facts, misunderstand a prompt, make arithmetic errors and produce convincing but unsuitable output. Verify sources, numbers and assumptions independently. An AI label or confidence score is not regulatory approval or a probability of profit. Review external-provider disclosures before submitting confidential information."
+      },
+      {
+        "title": "Community sponsors and affiliates",
+        "body": "Posts reflect their authors’ views. Sponsored content, an AdSense placement or an affiliate relationship is not endorsement or verification of a financial provider. Check authorisation, fees, custody arrangements and withdrawal conditions independently. Never share credentials or transfer funds solely because a message appears in the workspace."
+      },
+      {
+        "title": "Your responsibilities",
+        "body": "Protect credentials, verify orders in your actual broker platform and understand the obligations of every instrument you trade. Alphajournal does not hold your trading funds. Any separately available integration is limited by its disclosed permissions; do not assume a journal action places or cancels a broker order. Report misleading content or suspected errors to h82292245@gmail.com."
+      }
+    ]
+  },
+  {
+    "id": "eula",
+    "group": "Terms and safety",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "This agreement grants permission to use Alphajournal software through supported distribution channels. The Terms of Service and your purchase terms also apply.",
+    "title": "End User License Agreement",
+    "source": "07_End_User_License_Agreement.docx",
+    "sections": [
+      {
+        "title": "License and ownership",
+        "body": "Subject to these terms, Alphajournal grants a limited, non-exclusive, non-transferable permission to use the software for its intended functions. We and our licensors retain rights in the software, design and service materials; your own content remains yours as described in the Terms. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Permitted use",
+        "body": "Use the software on devices and accounts you are authorised to control. Your plan, role and feature permissions determine access. Do not resell or sublicense access, bypass entitlement checks or misrepresent an altered product as an official release. Restrictions apply only to the extent permitted by applicable law."
+      },
+      {
+        "title": "Restrictions and third-party licenses",
+        "body": "Do not interfere with security, distribute malicious code or use the service unlawfully. Do not copy, modify or reverse engineer protected software except where a legal right or an applicable open-source license permits it. Third-party components remain subject to their own licenses. External services have separate terms and availability."
+      },
+      {
+        "title": "Updates and compatibility",
+        "body": "Updates can change features, supported browsers, security requirements and compatibility. Maintain a supported device and protect important work before updating. Browser installation depends on browser and OS capabilities and does not imply app-store approval. The service does not promise perpetual compatibility or offline operation."
+      },
+      {
+        "title": "Permissions and storage",
+        "body": "Grant device access only when using a feature that needs it. Installation does not grant cookie consent, notifications, microphone or file permission. Use browser or OS settings to revoke permissions. Removing the app may leave site storage behind and does not delete a server account or cancel a subscription."
+      },
+      {
+        "title": "Termination and consumer rights",
+        "body": "The license ends when your authorised access ends or you materially breach applicable terms, subject to required notice and legal rights. Stop using the software when the license ends. Nothing excludes mandatory consumer protections or liability that cannot be excluded. Contact h82292245@gmail.com for license or support questions."
+      }
+    ]
+  },
+  {
+    "id": "acceptable-use",
+    "group": "Terms and safety",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "These rules apply to Alphajournal accounts, content, community interactions, integrations and affiliate activity. They protect users and the operation of the service.",
+    "title": "Acceptable Use Policy",
+    "source": "08_Acceptable_Use_Policy.docx",
+    "sections": [
+      {
+        "title": "Lawful and authorised use",
+        "body": "Use the service lawfully and only with information, accounts and systems you are authorised to access. Do not impersonate another person, misrepresent a regulated status or upload material that violates another person’s rights. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Security and service integrity",
+        "body": "Do not steal credentials, probe other accounts, exploit vulnerabilities, bypass access controls, distribute malware or disrupt the service. Do not evade plan limits, automate abusive traffic or scrape protected content without permission. Report a suspected weakness privately with minimal evidence that avoids other users’ data."
+      },
+      {
+        "title": "Content and conduct",
+        "body": "Do not post unlawful, threatening, harassing, hateful, sexually exploitative, deceptive or rights-infringing material. Do not expose someone’s private financial or contact information without authority. Do not manipulate users through fabricated returns, guaranteed-profit promises, phishing or impersonation."
+      },
+      {
+        "title": "Messages and promotion",
+        "body": "Do not send spam, unsolicited bulk promotions or repeated unwanted messages. Clearly disclose commercial relationships and affiliate links. Respect recipient choices and community moderation. Do not use the service to coordinate market manipulation or promote unlawful financial activity."
+      },
+      {
+        "title": "Subscriptions referrals and advertising",
+        "body": "Do not falsify purchases, create fraudulent accounts, stuff referral identifiers, overwrite attribution or abuse chargebacks. Do not click your own ads, automate impressions, encourage artificial clicks to support the app or reward ordinary ad interaction. Advertising and affiliate revenue programmes have separate rules."
+      },
+      {
+        "title": "Enforcement and reports",
+        "body": "We may restrict or remove offending content, limit features, suspend an account or take other proportionate action for misuse, security risk or legal duty. We may preserve evidence where necessary. Where permitted, contact h82292245@gmail.com to request review of an action, giving the affected record and your explanation. Mandatory rights and legal reporting obligations remain unaffected."
+      }
+    ]
+  },
+  {
+    "id": "community",
+    "group": "Terms and safety",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "These guidelines apply to posts, profiles, comments, messages, shared records and other community participation on Alphajournal.",
+    "title": "Community Guidelines and Content Policy",
+    "source": "09_Community_Guidelines_and_Content_Policy.docx",
+    "sections": [
+      {
+        "title": "Respectful participation",
+        "body": "Discuss ideas without threats, abuse, discriminatory attacks or targeted harassment. Do not expose private information or encourage others to harass a person. Users may disagree on markets and strategies; disagreement does not justify personal abuse. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Honest financial content",
+        "body": "Do not fabricate trading results, hide material assumptions or present hypothetical records as verified live performance. Do not promise guaranteed returns, impersonate a regulated adviser or use the community to organise manipulation. Explain uncertainty and the basis of a claim. Community content is not personalised investment advice."
+      },
+      {
+        "title": "Commercial disclosures",
+        "body": "Disclose sponsorship, commissions, affiliate links and other material financial interests clearly near the relevant content. Do not disguise advertising as an independent recommendation or system alert. An ad or paid placement does not mean Alphajournal approves the promoted product."
+      },
+      {
+        "title": "Rights and privacy",
+        "body": "Share only material you own or have permission to publish. Remove account numbers, credentials and unnecessary third-party data from screenshots and attachments. Check visibility before posting. Public content may be copied by other people, and deletion cannot recall those copies."
+      },
+      {
+        "title": "Spam and harmful activity",
+        "body": "Do not post scams, phishing links, malware, unsolicited bulk messages, illegal content or repeated promotional material. Do not exploit children or share sexual abuse material. Use report and block controls where available; contact h82292245@gmail.com if the relevant tool is unavailable."
+      },
+      {
+        "title": "Reporting and review",
+        "body": "Provide the content link or identifier, approximate time and a concise description. Preserve a redacted screenshot if helpful without amplifying private or harmful content. Reports are reviewed in context and may result in removal, reduced access or account restrictions. A report is not a guarantee of immediate removal. We may preserve evidence for security or legal purposes."
+      },
+      {
+        "title": "Appeals and repeat violations",
+        "body": "If you believe moderation was mistaken, contact h82292245@gmail.com with the affected record, any case reference and your explanation. We may limit details where disclosure could expose another person or compromise an investigation. Repeated or serious abuse can lead to suspension or termination under the Terms, without limiting mandatory rights."
+      }
+    ]
+  },
+  {
+    "id": "affiliate-agreement",
+    "group": "Affiliate programme",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "These terms apply to approved Alphajournal partners and the referral activities covered by the current programme terms accepted in their workspace.",
+    "title": "Affiliate Program Agreement",
+    "source": "10_Affiliate_Program_Agreement.docx",
+    "sections": [
+      {
+        "title": "Joining the programme",
+        "body": "An application does not itself create an approved partnership. You must provide accurate information, meet eligibility checks and accept the programme terms made available to you. Approval and account access can be limited by jurisdiction or operational requirements. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Independent relationship",
+        "body": "You act independently and are not an employee, agent, investment adviser or authorised representative of Alphajournal. You cannot bind us, promise product capabilities or offer unapproved commercial terms. You are responsible for your promotional channels, required permissions and applicable obligations."
+      },
+      {
+        "title": "Referral links and privacy",
+        "body": "Use your assigned code and authorised campaign links. Automatic tracking depends on the user’s affiliate choice, attribution window, device and supported flow. A user may instead deliberately enter an eligible code during signup. Rejection, expiry, clearing storage or changing devices can prevent attribution. Do not bypass choices through fingerprinting, hidden redirects or cookie stuffing."
+      },
+      {
+        "title": "Qualifying activity and rates",
+        "body": "Only transactions that qualify under the accepted programme schedule earn commission. The rate, qualifying revenue, attribution rule, exclusions, hold period and payout conditions shown in that schedule govern the calculation. We do not promise a universal rate or that every click, signup or purchase earns a commission. Keep a copy of the terms you accept."
+      },
+      {
+        "title": "Honest promotion",
+        "body": "Clearly disclose that a qualifying referral may earn you commission. Use current approved product claims and brand assets. Do not promise investment returns, misrepresent regulatory approval or advertise planned integrations as live. Follow the Marketing Guidelines and the rules of each channel you use."
+      },
+      {
+        "title": "Prohibited conduct",
+        "body": "Self-referral, false accounts, payment fraud, forced redirects, attribution manipulation, spam and misleading offers are prohibited. Do not purchase brand-keyword ads or use our marks in a domain or account identity without authorisation. Do not generate invalid AdSense traffic through the affiliate programme."
+      },
+      {
+        "title": "Adjustments and payout",
+        "body": "Refunds, chargebacks, duplicate transactions, invalid referrals and other disqualifying events can reverse or reduce commission under the accepted schedule. Estimated and pending amounts are not guaranteed settled earnings. Payout requires completed eligibility, tax and destination checks and the applicable threshold. See the Commission Payout and Tax Policy."
+      },
+      {
+        "title": "Review suspension and termination",
+        "body": "We may review suspicious activity, hold disputed amounts or suspend access for a documented programme, security or legal reason. Where permitted, we will provide a reason and an opportunity to respond. Contact h82292245@gmail.com with affected referral or statement references for a review. Ending participation does not erase legitimate accounting, tax or dispute records."
+      },
+      {
+        "title": "Changes and contact",
+        "body": "A material rate or programme change must be communicated through the applicable acceptance or notice process. New terms do not convert an unqualified historical event into a promised payment. Contact h82292245@gmail.com for programme questions. Mandatory legal rights remain unaffected."
+      }
+    ]
+  },
+  {
+    "id": "affiliate-marketing",
+    "group": "Affiliate programme",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "These guidelines help affiliates describe Alphajournal accurately and disclose commercial relationships clearly.",
+    "title": "Affiliate Marketing and Brand Guidelines",
+    "source": "11_Affiliate_Marketing_and_Brand_Guidelines.docx",
+    "sections": [
+      {
+        "title": "Identify the relationship",
+        "body": "Place a clear affiliate or sponsored disclosure near the recommendation and link. Tell the audience that you may receive commission for a qualifying referral. Do not rely on a distant profile statement or hidden hashtag to explain a material commercial connection. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Use accurate claims",
+        "body": "Describe only features, pricing and availability that are currently offered to the relevant audience. Distinguish a preview or planned service from a live capability. Do not make guarantees about returns, execution, market-data latency, uptime, regulatory approval or refunds without an authorised and accurate basis."
+      },
+      {
+        "title": "Use of brand assets",
+        "body": "Use authorised names and assets without implying that you are Alphajournal or an official support channel. Do not create confusing domains, account names, app listings or modified logos. Stop using assets when authorisation ends. Request permission before making a material adaptation or a new use of our brand."
+      },
+      {
+        "title": "Channels and recipient choices",
+        "body": "Comply with the advertising, privacy and communication rules applicable to each channel and audience. Do not send unsolicited bulk messages, hide redirects or collect credentials. Respect unsubscribes and blocking. Use assigned referral links and authorised campaign parameters without overwriting another partner’s attribution."
+      },
+      {
+        "title": "Financial and sponsored content",
+        "body": "Do not turn a software referral into an unqualified investment recommendation. Do not display fabricated trading outcomes or imply that users will recover subscription costs through profits. Explain risks and disclose sponsorship. Google AdSense and affiliate promotion are separate programmes; neither implies Google endorsement of Alphajournal."
+      },
+      {
+        "title": "Monitoring and corrections",
+        "body": "Keep the claims and offers in your active campaigns current. Correct inaccurate material promptly when notified. Report impersonation, copied promotions or suspicious attribution to h82292245@gmail.com with a link and description. We may require removal of misleading uses of the brand under the programme terms."
+      }
+    ]
+  },
+  {
+    "id": "affiliate-payouts",
+    "group": "Affiliate programme",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "This policy explains how to interpret affiliate balances, request payment and resolve payout or tax questions under your accepted programme schedule.",
+    "title": "Affiliate Commission Payout and Tax Policy",
+    "source": "12_Affiliate_Commission_Payout_and_Tax_Policy.docx",
+    "sections": [
+      {
+        "title": "Commission states",
+        "body": "A tracked event may be pending, qualified, approved, reversed or paid. An estimate is not a settled entitlement. The accepted schedule determines the rate, eligible revenue, exclusions and qualification conditions. Refunds, chargebacks and invalid referrals can adjust an amount. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Statements and evidence",
+        "body": "Review the relevant transaction or referral reference, gross commission, adjustments, deductions and net amount. Retain statements and payment confirmations for your records. An internal status label is not independent proof that a bank transfer settled. Report discrepancies with the affected references rather than sending full payment credentials."
+      },
+      {
+        "title": "Payout eligibility",
+        "body": "Payment may require approval, completed identity and tax information, a supported destination and the threshold or timing specified in your accepted schedule. Provide accurate information through the designated workflow. Do not submit another person’s bank or tax details without authority. Available payment rails can vary by region and account status."
+      },
+      {
+        "title": "Tax treatment",
+        "body": "You are responsible for your own tax reporting and professional advice. Alphajournal will apply deductions and issue or make available supporting records where required by the law applicable to the payment and recipient. No universal withholding rate is promised here; rates and treatment can depend on law, thresholds, residency and documentation. An in-app estimate is not a statutory tax certificate."
+      },
+      {
+        "title": "Requests settlement and failures",
+        "body": "Follow the payout request and review steps shown in the workspace. A request is not a guarantee of immediate transfer. Bank or provider processing, verification and operational reviews can affect completion. If a transfer fails, provide corrected details through the supported secure route and refer to the original request so the ledger can be reconciled."
+      },
+      {
+        "title": "Disputes and fraud review",
+        "body": "Email h82292245@gmail.com with the statement or payout reference and a concise explanation. We may hold an affected amount while investigating suspected fraud, duplicate credit, a refund or a legal obligation. Where permitted, we will explain the decision and correction. We do not silently treat every disputed amount as forfeited."
+      },
+      {
+        "title": "Advertising revenue and termination",
+        "body": "Google AdSense publisher earnings are separate from affiliate commission unless an accepted programme schedule expressly includes them. Do not combine estimated ad earnings with settled affiliate balances. On termination, qualified amounts and retained records remain subject to the accepted agreement, lawful adjustments and required tax or accounting duties."
+      }
+    ]
+  },
+  {
+    "id": "account-deletion",
+    "group": "Account and support",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "This policy explains how to request account closure, review the scope of deletion and understand information that may remain for limited purposes.",
+    "title": "Account Deletion and Data Retention Policy",
+    "source": "13_Account_Deletion_and_Data_Retention_Policy.docx",
+    "sections": [
+      {
+        "title": "Requesting deletion",
+        "body": "Open Privacy settings and follow the available account-deletion flow. Review the selected account, content categories and confirmation carefully before submitting. If the control is unavailable or you cannot access the account, email h82292245@gmail.com with the subject Account deletion request. We may require proportionate identity verification to prevent unauthorised deletion. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Export before deletion",
+        "body": "Use an available export function and inspect the downloaded result before confirming a destructive action. Request help for records not covered by an export. A request to export is not proof that an archive was generated, delivered or is complete. Preserve receipts and other records you need for your own obligations."
+      },
+      {
+        "title": "Scope and request status",
+        "body": "The request screen identifies available content categories and timing choices. A submitted request may require processing and verification; it is not an immediate confirmation that all records have been erased. Check the displayed status and any completion notice. A delayed or grace option applies only when actually offered, and restoration or cancellation is available only if the workflow supports it."
+      },
+      {
+        "title": "Content and shared copies",
+        "body": "Deletion can affect profile and workspace content, attachments, community material and other selected categories. Some messages or shared material may have copies held by recipients or independent external sites. We cannot recall screenshots or independent copies. Records needed to handle an abuse report or legal dispute may be retained for that limited purpose."
+      },
+      {
+        "title": "Records that may remain",
+        "body": "We may retain limited invoices, transaction or tax records, security events, fraud evidence and dispute information where necessary for an applicable legal obligation or legitimate operational protection. Retained information is restricted to its stated purpose rather than ordinary marketing use. Retention depends on the category, legal obligation and unresolved matter; we will explain relevant exceptions in the request response where permitted."
+      },
+      {
+        "title": "Backups local storage and providers",
+        "body": "Removal from active systems and expiry from backups can occur on different cycles. Service providers may also need to process relevant removal requests. Browser or device storage, including unsynchronised drafts, is separate from server records. Clearing it can erase local work and preferences. Third-party domain cookies may require browser or provider controls."
+      },
+      {
+        "title": "Billing installation and consent",
+        "body": "Cancel renewals through the relevant store or billing provider; deletion or uninstall does not itself cancel a subscription. Removing the browser app does not delete your server account. Rejecting cookies stops future optional processing under the connected controls and does not erase all historical information. For a separate privacy request, contact h82292245@gmail.com."
+      },
+      {
+        "title": "Issues and follow-up",
+        "body": "Keep the request reference and any completion message. If data you expected to be removed remains accessible, report the affected record and context without republishing it. We may need to distinguish a retained legal record, a recipient copy, cached display or a processing error. Mandatory privacy and consumer rights remain available."
+      }
+    ]
+  },
+  {
+    "id": "security",
+    "group": "Account and support",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "This policy explains account-safety expectations, responsible reporting and how Alphajournal approaches security-related communication.",
+    "title": "Security and Incident Communication Policy",
+    "source": "14_Security_and_Incident_Communication_Policy.docx",
+    "sections": [
+      {
+        "title": "Security responsibility",
+        "body": "We use access controls and service safeguards appropriate to the functions provided and review reported weaknesses. No system is completely secure and no independent certification, uninterrupted service or guaranteed breach prevention is asserted by this policy. Effective date: 9 November 2026."
+      },
+      {
+        "title": "Protect your account",
+        "body": "Use a strong unique password, keep verification codes and session information private, and review the account you are using before sharing or exporting records. Use additional authentication controls where available. Sign out on shared devices. Do not store broker secrets, payment credentials or private keys in journals, public posts or support messages."
+      },
+      {
+        "title": "Permissions and access",
+        "body": "Only grant permissions needed for the feature you intend to use. Review external integration scopes and revoke access through supported controls when no longer needed. A browser installation is not a request for broad device access. Staff and service access should be limited to authorised operational purposes; contact us if you suspect inappropriate access."
+      },
+      {
+        "title": "Reporting a vulnerability",
+        "body": "Email h82292245@gmail.com with the subject Security report. Include the affected feature, time, reproduction steps and minimal redacted evidence. Do not access another person’s records, disrupt availability, extract bulk data or publicly disclose exploit details while investigation is pending. This reporting route does not authorise testing against third-party services."
+      },
+      {
+        "title": "Incident assessment and response",
+        "body": "We assess reports, investigate relevant evidence and take steps appropriate to the incident, such as restricting access, correcting a defect, revoking credentials or restoring service. We may withhold details that would expose another user or compromise an investigation. Response and notification duties depend on the facts, contracts and applicable law."
+      },
+      {
+        "title": "Communication with affected users",
+        "body": "Where notice is required or appropriate, we will explain the known nature of the issue, affected information where determined, actions taken and steps users can take. We will not knowingly present an unverified incident as resolved. No fixed response or notification deadline is promised beyond applicable obligations. Use the contact above for follow-up and reference an existing case where available."
+      },
+      {
+        "title": "Unsafe ads and impersonation",
+        "body": "Report suspicious ads, fake support messages and copied sites with a redacted screenshot and destination if safely available. Do not click unsafe ads to investigate them. Alphajournal support does not need your password or one-time code. For unauthorised payments or immediate threats, contact the relevant financial institution or emergency service directly."
+      }
+    ]
+  },
+  {
+    "id": "publication-guide",
+    "group": "Publication resources",
+    "updated": "2026-11-09",
+    "status": "Release resource",
+    "intro": "A service reference for maintaining accurate product information, user policies, commercial offers and release records for Alphajournal.",
+    "title": "Product Operations and Publication Guide",
+    "source": "15_Product_Operations_and_Publication_Guide.docx",
+    "sections": [
+      {
+        "title": "Service identity and contacts",
+        "body": "Alphajournal is the service name supplied by the operator. The current support, privacy and security contact is h82292245@gmail.com. Use clear subjects and provide only the information necessary for the request. The policies are available in the help centre with their current dates; no unverified registered address, certification or named statutory officer is asserted here."
+      },
+      {
+        "title": "Customer journeys",
+        "body": "Users can access the help centre, read policies, manage browser choices and view installation instructions without creating an account. Authenticated workspaces offer the features available to their role and plan. Purchase, data export, account deletion and integration status must be based on actual confirmations, not local selections or a successful button press alone."
+      },
+      {
+        "title": "Commercial accuracy",
+        "body": "Publish the actual price, tax treatment, renewal cycle, cancellation method, plan limits and advertising treatment at purchase. Affiliate rates and payout rules come from the accepted programme schedule. Do not use one generic withholding rate for every partner or describe a local ledger state as external settlement. Any change to a commercial promise must be reflected in the relevant checkout, agreement and support guidance."
+      },
+      {
+        "title": "Free version and advertising",
+        "body": "Google AdSense is the selected provider for planned free-version advertising. It is not connected by this release. Enabling ads requires publisher setup, applicable certified CMP configuration, accurate provider disclosures, permitted placements and entitlement checks. Keep ads out of authentication, private content, billing, deletion and security workflows. Do not pass private trading records or account details as targeting information."
+      },
+      {
+        "title": "Consent and installation",
+        "body": "Optional analytics, advertising, personalisation and automatic attribution default off. The cookie choice is versioned and expires after 180 days. Browser installation is optional and independent of consent or payment. Suggestions follow browser eligibility and a seven-day dismissal cooldown. Unsupported browsers receive manual guidance; installation does not guarantee offline work or notifications."
+      },
+      {
+        "title": "Support and privacy operations",
+        "body": "Support uses the published contact. A ticket form sends only when a delivery service is connected; opening an email draft is not a sent message. Handle privacy and deletion requests with proportionate verification, a record of the requested scope and an explanation of lawful retention exceptions. Do not publish response deadlines, backup expiry periods or service guarantees that the actual operation cannot support."
+      },
+      {
+        "title": "Publishing and change management",
+        "body": "Keep all policy readers and exported documents aligned with the current authored source. Record version, date, material changes and the responsible release owner. Archive prior versions needed for acceptance or dispute evidence. A material new optional processing purpose needs an updated notice and a fresh choice where required. Product guides and technical references are distinguished by their content rather than repeated status labels in the library."
+      },
+      {
+        "title": "Release verification",
+        "body": "Test public help links, search, document navigation, mobile text scaling, keyboard access, consent persistence and withdrawal, automatic attribution, install event lifecycle and storage failures. For payments or ads, additionally verify real provider callbacks, entitlements, regional consent and network payloads in a controlled environment. Do not click live ads to test revenue. Review material legal and operational changes with the appropriate qualified advisers."
+      }
+    ]
+  },
+  {
+    "id": "advertising",
+    "group": "Privacy and advertising",
+    "updated": "2026-11-09",
+    "status": "Policy",
+    "intro": "How advertising may fund the free Alphajournal workspace, what users can control, and how commercial messages are distinguished from product content.",
+    "title": "Advertising and Sponsored Content Policy",
+    "source": "16_Advertising_and_Sponsored_Content_Policy.docx",
+    "sections": [
+      {
+        "title": "Planned service",
+        "body": "Google AdSense is the selected advertising provider for a future free-version rollout. No AdSense publisher tag or ad requests are enabled by this implementation. Inventory, regional eligibility and paid-plan treatment must be confirmed before activation. A cookie choice alone does not activate an advertising service."
+      },
+      {
+        "title": "Where advertisements may appear",
+        "body": "Use clearly labelled Advertisement or Sponsored placements in approved general-content areas. Do not place ads in sign-in, billing, deletion, consent, private messages, journal editors, private research, AI conversations, sensitive financial views or security workflows. Keep distance from navigation and destructive controls to prevent accidental clicks. Placement must not cover content, imitate alerts or interrupt saving work."
+      },
+      {
+        "title": "Information and consent",
+        "body": "Before enabling AdSense, disclose data sent to Google, all active storage, geographic processing and controls. Optional advertising defaults off. Personalisation additionally requires its own affirmative choice. Non-personalised ads can still need storage and consent. A certified Google CMP is a deployment dependency in the regions covered by Google requirements. The product preference screen does not replace that CMP."
+      },
+      {
+        "title": "Protected workspace information",
+        "body": "Never pass private account data, holdings, balances, journal or note text, uploaded documents, messages, AI prompts, credentials, tax identifiers or payout details as ad parameters. Do not place AdSense on private-content routes where page scanning could expose such information. Validate the actual network payloads, URLs and referrers, not only source-level configuration."
+      },
+      {
+        "title": "Your controls",
+        "body": "Open Help and policies, then Cookie preferences. You may reject all optional processing, permit advertising without personalisation, or change your choices later. Essential account use remains available. Changes apply on this device. Google provides additional controls at https://myadcenter.google.com/ and information at https://policies.google.com/technologies/partner-sites. These external controls supplement the app choices."
+      },
+      {
+        "title": "Commercial independence",
+        "body": "An ad is not a recommendation, verification of a broker or promise of returns. Advertisers control the destinations of their ads. Review their terms and privacy practices before sharing information or transacting. Paid partners and community sponsors must disclose their relationship near the relevant content."
+      },
+      {
+        "title": "Free and paid plans",
+        "body": "The free version may carry ads when enabled. The checkout must state the advertising treatment of every paid plan. We do not promise an ad-free paid experience until the plan and delivery system enforce it. Browser installation does not change your plan, ad eligibility or privacy choices."
+      },
+      {
+        "title": "Invalid traffic and reports",
+        "body": "Do not repeatedly click ads, use automation to inflate impressions, encourage clicks to support the app or reward ordinary ad interaction. Report deceptive or unsafe ads to h82292245@gmail.com with a screenshot, destination if safely available and approximate time. Do not click a suspicious ad to gather evidence. The team should review blocked categories and placements and escalate provider reports."
+      },
+      {
+        "title": "Changes and rollout",
+        "body": "Notify users before a material new ad purpose or provider becomes active and renew choices where required. Publish the provider inventory and approved effective date with the release. Keep records of ad-network and CMP configuration changes. For privacy concerns, email h82292245@gmail.com."
+      }
+    ]
+  },
+  {
+    "id": "install",
+    "group": "Getting started",
+    "updated": "2026-11-09",
+    "status": "Guide",
+    "intro": "Install a browser-managed Alphajournal app when your browser supports it, or continue using the same service in a browser tab.",
+    "title": "Browser App Installation and Device Guide",
+    "source": "17_Browser_App_Installation_and_Device_Guide.docx",
+    "sections": [
+      {
+        "title": "Before installation",
+        "body": "Open the legitimate Alphajournal site in a supported browser over HTTPS. Use the same account you normally use. Installation is optional and does not cost money, buy a subscription, accept cookies or grant notification, microphone or file permissions. The website remains usable without installation."
+      },
+      {
+        "title": "Chrome and Edge",
+        "body": "When the browser makes installation available, the app can show Install Alphajournal. Choose Install app to open the browser confirmation, then follow the browser instructions. You can also look for Install app in the address bar or browser menu. Menu labels vary by browser and operating system. A missing install action is not evidence that your account has a problem."
+      },
+      {
+        "title": "iPhone and iPad",
+        "body": "Open the site in Safari, use Share and choose Add to Home Screen where available, then confirm the name and add it. If you are inside a social or email app browser, first open the page in Safari. Browser and OS versions can change the available options; use their current installation guidance."
+      },
+      {
+        "title": "Mac and other browsers",
+        "body": "Supported Safari versions offer Add to Dock from the File menu. Other browsers may offer a site shortcut rather than a full installed web app. Use the browser menu if no automatic prompt is available. Native application downloads and app-store availability are separate from browser installation."
+      },
+      {
+        "title": "Dismiss and try later",
+        "body": "Choose Not now to suppress automatic install suggestions for seven days on this browser. Help and policies still provides installation guidance and a manual install button when a browser event is available. An accepted browser prompt is not shown as a confirmed installation until the browser reports installation. Standalone windows suppress the suggestion."
+      },
+      {
+        "title": "Connectivity and updates",
+        "body": "Signing in, syncing, fetching account data and most workspace operations require a network connection. This release does not promise offline editing or background synchronisation. Keep important work saved and verify sync before disconnecting. Updates normally load from the hosted service; reload after saving if an update is available. Do not clear storage to fix an issue before checking for unsynchronised work."
+      },
+      {
+        "title": "Permissions and notifications",
+        "body": "Installing does not grant notifications, microphone, camera or file access. Grant a permission only when intentionally using a feature that needs it. Browser and OS settings control revocation. A website permission and an in-app notification preference may both be required; neither is advertising consent."
+      },
+      {
+        "title": "Uninstall and account deletion",
+        "body": "Use your operating system or browser app manager to remove the installed app or shortcut. This does not cancel a subscription or delete the server account. To delete account data, use the in-app deletion controls and review the retention policy. Site data can remain after uninstall; clearing it can remove local settings and unsynchronised content."
+      },
+      {
+        "title": "Troubleshooting",
+        "body": "If Install app is unavailable, check whether the app is already installed, open it in a regular browser window instead of an embedded or private browser, and try the browser menu. Organisation-managed devices can restrict installation. If installation fails, continue in the browser and send a redacted description with browser and OS versions to h82292245@gmail.com."
+      }
+    ]
+  },
+  {
+    "id": "user-guide",
+    "group": "Getting started",
+    "updated": "2026-11-09",
+    "status": "Guide",
+    "intro": "A practical starting point for using Alphajournal, finding controls and understanding the limits of the workspace.",
+    "title": "Workspace User Guide and Frequently Asked Questions",
+    "source": "18_Workspace_User_Guide_and_FAQ.docx",
+    "sections": [
+      {
+        "title": "Start with your account",
+        "body": "Create or sign in to your account, review your profile and choose the appropriate workspace. Use a unique password and keep verification messages private. Feature access depends on your account role, current plan and deployment. A visible preview does not prove that a connected service is live."
+      },
+      {
+        "title": "Record and review trades",
+        "body": "Open the journal area and record the instrument, direction, entry and exit information, size, fees and review notes supported by the form. Verify currencies, time zones and imported values before relying on summaries. Use consistent tags and strategies so later review is useful. A journal entry records analysis; it is not a broker order."
+      },
+      {
+        "title": "Research notes and strategies",
+        "body": "Use notes for research and strategies for a repeatable plan. Review visibility before publishing or sharing. Keep passwords, brokerage credentials and third-party confidential material out of notes and attachments. Confirm that saved changes appear in the intended account before closing a session."
+      },
+      {
+        "title": "Charts and AI tools",
+        "body": "Check source, time, units and market availability before interpreting charts. AI may produce incorrect facts, calculations and assumptions. Review output and verify it independently. Sending a prompt to an enabled external AI service is separate from storing a local journal entry; consult the provider disclosure before sending confidential data."
+      },
+      {
+        "title": "Community and messages",
+        "body": "Choose what to share, check audience settings and follow the Community Guidelines. Public posts can be copied by other people. Use available report or block actions for spam and abuse. Avoid sending money, credentials or identity documents in response to unsolicited investment messages."
+      },
+      {
+        "title": "Settings and personalisation",
+        "body": "Appearance changes theme and density where supported. Notification settings control product preferences; device permissions are separate. Privacy settings control available visibility, export and deletion options. Help and policies contains the complete document library, cookie preferences, installation guide and contact details."
+      },
+      {
+        "title": "Free access and billing",
+        "body": "Free access may be supported by Google AdSense after rollout. Review the actual checkout for limits, taxes, renewal and ad treatment. Do not infer payment success from a selected plan. For a missing entitlement, preserve the receipt and contact support; do not pay again simply because the interface has not refreshed."
+      },
+      {
+        "title": "Why was my work not saved",
+        "body": "Check connectivity and whether you are signed in to the expected account. Keep the unsaved text and retry the explicit save action if present. Do not clear site data or uninstall while unsynchronised work is important. Report the affected screen, time and any visible error without sending sensitive records."
+      },
+      {
+        "title": "How do I export or delete data",
+        "body": "Open Privacy settings and use the available export and deletion controls. Review the deletion scope and confirmation carefully. Download and inspect any export before destructive actions. Billing cancellation and account deletion are separate. If a control is unavailable, request help at h82292245@gmail.com; response timing and identity verification depend on the request and applicable law."
+      },
+      {
+        "title": "How do I change cookies or install the app",
+        "body": "Use Cookie preferences in Help and policies to save or reject optional choices. To install, use Install app when available or read the browser-specific instructions. Neither installation nor cookie acceptance upgrades your plan. Choices are local to a browser or device."
+      },
+      {
+        "title": "Where can I get help",
+        "body": "Search this library by topic or policy text. For assistance email h82292245@gmail.com with the screen, problem, expected behaviour, time and device details. Support does not ask for passwords or one-time codes. No guaranteed response SLA or market-data performance is implied by this guide."
+      }
+    ]
+  },
+  {
+    "id": "support",
+    "group": "Account and support",
+    "updated": "2026-11-09",
+    "status": "Guide",
+    "intro": "Use the following routes to report a problem, dispute a transaction, request privacy assistance or report harmful content.",
+    "title": "Support Complaints and Privacy Requests",
+    "source": "19_Support_Complaints_and_Privacy_Requests.docx",
+    "sections": [
+      {
+        "title": "Current contact",
+        "body": "Email h82292245@gmail.com for support, privacy, advertising and security concerns. Use a clear subject such as Account support, Billing review, Privacy request, Security report or Advertising report. This mailbox is the current contact supplied by the operator; no delivery or response-time guarantee is implied."
+      },
+      {
+        "title": "Information to include",
+        "body": "Include the account email if needed to locate your account, affected screen, date and time, device and browser version, reproduction steps and expected outcome. For billing include a transaction reference and a redacted receipt. Do not include passwords, session tokens, one-time codes, full card or bank numbers, or unnecessary trading records."
+      },
+      {
+        "title": "Support form availability",
+        "body": "The in-app ticket form sends only when a support service has been connected. A disabled form is not a submitted ticket. A failed request should retain your message for retry. Opening an email draft does not send it; review and send it in your email app. If no email app opens, copy the contact address."
+      },
+      {
+        "title": "Privacy requests",
+        "body": "Describe whether you need access, correction, export, erasure, consent withdrawal or help with visibility. We may ask for proportionate identity verification using a secure route. Never send identity documents unsolicited to a general mailbox. Request scope, applicable rights, exceptions and timelines must be assessed under the law that applies to you."
+      },
+      {
+        "title": "Complaints and escalation",
+        "body": "Keep your original correspondence and reference any case identifier in follow-ups. Explain why a previous response did not resolve the issue and the outcome you seek. The current contact above handles complaints and privacy requests. Applicable statutory complaint and response rights remain available. This process does not limit statutory consumer or regulatory remedies."
+      },
+      {
+        "title": "Security and urgent issues",
+        "body": "For suspected compromise, stop sharing credentials, change passwords through trusted controls and contact support. Report vulnerabilities privately with minimal proof that avoids other users data. This mailbox is not an emergency service. Contact relevant emergency or financial institutions directly for immediate threats or unauthorised payments."
+      },
+      {
+        "title": "Handling and retention",
+        "body": "Support information should be restricted to staff and processors resolving the case. Preserve only the evidence needed for resolution and applicable legal duties. Confirm retention periods and escalation ownership before publishing a fixed promise. Requests to remove a support record may be limited by an ongoing dispute or statutory retention requirement."
+      }
+    ]
+  },
+  {
+    "id": "accessibility",
+    "group": "Account and support",
+    "updated": "2026-11-09",
+    "status": "Guide",
+    "intro": "Adjust the experience and understand what device access means before granting it.",
+    "title": "Accessibility and Device Permissions Guide",
+    "source": "20_Accessibility_and_Device_Permissions_Guide.docx",
+    "sections": [
+      {
+        "title": "Reading and navigation",
+        "body": "Use browser zoom, system text sizing, keyboard navigation and your screen reader as appropriate. The help library uses headings, labelled controls and expandable sections. If content is clipped or a control is difficult to reach, report the screen, device, text scale and assistive technology to h82292245@gmail.com. No independent accessibility certification is claimed."
+      },
+      {
+        "title": "Theme and motion",
+        "body": "Use the appearance controls offered by the app and system accessibility preferences. Contrast, focus and motion should be checked in both light and dark themes at release. Installation prompts and cookie choices should remain readable on small screens and at larger text sizes."
+      },
+      {
+        "title": "Microphone and speech",
+        "body": "A supported dictation or voice feature may request microphone access when you invoke it. Review the permission prompt and any speech-processing disclosure. Declining should leave typed input available where the feature supports it. Revoke microphone access in browser or OS settings when no longer needed."
+      },
+      {
+        "title": "Files and attachments",
+        "body": "A file picker gives access to the selected file or files; review what you select before upload. Attachments may contain names, account numbers or hidden metadata. Remove sensitive information before sharing and check the destination visibility. Do not grant broad access merely to read a policy or install the browser app."
+      },
+      {
+        "title": "Notifications",
+        "body": "Notification preferences in the app do not override browser or OS permission. Grant permission only when you want supported notifications. Delivery can be affected by connectivity, battery settings, permissions and platform restrictions. Do not depend on notifications as a guaranteed trading or risk alert service."
+      },
+      {
+        "title": "Location camera and advertising identifiers",
+        "body": "No blanket location or camera permission is required to read help or use cookie choices. Any future feature using additional access needs a clear purpose at the point of request. A browser consent screen is not iOS App Tracking Transparency permission and must not be presented as granting it."
+      },
+      {
+        "title": "Revocation and shared devices",
+        "body": "Use browser site settings or OS application settings to review permissions. Sign out on shared devices and avoid saving credentials. Clearing storage may erase unsynchronised work and consent preferences. Revoking a device permission does not delete server-side content or cancel billing."
+      }
+    ]
+  },
+  {
+    "id": "storage-register",
+    "group": "Publication resources",
+    "updated": "2026-11-09",
+    "status": "Release resource",
+    "intro": "A repository-based inventory and deployment worksheet for verifying the public notices. This is a release resource, not a completed production processor register.",
+    "title": "Storage Vendor and Retention Register",
+    "source": "21_Storage_Vendor_and_Retention_Register.docx",
+    "sections": [
+      {
+        "title": "Consent preference",
+        "body": "SharedPreferences key alphajournal_consent_v1; owner Alphajournal; purpose remember optional choices; fields schema version, UTC saved time, analytics, advertising, personalised ads and affiliate choice; validity 180 days; renewed on a saved choice; rejection does not delete the necessary preference record. Browser key names may be prefixed flutter. Verify the built app storage backend."
+      },
+      {
+        "title": "Install suggestion",
+        "body": "Web local-storage key alphajournal_install_dismissed_v1; owner Alphajournal; value last dismissal time; purpose avoid repeated installation prompts; suppression seven days; physical timestamp retained until overwritten or cleared. No third-party request is made by app_install.js."
+      },
+      {
+        "title": "Affiliate attribution",
+        "body": "SharedPreferences affiliate_attribution_v1 and affiliate_visitor_v1; purpose optional automatic referral attribution and campaign click measurement; valid referral window less than 30 days; removal on rejection or withdrawal, invalid or expired attribution, and completed conversion. Manual signup codes remain a separate user-requested input. Verify server click records and their retention separately."
+      },
+      {
+        "title": "Authentication and workspace preferences",
+        "body": "Source auth_session_storage.dart uses auth_session_user_id, auth_session_email, auth_session_role, auth_session_profile, auth_session_affiliate_profile, auth_session_token, auth_session_timestamp, auth_has_seen_onboarding, app_scaffold_last_destination and auth_workspace_role_<userId>. The authentication SDK may use additional session storage. These are account/session or requested preference records, not advertising categories. Do not publish an invented uniform expiry: test logout, refresh, account switching, deletion and SDK behaviour."
+      },
+      {
+        "title": "Workspace caches and content",
+        "body": "The repository includes local workspace preferences and caches such as tradex_affiliate_workspace_v2_inr, note drafts and other feature-specific records. Enumerate actual local storage, IndexedDB, cookies and Cache Storage on clean production profiles. This list is a starting inventory, not an exhaustive deployment audit. Record each name, owner, purpose, data fields, storage mechanism, retention and removal trigger."
+      },
+      {
+        "title": "Google AdSense",
+        "body": "Planned; no tag currently enabled. Before rollout enter publisher ID, account owner, supported sites, processors, allowed locations, ad formats, active cookie names and durations observed in a production-like audit, CMP identity and version, regional rules, opt-out links and removal limits. Do not list example Google cookie names as observed facts."
+      },
+      {
+        "title": "Other providers",
+        "body": "The source includes Supabase-backed account/data services, payment integrations, Google Fonts and optional AI/external links. Configuration and actual traffic determine which vendors are live. Verify hosting, auth, email, billing, analytics, AI, content delivery and error reporting independently. Record legal vendor name, role, purpose, data, location, contract, retention and contact. Never copy credentials or secret environment values into this register."
+      },
+      {
+        "title": "Retention approval worksheet",
+        "body": "For account profiles, private content, public posts, messages, attachments, support tickets, security logs, consent evidence, referral clicks, invoices, affiliate tax records and backups, assign an owner and approve a duration or clear deletion criterion. Record legal basis, active-system purge, backup expiration, vendor deletion and verification. Unconfirmed periods remain release blockers, not promises to users."
+      },
+      {
+        "title": "Audit procedure",
+        "body": "Start with a clean browser and record storage and requests before interaction. Repeat reject, granular accept, all accept, withdrawal, refresh, expiry, sign-in, sign-out and installation. Inspect URLs and payloads for private data. Compare authenticated and public routes and paid/free eligibility. Capture browser version, build hash, time, observer and findings without retaining credentials."
+      }
+    ]
+  },
+  {
+    "id": "implementation",
+    "group": "Publication resources",
+    "updated": "2026-11-09",
+    "status": "Release resource",
+    "intro": "Engineering and operational requirements for the implemented choices and installation experience, and the remaining Google AdSense launch work.",
+    "title": "Consent Advertising and Installation Implementation Guide",
+    "source": "22_Consent_Advertising_and_Installation_Implementation_Guide.docx",
+    "sections": [
+      {
+        "title": "Architecture",
+        "body": "ConsentController owns local versioned choices through SharedPreferences. Optional categories fail closed when records are missing, corrupt, expired or from a different schema. CookiePreferencesDialog is shared by the first web visit and help centre. BrowserExperienceGate sequences the cookie notice before any eligible install suggestion. Native builds provide help without a browser installation prompt."
+      },
+      {
+        "title": "Future ad integration contract",
+        "body": "No advertising SDK is loaded by this release. Before adding one, create an adapter that waits for known local consent, required CMP approval, verified free-plan eligibility and a reviewed public-content route. Recheck permission before every request and stop listeners or tear down optional SDKs on withdrawal. Do not initialise vendor tags in index.html, preconnect to ad endpoints before choice or send cookieless pings on an assumed exemption. Keep optional requests off when eligibility or consent is unknown."
+      },
+      {
+        "title": "Google regional requirements",
+        "body": "Google requires a certified CMP integrated with its required TCF framework for covered publisher use in the EEA, UK and Switzerland. Check the current Google policy and the CMP product scope before launch. Configure consent messages, vendor purposes, regional handling, withdrawal entry point and required privacy signals. This local preference UI is not certified and does not issue a TC string. A CMP configuration needs network validation and production review."
+      },
+      {
+        "title": "Affiliate behaviour",
+        "body": "Automatic capture and load are gated by the affiliate choice. Reject and withdrawal remove attribution and visitor records. A referral carried in the current signup URL can be captured after an affirmative choice. Do not backfill pre-consent click events. Manual referral entry remains available as a deliberate user request. Check expiry and complete-conversion cleanup."
+      },
+      {
+        "title": "Install bridge",
+        "body": "web/app_install.js captures beforeinstallprompt before Flutter bootstrap, prevents the default browser promotion, stores the event and exposes snapshot, subscribe, prompt and dismiss methods. A direct user action calls prompt; each event is consumed once. appinstalled or standalone display confirms installed state. Seven-day dismissal is remembered when storage is available, and in-memory dismissal still works when it is blocked. Manual instructions cover browsers without the event."
+      },
+      {
+        "title": "Consent test matrix",
+        "body": "Verify no optional activity before a choice; equal accept/reject access; each category saves independently; personalisation cannot survive advertising rejection; choices survive reload; reject clears referral data; failures display errors and keep optional tracking off; corrupt, future-dated, expired and old-schema values are treated as unknown; closing does not grant consent; links work without sign-in; two browser profiles remain independent."
+      },
+      {
+        "title": "Installation test matrix",
+        "body": "Verify a late and an early beforeinstallprompt event, direct-button activation, one event consumed once, acceptance, dismissal, exception, appinstalled, standalone mode, blocked storage and a seven-day cooldown. Test desktop Chrome/Edge and manual Safari instructions on real target devices. Browser eligibility can depend on HTTPS, manifest validity, browser heuristics and user settings; a unit test alone does not certify installability."
+      },
+      {
+        "title": "Ad rollout acceptance",
+        "body": "Verify approved publisher account, active provider disclosures, correct CMP and region configuration, permitted placements, ads.txt where required, no private route scans or sensitive URL data, no ads on blocked or unknown entitlements, no requests after withdrawal, mobile layout and accessible ad labels. Monitor invalid traffic and use provider-supported testing; never click live ads to test revenue."
+      },
+      {
+        "title": "Documentation and versioning",
+        "body": "generate_documents.py and publication_expansion.py produce Word, Markdown and assets/legal/publication_library.json from a shared source. The app reads the JSON bundle, so policy content is available without a document download. Policies and guides carry their current update date. Keep accepted versions and publication history aligned with the service. Bump consent schema when new purposes require a new choice, archive old policy versions and record the build and approval owner."
+      },
+      {
+        "title": "Publication blockers",
+        "body": "Complete registered legal identity/address and grievance contact, retention schedule, processor register, terms venue/liability review, payment promises and affiliate tax/rate reconciliation. Configure support delivery and Google AdSense/CMP before describing them as live. Confirm the actual operating arrangements and obtain appropriate legal review for material legal changes. The current work implements product controls and user-facing policy content; it does not certify legal compliance or activate revenue."
+      },
+      {
+        "title": "Reference sources",
+        "body": "Reviewed 9 November 2026: Google publisher CMP requirements https://support.google.com/adsense/answer/13554116 ; Google partner-site privacy https://policies.google.com/technologies/partner-sites ; Google ads technologies https://policies.google.com/technologies/ads ; MDN installation event https://developer.mozilla.org/en-US/docs/Web/API/Window/beforeinstallprompt_event ; web.dev installation guide https://web.dev/learn/pwa/installation-prompt ; ICO storage and access guidance https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/guidance-on-the-use-of-storage-and-access-technologies/ . Recheck at deployment."
+      }
+    ]
+  },
+  {
+    "id": "release-notes",
+    "group": "Getting started",
+    "updated": "2026-11-09",
+    "status": "Guide",
+    "intro": "Changes prepared on 9 November 2026 for the help, policy, consent and browser installation experience. These notes describe repository changes, not a production deployment announcement.",
+    "title": "Help Centre Release Notes",
+    "source": "23_Help_Centre_Release_Notes.docx",
+    "sections": [
+      {
+        "title": "Document library",
+        "body": "The help centre now groups all 23 publication documents, supports full-text search and provides individual readable pages with section navigation. Public help links work without signing in. Source documents, reader assets and Markdown are generated together to reduce drift."
+      },
+      {
+        "title": "Privacy choices",
+        "body": "Added a versioned local preference record, reject-all and granular choices, a first-visit web notice and a persistent reopening action in help. Optional analytics, advertising, personalisation and affiliate attribution default off. Automatic affiliate attribution follows the saved choice."
+      },
+      {
+        "title": "Installation",
+        "body": "Added a browser-event installation bridge, user-triggered install action, a dismissible suggestion with a seven-day cooldown and platform-specific fallback instructions. The interface distinguishes unavailable prompts, accepted prompts and confirmed installation."
+      },
+      {
+        "title": "Support and accuracy",
+        "body": "Added the operator-provided support address and privacy-request instructions. Removed unsupported help-page production badges, release timing, market-latency and security claims. Existing ticket submission remains available only when a delivery callback is connected."
+      },
+      {
+        "title": "Still to configure",
+        "body": "Google AdSense serving, required certified CMP, production vendor/storage audit, legal approvals, business identity and retention arrangements remain release dependencies. Browser installation and optional consent do not enable these services. Verify the actual deployment before making availability claims."
+      }
+    ]
+  }
+]

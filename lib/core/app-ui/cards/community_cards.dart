@@ -967,7 +967,7 @@ class AppPostShareModal extends StatefulWidget {
   final List<String> tickers;
 
   static String postUrlFor(String postId) =>
-      'https://alphajournal.in/post/$postId';
+      'https://alphajournal.in/community/post/$postId?public=true';
 
   static String formatShareText({
     required String postId,
@@ -980,9 +980,13 @@ class AppPostShareModal extends StatefulWidget {
     final String handle = authorHandle.startsWith('@')
         ? authorHandle
         : '@$authorHandle';
-    buf.writeln('$authorName ($handle) on alphajournal:');
+    final String clean = body.trim().replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    final String excerpt = clean.length <= 280
+        ? clean
+        : '${clean.substring(0, 280).trimRight()}…';
+    buf.writeln('$authorName ($handle) on alphajournal');
     buf.writeln();
-    buf.writeln(body.trim());
+    buf.writeln('“$excerpt”');
     if (tickers.isNotEmpty) {
       buf.writeln();
       buf.writeln(
@@ -990,6 +994,7 @@ class AppPostShareModal extends StatefulWidget {
       );
     }
     buf.writeln();
+    buf.writeln('Read the full post (sign in required):');
     buf.write(postUrlFor(postId));
     return buf.toString();
   }

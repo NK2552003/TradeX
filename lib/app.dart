@@ -1,3 +1,8 @@
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/settings/presentation/pages/shared/help_about_page.dart';
+import 'package:tradex/features/settings/presentation/widgets/help/publication_reader.dart';
+import 'package:tradex/features/settings/presentation/widgets/help/browser_experience_gate.dart';
 import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dart';
 import 'core/navigation/feature_location_scope.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
@@ -9,6 +14,8 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/core/config/startup_ready.dart';
 import 'package:tradex/features/auth/auth.dart';
+import 'package:tradex/core/widgets/not_found_page.dart';
+import 'package:tradex/core/linking/link_graph.dart';
 
 class TradeXApp extends StatefulWidget {
   const TradeXApp({super.key});
@@ -20,6 +27,35 @@ class TradeXApp extends StatefulWidget {
 class _TradeXAppState extends State<TradeXApp> {
   late final GoRouter _router = GoRouter(
     routes: [
+      GoRoute(
+        path: '/help',
+        builder: (context, state) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => finishWebStartup(),
+          );
+          return const BrowserExperienceGate(
+            child: Scaffold(body: HelpAboutPage()),
+          );
+        },
+        routes: [
+          GoRoute(
+            path: ':document',
+            builder: (context, state) {
+              WidgetsBinding.instance.addPostFrameCallback(
+                (_) => finishWebStartup(),
+              );
+              return BrowserExperienceGate(
+                suggestInstall: false,
+                child: Scaffold(
+                  body: PublicationReader(
+                    documentId: state.pathParameters['document']!,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       GoRoute(
         path: '/r/:code',
         redirect: (context, state) async {
@@ -51,14 +87,23 @@ class _TradeXAppState extends State<TradeXApp> {
     ],
     errorBuilder: (context, state) {
       WidgetsBinding.instance.addPostFrameCallback((_) => finishWebStartup());
-      return const Scaffold(
-        body: UiEmptyState(
-          title: 'Page not found',
-          message: 'Check the link and try again.',
-        ),
+      return NotFoundPage(
+        onPrimary: () => _router.go('/workspace'),
+        primaryLabel: 'Back to workspace',
       );
     },
   );
+
+  /// Message shown on the login screen when the visitor arrived through a
+  /// shared community-post link (directly or via `?next=`).
+  String? _loginNotice(Uri uri, CustomerRoute route) {
+    final AppLinkOpenRequest? target = uri.path.startsWith('/auth/')
+        ? CustomerRoute.afterAuthentication(uri)?.$2.request
+        : route.request;
+    if (target?.kind != AppLinkKind.communityPost) return null;
+    return 'Please sign in or create an account to view this post. '
+        "You'll be taken straight to it after you sign in.";
+  }
 
   Page<void> _routePage(BuildContext context, GoRouterState state) {
     final route = CustomerRoute.parse(state.uri);
@@ -66,14 +111,9 @@ class _TradeXAppState extends State<TradeXApp> {
       WidgetsBinding.instance.addPostFrameCallback((_) => finishWebStartup());
       return NoTransitionPage(
         key: state.pageKey,
-        child: Scaffold(
-          body: UiEmptyState(
-            title: 'Page not found',
-            action: UiButton(
-              label: 'Go to workspace',
-              onPressed: () => _router.go('/workspace'),
-            ),
-          ),
+        child: NotFoundPage(
+          onPrimary: () => _router.go('/workspace'),
+          primaryLabel: 'Back to workspace',
         ),
       );
     }
@@ -98,33 +138,38 @@ class _TradeXAppState extends State<TradeXApp> {
       child: FeatureLocationScope(
         location: state.uri,
         onNavigate: (target) => _router.go(location(target)),
-        child: AuthWrapper(
-          initialStage: route.stage,
-          initialDestination: route.destination,
-          openRequest: route.request,
-          onDestinationChanged: (destination) =>
-              _router.go(location(Uri(path: '/$destination'))),
-          onOpenRecord: (ref) =>
-              _router.go(location(CustomerRoute.forRecord(ref))),
-          onStageChanged: (stage) {
-            final String? path = switch (stage) {
-              AuthStage.login => '/auth/login',
-              AuthStage.signup => '/auth/signup',
-              AuthStage.forgotPassword => '/auth/forgot-password',
-              AuthStage.onboarding => '/',
-              AuthStage.authenticated =>
-                (state.uri.path.startsWith('/auth/') ||
-                 state.uri.path == '/' ||
-                 state.uri.queryParameters.containsKey('code'))
-                    ? (CustomerRoute.afterAuthentication(state.uri)?.$1.toString() ??
-                        '/${route.destination ?? 'workspace'}')
-                    : null,
-              _ => null,
-            };
-            if (path != null && path != state.uri.path) {
-              _router.go(location(Uri.parse(path)));
-            }
-          },
+        child: BrowserExperienceGate(
+          child: AuthWrapper(
+            loginNotice: _loginNotice(state.uri, route),
+            initialStage: route.stage,
+            initialDestination: route.destination,
+            openRequest: route.request,
+            onDestinationChanged: (destination) =>
+                _router.go(location(Uri(path: '/$destination'))),
+            onOpenRecord: (ref) =>
+                _router.go(location(CustomerRoute.forRecord(ref))),
+            onStageChanged: (stage) {
+              final String? path = switch (stage) {
+                AuthStage.login => '/auth/login',
+                AuthStage.signup => '/auth/signup',
+                AuthStage.forgotPassword => '/auth/forgot-password',
+                AuthStage.onboarding => '/',
+                AuthStage.authenticated =>
+                  (state.uri.path.startsWith('/auth/') ||
+                          state.uri.path == '/' ||
+                          state.uri.queryParameters.containsKey('code'))
+                      ? (CustomerRoute.afterAuthentication(
+                              state.uri,
+                            )?.$1.toString() ??
+                            '/${route.destination ?? 'workspace'}')
+                      : null,
+                _ => null,
+              };
+              if (path != null && path != state.uri.path) {
+                _router.go(location(Uri.parse(path)));
+              }
+            },
+          ),
         ),
       ),
     );
@@ -200,9 +245,7 @@ class _TradeXAppState extends State<TradeXApp> {
                 child: Material(
                   type: MaterialType.transparency,
                   child: DefaultTextStyle.merge(
-                    style: const TextStyle(
-                      decoration: TextDecoration.none,
-                    ),
+                    style: const TextStyle(decoration: TextDecoration.none),
                     child: child ?? const SizedBox.shrink(),
                   ),
                 ),

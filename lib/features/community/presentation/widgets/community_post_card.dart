@@ -881,7 +881,8 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                 },
                 child: UiRemoteImage(
                   url: post.imageUrl!,
-                  semanticLabel: 'Post attachment by ${post.author.displayHandle}',
+                  semanticLabel:
+                      'Post attachment by ${post.author.displayHandle}',
                 ),
               ),
             ),
@@ -979,8 +980,8 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             views: post.views > 0
                 ? post.views
                 : ((_likes + post.comments > 0)
-                    ? ((_likes + post.comments) * 4 + 14)
-                    : 1),
+                      ? ((_likes + post.comments) * 4 + 14)
+                      : 1),
             liked: _liked,
             userReaction: _userReaction,
             reactions: _reactions,
@@ -1043,7 +1044,10 @@ class CommunityPostCardSkeleton extends StatelessWidget {
             children: <Widget>[
               ClipRRect(
                 borderRadius: BorderRadius.circular(context.sz(20)),
-                child: UiSkeleton(width: context.sz(40), height: context.sz(40)),
+                child: UiSkeleton(
+                  width: context.sz(40),
+                  height: context.sz(40),
+                ),
               ),
               UiGap.h(theme.spacing.sm),
               Expanded(
@@ -1103,7 +1107,10 @@ class CommunityPostCardSkeleton extends StatelessWidget {
               ),
               ClipRRect(
                 borderRadius: BorderRadius.circular(context.sz(12)),
-                child: UiSkeleton(width: context.sz(24), height: context.sz(24)),
+                child: UiSkeleton(
+                  width: context.sz(24),
+                  height: context.sz(24),
+                ),
               ),
             ],
           ),
@@ -1113,26 +1120,17 @@ class CommunityPostCardSkeleton extends StatelessWidget {
           // 2. Post Content Text Lines Skeleton
           ClipRRect(
             borderRadius: BorderRadius.circular(context.sz(4)),
-            child: UiSkeleton(
-              width: double.infinity,
-              height: context.sz(14),
-            ),
+            child: UiSkeleton(width: double.infinity, height: context.sz(14)),
           ),
           UiGap.v(theme.spacing.xs),
           ClipRRect(
             borderRadius: BorderRadius.circular(context.sz(4)),
-            child: UiSkeleton(
-              width: double.infinity,
-              height: context.sz(13),
-            ),
+            child: UiSkeleton(width: double.infinity, height: context.sz(13)),
           ),
           UiGap.v(theme.spacing.xs),
           ClipRRect(
             borderRadius: BorderRadius.circular(context.sz(4)),
-            child: UiSkeleton(
-              width: context.sz(280),
-              height: context.sz(13),
-            ),
+            child: UiSkeleton(width: context.sz(280), height: context.sz(13)),
           ),
 
           UiGap.v(theme.spacing.sm),
@@ -1142,17 +1140,26 @@ class CommunityPostCardSkeleton extends StatelessWidget {
             children: <Widget>[
               ClipRRect(
                 borderRadius: BorderRadius.circular(context.sz(12)),
-                child: UiSkeleton(width: context.sz(56), height: context.sz(22)),
+                child: UiSkeleton(
+                  width: context.sz(56),
+                  height: context.sz(22),
+                ),
               ),
               UiGap.h(theme.spacing.xs),
               ClipRRect(
                 borderRadius: BorderRadius.circular(context.sz(12)),
-                child: UiSkeleton(width: context.sz(68), height: context.sz(22)),
+                child: UiSkeleton(
+                  width: context.sz(68),
+                  height: context.sz(22),
+                ),
               ),
               UiGap.h(theme.spacing.xs),
               ClipRRect(
                 borderRadius: BorderRadius.circular(context.sz(12)),
-                child: UiSkeleton(width: context.sz(50), height: context.sz(22)),
+                child: UiSkeleton(
+                  width: context.sz(50),
+                  height: context.sz(22),
+                ),
               ),
             ],
           ),
@@ -1206,10 +1213,7 @@ class CommunityPostCardSkeleton extends StatelessWidget {
                         ],
                       ),
                     ),
-                    UiSkeleton(
-                      width: double.infinity,
-                      height: context.sz(110),
-                    ),
+                    UiSkeleton(width: double.infinity, height: context.sz(110)),
                   ],
                 ),
               ),
@@ -1233,32 +1237,50 @@ class CommunityPostCardSkeleton extends StatelessWidget {
               children: <Widget>[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(width: context.sz(44), height: context.sz(26)),
+                  child: UiSkeleton(
+                    width: context.sz(44),
+                    height: context.sz(26),
+                  ),
                 ),
                 UiGap.h(theme.spacing.md),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(width: context.sz(44), height: context.sz(26)),
+                  child: UiSkeleton(
+                    width: context.sz(44),
+                    height: context.sz(26),
+                  ),
                 ),
                 UiGap.h(theme.spacing.md),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(width: context.sz(52), height: context.sz(26)),
+                  child: UiSkeleton(
+                    width: context.sz(52),
+                    height: context.sz(26),
+                  ),
                 ),
                 UiGap.h(theme.spacing.md),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(width: context.sz(38), height: context.sz(26)),
+                  child: UiSkeleton(
+                    width: context.sz(38),
+                    height: context.sz(26),
+                  ),
                 ),
                 const Spacer(),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(width: context.sz(26), height: context.sz(26)),
+                  child: UiSkeleton(
+                    width: context.sz(26),
+                    height: context.sz(26),
+                  ),
                 ),
                 UiGap.h(theme.spacing.xs),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(width: context.sz(26), height: context.sz(26)),
+                  child: UiSkeleton(
+                    width: context.sz(26),
+                    height: context.sz(26),
+                  ),
                 ),
               ],
             ),

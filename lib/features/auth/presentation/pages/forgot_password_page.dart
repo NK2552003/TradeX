@@ -113,7 +113,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     });
 
     try {
-      if (widget.otpRepository == null && !SupabaseConfig.isConfigured && !CustomerDataPolicy.allowDemo) {
+      if (widget.otpRepository == null &&
+          !SupabaseConfig.isConfigured &&
+          !CustomerDataPolicy.allowDemo) {
         throw StateError(
           'Password recovery is unavailable in this environment.',
         );
@@ -277,8 +279,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   viewportConstraints.maxWidth < 360
                       ? theme.spacing.sm
                       : (responsive.isMobile
-                          ? theme.spacing.md
-                          : theme.spacing.lg),
+                            ? theme.spacing.md
+                            : theme.spacing.lg),
                 ),
                 vertical: context.sp(theme.spacing.xl),
               ),
@@ -303,8 +305,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 viewportConstraints.maxWidth < 360
                                     ? theme.spacing.md
                                     : (responsive.isMobile
-                                        ? theme.spacing.lg
-                                        : theme.spacing.xl),
+                                          ? theme.spacing.lg
+                                          : theme.spacing.xl),
                               ),
                             ),
                             child: Column(
@@ -333,12 +335,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                         const AppLogoMark(size: 20),
                                         if (!responsive.isMobile) ...[
                                           SizedBox(
-                                            width: context.sp(
-                                              theme.spacing.xs,
-                                            ),
+                                            width: context.sp(theme.spacing.xs),
                                           ),
                                           Text(
-                                            'alphajournal',
+                                            'AlphaJournal',
                                             style: context.uiText.bodyStrong
                                                 .copyWith(
                                                   fontSize: 16,
@@ -377,9 +377,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                               color: i <= _currentStep
                                                   ? colors.primary
                                                   : colors.borderStrong
-                                                        .withValues(
-                                                          alpha: 0.5,
-                                                        ),
+                                                        .withValues(alpha: 0.5),
                                             ),
                                           ),
                                         ),

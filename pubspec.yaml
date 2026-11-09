@@ -111,6 +111,7 @@ flutter:
   assets:
     - assets/config/client.env
     - assets/icon/
+    - assets/legal/
     # Embedded in generated note PDFs — the `pdf` package cannot reach system
     # fonts, so the export bundles its own.
     - assets/fonts/

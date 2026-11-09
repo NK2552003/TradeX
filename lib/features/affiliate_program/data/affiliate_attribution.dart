@@ -2,24 +2,35 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/privacy/consent_preferences.dart';
 
 /// Stores a referral through auth navigation and email-verification reloads.
 class AffiliateAttribution {
   static const _key = 'affiliate_attribution_v1';
   static Future<Map<String, dynamic>?> load() async {
+    await ConsentController.instance.initialize();
+    if (!ConsentController.instance.value.affiliate) return null;
     final prefs = await SharedPreferences.getInstance();
     final value = prefs.getString(_key);
     if (value == null) return null;
     try {
       final data = Map<String, dynamic>.from(jsonDecode(value) as Map);
       final date = DateTime.parse(data['captured_at'] as String);
-      return DateTime.now().difference(date).inDays < 30 ? data : null;
+      final age = DateTime.now().difference(date);
+      if (age.isNegative || age >= const Duration(days: 30)) {
+        await clear();
+        return null;
+      }
+      return data;
     } catch (_) {
+      await clear();
       return null;
     }
   }
 
   static Future<void> capture(String code, String? campaign) async {
+    await ConsentController.instance.initialize();
+    if (!ConsentController.instance.value.affiliate) return;
     if (!RegExp(r'^[a-zA-Z0-9_-]{3,80}$').hasMatch(code)) return;
     if (campaign != null &&
         !RegExp(r'^[a-z0-9][a-z0-9-]{2,39}$').hasMatch(campaign)) {
@@ -33,6 +44,7 @@ class AffiliateAttribution {
           24,
           (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0'),
         ).join();
+    if (!ConsentController.instance.value.affiliate) return;
     await prefs.setString('affiliate_visitor_v1', visitor);
     await prefs.setString(
       _key,
@@ -42,6 +54,11 @@ class AffiliateAttribution {
         'captured_at': DateTime.now().toUtc().toIso8601String(),
       }),
     );
+    // A withdrawal can arrive while the asynchronous storage writes complete.
+    if (!ConsentController.instance.value.affiliate) {
+      await clear();
+      return;
+    }
     if (SupabaseConfig.isConfigured &&
         campaign != null &&
         (previous?['code'] != code || previous?['campaign'] != campaign)) {
@@ -59,6 +76,8 @@ class AffiliateAttribution {
   }
 
   static Future<void> clear() async {
-    await (await SharedPreferences.getInstance()).remove(_key);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
+    await prefs.remove('affiliate_visitor_v1');
   }
 }

@@ -33,6 +33,18 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="tradex" />
             </intent-filter>
+            <!-- Verified App Links: open shared https://alphajournal.in/post/<id> links in-app.
+                 Requires https://alphajournal.in/.well-known/assetlinks.json with the release SHA-256. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="alphajournal.in" />
+                <data android:scheme="https" android:host="www.alphajournal.in" />
+                <data android:pathPrefix="/post" />
+                <data android:pathPrefix="/p/" />
+                <data android:pathPrefix="/community" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

@@ -1,3 +1,4 @@
+import 'package:tradex/core/privacy/consent_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -166,6 +167,10 @@ void main() {
     }
   }
   test('referral attribution persists and rejects malformed links', () async {
+    await ConsentController.instance.initialize();
+    await ConsentController.instance.save(
+      const ConsentPreferences(affiliate: true),
+    );
     await AffiliateAttribution.capture('partner-alpha', 'weekly-news');
     expect((await AffiliateAttribution.load())?['code'], 'partner-alpha');
     await AffiliateAttribution.capture('../invalid', 'weekly-news');

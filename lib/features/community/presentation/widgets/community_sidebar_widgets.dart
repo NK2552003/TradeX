@@ -1,3 +1,5 @@
+import 'package:tradex/features/settings/presentation/widgets/help/publication_reader.dart';
+import 'package:tradex/features/settings/presentation/widgets/help/cookie_preferences_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/features/market_data/presentation/market_movers_panel.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -434,7 +436,8 @@ class CommunityNewsWidget extends StatelessWidget {
             fontSize: context.fs(13),
           ),
         ),
-        if (item.summary != null && item.summary!.trim().isNotEmpty) ...<Widget>[
+        if (item.summary != null &&
+            item.summary!.trim().isNotEmpty) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.xxs)),
           Text(
             item.summary!.trim(),
@@ -791,28 +794,36 @@ class CommunityFooterLinks extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
 
-    final List<String> links = <String>[
-      'Terms',
-      'Privacy',
-      'Cookies',
-      'Accessibility',
-      'Ads Info',
-      'More…',
-      '© 2026 alphajournal Corp.',
-    ];
-
+    const links = {
+      'Terms': 'terms',
+      'Privacy': 'privacy',
+      'Cookies': 'cookies',
+      'Accessibility': 'accessibility',
+      'Ads info': 'advertising',
+      'Help': 'user-guide',
+    };
     return Wrap(
       spacing: context.sp(theme.spacing.xs),
       runSpacing: context.sp(theme.spacing.xxs),
-      children: links.map((String text) {
-        return Text(
-          text,
-          style: context.uiText.caption.copyWith(
-            color: theme.colors.foregroundSubtle,
-            fontSize: context.fs(11),
+      children: [
+        for (final link in links.entries)
+          UiButton(
+            label: link.key,
+            variant: UiVariant.link,
+            size: UiSize.xs,
+            onPressed: () => PublicationReader.open(context, link.value),
           ),
-        );
-      }).toList(),
+        UiButton(
+          label: 'Cookie preferences',
+          variant: UiVariant.link,
+          size: UiSize.xs,
+          onPressed: () => CookiePreferencesDialog.show(context),
+        ),
+        Text(
+          '© ${DateTime.now().year} Alphajournal',
+          style: context.uiText.caption,
+        ),
+      ],
     );
   }
 }

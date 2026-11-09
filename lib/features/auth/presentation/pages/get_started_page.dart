@@ -9,6 +9,7 @@ import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/pricing_models.dart';
+import 'package:tradex/features/auth/presentation/widgets/tradex_footer.dart';
 import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
 
 /// Records for the marketing preview. They come from the same source the
@@ -191,205 +192,245 @@ class _GetStartedPageState extends State<GetStartedPage> {
         (responsive.isLandscape && responsive.height < 500)) {
       return Scaffold(
         backgroundColor: colors.background,
-        body: SafeArea(
-          child: _buildMobileView(context, theme, colors, responsive),
+        body: AlphaThreadBackdrop(
+          phase: 47.229,
+          thickness: 76,
+          mobileHeight: 220,
+          child: SafeArea(
+            child: _buildMobileView(context, theme, colors, responsive),
+          ),
         ),
       );
     }
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // Scrollable Content
-            Positioned.fill(
-              child: RawScrollbar(
-                controller: _scrollController,
-                thumbVisibility: false,
-                thickness: 6,
-                radius: Radius.circular(context.sp(theme.radii.pill)),
-                thumbColor: colors.borderStrong,
-                child: SingleChildScrollView(
+      body: AlphaThreadBackdrop(
+        phase: 29.5,
+        thickness: 52,
+        desktopHeight: 170,
+        opacity: 0.18,
+        fadeOut: true,
+        child: SafeArea(
+          child: Stack(
+            children: [
+              // Scrollable Content
+              Positioned.fill(
+                child: RawScrollbar(
                   controller: _scrollController,
-                  padding: EdgeInsets.only(
-                    top: context.sz(72), // Clearance for sticky frosted header
-                    left: context.sp(theme.spacing.xl),
-                    right: context.sp(theme.spacing.xl),
-                    bottom: context.sp(theme.spacing.xxxl),
+                  thumbVisibility: false,
+                  thickness: 6,
+                  radius: Radius.circular(context.sp(theme.radii.pill)),
+                  thumbColor: colors.borderStrong,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    padding: EdgeInsets.only(
+                      top: context.sz(
+                        72,
+                      ), // Clearance for sticky frosted header
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: context.sp(theme.spacing.xl),
+                            ),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: context.sz(1400),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                            _buildHero(context, theme, colors, responsive),
+                            SizedBox(
+                              height: context.sp(theme.spacing.xxxl) * 2,
+                            ),
+
+                            // Real App Components Showcase Grid
+                            KeyedSubtree(
+                              key: _showcaseKey,
+                              child: UiDeferred(
+                                estimatedHeight: 500,
+                                builder: (_) => _buildShowcaseGrid(
+                                  context,
+                                  theme,
+                                  colors,
+                                  responsive,
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(
+                              height: context.sp(theme.spacing.xxxl) * 2,
+                            ),
+
+                            // 2 Types of Users / Personas Section
+                            KeyedSubtree(
+                              key: _personasKey,
+                              child: UiDeferred(
+                                estimatedHeight: 500,
+                                builder: (_) => _buildUserTypesSection(
+                                  context,
+                                  theme,
+                                  colors,
+                                  responsive,
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(
+                              height: context.sp(theme.spacing.xxxl) * 2,
+                            ),
+
+                            // Feature Cards below showcase
+                            KeyedSubtree(
+                              key: _featuresKey,
+                              child: UiDeferred(
+                                estimatedHeight: 400,
+                                builder: (_) => _buildFeaturesGrid(
+                                  context,
+                                  theme,
+                                  colors,
+                                  responsive,
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(
+                              height: context.sp(theme.spacing.xxxl) * 2,
+                            ),
+
+                            // Dedicated Desktop Pricing Section
+                            KeyedSubtree(
+                              key: _pricingKey,
+                              child: UiDeferred(
+                                estimatedHeight: 500,
+                                builder: (_) => _buildPricingSection(
+                                  context,
+                                  theme,
+                                  colors,
+                                  responsive,
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(
+                              height: context.sp(theme.spacing.xxxl) * 2,
+                            ),
+
+                            // Landing Page FAQ Section
+                            KeyedSubtree(
+                              key: _faqKey,
+                              child: UiDeferred(
+                                estimatedHeight: 400,
+                                builder: (_) => _buildFaqSection(
+                                  context,
+                                  theme,
+                                  colors,
+                                  responsive,
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(
+                              height: context.sp(theme.spacing.xxxl) * 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: context.sz(1400)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          _buildHero(context, theme, colors, responsive),
-                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
 
-                          // Real App Components Showcase Grid
-                          KeyedSubtree(
-                            key: _showcaseKey,
-                            child: UiDeferred(
-                              estimatedHeight: 500,
-                              builder: (_) => _buildShowcaseGrid(
-                                context,
-                                theme,
-                                colors,
-                                responsive,
-                              ),
-                            ),
+                  // Full-width Bottom-originating AlphaThread ribbon (no left/right padding, flush against footer line)
+                  LayoutBuilder(
+                    builder: (BuildContext ctx, BoxConstraints constraints) {
+                      final bool isDesktop = constraints.maxWidth >= 900;
+                      if (!isDesktop) return const SizedBox.shrink();
+                      return SizedBox(
+                        height: context.sz(220),
+                        width: double.infinity,
+                        child: const RotatedBox(
+                          quarterTurns: 2,
+                          child: AlphaThread(
+                            phase: 84.6,
+                            thickness: 60,
                           ),
+                        ),
+                      );
+                    },
+                  ),
 
-                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
+                  // Bottom Bar: Copyright & Legal quick actions (stuck directly to bottom of ribbon)
+                  const TradeXFooter(),
+                ],
+              ),
+            ),
+                ),
+              ),
 
-                          // 2 Types of Users / Personas Section
-                          KeyedSubtree(
-                            key: _personasKey,
-                            child: UiDeferred(
-                              estimatedHeight: 500,
-                              builder: (_) => _buildUserTypesSection(
-                                context,
-                                theme,
-                                colors,
-                                responsive,
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
-
-                          // Feature Cards below showcase
-                          KeyedSubtree(
-                            key: _featuresKey,
-                            child: UiDeferred(
-                              estimatedHeight: 400,
-                              builder: (_) => _buildFeaturesGrid(
-                                context,
-                                theme,
-                                colors,
-                                responsive,
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
-
-                          // Dedicated Desktop Pricing Section
-                          KeyedSubtree(
-                            key: _pricingKey,
-                            child: UiDeferred(
-                              estimatedHeight: 500,
-                              builder: (_) => _buildPricingSection(
-                                context,
-                                theme,
-                                colors,
-                                responsive,
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
-
-                          // Landing Page FAQ Section
-                          KeyedSubtree(
-                            key: _faqKey,
-                            child: UiDeferred(
-                              estimatedHeight: 400,
-                              builder: (_) => _buildFaqSection(
-                                context,
-                                theme,
-                                colors,
-                                responsive,
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ), // bottom clearance for smooth scroll and fade
+              // Top Gradient Backdrop Blur Mask (Matching ultimate-media-downloader h-32 blur with vertical mask gradient)
+              ValueListenableBuilder<bool>(
+                valueListenable: _isScrolledNotifier,
+                builder: (context, isScrolled, child) {
+                  return Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: context.sz(128),
+                    child: IgnorePointer(
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOut,
+                        opacity: isScrolled ? 1.0 : 0.0,
+                        child: child,
+                      ),
+                    ),
+                  );
+                },
+                child: RepaintBoundary(
+                  child: ShaderMask(
+                    shaderCallback: (Rect bounds) {
+                      return const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black,
+                          Colors.black,
+                          Colors.transparent,
                         ],
+                        stops: [0.0, 0.45, 1.0],
+                      ).createShader(bounds);
+                    },
+                    blendMode: BlendMode.dstIn,
+                    child: ClipRect(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                        child: Container(
+                          color: colors.background.withValues(alpha: 0.85),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            // Top Gradient Backdrop Blur Mask (Matching ultimate-media-downloader h-32 blur with vertical mask gradient)
-            ValueListenableBuilder<bool>(
-              valueListenable: _isScrolledNotifier,
-              builder: (context, isScrolled, child) {
-                return Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: context.sz(128),
-                  child: IgnorePointer(
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeOut,
-                      opacity: isScrolled ? 1.0 : 0.0,
-                      child: child,
-                    ),
-                  ),
-                );
-              },
-              child: RepaintBoundary(
-                child: ShaderMask(
-                  shaderCallback: (Rect bounds) {
-                    return const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.black, Colors.black, Colors.transparent],
-                      stops: [0.0, 0.45, 1.0],
-                    ).createShader(bounds);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: ClipRect(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                      child: Container(
-                        color: colors.background.withValues(alpha: 0.85),
-                      ),
-                    ),
-                  ),
+              // Top Sticky Navigation Bar (Matching ultimate-media-downloader layout)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: RepaintBoundary(
+                  child: _buildTopNav(context, theme, colors, responsive),
                 ),
               ),
-            ),
-
-            // Top Sticky Navigation Bar (Matching ultimate-media-downloader layout)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: RepaintBoundary(
-                child: _buildTopNav(context, theme, colors, responsive),
-              ),
-            ),
-
-            // Bottom Faded Dark Overlay
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 100,
-              child: IgnorePointer(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        colors.background.withValues(alpha: 0.0),
-                        colors.background,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -408,6 +449,59 @@ class _GetStartedPageState extends State<GetStartedPage> {
             ? context.sp(theme.spacing.md)
             : context.sp(theme.spacing.xl);
 
+        final Widget actionButtons = Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: context.sp(
+              isLandscapeOrCompact ? theme.spacing.sm : theme.spacing.md,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: UiButton(
+                  label: 'Continue as Trader',
+                  variant: UiVariant.primary,
+                  intent: UiIntent.primary,
+                  size: UiSize.lg,
+                  onPressed: () =>
+                      widget.onGetStarted(UserRole.customer),
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
+              SizedBox(
+                width: double.infinity,
+                child: UiButton(
+                  label: 'Join as Affiliate',
+                  variant: UiVariant.outline,
+                  intent: UiIntent.primary,
+                  size: UiSize.lg,
+                  leadingIcon: Icons.handshake_outlined,
+                  onPressed: () =>
+                      widget.onGetStarted(UserRole.affiliate),
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              SizedBox(
+                width: double.infinity,
+                child: UiButton(
+                  label: 'Already have an account? Sign in',
+                  expand: true,
+                  alignment: Alignment.center,
+                  variant: UiVariant.ghost,
+                  intent: UiIntent.neutral,
+                  size: UiSize.sm,
+                  leadingIcon: Icons.login_rounded,
+                  onPressed: widget.onSignIn,
+                ),
+              ),
+            ],
+          ),
+        );
+
         return SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: ConstrainedBox(
@@ -415,87 +509,14 @@ class _GetStartedPageState extends State<GetStartedPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Top section
-                Padding(
-                  padding: EdgeInsets.only(
-                    top: context.sp(
-                      isLandscapeOrCompact
-                          ? theme.spacing.md
-                          : theme.spacing.xxl,
-                    ),
-                    left: horizontalPadding,
-                    right: horizontalPadding,
-                    bottom: context.sp(
-                      isLandscapeOrCompact
-                          ? theme.spacing.sm
-                          : theme.spacing.lg,
-                    ),
-                  ),
-                  child: const Center(
-                    child: AppLogo(size: 24, tagline: 'ALPHAJOURNAL'),
-                  ),
-                ),
-
-                // Carousel
+                // Top clearance for the prominent AlphaThread header (thread replaces the logo)
                 SizedBox(
-                  height: isLandscapeOrCompact
-                      ? context.sz(260)
-                      : (constraints.maxHeight * 0.56).clamp(280.0, 520.0),
-                  child: const AuthCarouselPanel(),
+                  height: context.sz(isLandscapeOrCompact ? 16 : 72),
                 ),
 
-                // Bottom Action buttons
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding,
-                    vertical: context.sp(
-                      isLandscapeOrCompact
-                          ? theme.spacing.md
-                          : theme.spacing.xl,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: UiButton(
-                          label: 'Continue as Trader',
-                          variant: UiVariant.primary,
-                          intent: UiIntent.primary,
-                          size: UiSize.lg,
-                          onPressed: () =>
-                              widget.onGetStarted(UserRole.customer),
-                        ),
-                      ),
-                      SizedBox(height: context.sp(theme.spacing.md)),
-                      SizedBox(
-                        width: double.infinity,
-                        child: UiButton(
-                          label: 'Join as Affiliate',
-                          variant: UiVariant.outline,
-                          intent: UiIntent.primary,
-                          size: UiSize.lg,
-                          leadingIcon: Icons.handshake_outlined,
-                          onPressed: () =>
-                              widget.onGetStarted(UserRole.affiliate),
-                        ),
-                      ),
-                      SizedBox(height: context.sp(theme.spacing.sm)),
-                      SizedBox(
-                        width: double.infinity,
-                        child: UiButton(
-                          label: 'Already have an account? Sign in',
-                          variant: UiVariant.ghost,
-                          intent: UiIntent.neutral,
-                          size: UiSize.sm,
-                          leadingIcon: Icons.login_rounded,
-                          onPressed: widget.onSignIn,
-                        ),
-                      ),
-                    ],
-                  ),
+                // Carousel with text & dots positioned directly above the action buttons
+                AuthCarouselPanel(
+                  bottomAction: actionButtons,
                 ),
               ],
             ),
@@ -539,7 +560,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                       curve: Curves.easeInOutCubic,
                     );
                   },
-                  child: const AppLogo(size: 20, tagline: 'ALPHAJOURNAL'),
+                  child: const AppLogo(size: 26, markRounded: false),
                 ),
               ),
             ),
@@ -611,36 +632,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
   ) {
     return Column(
       children: [
-        Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: context.sp(theme.spacing.md),
-            vertical: context.sp(theme.spacing.xs),
-          ),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: context.radius(theme.radii.pill),
-            border: Border.all(color: colors.border),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'alphajournal Intelligence v1.0',
-                style: context.uiText.caption.copyWith(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 12.0,
-                ),
-              ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              Icon(
-                Icons.arrow_forward_rounded,
-                size: 12,
-                color: colors.foreground,
-              ),
-            ],
-          ),
+        SizedBox(
+          height: context.sz(responsive.isTablet ? 48.0 : 84.0),
         ),
-        SizedBox(height: context.sp(theme.spacing.xl)),
         Text(
           _page
                   ?.text('title')

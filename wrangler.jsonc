@@ -3,9 +3,12 @@
   "name": "alphajournal",
   "compatibility_date": "2026-04-01",
   "previews": {},
+  "main": "./worker/index.js",
   "assets": {
     "directory": "./build/web",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/community/post/*"]
   },
   "routes": [
     { "pattern": "alphajournal.in", "custom_domain": true },

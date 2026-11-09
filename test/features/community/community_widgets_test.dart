@@ -665,7 +665,7 @@ void main() {
         // Verify CommunityShareSheet opened with post preview, URL, and external share options
         expect(find.text('Share Post'), findsOneWidget);
         expect(
-          find.text('https://alphajournal.in/post/post-share-101'),
+          find.text('https://alphajournal.in/community/post/post-share-101?public=true'),
           findsOneWidget,
         );
         expect(
@@ -739,7 +739,7 @@ void main() {
 
         expect(find.text('Share Post'), findsOneWidget);
         expect(
-          find.text('https://alphajournal.in/post/app-post-77'),
+          find.text('https://alphajournal.in/community/post/app-post-77?public=true'),
           findsOneWidget,
         );
         expect(

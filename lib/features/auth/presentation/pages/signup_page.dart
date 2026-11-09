@@ -9,6 +9,7 @@ import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
 import 'package:tradex/features/auth/widgets/role_selector_tab.dart';
+import 'package:tradex/features/settings/presentation/widgets/help/publication_reader.dart';
 
 /// Responsive Signup Page — split card on desktop, single column on mobile.
 class SignupPage extends StatefulWidget {
@@ -163,315 +164,206 @@ class _SignupPageState extends State<SignupPage> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return ScrollConfiguration(
-              behavior: ScrollConfiguration.of(
-                context,
-              ).copyWith(scrollbars: false),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: constraints.maxWidth < 360
-                            ? context.sp(theme.spacing.sm)
-                            : context.sp(theme.spacing.md),
-                        vertical: context.sp(theme.spacing.xl),
-                      ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: maxWidth),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Main Card Container with split grid layout
-                            UiCard(
-                              variant: UiCardVariant.surface,
-                              child: IntrinsicHeight(
-                                child: Row(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    // Left Form Column (Full width on mobile, 50% on desktop)
-                                    Expanded(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(
-                                          context.sp(
-                                            constraints.maxWidth < 360
-                                                ? theme.spacing.md
-                                                : (responsive.isMobile
-                                                    ? theme.spacing.lg
-                                                    : theme.spacing.xl),
+      body: AlphaThreadBackdrop(
+        allSides: true,
+        phase: 83.1,
+        thickness: 64,
+        desktopHeight: 320,
+        mobileHeight: 200,
+        opacity: 0.5,
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return ScrollConfiguration(
+                behavior: ScrollConfiguration.of(
+                  context,
+                ).copyWith(scrollbars: false),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: constraints.maxWidth < 360
+                              ? context.sp(theme.spacing.sm)
+                              : context.sp(theme.spacing.md),
+                          vertical: context.sp(theme.spacing.xl),
+                        ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: maxWidth),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Main Card Container with split grid layout
+                              UiCard(
+                                variant: UiCardVariant.surface,
+                                child: IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      // Left Form Column (Full width on mobile, 50% on desktop)
+                                      Expanded(
+                                        child: Padding(
+                                          padding: EdgeInsets.all(
+                                            context.sp(
+                                              constraints.maxWidth < 360
+                                                  ? theme.spacing.md
+                                                  : (responsive.isMobile
+                                                        ? theme.spacing.lg
+                                                        : theme.spacing.xl),
+                                            ),
                                           ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            // Header with Back Button, Logo and Role Selector
-                                            Wrap(
-                                              alignment:
-                                                  WrapAlignment.spaceBetween,
-                                              crossAxisAlignment:
-                                                  WrapCrossAlignment.center,
-                                              spacing: context.sp(
-                                                theme.spacing.sm,
-                                              ),
-                                              runSpacing: context.sp(
-                                                theme.spacing.sm,
-                                              ),
-                                              children: [
-                                                Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    UiIconButton(
-                                                      icon: Icons
-                                                          .arrow_back_rounded,
-                                                      tooltip: 'Back',
-                                                      size: UiSize.sm,
-                                                      onPressed:
-                                                          widget.onNavigateBack,
-                                                    ),
-                                                    SizedBox(
-                                                      width: context.sp(
-                                                        theme.spacing.xs,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              // Header with Back Button, Logo and Role Selector
+                                              Wrap(
+                                                alignment:
+                                                    WrapAlignment.spaceBetween,
+                                                crossAxisAlignment:
+                                                    WrapCrossAlignment.center,
+                                                spacing: context.sp(
+                                                  theme.spacing.sm,
+                                                ),
+                                                runSpacing: context.sp(
+                                                  theme.spacing.sm,
+                                                ),
+                                                children: [
+                                                  Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      UiIconButton(
+                                                        icon: Icons
+                                                            .arrow_back_rounded,
+                                                        tooltip: 'Back',
+                                                        size: UiSize.sm,
+                                                        onPressed: widget
+                                                            .onNavigateBack,
                                                       ),
-                                                    ),
-                                                    const AppLogoMark(size: 20),
-                                                    if (!responsive.isMobile) ...[
                                                       SizedBox(
                                                         width: context.sp(
                                                           theme.spacing.xs,
                                                         ),
                                                       ),
-                                                      Text(
-                                                        'alphajournal',
-                                                        style: context
-                                                            .uiText
-                                                            .bodyStrong
-                                                            .copyWith(
-                                                              fontSize: 16,
-                                                              letterSpacing: -0.2,
-                                                            ),
+                                                      const AppLogoMark(
+                                                        size: 20,
                                                       ),
+                                                      if (!responsive
+                                                          .isMobile) ...[
+                                                        SizedBox(
+                                                          width: context.sp(
+                                                            theme.spacing.xs,
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          'AlphaJournal',
+                                                          style: context
+                                                              .uiText
+                                                              .bodyStrong
+                                                              .copyWith(
+                                                                fontSize: 16,
+                                                                letterSpacing:
+                                                                    -0.2,
+                                                              ),
+                                                        ),
+                                                      ],
                                                     ],
-                                                  ],
-                                                ),
-                                                RoleSelectorTab(
-                                                  selectedRole: _selectedRole,
-                                                  roles: const <UserRole>[
-                                                    UserRole.customer,
-                                                    UserRole.affiliate,
-                                                  ],
-                                                  onRoleChanged: (role) =>
-                                                      setState(
-                                                        () => _selectedRole =
-                                                            role,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                            SizedBox(
-                                              height: context.sp(
-                                                theme.spacing.xl,
-                                              ),
-                                            ),
-
-                                            // Header Title & Subtitle
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Create your account',
-                                                  textAlign: TextAlign.left,
-                                                  style: context.uiText.display
-                                                      .copyWith(
-                                                        fontSize: 28.0,
-                                                        fontWeight:
-                                                            FontWeight.w400,
-                                                        letterSpacing: -0.5,
-                                                      ),
-                                                ),
-                                                SizedBox(
-                                                  height: context.sp(
-                                                    theme.spacing.xxs,
                                                   ),
-                                                ),
-                                                Text(
-                                                  'Enter your email below to create your account',
-                                                  textAlign: TextAlign.left,
-                                                  style: context.uiText.body
-                                                      .copyWith(
-                                                        color: colors
-                                                            .foregroundMuted,
-                                                        fontSize: 13.5,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                            SizedBox(
-                                              height: context.sp(
-                                                theme.spacing.lg,
-                                              ),
-                                            ),
-
-                                            if (_errorText != null) ...[
-                                              UiCallout(
-                                                title: 'Registration Error',
-                                                message: _errorText!,
-                                                intent: UiIntent.danger,
+                                                  RoleSelectorTab(
+                                                    selectedRole: _selectedRole,
+                                                    roles: const <UserRole>[
+                                                      UserRole.customer,
+                                                      UserRole.affiliate,
+                                                    ],
+                                                    onRoleChanged: (role) =>
+                                                        setState(
+                                                          () => _selectedRole =
+                                                              role,
+                                                        ),
+                                                  ),
+                                                ],
                                               ),
                                               SizedBox(
                                                 height: context.sp(
-                                                  theme.spacing.md,
+                                                  theme.spacing.xl,
                                                 ),
                                               ),
-                                            ],
 
-                                            // Handler ID Field
-                                            UiField(
-                                              label: 'Handler ID',
-                                              required: true,
-                                              child: UiInput(
-                                                value:
-                                                    _handlerIdController.text,
-                                                hintText: '@username',
-                                                leadingIcon: Icons
-                                                    .alternate_email_rounded,
-                                                onChanged: (v) =>
-                                                    _handlerIdController.text =
-                                                        v,
-                                              ),
-                                            ),
-                                            SizedBox(
-                                              height: context.sp(
-                                                theme.spacing.md,
-                                              ),
-                                            ),
-
-                                            // Email Field with Description
-                                            UiField(
-                                              label: 'Email',
-                                              required: true,
-                                              helper:
-                                                  "We'll use this to contact you. We will not share your email with anyone else.",
-                                              child: UiInput(
-                                                value: _emailController.text,
-                                                hintText: 'm@example.com',
-                                                keyboardType:
-                                                    TextInputType.emailAddress,
-                                                onChanged: (v) =>
-                                                    _emailController.text = v,
-                                              ),
-                                            ),
-                                            SizedBox(
-                                              height: context.sp(
-                                                theme.spacing.md,
-                                              ),
-                                            ),
-
-                                            // Password & Confirm Password (2-column layout on desktop)
-                                            if (showSidePanel)
-                                              Row(
+                                              // Header Title & Subtitle
+                                              Column(
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
                                                 children: [
-                                                  Expanded(
-                                                    child: UiField(
-                                                      label: 'Password',
-                                                      required: true,
-                                                      child: UiPasswordField(
-                                                        controller:
-                                                            _passwordController,
-                                                      ),
-                                                    ),
+                                                  Text(
+                                                    'Create your account',
+                                                    textAlign: TextAlign.left,
+                                                    style: context
+                                                        .uiText
+                                                        .display
+                                                        .copyWith(
+                                                          fontSize: 28.0,
+                                                          fontWeight:
+                                                              FontWeight.w400,
+                                                          letterSpacing: -0.5,
+                                                        ),
                                                   ),
                                                   SizedBox(
-                                                    width: context.sp(
-                                                      theme.spacing.md,
+                                                    height: context.sp(
+                                                      theme.spacing.xxs,
                                                     ),
                                                   ),
-                                                  Expanded(
-                                                    child: UiField(
-                                                      label: 'Confirm Password',
-                                                      required: true,
-                                                      child: UiPasswordField(
-                                                        controller:
-                                                            _confirmPasswordController,
-                                                      ),
-                                                    ),
+                                                  Text(
+                                                    'Enter your email below to create your account',
+                                                    textAlign: TextAlign.left,
+                                                    style: context.uiText.body
+                                                        .copyWith(
+                                                          color: colors
+                                                              .foregroundMuted,
+                                                          fontSize: 13.5,
+                                                        ),
                                                   ),
                                                 ],
-                                              )
-                                            else ...[
-                                              UiField(
-                                                label: 'Password',
-                                                required: true,
-                                                child: UiPasswordField(
-                                                  controller:
-                                                      _passwordController,
-                                                ),
                                               ),
                                               SizedBox(
                                                 height: context.sp(
-                                                  theme.spacing.md,
+                                                  theme.spacing.lg,
                                                 ),
                                               ),
-                                              UiField(
-                                                label: 'Confirm Password',
-                                                required: true,
-                                                child: UiPasswordField(
-                                                  controller:
-                                                      _confirmPasswordController,
-                                                ),
-                                              ),
-                                            ],
-                                            SizedBox(
-                                              height: context.sp(
-                                                theme.spacing.xxs,
-                                              ),
-                                            ),
-                                            Text(
-                                              'Must be at least 8 characters long.',
-                                              style: context.uiText.caption
-                                                  .copyWith(
-                                                    color:
-                                                        colors.foregroundSubtle,
-                                                    fontSize: 11.5,
-                                                  ),
-                                            ),
-                                            SizedBox(
-                                              height: context.sp(
-                                                theme.spacing.md,
-                                              ),
-                                            ),
 
-                                            // Role Specific Optional/Required Inputs
-                                            if (_selectedRole ==
-                                                UserRole.affiliate) ...[
+                                              if (_errorText != null) ...[
+                                                UiCallout(
+                                                  title: 'Registration Error',
+                                                  message: _errorText!,
+                                                  intent: UiIntent.danger,
+                                                ),
+                                                SizedBox(
+                                                  height: context.sp(
+                                                    theme.spacing.md,
+                                                  ),
+                                                ),
+                                              ],
+
+                                              // Handler ID Field
                                               UiField(
-                                                label:
-                                                    'Partner Referral Code (Optional)',
-                                                // No figure here: nothing in the
-                                                // app pays a signing bonus, so
-                                                // quoting one would promise money
-                                                // the payouts ledger never shows.
-                                                helper:
-                                                    'Credits your signup to the partner who referred you',
+                                                label: 'Handler ID',
+                                                required: true,
                                                 child: UiInput(
-                                                  value: _referralCodeController
-                                                      .text,
-                                                  hintText: 'REF-TRADEX-2026',
+                                                  value:
+                                                      _handlerIdController.text,
+                                                  hintText: '@username',
+                                                  leadingIcon: Icons
+                                                      .alternate_email_rounded,
                                                   onChanged: (v) =>
-                                                      _referralCodeController
+                                                      _handlerIdController
                                                               .text =
                                                           v,
                                                 ),
@@ -481,34 +373,21 @@ class _SignupPageState extends State<SignupPage> {
                                                   theme.spacing.md,
                                                 ),
                                               ),
-                                            ],
 
-                                            // Create Account Submit Button
-                                            UiButton(
-                                              label: !_isSignupOpen
-                                                  ? 'Registration Closed (100/100 Full)'
-                                                  : (_isLoading
-                                                        ? 'Creating Account…'
-                                                        : 'Create Account'),
-                                              variant: UiVariant.primary,
-                                              intent: _selectedRole.badgeIntent,
-                                              size: UiSize.lg,
-                                              expand: true,
-                                              onPressed:
-                                                  (_isLoading || !_isSignupOpen)
-                                                  ? null
-                                                  : _handleSubmit,
-                                            ),
-                                            if (_isSignupOpen) ...[
-                                              SizedBox(
-                                                height: context.sp(
-                                                  theme.spacing.lg,
+                                              // Email Field with Description
+                                              UiField(
+                                                label: 'Email',
+                                                required: true,
+                                                helper:
+                                                    "We'll use this to contact you. We will not share your email with anyone else.",
+                                                child: UiInput(
+                                                  value: _emailController.text,
+                                                  hintText: 'm@example.com',
+                                                  keyboardType: TextInputType
+                                                      .emailAddress,
+                                                  onChanged: (v) =>
+                                                      _emailController.text = v,
                                                 ),
-                                              ),
-
-                                              // Divider
-                                              const UiDivider(
-                                                label: 'Or continue with',
                                               ),
                                               SizedBox(
                                                 height: context.sp(
@@ -516,155 +395,316 @@ class _SignupPageState extends State<SignupPage> {
                                                 ),
                                               ),
 
-                                              // Social Authentication Buttons Grid
-                                              UiButton(
-                                                label: 'Sign up with Google',
-                                                variant: UiVariant.outline,
-                                                intent: UiIntent.neutral,
-                                                size: UiSize.lg,
-                                                expand: true,
-                                                leading: const GoogleLogoMark(
-                                                  size: 20,
-                                                ),
-                                                onPressed: () =>
-                                                    _showSocialToast('Google'),
-                                              ),
-                                            ],
-                                            SizedBox(
-                                              height: context.sp(
-                                                theme.spacing.lg,
-                                              ),
-                                            ),
-
-                                            // Switch to Sign in Link
-                                            Wrap(
-                                              alignment: WrapAlignment.center,
-                                              children: [
-                                                Text(
-                                                  'Already have an account? ',
-                                                  style: context.uiText.body
-                                                      .copyWith(
-                                                        color: colors
-                                                            .foregroundMuted,
-                                                        fontSize: 13,
-                                                      ),
-                                                ),
-                                                GestureDetector(
-                                                  onTap: () =>
-                                                      widget.onNavigateToLogin(
-                                                        _selectedRole,
-                                                      ),
-                                                  child: Text(
-                                                    'Sign in',
-                                                    style: context
-                                                        .uiText
-                                                        .bodyStrong
-                                                        .copyWith(
-                                                          color: colors.primary,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 13,
+                                              // Password & Confirm Password (2-column layout on desktop)
+                                              if (showSidePanel)
+                                                Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Expanded(
+                                                      child: UiField(
+                                                        label: 'Password',
+                                                        required: true,
+                                                        child: UiPasswordField(
+                                                          controller:
+                                                              _passwordController,
                                                         ),
+                                                      ),
+                                                    ),
+                                                    SizedBox(
+                                                      width: context.sp(
+                                                        theme.spacing.md,
+                                                      ),
+                                                    ),
+                                                    Expanded(
+                                                      child: UiField(
+                                                        label:
+                                                            'Confirm Password',
+                                                        required: true,
+                                                        child: UiPasswordField(
+                                                          controller:
+                                                              _confirmPasswordController,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                )
+                                              else ...[
+                                                UiField(
+                                                  label: 'Password',
+                                                  required: true,
+                                                  child: UiPasswordField(
+                                                    controller:
+                                                        _passwordController,
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  height: context.sp(
+                                                    theme.spacing.md,
+                                                  ),
+                                                ),
+                                                UiField(
+                                                  label: 'Confirm Password',
+                                                  required: true,
+                                                  child: UiPasswordField(
+                                                    controller:
+                                                        _confirmPasswordController,
                                                   ),
                                                 ),
                                               ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-
-                                    // Right Visual Window Column — desktop only.
-                                    if (showSidePanel)
-                                      Expanded(
-                                        child: SizedBox(
-                                          height:
-                                              640, // Provide tight height for IntrinsicHeight
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              border: Border(
-                                                left: BorderSide(
-                                                  color: colors.border,
-                                                  width: theme.borders.hairline,
+                                              SizedBox(
+                                                height: context.sp(
+                                                  theme.spacing.xxs,
                                                 ),
                                               ),
-                                            ),
-                                            child: const AuthCarouselPanel(),
+                                              Text(
+                                                'Must be at least 8 characters long.',
+                                                style: context.uiText.caption
+                                                    .copyWith(
+                                                      color: colors
+                                                          .foregroundSubtle,
+                                                      fontSize: 11.5,
+                                                    ),
+                                              ),
+                                              SizedBox(
+                                                height: context.sp(
+                                                  theme.spacing.md,
+                                                ),
+                                              ),
+
+                                              // Role Specific Optional/Required Inputs
+                                              if (_selectedRole ==
+                                                  UserRole.affiliate) ...[
+                                                UiField(
+                                                  label:
+                                                      'Partner Referral Code (Optional)',
+                                                  // No figure here: nothing in the
+                                                  // app pays a signing bonus, so
+                                                  // quoting one would promise money
+                                                  // the payouts ledger never shows.
+                                                  helper:
+                                                      'Credits your signup to the partner who referred you',
+                                                  child: UiInput(
+                                                    value:
+                                                        _referralCodeController
+                                                            .text,
+                                                    hintText: 'REF-TRADEX-2026',
+                                                    onChanged: (v) =>
+                                                        _referralCodeController
+                                                                .text =
+                                                            v,
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  height: context.sp(
+                                                    theme.spacing.md,
+                                                  ),
+                                                ),
+                                              ],
+
+                                              // Create Account Submit Button
+                                              UiButton(
+                                                label: !_isSignupOpen
+                                                    ? 'Registration Closed (100/100 Full)'
+                                                    : (_isLoading
+                                                          ? 'Creating Account…'
+                                                          : 'Create Account'),
+                                                variant: UiVariant.primary,
+                                                intent:
+                                                    _selectedRole.badgeIntent,
+                                                size: UiSize.lg,
+                                                expand: true,
+                                                onPressed:
+                                                    (_isLoading ||
+                                                        !_isSignupOpen)
+                                                    ? null
+                                                    : _handleSubmit,
+                                              ),
+                                              if (_isSignupOpen) ...[
+                                                SizedBox(
+                                                  height: context.sp(
+                                                    theme.spacing.lg,
+                                                  ),
+                                                ),
+
+                                                // Divider
+                                                const UiDivider(
+                                                  label: 'Or continue with',
+                                                ),
+                                                SizedBox(
+                                                  height: context.sp(
+                                                    theme.spacing.md,
+                                                  ),
+                                                ),
+
+                                                // Social Authentication Buttons Grid
+                                                UiButton(
+                                                  label: 'Sign up with Google',
+                                                  variant: UiVariant.outline,
+                                                  intent: UiIntent.neutral,
+                                                  size: UiSize.lg,
+                                                  expand: true,
+                                                  leading: const GoogleLogoMark(
+                                                    size: 20,
+                                                  ),
+                                                  onPressed: () =>
+                                                      _showSocialToast(
+                                                        'Google',
+                                                      ),
+                                                ),
+                                              ],
+                                              SizedBox(
+                                                height: context.sp(
+                                                  theme.spacing.lg,
+                                                ),
+                                              ),
+
+                                              // Switch to Sign in Link
+                                              Wrap(
+                                                alignment: WrapAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    'Already have an account? ',
+                                                    style: context.uiText.body
+                                                        .copyWith(
+                                                          color: colors
+                                                              .foregroundMuted,
+                                                          fontSize: 13,
+                                                        ),
+                                                  ),
+                                                  GestureDetector(
+                                                    onTap: () => widget
+                                                        .onNavigateToLogin(
+                                                          _selectedRole,
+                                                        ),
+                                                    child: Text(
+                                                      'Sign in',
+                                                      style: context
+                                                          .uiText
+                                                          .bodyStrong
+                                                          .copyWith(
+                                                            color:
+                                                                colors.primary,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 13,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.md)),
 
-                            // Terms of Service & Privacy Policy Footer
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: constraints.maxWidth < 360
-                                    ? context.sp(theme.spacing.sm)
-                                    : context.sp(theme.spacing.md),
-                              ),
-                              child: Text.rich(
-                                TextSpan(
-                                  text:
-                                      'By clicking continue, you agree to our ',
-                                  style: context.uiText.caption.copyWith(
-                                    color: colors.foregroundSubtle,
-                                    fontSize: 11.5,
+                                      // Right Visual Window Column — desktop only.
+                                      if (showSidePanel)
+                                        Expanded(
+                                          child: SizedBox(
+                                            height:
+                                                640, // Provide tight height for IntrinsicHeight
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                border: Border(
+                                                  left: BorderSide(
+                                                    color: colors.border,
+                                                    width:
+                                                        theme.borders.hairline,
+                                                  ),
+                                                ),
+                                              ),
+                                              child: const AuthCarouselPanel(),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                                  children: [
-                                    WidgetSpan(
-                                      child: GestureDetector(
-                                        onTap: () => _showPolicyDialog(
-                                          context,
-                                          'Terms of Service',
-                                        ),
-                                        child: Text(
-                                          'Terms of Service',
-                                          style: context.uiText.caption
-                                              .copyWith(
-                                                color: colors.primary,
-                                                fontWeight: FontWeight.w500,
-                                                fontSize: 11.5,
-                                              ),
-                                        ),
-                                      ),
-                                    ),
-                                    const TextSpan(text: ' and '),
-                                    WidgetSpan(
-                                      child: GestureDetector(
-                                        onTap: () => _showPolicyDialog(
-                                          context,
-                                          'Privacy Policy',
-                                        ),
-                                        child: Text(
-                                          'Privacy Policy',
-                                          style: context.uiText.caption
-                                              .copyWith(
-                                                color: colors.primary,
-                                                fontWeight: FontWeight.w500,
-                                                fontSize: 11.5,
-                                              ),
-                                        ),
-                                      ),
-                                    ),
-                                    const TextSpan(text: '.'),
-                                  ],
                                 ),
-                                textAlign: TextAlign.center,
                               ),
-                            ),
-                          ],
+                              SizedBox(height: context.sp(theme.spacing.md)),
+
+                              // Terms of Service & Privacy Policy Footer
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: constraints.maxWidth < 360
+                                      ? context.sp(theme.spacing.sm)
+                                      : context.sp(theme.spacing.md),
+                                ),
+                                child: Text.rich(
+                                  TextSpan(
+                                    text:
+                                        'By clicking continue, you agree to our ',
+                                    style: context.uiText.caption.copyWith(
+                                      color: colors.foregroundSubtle,
+                                      fontSize: 11.5,
+                                    ),
+                                    children: [
+                                      WidgetSpan(
+                                        alignment: PlaceholderAlignment.middle,
+                                        child: MouseRegion(
+                                          cursor: SystemMouseCursors.click,
+                                          child: GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTap: () => PublicationReader.open(
+                                              context,
+                                              'terms',
+                                            ),
+                                            child: Text(
+                                              'Terms of Service',
+                                              style: context.uiText.caption
+                                                  .copyWith(
+                                                    color: colors.primary,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 11.5,
+                                                    decoration: TextDecoration.underline,
+                                                    decorationColor: colors.primary.withValues(alpha: 0.5),
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const TextSpan(text: ' and '),
+                                      WidgetSpan(
+                                        alignment: PlaceholderAlignment.middle,
+                                        child: MouseRegion(
+                                          cursor: SystemMouseCursors.click,
+                                          child: GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTap: () => PublicationReader.open(
+                                              context,
+                                              'privacy',
+                                            ),
+                                            child: Text(
+                                              'Privacy Policy',
+                                              style: context.uiText.caption
+                                                  .copyWith(
+                                                    color: colors.primary,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 11.5,
+                                                    decoration: TextDecoration.underline,
+                                                    decorationColor: colors.primary.withValues(alpha: 0.5),
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const TextSpan(text: '.'),
+                                    ],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -685,9 +725,7 @@ class _SignupPageState extends State<SignupPage> {
       }
       final launched = await client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb
-            ? Uri.base.origin
-            : 'tradex://auth/callback',
+        redirectTo: kIsWeb ? Uri.base.origin : 'tradex://auth/callback',
       );
       if (!launched) {
         throw StateError('Could not open Google sign-in. Please retry.');
@@ -703,26 +741,5 @@ class _SignupPageState extends State<SignupPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _showPolicyDialog(BuildContext context, String title) {
-    showDialog(
-      context: context,
-      builder: (context) => UiDialog(
-        title: title,
-        content: Text(
-          'alphajournal terms, customer privacy protection, and financial regulatory rules.',
-          style: context.uiText.body,
-        ),
-        actions: [
-          UiButton(
-            label: 'Close',
-            variant: UiVariant.primary,
-            intent: UiIntent.primary,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    );
   }
 }

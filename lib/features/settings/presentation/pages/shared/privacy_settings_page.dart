@@ -1,3 +1,4 @@
+import '../../widgets/help/cookie_preferences_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -347,6 +348,18 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              AppSettingCard(
+                title: 'Cookie and advertising preferences',
+                description:
+                    'Review optional analytics, ads and affiliate attribution on this device.',
+                icon: Icons.cookie_outlined,
+                control: UiButton(
+                  label: 'Manage choices',
+                  variant: UiVariant.outline,
+                  onPressed: () => CookiePreferencesDialog.show(context),
+                ),
+              ),
+              UiGap.v(theme.spacing.md),
               // Visibility Section
               AppSettingsSectionBlock(
                 title: 'Journal & Profile Visibility',

@@ -1,3 +1,4 @@
+import 'package:tradex/core/privacy/consent_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,6 +22,8 @@ import 'package:tradex/features/settings/presentation/pages/affiliate/affiliate_
 
 class RecordingSignup extends Fake implements AuthRepository {
   String? referral;
+  @override
+  Future<bool> isSignupOpen() async => true;
   @override
   Future<AuthResult> signUp({
     required UserRole role,
@@ -179,6 +182,10 @@ void main() {
   testWidgets(
     'referred customer signup passes the captured code to the auth repository',
     (tester) async {
+      await ConsentController.instance.initialize();
+      await ConsentController.instance.save(
+        const ConsentPreferences(affiliate: true),
+      );
       await AffiliateAttribution.capture('actual-partner', 'weekly-launch');
       final repository = RecordingSignup();
       await tester.pumpWidget(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
@@ -32,36 +33,38 @@ class CommunityShareSheet extends StatefulWidget {
   final ValueChanged<CommunityPost>? onQuote;
   final VoidCallback? onShared;
 
+  /// Canonical public deep link. Resolves to the in-app post view; visitors who
+  /// are signed out are asked to sign in and are returned to the post.
   static String postUrl(CommunityPost post) =>
-      'https://alphajournal.in/post/${post.id}';
+      '${AppConstants.appUrl}/community/post/${post.id}?public=true';
+
+  static String _excerpt(String body, {int max = 280}) {
+    final String clean = body.trim().replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    if (clean.length <= max) return clean;
+    return '${clean.substring(0, max).trimRight()}…';
+  }
 
   static String formattedShareText(CommunityPost post) {
     final StringBuffer buffer = StringBuffer();
     final String handle = post.author.cleanHandle.isNotEmpty
-        ? '@${post.author.cleanHandle}'
-        : post.author.displayName;
-    buffer.writeln('${post.author.displayName} ($handle) on alphajournal:');
+        ? ' (@${post.author.cleanHandle})'
+        : '';
+    buffer.writeln('${post.author.displayName}$handle on alphajournal');
     buffer.writeln();
-    buffer.writeln(post.body.trim());
+    buffer.writeln('“${_excerpt(post.body)}”');
 
     final CommunityTradeSetup? setup = post.tradeSetup;
     if (setup != null) {
       buffer.writeln();
       final String dir = setup.isBullish ? 'LONG' : 'SHORT';
       final List<String> parts = <String>[
-        'Trade Setup: $dir \$${setup.ticker}',
-        if (setup.entry.isNotEmpty) 'Entry: ${setup.entry}',
-        if (setup.target != null) 'Target: ${setup.target}',
-        if (setup.stopLoss != null) 'Stop: ${setup.stopLoss}',
-        if (setup.rMultiple != null) '(${setup.rMultiple})',
+        '$dir \$${setup.ticker}',
+        if (setup.entry.isNotEmpty) 'Entry ${setup.entry}',
+        if (setup.target != null) 'Target ${setup.target}',
+        if (setup.stopLoss != null) 'Stop ${setup.stopLoss}',
+        if (setup.rMultiple != null) '${setup.rMultiple}',
       ];
-      buffer.writeln(parts.join(' • '));
-    }
-
-    final att = post.attachment;
-    if (att != null) {
-      buffer.writeln();
-      buffer.writeln('Attached ${att.source.kind.label}: ${att.source.title}');
+      buffer.writeln('Trade setup: ${parts.join(' · ')}');
     }
 
     final List<String> tags = <String>[
@@ -70,10 +73,11 @@ class CommunityShareSheet extends StatefulWidget {
     ];
     if (tags.isNotEmpty) {
       buffer.writeln();
-      buffer.writeln(tags.join(' '));
+      buffer.writeln(tags.take(8).join(' '));
     }
 
     buffer.writeln();
+    buffer.writeln('Read the full post (sign in required):');
     buffer.write(postUrl(post));
     return buffer.toString();
   }
@@ -131,8 +135,16 @@ class CommunityShareSheet extends StatefulWidget {
     unawaited(Clipboard.setData(ClipboardData(text: text)).catchError((_) {}));
     bool sharedNatively = false;
     try {
+      final RenderObject? ro = context.findRenderObject();
+      final Rect? origin = ro is RenderBox && ro.hasSize
+          ? ro.localToGlobal(Offset.zero) & ro.size
+          : null;
       await SharePlus.instance.share(
-        ShareParams(text: text, subject: subject),
+        ShareParams(
+          text: text,
+          subject: subject,
+          sharePositionOrigin: origin,
+        ),
       );
       sharedNatively = true;
     } catch (_) {

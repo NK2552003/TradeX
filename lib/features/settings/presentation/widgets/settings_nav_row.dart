@@ -9,6 +9,7 @@ class SettingsNavRow extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle,
+    this.titleMaxLines = 2,
     this.icon,
     this.badgeLabel,
     this.badgeIntent = UiIntent.primary,
@@ -19,6 +20,7 @@ class SettingsNavRow extends StatelessWidget {
 
   final String title;
   final String? subtitle;
+  final int? titleMaxLines;
   final IconData? icon;
   final String? badgeLabel;
   final UiIntent badgeIntent;
@@ -68,7 +70,7 @@ class SettingsNavRow extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      maxLines: 2,
+                      maxLines: titleMaxLines,
                       overflow: TextOverflow.ellipsis,
                       style: context.uiText.bodyStrong.copyWith(
                         color: isDestructive

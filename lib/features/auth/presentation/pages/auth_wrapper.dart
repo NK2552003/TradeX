@@ -45,6 +45,7 @@ class AuthWrapper extends StatefulWidget {
     this.onDestinationChanged,
     this.onOpenRecord,
     this.onStageChanged,
+    this.loginNotice,
   });
 
   final AuthStage initialStage;
@@ -53,6 +54,9 @@ class AuthWrapper extends StatefulWidget {
   final ValueChanged<String>? onDestinationChanged;
   final ValueChanged<AppLinkRef>? onOpenRecord;
   final ValueChanged<AuthStage>? onStageChanged;
+
+  /// Context message shown on the login screen (e.g. deep-link sign-in prompt).
+  final String? loginNotice;
   final AuthRepository? authRepository;
 
   @override
@@ -153,8 +157,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
           if (event == AuthChangeEvent.passwordRecovery) {
             if (mounted) {
               setState(() {
-                _sessionState =
-                    _sessionState.copyWith(stage: AuthStage.forgotPassword);
+                _sessionState = _sessionState.copyWith(
+                  stage: AuthStage.forgotPassword,
+                );
               });
               widget.onStageChanged?.call(AuthStage.forgotPassword);
             }
@@ -234,7 +239,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
       if (kIsWeb && SupabaseConfig.isConfigured) {
         final uri = Uri.base;
         if (uri.queryParameters.containsKey('code') ||
-            (uri.fragment.isNotEmpty && uri.fragment.contains('access_token='))) {
+            (uri.fragment.isNotEmpty &&
+                uri.fragment.contains('access_token='))) {
           try {
             await SupabaseConfig.client?.auth.getSessionFromUrl(uri);
           } catch (e) {
@@ -281,18 +287,22 @@ class _AuthWrapperState extends State<AuthWrapper> {
             // Auto-synthesize fallback profile if needed so user is NEVER logged out on reload:
             if (profile == null) {
               final userMeta = user.userMetadata ?? <String, dynamic>{};
-              final fullName = (userMeta['full_name'] as String?) ??
+              final fullName =
+                  (userMeta['full_name'] as String?) ??
                   (userMeta['name'] as String?) ??
                   (user.email?.split('@').first ?? 'Trader');
-              final avatar = (userMeta['avatar_url'] as String?) ??
+              final avatar =
+                  (userMeta['avatar_url'] as String?) ??
                   (userMeta['picture'] as String?);
               final email = user.email ?? '';
-              final rawHandle = (userMeta['user_name'] as String?) ??
+              final rawHandle =
+                  (userMeta['user_name'] as String?) ??
                   (email.isNotEmpty
                       ? email.split('@').first
                       : 'trader_${user.id.substring(0, 6)}');
-              final handle =
-                  rawHandle.startsWith('@') ? rawHandle : '@$rawHandle';
+              final handle = rawHandle.startsWith('@')
+                  ? rawHandle
+                  : '@$rawHandle';
 
               profile = UserProfileModel(
                 id: user.id,
@@ -399,8 +409,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
       final targetStage = widget.initialStage != AuthStage.splash
           ? widget.initialStage
           : hasSeenOnboarding
-              ? AuthStage.login
-              : AuthStage.onboarding;
+          ? AuthStage.login
+          : AuthStage.onboarding;
 
       _resolveTo(targetStage);
     } catch (e) {
@@ -535,18 +545,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
             case AuthStage.login:
               return LoginPage(
+                notice: widget.loginNotice,
                 initialRole: _sessionState.role,
                 authRepository: _authRepository,
                 onLoginSuccess: (role, email) async {
                   await AuthSessionStorage.markOnboardingCompleted();
                   final effectiveRole = (role == UserRole.userAdmin)
                       ? (AuthBackendService.instance.currentUserProfile?.role ==
-                                  UserRole.userAdmin ||
-                              SupabaseAuthBackendService
-                                      .instance.currentUserProfile?.role ==
-                                  UserRole.userAdmin
-                          ? UserRole.userAdmin
-                          : UserRole.customer)
+                                    UserRole.userAdmin ||
+                                SupabaseAuthBackendService
+                                        .instance
+                                        .currentUserProfile
+                                        ?.role ==
+                                    UserRole.userAdmin
+                            ? UserRole.userAdmin
+                            : UserRole.customer)
                       : role;
                   _navigateToStage(
                     AuthStage.authenticated,
