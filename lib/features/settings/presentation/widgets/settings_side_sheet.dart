@@ -57,6 +57,12 @@ Future<T?> showSettingsSideSheet<T>(
             reverseCurve: Curves.easeInCubic,
           );
 
+          final BorderRadius sheetRadius = isMobile
+              ? BorderRadius.vertical(
+                  top: Radius.circular(ctx.sp(theme.radii.xl)),
+                )
+              : ctx.radius(theme.radii.xl);
+
           return Padding(
             padding: EdgeInsets.fromLTRB(
               floatingInset,
@@ -77,24 +83,22 @@ Future<T?> showSettingsSideSheet<T>(
                 ).animate(curveAnim),
                 child: Material(
                   color: Colors.transparent,
-                  borderRadius: isMobile
-                      ? BorderRadius.zero
-                      : ctx.radius(theme.radii.xl),
+                  borderRadius: sheetRadius,
                   clipBehavior: Clip.antiAlias,
                   child: Container(
                     key: const ValueKey<String>('settings-side-sheet-surface'),
                     width: targetWidth,
-                    height: double.infinity,
+                    height: isMobile
+                        ? (MediaQuery.sizeOf(ctx).height * 0.90)
+                        : double.infinity,
                     constraints: BoxConstraints(
                       maxHeight: isMobile
-                          ? double.infinity
+                          ? (MediaQuery.sizeOf(ctx).height * 0.90)
                           : MediaQuery.sizeOf(ctx).height - (floatingInset * 2),
                     ),
                     decoration: BoxDecoration(
                       color: colors.surface,
-                      borderRadius: isMobile
-                          ? BorderRadius.zero
-                          : ctx.radius(theme.radii.xl),
+                      borderRadius: sheetRadius,
                       border: Border.all(
                         color: colors.border,
                         width: theme.borders.hairline,
@@ -103,19 +107,37 @@ Future<T?> showSettingsSideSheet<T>(
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.35),
                           blurRadius: 28,
-                          offset: const Offset(-6, 0),
+                          offset: isMobile
+                              ? const Offset(0, -6)
+                              : const Offset(-6, 0),
                         ),
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: isMobile
-                          ? BorderRadius.zero
-                          : ctx.radius(theme.radii.xl),
+                      borderRadius: sheetRadius,
                       clipBehavior: Clip.antiAlias,
                       child: SafeArea(
+                        top: !isMobile,
+                        bottom: true,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            if (isMobile) ...[
+                              Center(
+                                child: Container(
+                                  margin: EdgeInsets.only(
+                                    top: ctx.sp(theme.spacing.sm),
+                                    bottom: ctx.sp(theme.spacing.xxs),
+                                  ),
+                                  width: 38,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: colors.border,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+                            ],
                             // Side Sheet Top Header
                             if (showHeader)
                               Container(

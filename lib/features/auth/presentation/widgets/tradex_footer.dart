@@ -1,5 +1,6 @@
 import 'package:tradex/features/settings/presentation/widgets/help/publication_reader.dart';
 import 'package:tradex/features/settings/presentation/widgets/help/cookie_preferences_dialog.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:flutter/material.dart';
@@ -33,87 +34,49 @@ class TradeXFooter extends StatelessWidget {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
 
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext ctx) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: context.sz(580),
-              maxHeight: context.sz(600),
+    showSettingsSideSheet<void>(
+      context,
+      title: title,
+      subtitle: category,
+      desktopWidthRatio: 0.52,
+      maxWidth: 780,
+      minDesktopWidth: 540,
+      scrollable: true,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.sp(theme.spacing.lg),
+          vertical: context.sp(theme.spacing.md),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            UiBadge(
+              label: category,
+              intent: UiIntent.primary,
+              size: UiSize.xs,
+              variant: UiBadgeVariant.soft,
             ),
-            child: Container(
-              padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-              decoration: BoxDecoration(
-                color: colors.surface,
-                borderRadius: context.radius(theme.radii.xl),
-                border: Border.all(
-                  color: colors.border,
-                  width: theme.borders.hairline,
-                ),
-                boxShadow: context.uiShadows.lg,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      UiBadge(
-                        label: category,
-                        intent: UiIntent.primary,
-                        size: UiSize.xs,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 20),
-                        color: colors.foregroundMuted,
-                        onPressed: () => Navigator.of(ctx).pop(),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.sm)),
-                  Text(
-                    title,
-                    style: context.uiText.display.copyWith(
-                      fontSize: 20.0,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.md)),
-                  const UiDivider(),
-                  SizedBox(height: context.sp(theme.spacing.md)),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Text(
-                        content,
-                        style: context.uiText.body.copyWith(
-                          color: colors.foregroundMuted,
-                          fontSize: 13.5,
-                          height: 1.6,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.lg)),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: UiButton(
-                      label: 'Understood',
-                      variant: UiVariant.primary,
-                      size: UiSize.sm,
-                      onPressed: () => Navigator.of(ctx).pop(),
-                    ),
-                  ),
-                ],
+            SizedBox(height: context.sp(theme.spacing.md)),
+            SelectableText(
+              content,
+              style: context.uiText.body.copyWith(
+                color: colors.foreground,
+                fontSize: 14.0,
+                height: 1.6,
               ),
             ),
-          ),
-        );
-      },
+            SizedBox(height: context.sp(theme.spacing.xl)),
+            UiButton(
+              label: 'View Complete Security Policy',
+              variant: UiVariant.outline,
+              onPressed: () {
+                Navigator.of(context).pop();
+                PublicationReader.open(context, 'security');
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
