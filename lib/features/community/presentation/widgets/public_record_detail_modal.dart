@@ -1,6 +1,7 @@
+import 'package:tradex/core/navigation/share_links.dart';
+import 'package:tradex/core/utils/share_actions.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/record_access.dart';
 import 'package:tradex/core/config/supabase_config.dart';
@@ -310,14 +311,8 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
   }
 
   void _copyShareLink() {
-    final url =
-        'https://alphajournal.in/community/${widget.ref.kind.name}/${widget.ref.id}';
-    Clipboard.setData(ClipboardData(text: url));
-    UiToast.success(
-      context,
-      title: 'Link copied',
-      message: 'Post link copied to clipboard.',
-    );
+    ShareActions.copy(context,
+      AppShareLinks.record(widget.ref.copyWith(isPublicContext: true)));
   }
 
   bool get _isAuthor {

@@ -1,7 +1,7 @@
+import 'package:tradex/core/utils/share_actions.dart';
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:tradex/features/market_data/presentation/market_sidebar.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
@@ -412,16 +412,10 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     icon: Icons.link_rounded,
                     size: UiSize.xs,
                     tooltip: 'Copy Thread Link',
-                    onPressed: () {
-                      final String url = CommunityShareSheet.postUrl(post);
-                      Clipboard.setData(ClipboardData(text: url));
-                      widget.repository.recordShare(post.id);
-                      UiToast.show(
-                        context,
-                        title: 'Link Copied',
-                        message: url,
-                        intent: UiIntent.success,
-                      );
+                    onPressed: () async {
+                      if (await ShareActions.copy(context, CommunityShareSheet.postUrl(post))) {
+                        widget.repository.recordShare(post.id);
+                      }
                     },
                   ),
                 UiIconButton(

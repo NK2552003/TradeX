@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:tradex/core/navigation/share_links.dart';
+import 'package:tradex/core/utils/share_actions.dart';
 
 /// Sends a Writing-Desk record ([AppLinkRef]) into a direct conversation.
 ///
@@ -79,7 +78,8 @@ class ShareToConversationDialog extends StatefulWidget {
   static Future<void> showShareMenu(
     BuildContext context, {
     required AppLinkRef reference,
-    required String shareUrl,
+    bool isPublic = true,
+    VoidCallback? onPublish,
     VoidCallback? onExportPdf,
     MessagesRepository? repository,
   }) {
@@ -87,6 +87,9 @@ class ShareToConversationDialog extends StatefulWidget {
     final colors = theme.colors;
     final repo = repository ?? MessagesRepositoryScope.repository;
 
+    final shareUrl = AppShareLinks.record(
+      reference.copyWith(isPublicContext: true),
+    );
     final String fullShareText =
         '${reference.title}${reference.subtitle != null && reference.subtitle!.isNotEmpty ? '\n${reference.subtitle}' : ''}\n\n$shareUrl';
 
@@ -129,7 +132,9 @@ class ShareToConversationDialog extends StatefulWidget {
                       child: Container(
                         width: ctx.sz(36),
                         height: ctx.sz(4),
-                        margin: EdgeInsets.only(bottom: ctx.sp(theme.spacing.sm)),
+                        margin: EdgeInsets.only(
+                          bottom: ctx.sp(theme.spacing.sm),
+                        ),
                         decoration: BoxDecoration(
                           color: colors.borderStrong,
                           borderRadius: BorderRadius.circular(2),
@@ -157,110 +162,106 @@ class ShareToConversationDialog extends StatefulWidget {
                     ),
                     SizedBox(height: ctx.sp(theme.spacing.sm)),
 
-                    _buildShareAction(
-                      ctx,
-                      icon: Icons.send_rounded,
-                      title: 'Send via alphajournal Messages',
-                      subtitle: 'Share privately into trader conversation',
-                      onTap: () {
-                        Navigator.of(ctx).pop();
-                        ShareToConversationDialog.show(
-                          context,
-                          repository: repo,
-                          reference: reference,
-                          onShared: (threadId) {
-                            UiToast.show(
-                              context,
-                              title: 'Sent to conversation',
-                              message: 'Shared ${reference.title}',
-                              intent: UiIntent.success,
-                            );
+                    if (!isPublic) ...[
+                      const UiCallout(
+                        title: 'This record is private',
+                        message:
+                            'Publish it before sharing a link so other traders can read it. You can also export a copy as PDF.',
+                        intent: UiIntent.info,
+                      ),
+                      if (onPublish != null)
+                        UiButton(
+                          label: 'Publish to share',
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            onPublish();
                           },
-                        );
-                      },
-                    ),
-
-                    _buildShareAction(
-                      ctx,
-                      icon: Icons.link_rounded,
-                      title: 'Copy Public Link',
-                      subtitle: shareUrl,
-                      onTap: () {
-                        Clipboard.setData(ClipboardData(text: shareUrl));
-                        Navigator.of(ctx).pop();
-                        UiToast.show(
-                          context,
-                          title: 'Link copied',
-                          message: 'Share URL copied to clipboard',
-                          intent: UiIntent.success,
-                        );
-                      },
-                    ),
-
-                    _buildShareAction(
-                      ctx,
-                      icon: Icons.chat_rounded,
-                      title: 'Share via WhatsApp',
-                      subtitle: 'Send to trading channels & groups',
-                      onTap: () async {
-                        Navigator.of(ctx).pop();
-                        await Clipboard.setData(
-                          ClipboardData(text: fullShareText),
-                        );
-                        final Uri uri = Uri.parse(
-                          'https://wa.me/?text=${Uri.encodeComponent(fullShareText)}',
-                        );
-                        try {
-                          await launchUrl(
-                            uri,
-                            mode: LaunchMode.externalApplication,
+                        ),
+                    ],
+                    if (isPublic) ...[
+                      _buildShareAction(
+                        ctx,
+                        icon: Icons.send_rounded,
+                        title: 'Send via alphajournal Messages',
+                        subtitle: 'Share privately into trader conversation',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          ShareToConversationDialog.show(
+                            context,
+                            repository: repo,
+                            reference: reference,
+                            onShared: (threadId) {
+                              UiToast.show(
+                                context,
+                                title: 'Sent to conversation',
+                                message: 'Shared ${reference.title}',
+                                intent: UiIntent.success,
+                              );
+                            },
                           );
-                        } catch (_) {}
-                      },
-                    ),
+                        },
+                      ),
 
-                    _buildShareAction(
-                      ctx,
-                      icon: Icons.alternate_email_rounded,
-                      title: 'Share on X / Twitter',
-                      subtitle: 'Broadcast to external audience',
-                      onTap: () async {
-                        Navigator.of(ctx).pop();
-                        await Clipboard.setData(
-                          ClipboardData(text: fullShareText),
-                        );
-                        final Uri uri = Uri.parse(
-                          'https://x.com/intent/tweet?text=${Uri.encodeComponent(reference.title)}&url=${Uri.encodeComponent(shareUrl)}',
-                        );
-                        try {
-                          await launchUrl(
-                            uri,
-                            mode: LaunchMode.externalApplication,
+                      _buildShareAction(
+                        ctx,
+                        icon: Icons.link_rounded,
+                        title: 'Copy Public Link',
+                        subtitle: shareUrl,
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          ShareActions.copy(context, shareUrl);
+                        },
+                      ),
+                      _buildShareAction(
+                        ctx,
+                        icon: Icons.chat_rounded,
+                        title: 'Share via WhatsApp',
+                        subtitle: 'Send to trading channels & groups',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          ShareActions.external(
+                            context,
+                            uri: Uri.https('wa.me', '/', {
+                              'text': fullShareText,
+                            }),
+                            text: fullShareText,
+                            platform: 'WhatsApp',
                           );
-                        } catch (_) {}
-                      },
-                    ),
-
-                    _buildShareAction(
-                      ctx,
-                      icon: Icons.ios_share_rounded,
-                      title: 'System Share...',
-                      subtitle: 'Share via OS share sheet',
-                      onTap: () async {
-                        Navigator.of(ctx).pop();
-                        await Clipboard.setData(
-                          ClipboardData(text: fullShareText),
-                        );
-                        try {
-                          await SharePlus.instance.share(
-                            ShareParams(
-                              text: fullShareText,
-                              subject: reference.title,
-                            ),
+                        },
+                      ),
+                      _buildShareAction(
+                        ctx,
+                        icon: Icons.alternate_email_rounded,
+                        title: 'Share on X / Twitter',
+                        subtitle: 'Broadcast to external audience',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          ShareActions.external(
+                            context,
+                            uri: Uri.https('x.com', '/intent/tweet', {
+                              'text': reference.title,
+                              'url': shareUrl,
+                            }),
+                            text: fullShareText,
+                            platform: 'X',
                           );
-                        } catch (_) {}
-                      },
-                    ),
+                        },
+                      ),
+                      _buildShareAction(
+                        ctx,
+                        icon: Icons.ios_share_rounded,
+                        title: 'System Share...',
+                        subtitle: 'Share via OS share sheet',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          ShareActions.system(
+                            context,
+                            text: fullShareText,
+                            subject: reference.title,
+                          );
+                        },
+                      ),
+                    ],
 
                     if (onExportPdf != null)
                       _buildShareAction(

@@ -57,6 +57,13 @@ class _TradeXAppState extends State<TradeXApp> {
         ],
       ),
       GoRoute(
+        path: '/join/:code',
+        redirect: (context, state) => Uri(
+          pathSegments: ['', 'r', state.pathParameters['code']!],
+          queryParameters: state.uri.queryParameters,
+        ).toString(),
+      ),
+      GoRoute(
         path: '/r/:code',
         redirect: (context, state) async {
           final code = state.pathParameters['code']!;
@@ -76,7 +83,8 @@ class _TradeXAppState extends State<TradeXApp> {
       for (final path in [
         '/',
         '/auth/:stage',
-        '/community/post/:id',
+        '/community/:kind/:id',
+        '/p/:kind/:id',
         '/:destination/:id',
         '/:destination',
       ])
@@ -100,8 +108,10 @@ class _TradeXAppState extends State<TradeXApp> {
     final AppLinkOpenRequest? target = uri.path.startsWith('/auth/')
         ? CustomerRoute.afterAuthentication(uri)?.$2.request
         : route.request;
-    if (target?.kind != AppLinkKind.communityPost) return null;
-    return 'Please sign in or create an account to view this post. '
+    final profile = route.profileHandle;
+    if (target == null && profile == null) return null;
+    final label = profile != null ? 'profile' : target!.kind.label.toLowerCase();
+    return 'Please sign in or create an account to view this $label. '
         "You'll be taken straight to it after you sign in.";
   }
 
@@ -144,6 +154,7 @@ class _TradeXAppState extends State<TradeXApp> {
             initialStage: route.stage,
             initialDestination: route.destination,
             openRequest: route.request,
+            profileHandle: route.profileHandle,
             onDestinationChanged: (destination) =>
                 _router.go(location(Uri(path: '/$destination'))),
             onOpenRecord: (ref) =>

@@ -1,3 +1,5 @@
+import 'package:tradex/core/navigation/share_links.dart';
+import 'package:tradex/core/utils/share_actions.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1147,19 +1149,12 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       size: UiSize.md,
                                       onPressed: () {
                                         final link = isAffiliate
-                                            ? 'https://alphajournal.in/join/${widget.referralCode ?? _cleanHandle}'
-                                            : 'https://alphajournal.in/@$_cleanHandle';
-                                        Clipboard.setData(
-                                          ClipboardData(text: link),
-                                        );
-                                        UiToast.show(
-                                          context,
+                                            ? AppShareLinks.referral(widget.referralCode ?? _cleanHandle)
+                                            : AppShareLinks.profile(_cleanHandle);
+                                        ShareActions.copy(context, link,
                                           title: isAffiliate
                                               ? 'Referral link copied'
-                                              : 'Profile link copied',
-                                          message: link,
-                                          intent: UiIntent.success,
-                                        );
+                                              : 'Profile link copied');
                                       },
                                     ),
                                     if (isViewingSelf && widget.onEditProfile != null)
@@ -1498,7 +1493,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     _MetaItem(
                                       icon: Icons.link_rounded,
                                       text:
-                                          'alphajournal/join/${widget.referralCode?.isNotEmpty == true ? widget.referralCode! : _cleanHandle}',
+                                          AppShareLinks.referral(widget.referralCode?.isNotEmpty == true ? widget.referralCode! : _cleanHandle),
                                       isLink: true,
                                     ),
                                   if (widget.channelHandle?.isNotEmpty == true)
@@ -4318,7 +4313,7 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'https://alphajournal.in/join/$referralCode',
+                        AppShareLinks.referral(referralCode),
                         style: context.uiText.bodyStrong.copyWith(
                           color: theme.colors.primary,
                           fontWeight: FontWeight.w600,
@@ -4332,17 +4327,7 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                       size: UiSize.xs,
                       leadingIcon: Icons.copy_rounded,
                       onPressed: () {
-                        Clipboard.setData(
-                          ClipboardData(
-                            text: 'https://alphajournal.in/join/$referralCode',
-                          ),
-                        );
-                        UiToast.show(
-                          context,
-                          title: 'Link copied',
-                          message: 'https://alphajournal.in/join/$referralCode',
-                          intent: UiIntent.success,
-                        );
+                        ShareActions.copy(context, AppShareLinks.referral(referralCode));
                       },
                     ),
                   ],

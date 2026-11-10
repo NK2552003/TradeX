@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:tradex/core/utils/share_actions.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
@@ -13,7 +15,7 @@ import 'package:share_plus/share_plus.dart';
 /// let a diagram (mermaid flowchart, chart) be downloaded/shared as an
 /// image independent of the rest of the note.
 class PngExporter {
-  static Future<File?> export({
+  static Future<XFile?> export({
     required GlobalKey boundaryKey,
     required String filename,
     double pixelRatio = 3,
@@ -30,15 +32,23 @@ class PngExporter {
       );
       if (byteData == null) return null;
 
-      final Directory dir = await getApplicationDocumentsDirectory();
       final String safeName = filename.trim().isEmpty
           ? 'diagram'
           : filename.trim().replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final bytes = byteData.buffer.asUint8List();
+      if (kIsWeb) {
+        return XFile.fromData(
+          bytes,
+          mimeType: 'image/png',
+          name: '$safeName.png',
+        );
+      }
+      final Directory dir = await getApplicationDocumentsDirectory();
       final String path = p.join(dir.path, 'exports', '$safeName.png');
       final File file = File(path);
       await file.parent.create(recursive: true);
-      await file.writeAsBytes(byteData.buffer.asUint8List());
-      return file;
+      await file.writeAsBytes(bytes);
+      return XFile(file.path, mimeType: 'image/png');
     } finally {
       image.dispose();
     }
@@ -48,14 +58,18 @@ class PngExporter {
     required GlobalKey boundaryKey,
     required String filename,
   }) async {
-    final File? file = await export(
+    final XFile? file = await export(
       boundaryKey: boundaryKey,
       filename: filename,
     );
     if (file == null) return false;
     await SharePlus.instance.share(
       ShareParams(
-        files: <XFile>[XFile(file.path, mimeType: 'image/png')],
+        files: <XFile>[file],
+        fileNameOverrides: [file.name],
+        sharePositionOrigin: boundaryKey.currentContext != null
+            ? ShareActions.origin(boundaryKey.currentContext!)
+            : null,
         text: filename,
       ),
     );

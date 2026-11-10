@@ -44,6 +44,7 @@ import 'package:tradex/core/widgets/app_global_notifications_page.dart';
 import 'package:tradex/core/widgets/app_notifications_overlay.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
+import 'package:tradex/features/community/presentation/views/shared_profile_page.dart';
 
 /// The signed-in application shell: chrome, navigation and the active page.
 ///
@@ -65,6 +66,7 @@ class AppScaffold extends StatefulWidget {
     this.userDisplayName = '',
     this.initialDestination = 'workspace',
     this.initialOpenRequest,
+    this.profileHandle,
     this.onDestinationChanged,
     this.onOpenRecord,
   });
@@ -72,6 +74,7 @@ class AppScaffold extends StatefulWidget {
   final UserRole userRole;
   final String initialDestination;
   final AppLinkOpenRequest? initialOpenRequest;
+  final String? profileHandle;
   final ValueChanged<String>? onDestinationChanged;
   final ValueChanged<AppLinkRef>? onOpenRecord;
 
@@ -106,6 +109,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     'journal': 'Journal',
     'community': 'Community',
     'community_feed': 'Community Feed',
+    'public_profile': 'Trader Profile',
   };
 
   final AppSession _session = AppSession.instance;
@@ -1005,6 +1009,14 @@ class _AppScaffoldState extends State<AppScaffold> {
             (_linkedOrigins.isNotEmpty ? _returnFromLinkedRecord : null);
 
   Widget _buildActivePage() {
+    if (_selectedId == 'public_profile') {
+      return SharedProfilePage(
+        key: ValueKey('shared-profile-${widget.profileHandle}'),
+        handle: widget.profileHandle ?? '',
+        repository: _communityRepo,
+        onOpenRef: _openLinkRef,
+      );
+    }
     if (_showAffiliateApplication) return _affiliateApplicationPage();
     if (_selectedId == 'search') return _searchPage();
     if (_selectedId == 'notifications') return _notificationsPage();

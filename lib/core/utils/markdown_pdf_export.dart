@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
+import 'package:tradex/core/utils/share_actions.dart';
 import 'package:flutter/widgets.dart'
     show BuildContext, Color, ColoredBox, EdgeInsets, Padding;
 import 'package:flutter/services.dart' show ByteData, rootBundle;
@@ -33,12 +34,12 @@ import 'package:share_plus/share_plus.dart';
 /// blocks, which are painted onto a canvas by their Flutter widgets. Those are
 /// rendered off-screen at high resolution and embedded as figures in place.
 class MarkdownPdfExporter {
-  /// Writes the PDF under the app's documents directory and returns the file.
+  /// Generates PDF bytes without requiring a filesystem (including on web).
   ///
   /// [context] is only needed to render mermaid/chart figures; without it
   /// those blocks fall back to their source text in a code box and everything
   /// else exports normally.
-  static Future<File?> export({
+  static Future<Uint8List?> render({
     required String markdown,
     required String title,
     String? subtitle,
@@ -143,16 +144,7 @@ class MarkdownPdfExporter {
         ),
       );
 
-      final Directory dir = await getApplicationDocumentsDirectory();
-      final String safeName = title.trim().isEmpty
-          ? 'note'
-          : title.trim().replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-      final File file = File(p.join(dir.path, 'exports', '$safeName.pdf'));
-      await file.parent.create(recursive: true);
-      debugPrint('MarkdownPdfExporter: saving to ${file.path}');
-      await file.writeAsBytes(await doc.save());
-      debugPrint('MarkdownPdfExporter: export succeeded');
-      return file;
+      return await doc.save();
     } catch (error, stackTrace) {
       // The caller only ever sees a generic "couldn't export" toast (export
       // failures are common enough — an odd character, a huge table, a
@@ -168,6 +160,48 @@ class MarkdownPdfExporter {
     }
   }
 
+  /// Creates a browser-compatible file or saves it on native platforms.
+  static Future<XFile?> export({
+    required String markdown,
+    required String title,
+    String? subtitle,
+    BuildContext? context,
+    Future<Uint8List?> Function(Uri uri)? imageResolver,
+    PdfExportOptions options = const PdfExportOptions(),
+    void Function(String step)? onStep,
+  }) async {
+    final bytes = await render(
+      markdown: markdown,
+      title: title,
+      subtitle: subtitle,
+      context: context,
+      imageResolver: imageResolver,
+      options: options,
+      onStep: onStep,
+    );
+    if (bytes == null) return null;
+    final safeName = title.trim().isEmpty
+        ? 'note'
+        : title.trim().replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    if (kIsWeb) {
+      return XFile.fromData(
+        bytes,
+        mimeType: 'application/pdf',
+        name: '$safeName.pdf',
+      );
+    }
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File(p.join(dir.path, 'exports', '$safeName.pdf'));
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes(bytes);
+      return XFile(file.path, mimeType: 'application/pdf');
+    } catch (error) {
+      debugPrint('MarkdownPdfExporter: saving failed — $error');
+      return null;
+    }
+  }
+
   /// Convenience: export then immediately open the OS share sheet so the
   /// person can save it, print it, or send it somewhere.
   static Future<bool> exportAndShare({
@@ -179,7 +213,7 @@ class MarkdownPdfExporter {
     PdfExportOptions options = const PdfExportOptions(),
     void Function(String step)? onStep,
   }) async {
-    final File? file = await export(
+    final XFile? file = await export(
       markdown: markdown,
       title: title,
       subtitle: subtitle,
@@ -192,7 +226,11 @@ class MarkdownPdfExporter {
     onStep?.call('Opening share sheet');
     await SharePlus.instance.share(
       ShareParams(
-        files: <XFile>[XFile(file.path, mimeType: 'application/pdf')],
+        files: <XFile>[file],
+        fileNameOverrides: [file.name],
+        sharePositionOrigin: context != null && context.mounted
+            ? ShareActions.origin(context)
+            : null,
         text: title,
       ),
     );

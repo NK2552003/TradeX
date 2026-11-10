@@ -191,17 +191,21 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   }
 
   Future<void> _shareNote() async {
-    final String shareUrl = 'https://alphajournal.in/p/notes/${_note.id}';
     final AppLinkRef ref = AppLinkRef(
       kind: AppLinkKind.note,
       id: _note.id,
+      isPublicContext: true,
       title: _title,
       subtitle: _note.noteType.label,
     );
     await ShareToConversationDialog.showShareMenu(
       context,
       reference: ref,
-      shareUrl: shareUrl,
+      isPublic: _note.isPublic,
+      onPublish: _canEdit ? () async {
+        await _toggleVisibility();
+        if (mounted && _note.isPublic) await _shareNote();
+      } : null,
       onExportPdf: _exportPdf,
     );
   }

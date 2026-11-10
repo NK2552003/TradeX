@@ -16,6 +16,7 @@
 library;
 
 import 'package:markdown/markdown.dart' as md;
+import '../navigation/share_links.dart';
 
 import '../app-ui/models/app_models.dart';
 import '../app-ui/theme/app_tokens.dart';
@@ -34,6 +35,8 @@ class AppDeepLink {
   static const Set<String> _webHosts = <String>{
     'alphajournal.in',
     'www.alphajournal.in',
+    'app.alphajournal.in',
+    'community.alphajournal.in',
   };
 
   /// The canonical URL for one record.
@@ -50,32 +53,8 @@ class AppDeepLink {
   }
 
   static ({AppLinkKind kind, String id})? _parseWebTarget(Uri uri) {
-    final List<String> segs = uri.pathSegments
-        .where((String s) => s.trim().isNotEmpty)
-        .toList();
-    if (segs.isEmpty) return null;
-    // Supports /p/notes/<id>, /p/journal/<id>, /p/strategies/<id>, /p/post/<id>,
-    // /post/<id>, /notes/<id>, /journal/<id>, /strategies/<id>, /ticker/<id>.
-    int offset = 0;
-    if (segs.first.toLowerCase() == 'p' && segs.length >= 3) {
-      offset = 1;
-    }
-    if (segs.length < offset + 2) return null;
-    final String kindSegment = segs[offset].toLowerCase();
-    final String id = segs.sublist(offset + 1).join('/').trim();
-    if (id.isEmpty) return null;
-    final AppLinkKind? kind = switch (kindSegment) {
-      'note' || 'notes' => AppLinkKind.note,
-      'journal' || 'trade' || 'trades' || 'entry' => AppLinkKind.journal,
-      'strategy' || 'strategies' || 'playbook' => AppLinkKind.strategy,
-      'ticker' || 'tickers' || 'symbol' => AppLinkKind.ticker,
-      'post' || 'posts' || 'community' => AppLinkKind.communityPost,
-      'message' || 'messages' || 'thread' => AppLinkKind.messageThread,
-      'ai' || 'copilot' => AppLinkKind.aiCopilot,
-      _ => AppLinkKind.fromHost(kindSegment),
-    };
-    if (kind == null) return null;
-    return (kind: kind, id: id);
+    final target = AppShareLinks.target(uri);
+    return target == null ? null : (kind: target.kind, id: target.id);
   }
 
   /// The record a URL points at, or null if this is not a `tradex://` or
@@ -106,7 +85,12 @@ class AppDeepLink {
     if (uri == null) return null;
     final ({AppLinkKind kind, String id})? parsed = target(uri);
     if (parsed == null) return null;
-    return AppLinkRef(kind: parsed.kind, id: parsed.id, title: parsed.id);
+    return AppLinkRef(
+      kind: parsed.kind, id: parsed.id, title: parsed.id,
+      isPublicContext: uri.scheme == scheme
+          ? uri.queryParameters['public'] == 'true'
+          : AppShareLinks.target(uri)?.publicContext ?? false,
+    );
   }
 
   /// Markdown for a link a human will read. The label is what the reader sees,

@@ -382,10 +382,10 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       _guard(() => _repo.toggleFavorite(_entry.id));
 
   Future<void> _shareTrade() async {
-    final String shareUrl = 'https://alphajournal.in/p/journal/${_entry.id}';
     final AppLinkRef ref = AppLinkRef(
       kind: AppLinkKind.journal,
       id: _entry.id,
+      isPublicContext: true,
       title: _entry.displayTitle,
       subtitle: '${_entry.side.name.toUpperCase()} ${_entry.ticker}',
       meta: _entry.rMultiple != null
@@ -400,7 +400,11 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     await ShareToConversationDialog.showShareMenu(
       context,
       reference: ref,
-      shareUrl: shareUrl,
+      isPublic: _entry.isPublic,
+      onPublish: _canEdit ? () async {
+        await _toggleVisibility();
+        if (mounted && _entry.isPublic) await _shareTrade();
+      } : null,
       onExportPdf: _exportPdf,
     );
   }

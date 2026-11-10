@@ -42,6 +42,7 @@ class AuthWrapper extends StatefulWidget {
     this.authRepository,
     this.initialDestination,
     this.openRequest,
+    this.profileHandle,
     this.onDestinationChanged,
     this.onOpenRecord,
     this.onStageChanged,
@@ -51,6 +52,7 @@ class AuthWrapper extends StatefulWidget {
   final AuthStage initialStage;
   final String? initialDestination;
   final AppLinkOpenRequest? openRequest;
+  final String? profileHandle;
   final ValueChanged<String>? onDestinationChanged;
   final ValueChanged<AppLinkRef>? onOpenRecord;
   final ValueChanged<AuthStage>? onStageChanged;
@@ -743,6 +745,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 userEmail: activeProfile?.email ?? _sessionState.email,
                 initialDestination: safeInitialDestination,
                 initialOpenRequest: widget.openRequest,
+                profileHandle: widget.profileHandle,
                 onDestinationChanged: widget.onDestinationChanged,
                 onOpenRecord: widget.onOpenRecord,
                 onLogout: _handleLogout,

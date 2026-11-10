@@ -38,6 +38,13 @@ async function loadPost(env, id) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Clipboard and Web Share require a secure browser context. Preserve the
+    // exact shared path/query while upgrading old http:// links.
+    if (url.protocol === 'http:' &&
+        (url.hostname === 'alphajournal.in' || url.hostname.endsWith('.alphajournal.in'))) {
+      url.protocol = 'https:';
+      return Response.redirect(url.toString(), 308);
+    }
     const match = POST_PATH.exec(url.pathname);
     const page = await env.ASSETS.fetch(request);
     if (!match || request.method !== 'GET') return page;

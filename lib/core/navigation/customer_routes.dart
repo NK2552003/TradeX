@@ -3,16 +3,19 @@ import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/features/auth/models/auth_state.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'role_navigation_config.dart';
+import 'share_links.dart';
 
 /// URL codec shared by browser navigation and platform deep links.
 class CustomerRoute {
   const CustomerRoute({
     this.destination,
     this.request,
+    this.profileHandle,
     this.stage = AuthStage.splash,
     this.valid = true,
   });
   final String? destination;
+  final String? profileHandle;
   final AppLinkOpenRequest? request;
   final AuthStage stage;
   final bool valid;
@@ -64,11 +67,27 @@ class CustomerRoute {
         uri.path == '/callback') {
       return const CustomerRoute(destination: 'workspace');
     }
-    if (AppDeepLink.isInternal(uri)) {
+    if (uri.scheme == AppDeepLink.scheme) {
       final target = AppDeepLink.target(uri);
       return target == null
           ? const CustomerRoute(valid: false)
           : _record(target.kind, target.id, uri);
+    }
+    final shared = AppShareLinks.target(uri);
+    if (shared != null) {
+      return _record(
+        shared.kind,
+        shared.id,
+        uri,
+        publicContext: shared.publicContext,
+      );
+    }
+    final handle = AppShareLinks.profileHandle(uri);
+    if (handle != null) {
+      return CustomerRoute(
+        destination: 'public_profile',
+        profileHandle: handle,
+      );
     }
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
     if (segments.isEmpty) {
@@ -89,9 +108,7 @@ class CustomerRoute {
         );
       }
       if (host.startsWith('app.')) {
-        return const CustomerRoute(
-          destination: 'workspace',
-        );
+        return const CustomerRoute(destination: 'workspace');
       }
       return const CustomerRoute();
     }
@@ -108,23 +125,8 @@ class CustomerRoute {
               stage: stage,
               destination: afterAuthentication(uri)?.$2.destination,
               request: afterAuthentication(uri)?.$2.request,
+              profileHandle: afterAuthentication(uri)?.$2.profileHandle,
             );
-    }
-    if (segments.length == 3 &&
-        segments[0] == 'community' &&
-        segments[1] == 'post') {
-      return _record(AppLinkKind.communityPost, segments[2], uri);
-    }
-    if (segments.length == 2) {
-      final kind = switch (segments.first) {
-        'notes' => AppLinkKind.note,
-        'journal' => AppLinkKind.journal,
-        'strategies' => AppLinkKind.strategy,
-        'market' => AppLinkKind.ticker,
-        'messages' => AppLinkKind.messageThread,
-        _ => null,
-      };
-      if (kind != null) return _record(kind, segments[1], uri);
     }
     if (segments.length == 1) {
       final destination = segments.first;
@@ -158,26 +160,31 @@ class CustomerRoute {
     return route.valid && route.destination != null ? (target, route) : null;
   }
 
-  static CustomerRoute _record(AppLinkKind kind, String id, Uri uri) =>
-      CustomerRoute(
-        destination: switch (kind) {
-          AppLinkKind.note => 'notes',
-          AppLinkKind.journal => 'journal',
-          AppLinkKind.strategy => 'strategies',
-          AppLinkKind.ticker => 'market',
-          AppLinkKind.communityPost => 'community_feed',
-          AppLinkKind.messageThread => 'messages',
-          AppLinkKind.aiCopilot => 'ai_copilot',
-        },
-        request: AppLinkOpenRequest(
-          kind: kind,
-          id: id,
-          seq: uri.toString().hashCode,
-          publicContext:
-              kind == AppLinkKind.communityPost ||
-              uri.queryParameters['public'] == 'true',
-        ),
-      );
+  static CustomerRoute _record(
+    AppLinkKind kind,
+    String id,
+    Uri uri, {
+    bool publicContext = false,
+  }) => CustomerRoute(
+    destination: switch (kind) {
+      AppLinkKind.note => 'notes',
+      AppLinkKind.journal => 'journal',
+      AppLinkKind.strategy => 'strategies',
+      AppLinkKind.ticker => 'market',
+      AppLinkKind.communityPost => 'community_feed',
+      AppLinkKind.messageThread => 'messages',
+      AppLinkKind.aiCopilot => 'ai_copilot',
+    },
+    request: AppLinkOpenRequest(
+      kind: kind,
+      id: id,
+      seq: uri.toString().hashCode,
+      publicContext:
+          publicContext ||
+          kind == AppLinkKind.communityPost ||
+          uri.queryParameters['public'] == 'true',
+    ),
+  );
 
   static Uri forRecord(AppLinkRef ref) => Uri(
     pathSegments: [

@@ -1,17 +1,14 @@
-import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/app_constants.dart';
+import 'package:tradex/core/navigation/share_links.dart';
+import 'package:tradex/core/utils/share_actions.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_send_dm_dialog.dart';
 import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Bottom-sheet overlay presenting real social, external, workspace, and DM
 /// sharing actions for a community post.
@@ -36,7 +33,8 @@ class CommunityShareSheet extends StatefulWidget {
   /// Canonical public deep link. Resolves to the in-app post view; visitors who
   /// are signed out are asked to sign in and are returned to the post.
   static String postUrl(CommunityPost post) =>
-      '${AppConstants.appUrl}/community/post/${post.id}?public=true';
+      AppShareLinks.record(AppLinkRef(kind: AppLinkKind.communityPost,
+        id: post.id, title: post.body, isPublicContext: true));
 
   static String _excerpt(String body, {int max = 280}) {
     final String clean = body.trim().replaceAll(RegExp(r'\n{3,}'), '\n\n');
@@ -82,44 +80,13 @@ class CommunityShareSheet extends StatefulWidget {
     return buffer.toString();
   }
 
-  static Future<void> launchExternalShare(
+  static Future<bool> launchExternalShare(
     BuildContext context, {
     required Uri uri,
     required String fallbackText,
     required String platformLabel,
-  }) async {
-    unawaited(
-      Clipboard.setData(ClipboardData(text: fallbackText)).catchError((_) {}),
-    );
-    bool launched = false;
-    try {
-      launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!launched) {
-        launched = await launchUrl(uri, mode: LaunchMode.platformDefault);
-      }
-    } catch (_) {
-      launched = false;
-    }
-
-    if (!launched) {
-      try {
-        await SharePlus.instance.share(ShareParams(text: fallbackText));
-      } catch (_) {}
-    }
-
-    if (context.mounted) {
-      UiToast.show(
-        context,
-        title: launched
-            ? 'Opening $platformLabel'
-            : 'Ready to share on $platformLabel',
-        message: launched
-            ? 'Sharing post to $platformLabel (also copied to clipboard).'
-            : 'Post text & link copied to clipboard for $platformLabel.',
-        intent: UiIntent.success,
-      );
-    }
-  }
+  }) => ShareActions.external(context, uri: uri, text: fallbackText,
+      platform: platformLabel);
 
   static Future<void> triggerNativeShare(
     BuildContext context,
@@ -127,38 +94,11 @@ class CommunityShareSheet extends StatefulWidget {
     CommunityRepository? repository,
     VoidCallback? onShared,
   }) async {
-    final String text = formattedShareText(post);
-    final String subject =
-        'Post by @${post.author.cleanHandle} on alphajournal';
-    repository?.recordShare(post.id);
-    onShared?.call();
-    unawaited(Clipboard.setData(ClipboardData(text: text)).catchError((_) {}));
-    bool sharedNatively = false;
-    try {
-      final RenderObject? ro = context.findRenderObject();
-      final Rect? origin = ro is RenderBox && ro.hasSize
-          ? ro.localToGlobal(Offset.zero) & ro.size
-          : null;
-      await SharePlus.instance.share(
-        ShareParams(
-          text: text,
-          subject: subject,
-          sharePositionOrigin: origin,
-        ),
-      );
-      sharedNatively = true;
-    } catch (_) {
-      sharedNatively = false;
-    }
-    if (context.mounted) {
-      UiToast.show(
-        context,
-        title: sharedNatively ? 'Post Shared' : 'Copied for Sharing',
-        message: sharedNatively
-            ? 'Shared via system share sheet.'
-            : 'Formatted post & link copied to clipboard.',
-        intent: UiIntent.success,
-      );
+    if (await ShareActions.system(context,
+        text: formattedShareText(post),
+        subject: 'Post by @${post.author.cleanHandle} on alphajournal')) {
+      repository?.recordShare(post.id);
+      onShared?.call();
     }
   }
 
@@ -233,30 +173,15 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
   }
 
   Future<void> _copyLink({bool closeSheet = false}) async {
-    final String url = CommunityShareSheet.postUrl(widget.post);
+    final copied = await ShareActions.copy(context, CommunityShareSheet.postUrl(widget.post));
+    if (!copied) return;
     _recordShare();
-    unawaited(Clipboard.setData(ClipboardData(text: url)).catchError((_) {}));
     if (!mounted) return;
     if (closeSheet) {
-      final BuildContext hostContext = Navigator.of(context).context;
       Navigator.of(context).pop();
-      if (hostContext.mounted) {
-        UiToast.show(
-          hostContext,
-          title: 'Link Copied',
-          message: url,
-          intent: UiIntent.success,
-        );
-      }
-      return;
+    } else {
+      setState(() => _linkCopied = true);
     }
-    setState(() => _linkCopied = true);
-    UiToast.show(
-      context,
-      title: 'Link Copied',
-      message: 'Public post URL copied to clipboard.',
-      intent: UiIntent.success,
-    );
   }
 
   @override
@@ -438,17 +363,17 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                 onPressed: () async {
                   final BuildContext hostContext =
                       Navigator.of(context).context;
-                  _recordShare();
                   Navigator.of(context).pop();
                   final Uri waUri = Uri.parse(
                     'https://wa.me/?text=${Uri.encodeComponent(fullShareText)}',
                   );
-                  await CommunityShareSheet.launchExternalShare(
+                  final shared = await CommunityShareSheet.launchExternalShare(
                     hostContext,
                     uri: waUri,
                     fallbackText: fullShareText,
                     platformLabel: 'WhatsApp',
                   );
+                  if (shared) _recordShare();
                 },
               ),
               UiButton(
@@ -460,7 +385,6 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                 onPressed: () async {
                   final BuildContext hostContext =
                       Navigator.of(context).context;
-                  _recordShare();
                   Navigator.of(context).pop();
                   final String snippet = post.body.length > 200
                       ? '${post.body.substring(0, 197)}...'
@@ -470,12 +394,13 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                   final Uri xUri = Uri.parse(
                     'https://x.com/intent/tweet?text=${Uri.encodeComponent(tweetText)}&url=${Uri.encodeComponent(url)}',
                   );
-                  await CommunityShareSheet.launchExternalShare(
+                  final shared = await CommunityShareSheet.launchExternalShare(
                     hostContext,
                     uri: xUri,
                     fallbackText: fullShareText,
                     platformLabel: 'X / Twitter',
                   );
+                  if (shared) _recordShare();
                 },
               ),
               UiButton(
@@ -487,17 +412,17 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                 onPressed: () async {
                   final BuildContext hostContext =
                       Navigator.of(context).context;
-                  _recordShare();
                   Navigator.of(context).pop();
                   final Uri tgUri = Uri.parse(
                     'https://t.me/share/url?url=${Uri.encodeComponent(url)}&text=${Uri.encodeComponent(post.body)}',
                   );
-                  await CommunityShareSheet.launchExternalShare(
+                  final shared = await CommunityShareSheet.launchExternalShare(
                     hostContext,
                     uri: tgUri,
                     fallbackText: fullShareText,
                     platformLabel: 'Telegram',
                   );
+                  if (shared) _recordShare();
                 },
               ),
               UiButton(
@@ -509,17 +434,17 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                 onPressed: () async {
                   final BuildContext hostContext =
                       Navigator.of(context).context;
-                  _recordShare();
                   Navigator.of(context).pop();
                   final Uri liUri = Uri.parse(
                     'https://www.linkedin.com/sharing/share-offsite/?url=${Uri.encodeComponent(url)}',
                   );
-                  await CommunityShareSheet.launchExternalShare(
+                  final shared = await CommunityShareSheet.launchExternalShare(
                     hostContext,
                     uri: liUri,
                     fallbackText: fullShareText,
                     platformLabel: 'LinkedIn',
                   );
+                  if (shared) _recordShare();
                 },
               ),
               UiButton(
@@ -531,19 +456,19 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                 onPressed: () async {
                   final BuildContext hostContext =
                       Navigator.of(context).context;
-                  _recordShare();
                   Navigator.of(context).pop();
                   final String subject =
                       'alphajournal Post by ${post.author.displayName} (@${post.author.cleanHandle})';
                   final Uri mailUri = Uri.parse(
                     'mailto:?subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(fullShareText)}',
                   );
-                  await CommunityShareSheet.launchExternalShare(
+                  final shared = await CommunityShareSheet.launchExternalShare(
                     hostContext,
                     uri: mailUri,
                     fallbackText: fullShareText,
                     platformLabel: 'Email',
                   );
+                  if (shared) _recordShare();
                 },
               ),
               UiButton(
@@ -764,22 +689,12 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
             icon: Icons.copy_rounded,
             title: 'Copy Formatted Post & Setup',
             subtitle: 'Copy full post body, setup metrics, and link',
-            onTap: () {
-              final BuildContext hostContext = Navigator.of(context).context;
-              _recordShare();
-              unawaited(
-                Clipboard.setData(
-                  ClipboardData(text: fullShareText),
-                ).catchError((_) {}),
-              );
+            onTap: () async {
+              final hostContext = Navigator.of(context).context;
               Navigator.of(context).pop();
-              if (hostContext.mounted) {
-                UiToast.show(
-                  hostContext,
-                  title: 'Copied to Clipboard',
-                  message: 'Formatted post, trade setup, and link copied.',
-                  intent: UiIntent.success,
-                );
+              if (await ShareActions.copy(hostContext, fullShareText,
+                  title: 'Copied to Clipboard')) {
+                _recordShare();
               }
             },
           ),

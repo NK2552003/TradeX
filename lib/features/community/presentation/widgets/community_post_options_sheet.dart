@@ -1,5 +1,5 @@
+import 'package:tradex/core/utils/share_actions.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
@@ -138,18 +138,8 @@ class CommunityPostOptionsSheet extends StatelessWidget {
           onTap: () async {
             final BuildContext host = Navigator.of(context).context;
             final String url = CommunityShareSheet.postUrl(post);
-            await Clipboard.setData(ClipboardData(text: url));
-            repository.recordShare(post.id);
-            if (!context.mounted) return;
             Navigator.of(context).pop();
-            if (host.mounted) {
-              UiToast.show(
-                host,
-                title: 'Link Copied',
-                message: url,
-                intent: UiIntent.success,
-              );
-            }
+            if (await ShareActions.copy(host, url)) repository.recordShare(post.id);
           },
         ),
         const UiDivider(),

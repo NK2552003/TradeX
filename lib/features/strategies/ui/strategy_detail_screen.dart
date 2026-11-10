@@ -515,10 +515,10 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   }
 
   Future<void> _shareStrategy() async {
-    final String shareUrl = 'https://alphajournal.in/p/strategies/${_strategy.id}';
     final AppLinkRef ref = AppLinkRef(
       kind: AppLinkKind.strategy,
       id: _strategy.id,
+      isPublicContext: true,
       title: _strategy.name,
       subtitle: _strategy.category,
       meta: _strategy.status.name.toUpperCase(),
@@ -527,7 +527,11 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
     await ShareToConversationDialog.showShareMenu(
       context,
       reference: ref,
-      shareUrl: shareUrl,
+      isPublic: _strategy.isPublic,
+      onPublish: _canEdit ? () async {
+        await _toggleVisibility();
+        if (mounted && _strategy.isPublic) await _shareStrategy();
+      } : null,
       onExportPdf: _exportPdf,
     );
   }
