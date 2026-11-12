@@ -193,9 +193,12 @@ class _GetStartedPageState extends State<GetStartedPage> {
       return Scaffold(
         backgroundColor: colors.background,
         body: AlphaThreadBackdrop(
+          allSides: true,
           phase: 47.229,
-          thickness: 76,
-          mobileHeight: 220,
+          thickness: 64,
+          mobileHeight: 200,
+          desktopHeight: 320,
+          opacity: 0.5,
           child: SafeArea(
             child: _buildMobileView(context, theme, colors, responsive),
           ),
@@ -206,11 +209,12 @@ class _GetStartedPageState extends State<GetStartedPage> {
     return Scaffold(
       backgroundColor: colors.background,
       body: AlphaThreadBackdrop(
-        phase: 29.5,
-        thickness: 52,
-        desktopHeight: 170,
-        opacity: 0.18,
-        fadeOut: true,
+        allSides: true,
+        phase: 12.7,
+        thickness: 64,
+        desktopHeight: 320,
+        mobileHeight: 200,
+        opacity: 0.5,
         child: SafeArea(
           child: Stack(
             children: [
@@ -347,26 +351,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     ),
                   ),
 
-                  // Full-width Bottom-originating AlphaThread ribbon (no left/right padding, flush against footer line)
-                  LayoutBuilder(
-                    builder: (BuildContext ctx, BoxConstraints constraints) {
-                      final bool isDesktop = constraints.maxWidth >= 900;
-                      if (!isDesktop) return const SizedBox.shrink();
-                      return SizedBox(
-                        height: context.sz(220),
-                        width: double.infinity,
-                        child: const RotatedBox(
-                          quarterTurns: 2,
-                          child: AlphaThread(
-                            phase: 84.6,
-                            thickness: 60,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-
-                  // Bottom Bar: Copyright & Legal quick actions (stuck directly to bottom of ribbon)
+                  // Bottom Bar: Copyright & Legal quick actions
                   const TradeXFooter(),
                 ],
               ),
