@@ -20,7 +20,7 @@ void main() {
         isPublicContext: true,
       );
       final uri = Uri.parse(AppShareLinks.record(ref));
-      for (final path in [uri, Uri.parse(uri.path + '?public=true')]) {
+      for (final path in [uri, Uri.parse('${uri.path}?public=true')]) {
         final route = CustomerRoute.parse(path);
         expect(route.valid, isTrue);
         expect(route.request!.id, ref.id);

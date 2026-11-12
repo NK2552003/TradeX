@@ -6,6 +6,7 @@ import 'package:tradex/core/privacy/consent_preferences.dart';
 
 /// Stores a referral through auth navigation and email-verification reloads.
 class AffiliateAttribution {
+  static const lifetime = Duration(days: 30);
   static const _key = 'affiliate_attribution_v1';
   static Future<Map<String, dynamic>?> load() async {
     await ConsentController.instance.initialize();
@@ -17,7 +18,7 @@ class AffiliateAttribution {
       final data = Map<String, dynamic>.from(jsonDecode(value) as Map);
       final date = DateTime.parse(data['captured_at'] as String);
       final age = DateTime.now().difference(date);
-      if (age.isNegative || age >= const Duration(days: 30)) {
+      if (age.isNegative || age >= lifetime) {
         await clear();
         return null;
       }

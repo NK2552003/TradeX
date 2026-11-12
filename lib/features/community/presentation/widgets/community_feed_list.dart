@@ -18,6 +18,7 @@ class CommunityFeedList extends StatelessWidget {
     this.repository,
     this.currentUser,
     this.isLoading = false,
+    this.showAdvertisements = false,
     this.onPostTap,
     this.onLike,
     this.onRepost,
@@ -37,6 +38,7 @@ class CommunityFeedList extends StatelessWidget {
   final CommunityRepository? repository;
   final CommunityAuthor? currentUser;
   final bool isLoading;
+  final bool showAdvertisements;
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<String>? onLike;
   final ValueChanged<String>? onRepost;

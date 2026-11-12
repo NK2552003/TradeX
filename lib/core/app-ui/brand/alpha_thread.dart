@@ -22,6 +22,7 @@
 //   )
 
 import 'dart:math' as math;
+import 'dart:ui' as ui show Gradient, PathMetric;
 import 'package:flutter/material.dart';
 
 /// Design canvas the thread is generated on. It is scaled to cover the widget,
@@ -38,6 +39,7 @@ class AlphaThread extends StatefulWidget {
     this.textColor,
     this.phase = 47.229,
     this.shadow = true,
+    this.animate = false,
     this.height,
     this.scale,
   });
@@ -48,6 +50,7 @@ class AlphaThread extends StatefulWidget {
   final Color? textColor;
   final double phase;
   final bool shadow;
+  final bool animate;
   final double? scale;
 
   /// Optional fixed height. When null the widget fills the space it is given.
@@ -57,9 +60,44 @@ class AlphaThread extends StatefulWidget {
   State<AlphaThread> createState() => _AlphaThreadState();
 }
 
-class _AlphaThreadState extends State<AlphaThread> {
+class _AlphaThreadState extends State<AlphaThread>
+    with SingleTickerProviderStateMixin {
   _ThreadModel? _model;
   String? _key;
+
+  AnimationController? _motion;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncMotion();
+  }
+
+  @override
+  void didUpdateWidget(AlphaThread oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.animate != widget.animate) _syncMotion();
+  }
+
+  void _syncMotion() {
+    if (!widget.animate ||
+        MediaQuery.disableAnimationsOf(context) ||
+        ModalRoute.isCurrentOf(context) == false) {
+      _motion?.reset();
+      return;
+    }
+    final motion = _motion ??= AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    );
+    if (motion.isDismissed) motion.forward();
+  }
+
+  @override
+  void dispose() {
+    _motion?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +129,7 @@ class _AlphaThreadState extends State<AlphaThread> {
         widget.thickness,
         widget.shadow,
         scale: widget.scale,
+        motion: _motion,
       ),
       child: const SizedBox.expand(),
     );
@@ -207,14 +246,18 @@ class AlphaThreadGeometry {
 // ---------------------------------------------------------------------------
 
 class _Glyph {
-  _Glyph(this.painter, this.position, this.angle);
+  _Glyph(this.painter, this.position, this.angle, this.distance);
   final TextPainter painter;
   final Offset position;
   final double angle;
+  final double distance;
 }
 
 class _Chunk {
-  _Chunk(this.path, this.glyphs);
+  _Chunk(this.path, this.glyphs, this.metric, this.points);
+  final ui.PathMetric metric;
+  final List<Offset> points;
+  late final Rect bounds = path.getBounds();
   final Path path;
   final List<_Glyph> glyphs;
 }
@@ -274,18 +317,27 @@ class _ThreadModel {
       for (final c in chars) {
         final tp = glyphFor(c);
         if (c != ' ') {
-          final t = metric.getTangentForOffset(
-            (d + tp.width / 2).clamp(0.0, len).toDouble(),
-          );
+          final distance = (d + tp.width / 2).clamp(0.0, len).toDouble();
+          final t = metric.getTangentForOffset(distance);
           if (t != null) {
             glyphs.add(
-              _Glyph(tp, t.position, math.atan2(t.vector.dy, t.vector.dx)),
+              _Glyph(
+                tp,
+                t.position,
+                math.atan2(t.vector.dy, t.vector.dx),
+                distance,
+              ),
             );
           }
         }
         d += tp.width + extra;
       }
-      chunks.add(_Chunk(path, glyphs));
+      chunks.add(
+        _Chunk(path, glyphs, metric, [
+          for (int i = 0; i < seg.length - 1; i += 2) seg[i],
+          seg.last,
+        ]),
+      );
     }
     return _ThreadModel(chunks);
   }
@@ -298,8 +350,10 @@ class _ThreadPainter extends CustomPainter {
     this.thickness,
     this.shadow, {
     this.scale,
-  });
+    this.motion,
+  }) : super(repaint: motion);
 
+  final Animation<double>? motion;
   final _ThreadModel model;
   final Color ribbon;
   final double thickness;
@@ -332,15 +386,60 @@ class _ThreadPainter extends CustomPainter {
       ..color = const Color.fromRGBO(0, 0, 0, .45)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
 
+    final progress = Curves.easeInOutSine.transform(motion?.value ?? 0);
+    final flowing = progress > 0 && progress < 1;
+    final amplitude = thickness * .24 * math.sin(math.pi * progress);
+    final wavelength = thickness * 3;
+    double waveAt(double x) => x / wavelength - 2 * math.pi * progress;
+    Offset bend(Offset p) =>
+        Offset(p.dx, p.dy + amplitude * math.sin(waveAt(p.dx)));
+
+    if (flowing) {
+      // A travelling highlight follows the roll on both light and dark ribbon.
+      final highlight = Color.lerp(
+        ribbon,
+        ribbon.computeLuminance() < 0.5 ? Colors.white : Colors.black,
+        0.12 * math.sin(math.pi * progress),
+      )!;
+      final start = Offset(wavelength * progress * 2 * math.pi, 0);
+      stroke.shader = ui.Gradient.linear(
+        start,
+        start + Offset(wavelength * math.pi, 0),
+        [ribbon, highlight, ribbon],
+        const [0, 0.5, 1],
+        TileMode.repeated,
+      );
+    }
+    final visible = canvas.getLocalClipBounds().inflate(thickness + amplitude);
     for (final chunk in model.chunks) {
+      if (!visible.overlaps(chunk.bounds)) continue;
+      final path = flowing
+          ? (Path()..addPolygon(chunk.points.map(bend).toList(), false))
+          : chunk.path;
       if (shadow) {
-        canvas.drawPath(chunk.path.shift(const Offset(0, 7)), shadowPaint);
+        canvas.drawPath(path.shift(const Offset(0, 7)), shadowPaint);
       }
-      canvas.drawPath(chunk.path, stroke);
+      canvas.drawPath(path, stroke);
       for (final g in chunk.glyphs) {
+        var position = g.position;
+        var angle = g.angle;
+        var faceScale = 1.0;
+        if (flowing) {
+          final length = chunk.metric.length;
+          final distance = (g.distance + length * progress) % length;
+          final tangent = chunk.metric.getTangentForOffset(distance)!;
+          position = bend(tangent.position);
+          final roll = math.cos(waveAt(position.dx)) * amplitude / wavelength;
+          angle = math.atan2(
+            tangent.vector.dy + roll * tangent.vector.dx,
+            tangent.vector.dx,
+          );
+          faceScale -= roll.abs();
+        }
         canvas.save();
-        canvas.translate(g.position.dx, g.position.dy);
-        canvas.rotate(g.angle);
+        canvas.translate(position.dx, position.dy);
+        canvas.rotate(angle);
+        if (flowing) canvas.scale(1, faceScale);
         g.painter.paint(
           canvas,
           Offset(-g.painter.width / 2, -g.painter.height / 2),
@@ -356,7 +455,8 @@ class _ThreadPainter extends CustomPainter {
       old.ribbon != ribbon ||
       old.thickness != thickness ||
       old.shadow != shadow ||
-      old.scale != scale;
+      old.scale != scale ||
+      old.motion != motion;
 }
 
 /// Places [AlphaThread] ribbons around the edges of the screen, behind
@@ -375,11 +475,34 @@ class AlphaThreadBackdrop extends StatelessWidget {
     this.mobileHeight = 230,
     this.desktopHeight = 340,
     this.allSides = false,
+    this.showSideEdges = true,
+    this.reveal,
+    this.animate = false,
     this.opacity = 1,
     this.fadeOut = false,
     this.ribbonColor,
     this.textColor,
   });
+
+  const AlphaThreadBackdrop.auth({
+    Key? key,
+    required Widget child,
+    double phase = 12.7,
+    bool showSideEdges = true,
+    Animation<double>? reveal,
+  }) : this(
+         key: key,
+         child: child,
+         phase: phase,
+         thickness: 64,
+         mobileHeight: 200,
+         desktopHeight: 320,
+         opacity: 0.5,
+         allSides: true,
+         showSideEdges: showSideEdges,
+         reveal: reveal,
+         animate: reveal == null,
+       );
 
   final Widget child;
   final double phase;
@@ -387,6 +510,9 @@ class AlphaThreadBackdrop extends StatelessWidget {
   final double mobileHeight;
   final double desktopHeight;
   final bool allSides;
+  final bool showSideEdges;
+  final Animation<double>? reveal;
+  final bool animate;
   final double opacity;
   final bool fadeOut;
   final Color? ribbonColor;
@@ -399,20 +525,38 @@ class AlphaThreadBackdrop extends StatelessWidget {
     final double band = wide ? desktopHeight : mobileHeight;
     final double uniformScale = math.max(screenSize.width / _kW, band / _kH);
 
-    Widget ribbon(double ph) => AlphaThread(
-          phase: ph,
-          thickness: thickness,
-          scale: uniformScale,
-          ribbonColor: ribbonColor,
-          textColor: textColor,
-        );
+    // Keep the full design depth during the entrance, including inward loops.
+    final depth = reveal == null ? band : _kH * uniformScale;
+    Widget ribbon(double ph) {
+      final thread = AlphaThread(
+        phase: ph,
+        thickness: thickness,
+        scale: uniformScale,
+        animate: animate,
+        ribbonColor: ribbonColor,
+        textColor: textColor,
+      );
+      final entrance = reveal;
+      if (entrance == null || MediaQuery.disableAnimationsOf(context)) {
+        return thread;
+      }
+      return FadeTransition(
+        opacity: entrance,
+        child: SlideTransition(
+          position: entrance.drive(
+            Tween(begin: const Offset(0, -0.12), end: Offset.zero),
+          ),
+          child: thread,
+        ),
+      );
+    }
 
     final List<Widget> layers = <Widget>[
       Positioned(
         top: 0,
         left: 0,
         right: 0,
-        height: band,
+        height: depth,
         child: ribbon(phase),
       ),
       if (allSides)
@@ -420,18 +564,18 @@ class AlphaThreadBackdrop extends StatelessWidget {
           bottom: 0,
           left: 0,
           right: 0,
-          height: band,
+          height: depth,
           child: RotatedBox(
             quarterTurns: 2,
             child: _FillBox(ribbon(phase + 31.4)),
           ),
         ),
-      if (allSides && wide) ...<Widget>[
+      if (allSides && wide && showSideEdges) ...<Widget>[
         Positioned(
           top: 0,
           bottom: 0,
           left: 0,
-          width: band,
+          width: depth,
           child: RotatedBox(
             quarterTurns: 3,
             child: _FillBox(ribbon(phase + 17.9)),
@@ -441,7 +585,7 @@ class AlphaThreadBackdrop extends StatelessWidget {
           top: 0,
           bottom: 0,
           right: 0,
-          width: band,
+          width: depth,
           child: RotatedBox(
             quarterTurns: 1,
             child: _FillBox(ribbon(phase + 64.2)),
@@ -457,11 +601,7 @@ class AlphaThreadBackdrop extends StatelessWidget {
         shaderCallback: (Rect r) => const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: <Color>[
-            Colors.white,
-            Colors.white,
-            Colors.transparent,
-          ],
+          colors: <Color>[Colors.white, Colors.white, Colors.transparent],
           stops: <double>[0.0, 0.45, 1.0],
         ).createShader(Rect.fromLTWH(0, 0, r.width, band)),
         child: art,

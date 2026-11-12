@@ -164,13 +164,8 @@ class _SignupPageState extends State<SignupPage> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: AlphaThreadBackdrop(
-        allSides: true,
+      body: AlphaThreadBackdrop.auth(
         phase: 83.1,
-        thickness: 64,
-        desktopHeight: 320,
-        mobileHeight: 200,
-        opacity: 0.5,
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {

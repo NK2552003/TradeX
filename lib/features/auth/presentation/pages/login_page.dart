@@ -174,13 +174,7 @@ class _LoginPageState extends State<LoginPage> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: AlphaThreadBackdrop(
-        allSides: true,
-        phase: 12.7,
-        thickness: 64,
-        desktopHeight: 320,
-        mobileHeight: 200,
-        opacity: 0.5,
+      body: AlphaThreadBackdrop.auth(
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {

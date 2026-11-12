@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
@@ -5,6 +7,7 @@ import 'ui_button.dart';
 import 'ui_common.dart';
 import 'ui_card.dart';
 import 'ui_icon_button.dart';
+import 'ui_gap.dart';
 
 class UiDialog extends StatelessWidget {
   const UiDialog({
@@ -15,6 +18,8 @@ class UiDialog extends StatelessWidget {
     Widget? child,
     this.actions = const <Widget>[],
     this.icon,
+    this.leading,
+    this.footer,
     this.intent = UiIntent.primary,
   }) : content = content ?? child;
 
@@ -23,6 +28,8 @@ class UiDialog extends StatelessWidget {
   final Widget? content;
   final List<Widget> actions;
   final IconData? icon;
+  final Widget? leading;
+  final Widget? footer;
   final UiIntent intent;
 
   /// Completes after the closing transition has removed the dialog's fields.
@@ -52,47 +59,60 @@ class UiDialog extends StatelessWidget {
     required Widget child,
     bool dismissible = true,
     double maxWidth = 480,
+    bool pinFooter = false,
+    bool blurBackdrop = false,
   }) {
     final theme = context.ui;
-    final mobile = context.uiRes.isMobile;
     return present<T>(
       context: context,
       barrierDismissible: dismissible,
       barrierColor: theme.colors.overlay,
-      builder: (BuildContext ctx) => AnimatedPadding(
-        duration: theme.motion.fast,
-        padding:
-            MediaQuery.viewInsetsOf(ctx) +
-            EdgeInsets.all(ctx.sp(mobile ? 0 : theme.spacing.md)),
-        child: Align(
-          alignment: mobile ? Alignment.bottomCenter : Alignment.center,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: ctx.sz(maxWidth),
-              maxHeight: MediaQuery.sizeOf(ctx).height * (mobile ? 0.92 : 0.88),
-            ),
-            child: UiCard(
-              key: const ValueKey('ui-dialog-surface'),
-              padding: EdgeInsets.zero,
-              variant: UiCardVariant.elevated,
-              borderRadius: mobile
-                  ? BorderRadius.vertical(
-                      top: Radius.circular(ctx.sz(theme.radii.xl)),
-                    )
-                  : null,
-              child: Material(
-                type: MaterialType.transparency,
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.all(
-                    ctx.sp(mobile ? theme.spacing.lg : theme.spacing.xl),
-                  ),
-                  child: _UiDialogHost(child: child),
+      builder: (BuildContext ctx) {
+        final mobile = ctx.uiRes.isMobile;
+        final inset = EdgeInsets.all(
+          ctx.sp(mobile ? theme.spacing.lg : theme.spacing.xl),
+        );
+        final body = _UiDialogHost(pinFooter: pinFooter, child: child);
+        final panel = AnimatedPadding(
+          duration: theme.motion.fast,
+          padding:
+              MediaQuery.viewInsetsOf(ctx) +
+              EdgeInsets.all(ctx.sp(mobile ? 0 : theme.spacing.md)),
+          child: Align(
+            alignment: mobile ? Alignment.bottomCenter : Alignment.center,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: ctx.sz(maxWidth),
+                maxHeight:
+                    MediaQuery.sizeOf(ctx).height * (mobile ? 0.92 : 0.88),
+              ),
+              child: UiCard(
+                key: const ValueKey('ui-dialog-surface'),
+                padding: EdgeInsets.zero,
+                variant: UiCardVariant.elevated,
+                borderRadius: mobile
+                    ? BorderRadius.vertical(
+                        top: Radius.circular(ctx.sz(theme.radii.xl)),
+                      )
+                    : null,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: pinFooter
+                      ? Padding(padding: inset, child: body)
+                      : SingleChildScrollView(padding: inset, child: body),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+        final blur = ctx.sp(theme.spacing.xs);
+        return blurBackdrop
+            ? BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                child: panel,
+              )
+            : panel;
+      },
     );
   }
 
@@ -134,44 +154,47 @@ class UiDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final Widget dialogBody = Column(
+    final header = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (leading != null) ...[
+          leading!,
+          UiGap.h(theme.spacing.md),
+        ] else if (icon != null) ...<Widget>[
+          Container(
+            padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+            decoration: BoxDecoration(
+              color: intent.surface(context),
+              borderRadius: context.radius(theme.radii.md),
+            ),
+            child: Icon(
+              icon,
+              color: intent.color(context),
+              size: context.sz(theme.sizes.iconMd),
+            ),
+          ),
+          SizedBox(width: context.sp(theme.spacing.md)),
+        ],
+        Expanded(
+          child: Text(
+            title,
+            style: context.uiText.heading.copyWith(
+              color: theme.colors.foreground,
+            ),
+          ),
+        ),
+        UiIconButton(
+          icon: Icons.close_rounded,
+          tooltip: 'Close',
+          size: footer == null ? UiSize.sm : UiSize.md,
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+      ],
+    );
+    final Widget body = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            if (icon != null) ...<Widget>[
-              Container(
-                padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
-                decoration: BoxDecoration(
-                  color: intent.surface(context),
-                  borderRadius: context.radius(theme.radii.md),
-                ),
-                child: Icon(
-                  icon,
-                  color: intent.color(context),
-                  size: context.sz(theme.sizes.iconMd),
-                ),
-              ),
-              SizedBox(width: context.sp(theme.spacing.md)),
-            ],
-            Expanded(
-              child: Text(
-                title,
-                style: context.uiText.heading.copyWith(
-                  color: theme.colors.foreground,
-                ),
-              ),
-            ),
-            UiIconButton(
-              icon: Icons.close_rounded,
-              tooltip: 'Close',
-              size: UiSize.sm,
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-          ],
-        ),
         if (description != null) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
           Text(
@@ -212,7 +235,36 @@ class UiDialog extends StatelessWidget {
       ],
     );
 
-    if (_UiDialogHost.maybeOf(context)) return dialogBody;
+    final host = _UiDialogHost.maybeOf(context);
+    final bottom = footer;
+    final completeBody = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [header, body, ?bottom],
+    );
+    if (host != null) {
+      if (!host.pinFooter) return completeBody;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // On short windows or at large font sizes, let the entire sheet scroll.
+          final textScale = MediaQuery.textScalerOf(context).scale(1);
+          final roomForActions =
+              context.sz(theme.sizes.minTapTarget) * 6 * textScale;
+          if (bottom == null || constraints.maxHeight < roomForActions) {
+            return SingleChildScrollView(child: completeBody);
+          }
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              Flexible(child: SingleChildScrollView(child: body)),
+              bottom,
+            ],
+          );
+        },
+      );
+    }
 
     return Dialog(
       elevation: 0,
@@ -235,7 +287,7 @@ class UiDialog extends StatelessWidget {
             type: MaterialType.transparency,
             child: SingleChildScrollView(
               padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-              child: _UiDialogHost(child: dialogBody),
+              child: _UiDialogHost(child: completeBody),
             ),
           ),
         ),
@@ -245,11 +297,13 @@ class UiDialog extends StatelessWidget {
 }
 
 class _UiDialogHost extends InheritedWidget {
-  const _UiDialogHost({required super.child});
+  const _UiDialogHost({required super.child, this.pinFooter = false});
+  final bool pinFooter;
 
-  static bool maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_UiDialogHost>() != null;
+  static _UiDialogHost? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_UiDialogHost>();
 
   @override
-  bool updateShouldNotify(_UiDialogHost oldWidget) => false;
+  bool updateShouldNotify(_UiDialogHost oldWidget) =>
+      pinFooter != oldWidget.pinFooter;
 }

@@ -139,6 +139,9 @@ class EnvConfig {
 
   static String get copilotApiUrl => _get('COPILOT_API_URL');
 
+  /// Dynamic runtime setting lookup for optional integrations like AdSense.
+  static String adSetting(String key) => _get(key);
+
   // --- App Environment ---
   static String get environment =>
       _get('ENVIRONMENT', defaultValue: 'development');

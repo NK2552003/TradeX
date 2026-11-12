@@ -58,56 +58,67 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
+    final size = MediaQuery.sizeOf(context);
+    final isPhone =
+        size.shortestSide < 600 &&
+        (Theme.of(context).platform == TargetPlatform.android ||
+            Theme.of(context).platform == TargetPlatform.iOS);
 
     return Scaffold(
       backgroundColor: colors.background,
       body: GestureDetector(
         onTap: widget.onFinish,
         behavior: HitTestBehavior.opaque,
-        child: Center(
-          child: AnimatedBuilder(
-            animation: _animController,
-            builder: (context, child) {
-              return Opacity(
-                opacity: _fadeAnim.value,
-                child: Transform.translate(
-                  offset: Offset(0, _slideAnim.value),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AppLogoMark(size: 40, progress: _markProgress.value),
-                      SizedBox(height: context.sp(theme.spacing.lg)),
-                      Text(
-                        'alphajournal',
-                        style: context.uiText.display.copyWith(
-                          fontSize: 32,
-                          color: colors.foreground,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: -1.0,
-                        ),
+        child: AlphaThreadBackdrop.auth(
+          showSideEdges: !isPhone,
+          reveal: _markProgress,
+          child: SafeArea(
+            child: Center(
+              child: AnimatedBuilder(
+                animation: _animController,
+                builder: (context, child) {
+                  return Opacity(
+                    opacity: _fadeAnim.value,
+                    child: Transform.translate(
+                      offset: Offset(0, _slideAnim.value),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AppLogoMark(size: 40, progress: _markProgress.value),
+                          SizedBox(height: context.sp(theme.spacing.lg)),
+                          Text(
+                            'alphajournal',
+                            style: context.uiText.display.copyWith(
+                              fontSize: 32,
+                              color: colors.foreground,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: -1.0,
+                            ),
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.xs)),
+                          Text(
+                            'Intelligent market execution',
+                            style: context.uiText.caption.copyWith(
+                              color: colors.foregroundSubtle,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.xl)),
+                          SizedBox(
+                            width: context.sz(120),
+                            child: UiProgressBar(
+                              value: _animController.value,
+                              showValue: false,
+                              thickness: 1.5,
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: context.sp(theme.spacing.xs)),
-                      Text(
-                        'Intelligent market execution',
-                        style: context.uiText.caption.copyWith(
-                          color: colors.foregroundSubtle,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      SizedBox(height: context.sp(theme.spacing.xl)),
-                      SizedBox(
-                        width: context.sz(120),
-                        child: UiProgressBar(
-                          value: _animController.value,
-                          showValue: false,
-                          thickness: 1.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ),

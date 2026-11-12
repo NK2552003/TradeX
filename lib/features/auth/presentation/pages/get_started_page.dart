@@ -193,6 +193,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
       return Scaffold(
         backgroundColor: colors.background,
         body: AlphaThreadBackdrop(
+          animate: true,
           phase: 47.229,
           thickness: 76,
           mobileHeight: 220,
@@ -206,6 +207,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
     return Scaffold(
       backgroundColor: colors.background,
       body: AlphaThreadBackdrop(
+        animate: true,
         phase: 29.5,
         thickness: 52,
         desktopHeight: 170,
@@ -352,14 +354,20 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     builder: (BuildContext ctx, BoxConstraints constraints) {
                       final bool isDesktop = constraints.maxWidth >= 900;
                       if (!isDesktop) return const SizedBox.shrink();
-                      return SizedBox(
-                        height: context.sz(220),
-                        width: double.infinity,
-                        child: const RotatedBox(
-                          quarterTurns: 2,
-                          child: AlphaThread(
-                            phase: 84.6,
-                            thickness: 60,
+                      final height = context.sz(220);
+                      return UiDeferred(
+                        estimatedHeight: height,
+                        preloadExtent: 0,
+                        builder: (_) => SizedBox(
+                          height: height,
+                          width: double.infinity,
+                          child: const RotatedBox(
+                            quarterTurns: 2,
+                            child: AlphaThread(
+                              phase: 84.6,
+                              thickness: 60,
+                              animate: true,
+                            ),
                           ),
                         ),
                       );

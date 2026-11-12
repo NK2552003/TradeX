@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/privacy/consent_preferences.dart';
 import 'package:tradex/features/settings/data/publication_library.dart';
+import 'package:tradex/features/settings/data/cookie_notice_content.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/help_about_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/help/cookie_preferences_dialog.dart';
 import 'package:tradex/features/settings/presentation/widgets/help/publication_reader.dart';
@@ -12,6 +13,7 @@ import 'package:tradex/features/settings/presentation/widgets/help/publication_r
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   GoogleFonts.config.allowRuntimeFetching = false;
+  setUpAll(CookieNoticeContent.load);
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   test(
@@ -72,12 +74,9 @@ void main() {
             body: Builder(
               builder: (context) => UiButton(
                 label: 'Preferences',
-                onPressed: () => UiDialog.show<void>(
+                onPressed: () => CookiePreferencesDialog.show(
                   context,
-                  child: CookiePreferencesDialog(
-                    controller: controller,
-                    manage: true,
-                  ),
+                  controller: controller,
                 ),
               ),
             ),
@@ -127,9 +126,10 @@ void main() {
             body: Builder(
               builder: (context) => UiButton(
                 label: 'Open notice',
-                onPressed: () => UiDialog.show<void>(
+                onPressed: () => CookiePreferencesDialog.show(
                   context,
-                  child: CookiePreferencesDialog(controller: controller),
+                  controller: controller,
+                  manage: false,
                 ),
               ),
             ),
@@ -162,9 +162,10 @@ void main() {
           body: Builder(
             builder: (context) => UiButton(
               label: 'Open notice',
-              onPressed: () => UiDialog.show<void>(
+              onPressed: () => CookiePreferencesDialog.show(
                 context,
-                child: CookiePreferencesDialog(controller: controller),
+                controller: controller,
+                manage: false,
               ),
             ),
           ),
@@ -180,6 +181,81 @@ void main() {
     expect(controller.needsChoice, true);
     expect(controller.value.advertising, false);
   });
+
+  testWidgets(
+    'cookie sheet adapts on resize and Back restores saved category states',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1280, 850);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final controller = ConsentController();
+      await controller.save(const ConsentPreferences(analytics: true));
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.6)),
+            child: child!,
+          ),
+          home: Builder(
+            builder: (context) => UiButton(
+              label: 'Preferences',
+              onPressed: () => CookiePreferencesDialog.show(
+                context,
+                controller: controller,
+                manage: false,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Preferences'));
+      await tester.pumpAndSettle();
+      final panel = find.byKey(const ValueKey('ui-dialog-surface'));
+      expect(tester.getCenter(panel).dx, closeTo(640, .01));
+      expect(find.text('On'), findsOneWidget);
+      for (final size in [
+        const Size(320, 600),
+        const Size(844, 390),
+        const Size(390, 844),
+      ]) {
+        tester.view.physicalSize = size;
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        if (size.width == 320) {
+          expect(tester.getBottomLeft(panel).dy, closeTo(size.height, .01));
+        }
+        await tester.ensureVisible(find.text('Manage choices'));
+        await tester.tap(find.text('Manage choices'));
+        await tester.pumpAndSettle();
+        final analytics = find.byWidgetPredicate(
+          (w) => w is UiSwitch && w.label == 'Analytics',
+        );
+        expect(tester.widget<UiSwitch>(analytics).value, isTrue);
+        final switchTarget = find
+            .descendant(of: analytics, matching: find.byType(UiInteractive))
+            .first;
+        await Scrollable.ensureVisible(
+          tester.element(switchTarget),
+          alignment: .5,
+        );
+        await tester.tap(switchTarget);
+        await tester.pumpAndSettle();
+        expect(tester.widget<UiSwitch>(analytics).value, isFalse);
+        final back = find.byWidgetPredicate(
+          (w) => w is UiIconButton && w.tooltip == 'Back to overview',
+        );
+        await tester.ensureVisible(back);
+        await tester.tap(back);
+        await tester.pumpAndSettle();
+        expect(find.text('On'), findsOneWidget);
+        expect(controller.value.analytics, isTrue);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 
   testWidgets('full-width title rows remain readable with enlarged text', (
     tester,

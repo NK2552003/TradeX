@@ -1,0 +1,29 @@
+{
+  "labels": {
+    "summaryTitle": "Your privacy choices",
+    "manageTitle": "Manage privacy choices",
+    "firstVisit": "Essential storage keeps your account working. Optional storage stays off until you allow it.",
+    "returnVisit": "These are the choices saved on this device. You can update them at any time.",
+    "manageIntro": "Choose which optional uses to allow on this device. Save when you’re ready.",
+    "closeNotice": "Closing keeps your current choices. You can revisit them in Help and policies.",
+    "retention": "Saved on this device for {days} days. You can change your choices in Help and policies.",
+    "alwaysOn": "Always on",
+    "on": "On",
+    "off": "Off",
+    "policy": "Read cookie policy",
+    "back": "Back to overview",
+    "manage": "Manage choices",
+    "save": "Save choices",
+    "reject": "Reject optional",
+    "accept": "Accept optional",
+    "error": "Optional tracking is off",
+    "continue": "Continue with essential storage"
+  },
+  "purposes": {
+    "essential": { "title": "Essential storage", "description": "Sign-in, security and remembering your choices." },
+    "analytics": { "title": "Analytics", "description": "Measure which features people use." },
+    "advertising": { "title": "Advertising", "description": "Ad delivery and measurement. Google AdSense is planned for the free version and is currently inactive." },
+    "personalizedAds": { "title": "Personalised ads", "description": "Tailor ads to your interests when advertising is enabled.", "requiresAdvertising": "Enable advertising first to allow personalisation." },
+    "affiliate": { "title": "Affiliate attribution", "description": "Remember referral links and campaign clicks for up to {days} days." }
+  }
+}

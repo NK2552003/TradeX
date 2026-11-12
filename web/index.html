@@ -109,6 +109,10 @@
 </head>
 <body style="background-color: #0D0C0B; margin: 0; padding: 0; overflow: hidden; height: 100vh; width: 100vw;">
   <div id="splash-loader">
+    <div class="splash-threads" aria-hidden="true">
+      <i class="thread-top"></i><i class="thread-bottom"></i>
+      <i class="thread-left"></i><i class="thread-right"></i>
+    </div>
     <h1 class="word" id="word" aria-label="AlphaJournal"></h1>
     <p class="soon">Intelligent market execution</p>
   </div>
@@ -136,6 +140,48 @@
       transition: opacity 0.45s ease-out;
       overflow: hidden;
     }
+    .splash-threads {
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: .5;
+      /* AlphaThreadBackdrop.auth uses a 1600 × 540 canvas and one scale for all edges. */
+      --band: 200px;
+      --thread-depth: max(33.75vw, var(--band));
+      --thread-width: calc(var(--thread-depth) * 1600 / 540);
+    }
+    @media (min-width: 700px) { .splash-threads { --band: 320px; } }
+    .splash-threads i {
+      position: absolute;
+      width: 100%;
+      height: var(--thread-depth);
+    }
+    .splash-threads i::before {
+      content: "";
+      display: block;
+      height: 100%;
+      background: url("auth-threads.webp") center var(--row) / var(--thread-width) 400% no-repeat;
+      animation: thread-enter 1.28s cubic-bezier(.215, .61, .355, 1) both;
+    }
+    .thread-top { --row: 0%; top: 0; left: 0; }
+    .thread-bottom { --row: 33.333333%; bottom: 0; left: 0; transform: rotate(180deg); }
+    .splash-threads .thread-left, .splash-threads .thread-right {
+      display: none;
+      width: 100vh;
+      width: 100dvh;
+      transform-origin: top left;
+    }
+    .thread-left { --row: 66.666667%; top: 100%; left: 0; transform: rotate(-90deg); }
+    .thread-right { --row: 100%; top: 0; left: 100%; transform: rotate(90deg); }
+    @media (min-width: 700px) and (hover: hover),
+           (min-width: 700px) and (min-height: 600px) {
+      .splash-threads .thread-left, .splash-threads .thread-right { display: block; }
+    }
+    @keyframes thread-enter {
+      from { opacity: 0; transform: translateY(-12%); }
+      to { opacity: 1; transform: translateY(0); }
+    }
     .word { margin: 0; font-weight: normal; display: flex; justify-content: center; gap: calc(var(--h) * 0.03); }
     .letter {
       position: relative;
@@ -162,7 +208,9 @@
       animation: aj-pulse 2.5s ease-in-out infinite alternate;
     }
     @keyframes aj-pulse { from { opacity: 0.4; } to { opacity: 1; } }
-    @media (prefers-reduced-motion: reduce) { .soon { animation: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .soon, .splash-threads i::before { animation: none; }
+    }
   </style>
   <script>
     (function() {
