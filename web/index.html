@@ -162,7 +162,7 @@
       display: block;
       height: 100%;
       background: url("auth-threads.webp") center var(--row) / var(--thread-width) 400% no-repeat;
-      animation: thread-enter 1.28s cubic-bezier(.215, .61, .355, 1) both;
+      background-image: image-set(url("auth-thread-pull.avif") type("image/avif"), url("auth-threads.webp") type("image/webp"));
     }
     .thread-top { --row: 0%; top: 0; left: 0; }
     .thread-bottom { --row: 33.333333%; bottom: 0; left: 0; transform: rotate(180deg); }
@@ -177,10 +177,6 @@
     @media (min-width: 700px) and (hover: hover),
            (min-width: 700px) and (min-height: 600px) {
       .splash-threads .thread-left, .splash-threads .thread-right { display: block; }
-    }
-    @keyframes thread-enter {
-      from { opacity: 0; transform: translateY(-12%); }
-      to { opacity: 1; transform: translateY(0); }
     }
     .word { margin: 0; font-weight: normal; display: flex; justify-content: center; gap: calc(var(--h) * 0.03); }
     .letter {
@@ -209,7 +205,8 @@
     }
     @keyframes aj-pulse { from { opacity: 0.4; } to { opacity: 1; } }
     @media (prefers-reduced-motion: reduce) {
-      .soon, .splash-threads i::before { animation: none; }
+      .soon { animation: none; }
+      .splash-threads i::before { background-image: url("auth-threads.webp"); }
     }
   </style>
   <script>

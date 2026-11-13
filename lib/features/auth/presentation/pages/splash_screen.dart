@@ -19,25 +19,28 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _animController = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1600),
+    duration: AlphaThread.pullDuration,
   );
+  // Keep the wordmark entrance brisk while the ribbon continues its longer pull.
+  static final _wordmarkEnd = 960 / AlphaThread.pullDuration.inMilliseconds;
+  static final _markEnd = 1280 / AlphaThread.pullDuration.inMilliseconds;
   late final Animation<double> _fadeAnim = Tween<double>(begin: 0.0, end: 1.0)
       .animate(
         CurvedAnimation(
           parent: _animController,
-          curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+          curve: Interval(0.0, _wordmarkEnd, curve: Curves.easeOut),
         ),
       );
   late final Animation<double> _slideAnim = Tween<double>(begin: 16.0, end: 0.0)
       .animate(
         CurvedAnimation(
           parent: _animController,
-          curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic),
+          curve: Interval(0.0, _wordmarkEnd, curve: Curves.easeOutCubic),
         ),
       );
   late final Animation<double> _markProgress = CurvedAnimation(
     parent: _animController,
-    curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
+    curve: Interval(0.0, _markEnd, curve: Curves.easeOutCubic),
   );
 
   @override
@@ -71,7 +74,7 @@ class _SplashScreenState extends State<SplashScreen>
         behavior: HitTestBehavior.opaque,
         child: AlphaThreadBackdrop.auth(
           showSideEdges: !isPhone,
-          reveal: _markProgress,
+          reveal: _animController,
           child: SafeArea(
             child: Center(
               child: AnimatedBuilder(

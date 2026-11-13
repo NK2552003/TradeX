@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
@@ -34,25 +36,25 @@ void main() {
       (const Size(844, 390), TargetPlatform.android, 2),
     ]) {
       tester.view.physicalSize = size;
+      var finished = false;
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData(platform: platform),
-          home: SplashScreen(onFinish: () {}),
+          home: SplashScreen(onFinish: () => finished = true),
         ),
       );
       expect(find.byType(AlphaThread), findsNWidgets(edgeCount));
-      final top = find
-          .descendant(
-            of: find.byType(AlphaThreadBackdrop),
-            matching: find.byType(SlideTransition),
-          )
-          .first;
-      double offset() => tester.widget<SlideTransition>(top).position.value.dy;
-      expect(offset(), -0.12);
-      await tester.pump(const Duration(milliseconds: 320));
-      expect(offset(), inExclusiveRange(-0.12, 0));
-      await tester.pump(const Duration(milliseconds: 1280));
-      expect(offset(), 0.0);
+      final entrance = tester
+          .widget<AlphaThread>(find.byType(AlphaThread).first)
+          .reveal!;
+      expect(entrance.value, 0.0);
+      await tester.pump(const Duration(seconds: 2));
+      expect(finished, isFalse);
+      expect(entrance.value, inExclusiveRange(0, 1));
+      await tester.pump(AlphaThread.pullDuration - const Duration(seconds: 2));
+      expect(entrance.value, 1.0);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(finished, isTrue);
 
       final ribbons = tester
           .widgetList<AlphaThread>(find.byType(AlphaThread))
@@ -91,13 +93,28 @@ void main() {
       ),
     );
     expect(find.byType(AlphaThread), findsNWidgets(2));
-    expect(
-      find.descendant(
-        of: find.byType(AlphaThreadBackdrop),
-        matching: find.byType(SlideTransition),
-      ),
-      findsNothing,
+    final boundary = find.descendant(
+      of: find.byType(AlphaThread).first,
+      matching: find.byType(RepaintBoundary),
     );
+    final top = tester.renderObject<RenderRepaintBoundary>(boundary);
+    final hasInkOnRight = await tester.runAsync(() async {
+      final image = await top.toImage();
+      try {
+        final rgba = (await image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        ))!;
+        for (var y = 0; y < image.height; y++) {
+          for (var x = image.width ~/ 2; x < image.width; x++) {
+            if (rgba.getUint8((y * image.width + x) * 4 + 3) > 0) return true;
+          }
+        }
+        return false;
+      } finally {
+        image.dispose();
+      }
+    });
+    expect(hasInkOnRight, isTrue);
   });
 
   testWidgets('splash stays visible until session restoration finishes', (

@@ -22,7 +22,7 @@
 //   )
 
 import 'dart:math' as math;
-import 'dart:ui' as ui show Gradient, PathMetric;
+import 'dart:ui' as ui show PathMetric;
 import 'package:flutter/material.dart';
 
 /// Design canvas the thread is generated on. It is scaled to cover the widget,
@@ -40,9 +40,12 @@ class AlphaThread extends StatefulWidget {
     this.phase = 47.229,
     this.shadow = true,
     this.animate = false,
+    this.reveal,
     this.height,
     this.scale,
   });
+
+  static const pullDuration = Duration(milliseconds: 4400);
 
   final String label;
   final double thickness;
@@ -51,6 +54,9 @@ class AlphaThread extends StatefulWidget {
   final double phase;
   final bool shadow;
   final bool animate;
+
+  /// Optional entrance progress supplied by the containing screen.
+  final Animation<double>? reveal;
   final double? scale;
 
   /// Optional fixed height. When null the widget fills the space it is given.
@@ -66,6 +72,7 @@ class _AlphaThreadState extends State<AlphaThread>
   String? _key;
 
   AnimationController? _motion;
+  bool _motionEnabled = false;
 
   @override
   void didChangeDependencies() {
@@ -76,19 +83,25 @@ class _AlphaThreadState extends State<AlphaThread>
   @override
   void didUpdateWidget(AlphaThread oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.animate != widget.animate) _syncMotion();
+    if (oldWidget.animate != widget.animate ||
+        oldWidget.reveal != widget.reveal) {
+      _syncMotion();
+    }
   }
 
   void _syncMotion() {
-    if (!widget.animate ||
-        MediaQuery.disableAnimationsOf(context) ||
-        ModalRoute.isCurrentOf(context) == false) {
+    _motionEnabled =
+        widget.animate &&
+        widget.reveal == null &&
+        !MediaQuery.disableAnimationsOf(context) &&
+        ModalRoute.isCurrentOf(context) != false;
+    if (!_motionEnabled) {
       _motion?.reset();
       return;
     }
     final motion = _motion ??= AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5),
+      duration: AlphaThread.pullDuration,
     );
     if (motion.isDismissed) motion.forward();
   }
@@ -129,7 +142,9 @@ class _AlphaThreadState extends State<AlphaThread>
         widget.thickness,
         widget.shadow,
         scale: widget.scale,
-        motion: _motion,
+        pull: MediaQuery.disableAnimationsOf(context)
+            ? null
+            : widget.reveal ?? (_motionEnabled ? _motion : null),
       ),
       child: const SizedBox.expand(),
     );
@@ -241,30 +256,31 @@ class AlphaThreadGeometry {
 
 // ---------------------------------------------------------------------------
 // Model: the thread is cut into short chunks drawn one on top of the next, so
-// every crossing shows an over/under overlap with a shadow. Each chunk carries
-// its own letters, placed one by one along the path.
+// each new section can cross above the ribbon and lettering already drawn.
 // ---------------------------------------------------------------------------
 
 class _Glyph {
-  _Glyph(this.painter, this.position, this.angle, this.distance);
+  const _Glyph(this.painter, this.center);
   final TextPainter painter;
-  final Offset position;
-  final double angle;
-  final double distance;
+  final double center;
 }
 
 class _Chunk {
-  _Chunk(this.path, this.glyphs, this.metric, this.points);
-  final ui.PathMetric metric;
-  final List<Offset> points;
-  late final Rect bounds = path.getBounds();
+  _Chunk(this.path, this.start) : metric = path.computeMetrics().first;
   final Path path;
-  final List<_Glyph> glyphs;
+  final double start;
+  final ui.PathMetric metric;
+  late final Rect bounds = path.getBounds();
+  double get end => start + metric.length;
 }
 
 class _ThreadModel {
-  _ThreadModel(this.chunks);
+  _ThreadModel(this.chunks, this.word, this.repeatLength, this.entranceStart);
   final List<_Chunk> chunks;
+  final List<_Glyph> word;
+  final double repeatLength;
+  final double entranceStart;
+  double get length => chunks.last.end;
 
   static _ThreadModel build({
     required List<Offset> points,
@@ -272,74 +288,61 @@ class _ThreadModel {
     required double thickness,
     required Color textColor,
   }) {
-    final fs = thickness * .5;
     final style = TextStyle(
-      fontSize: fs,
+      fontFamily: 'NotoSans',
+      fontSize: thickness * .5,
       fontWeight: FontWeight.w500,
       color: textColor,
-      letterSpacing: fs * .02,
       height: 1,
     );
     final cache = <String, TextPainter>{};
-    TextPainter glyphFor(String c) => cache.putIfAbsent(
-      c,
-      () => TextPainter(
-        text: TextSpan(text: c, style: style),
-        textDirection: TextDirection.ltr,
-      )..layout(),
-    );
+    final word = <_Glyph>[];
+    var advance = 0.0;
+    for (final c in '$label '.characters) {
+      final glyph = cache.putIfAbsent(
+        c,
+        () => TextPainter(
+          text: TextSpan(text: c, style: style),
+          textDirection: TextDirection.ltr,
+        )..layout(),
+      );
+      if (c != ' ') word.add(_Glyph(glyph, advance + glyph.width / 2));
+      advance += glyph.width + thickness * .05;
+    }
 
     const chunkSize = 100;
-    final unit = '$label ';
     final chunks = <_Chunk>[];
-
+    // Skip the invisible lead-in on the design canvas. Leave a margin for the
+    // stroke and its blurred shadow before the first visible point.
+    final artBounds = const Rect.fromLTWH(
+      0,
+      0,
+      _kW,
+      _kH,
+    ).inflate(thickness / 2 + 24);
+    double? entranceStart;
+    var start = 0.0;
     for (var s = 0; s < points.length - 1; s += chunkSize) {
-      final seg = points.sublist(s, math.min(s + chunkSize + 3, points.length));
-      final path = Path()..moveTo(seg.first.dx, seg.first.dy);
-      for (var i = 1; i < seg.length; i++) {
-        path.lineTo(seg[i].dx, seg[i].dy);
-      }
-      final metric = path.computeMetrics().first;
-      final len = metric.length;
-
-      final n = math.max(1, (len / (fs * 9.4)).floor());
-      final chars = List.filled(n, unit).join().split('');
-      var natural = 0.0;
-      for (final c in chars) {
-        natural += glyphFor(c).width;
-      }
-      final extra =
-          ((len - 4) - natural) /
-          chars.length; // spread letters to fill the chunk
-
-      final glyphs = <_Glyph>[];
-      var d = 0.0;
-      for (final c in chars) {
-        final tp = glyphFor(c);
-        if (c != ' ') {
-          final distance = (d + tp.width / 2).clamp(0.0, len).toDouble();
-          final t = metric.getTangentForOffset(distance);
-          if (t != null) {
-            glyphs.add(
-              _Glyph(
-                tp,
-                t.position,
-                math.atan2(t.vector.dy, t.vector.dx),
-                distance,
-              ),
-            );
-          }
-        }
-        d += tp.width + extra;
-      }
-      chunks.add(
-        _Chunk(path, glyphs, metric, [
-          for (int i = 0; i < seg.length - 1; i += 2) seg[i],
-          seg.last,
-        ]),
+      final segment = points.sublist(
+        s,
+        math.min(s + chunkSize + 1, points.length),
       );
+      final path = Path()..addPolygon(segment, false);
+      final chunk = _Chunk(path, start);
+      if (entranceStart == null && artBounds.overlaps(chunk.bounds)) {
+        var distance = start;
+        for (var i = 1; i < segment.length; i++) {
+          if (artBounds.contains(segment[i])) {
+            entranceStart = distance;
+            break;
+          }
+          distance += (segment[i] - segment[i - 1]).distance;
+        }
+      }
+      chunks.add(chunk);
+      start = chunk.end;
     }
-    return _ThreadModel(chunks);
+    return _ThreadModel(chunks, word, advance, entranceStart ?? 0);
   }
 }
 
@@ -350,10 +353,10 @@ class _ThreadPainter extends CustomPainter {
     this.thickness,
     this.shadow, {
     this.scale,
-    this.motion,
-  }) : super(repaint: motion);
+    this.pull,
+  }) : super(repaint: pull);
 
-  final Animation<double>? motion;
+  final Animation<double>? pull;
   final _ThreadModel model;
   final Color ribbon;
   final double thickness;
@@ -362,6 +365,20 @@ class _ThreadPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (thickness <= 0 || size.isEmpty) return;
+    // A gentle launch and a long, steady pull avoid a burst of speed mid-loop.
+    final progress = const Cubic(
+      .22,
+      .16,
+      .65,
+      1,
+    ).transform((pull?.value ?? 1).clamp(0.0, 1.0));
+    if (progress <= 0) return;
+    final tip = progress == 1
+        ? model.length
+        : model.entranceStart + (model.length - model.entranceStart) * progress;
+    // Material coordinates slide along the path by exactly the tip's travel.
+    final remaining = model.length - tip;
     canvas.clipRect(Offset.zero & size);
     final effectiveScale =
         scale ?? math.max(size.width / _kW, size.height / _kH);
@@ -386,65 +403,45 @@ class _ThreadPainter extends CustomPainter {
       ..color = const Color.fromRGBO(0, 0, 0, .45)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
 
-    final progress = Curves.easeInOutSine.transform(motion?.value ?? 0);
-    final flowing = progress > 0 && progress < 1;
-    final amplitude = thickness * .24 * math.sin(math.pi * progress);
-    final wavelength = thickness * 3;
-    double waveAt(double x) => x / wavelength - 2 * math.pi * progress;
-    Offset bend(Offset p) =>
-        Offset(p.dx, p.dy + amplitude * math.sin(waveAt(p.dx)));
-
-    if (flowing) {
-      // A travelling highlight follows the roll on both light and dark ribbon.
-      final highlight = Color.lerp(
-        ribbon,
-        ribbon.computeLuminance() < 0.5 ? Colors.white : Colors.black,
-        0.12 * math.sin(math.pi * progress),
-      )!;
-      final start = Offset(wavelength * progress * 2 * math.pi, 0);
-      stroke.shader = ui.Gradient.linear(
-        start,
-        start + Offset(wavelength * math.pi, 0),
-        [ribbon, highlight, ribbon],
-        const [0, 0.5, 1],
-        TileMode.repeated,
-      );
-    }
-    final visible = canvas.getLocalClipBounds().inflate(thickness + amplitude);
+    final visible = canvas.getLocalClipBounds().inflate(thickness);
     for (final chunk in model.chunks) {
+      if (chunk.start >= tip) break;
       if (!visible.overlaps(chunk.bounds)) continue;
-      final path = flowing
-          ? (Path()..addPolygon(chunk.points.map(bend).toList(), false))
-          : chunk.path;
+      final end = math.min(tip, chunk.end);
+      final path = end == chunk.end
+          ? chunk.path
+          : chunk.metric.extractPath(0, end - chunk.start);
       if (shadow) {
         canvas.drawPath(path.shift(const Offset(0, 7)), shadowPaint);
       }
       canvas.drawPath(path, stroke);
-      for (final g in chunk.glyphs) {
-        var position = g.position;
-        var angle = g.angle;
-        var faceScale = 1.0;
-        if (flowing) {
-          final length = chunk.metric.length;
-          final distance = (g.distance + length * progress) % length;
-          final tangent = chunk.metric.getTangentForOffset(distance)!;
-          position = bend(tangent.position);
-          final roll = math.cos(waveAt(position.dx)) * amplitude / wavelength;
-          angle = math.atan2(
-            tangent.vector.dy + roll * tangent.vector.dx,
-            tangent.vector.dx,
+
+      final firstWord = ((chunk.start + remaining) / model.repeatLength)
+          .floor();
+      for (
+        var origin = firstWord * model.repeatLength - remaining;
+        origin < end;
+        origin += model.repeatLength
+      ) {
+        for (final glyph in model.word) {
+          final distance = origin + glyph.center;
+          if (distance < chunk.start ||
+              distance >= end ||
+              distance + glyph.painter.width / 2 > tip) {
+            continue;
+          }
+          final tangent = chunk.metric.getTangentForOffset(
+            distance - chunk.start,
+          )!;
+          canvas.save();
+          canvas.translate(tangent.position.dx, tangent.position.dy);
+          canvas.rotate(math.atan2(tangent.vector.dy, tangent.vector.dx));
+          glyph.painter.paint(
+            canvas,
+            Offset(-glyph.painter.width / 2, -glyph.painter.height / 2),
           );
-          faceScale -= roll.abs();
+          canvas.restore();
         }
-        canvas.save();
-        canvas.translate(position.dx, position.dy);
-        canvas.rotate(angle);
-        if (flowing) canvas.scale(1, faceScale);
-        g.painter.paint(
-          canvas,
-          Offset(-g.painter.width / 2, -g.painter.height / 2),
-        );
-        canvas.restore();
       }
     }
   }
@@ -456,7 +453,7 @@ class _ThreadPainter extends CustomPainter {
       old.thickness != thickness ||
       old.shadow != shadow ||
       old.scale != scale ||
-      old.motion != motion;
+      old.pull != pull;
 }
 
 /// Places [AlphaThread] ribbons around the edges of the screen, behind
@@ -528,26 +525,14 @@ class AlphaThreadBackdrop extends StatelessWidget {
     // Keep the full design depth during the entrance, including inward loops.
     final depth = reveal == null ? band : _kH * uniformScale;
     Widget ribbon(double ph) {
-      final thread = AlphaThread(
+      return AlphaThread(
         phase: ph,
         thickness: thickness,
         scale: uniformScale,
         animate: animate,
+        reveal: reveal,
         ribbonColor: ribbonColor,
         textColor: textColor,
-      );
-      final entrance = reveal;
-      if (entrance == null || MediaQuery.disableAnimationsOf(context)) {
-        return thread;
-      }
-      return FadeTransition(
-        opacity: entrance,
-        child: SlideTransition(
-          position: entrance.drive(
-            Tween(begin: const Offset(0, -0.12), end: Offset.zero),
-          ),
-          child: thread,
-        ),
       );
     }
 

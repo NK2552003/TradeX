@@ -135,11 +135,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
       _isAuthLoading = true;
       _setupAuthStateListener();
       _restoreActiveSession();
-      Future.delayed(const Duration(milliseconds: 1800), () {
-        if (mounted && !_splashCompleted) {
-          _onSplashFinish();
-        }
-      });
     }
   }
 

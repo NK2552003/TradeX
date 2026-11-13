@@ -11,7 +11,7 @@ import 'package:tradex/features/auth/presentation/pages/signup_page.dart';
 
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
-  testWidgets('thread lettering and curves move and respect reduced motion', (
+  testWidgets('pulled thread completes each loop and respects reduced motion', (
     tester,
   ) async {
     final boundary = GlobalKey();
@@ -25,7 +25,7 @@ void main() {
               child: const SizedBox(
                 width: 480,
                 height: 160,
-                child: AlphaThread(animate: true),
+                child: AlphaThread(animate: true, phase: 12.7, thickness: 64),
               ),
             ),
           ),
@@ -40,7 +40,7 @@ void main() {
                 .toImage();
         try {
           return (await image.toByteData(
-            format: ui.ImageByteFormat.png,
+            format: ui.ImageByteFormat.rawRgba,
           ))!.buffer.asUint8List();
         } finally {
           image.dispose();
@@ -49,10 +49,38 @@ void main() {
       return bytes!;
     }
 
+    bool hasInk(List<int> rgba, int left, int right) {
+      for (var y = 0; y < 160; y++) {
+        for (var x = left; x < right; x++) {
+          if (rgba[(y * 480 + x) * 4 + 3] > 0) return true;
+        }
+      }
+      return false;
+    }
+
     await showThread(false);
+    expect(hasInk(await pixels(), 0, 480), isFalse);
+    await tester.pump(AlphaThread.pullDuration ~/ 2);
+    final halfway = await pixels();
+    expect(hasInk(halfway, 0, 240), isTrue);
+    expect(hasInk(halfway, 420, 480), isFalse);
+    await tester.pump(AlphaThread.pullDuration ~/ 2);
     final resting = await pixels();
-    await tester.pump(const Duration(seconds: 2));
-    expect(await pixels(), isNot(orderedEquals(resting)));
+    expect(hasInk(resting, 241, 480), isTrue);
+    // A loop folds back behind its tip. At least part of the final ribbon
+    // to the left of that tip must still be absent at the halfway frame.
+    final tipX = List.generate(
+      480,
+      (x) => x,
+    ).lastWhere((x) => hasInk(halfway, x, x + 1));
+    var missingBehindTip = 0;
+    for (var y = 0; y < 160; y++) {
+      for (var x = 0; x < tipX - 12; x++) {
+        final alpha = (y * 480 + x) * 4 + 3;
+        if (halfway[alpha] < 15 && resting[alpha] > 220) missingBehindTip++;
+      }
+    }
+    expect(missingBehindTip, greaterThan(50));
     await showThread(true);
     expect(await pixels(), orderedEquals(resting));
     await tester.pump(const Duration(seconds: 2));
