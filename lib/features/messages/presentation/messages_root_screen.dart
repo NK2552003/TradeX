@@ -493,7 +493,14 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
     };
     return Column(
       children: <Widget>[
-        AppPaneHeader(title: title, leadingBack: _closeSecondary, dense: true),
+        SafeArea(
+          bottom: false,
+          child: AppPaneHeader(
+            title: title,
+            leadingBack: _closeSecondary,
+            dense: true,
+          ),
+        ),
         Expanded(child: body),
       ],
     );

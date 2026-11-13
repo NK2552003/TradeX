@@ -719,6 +719,7 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
     return ListView.builder(
       controller: _scroll,
       reverse: true,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: EdgeInsets.symmetric(
         horizontal: context.sp(theme.spacing.md),
         vertical: context.sp(theme.spacing.sm),

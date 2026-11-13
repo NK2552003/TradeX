@@ -52,7 +52,10 @@ class AppShell extends StatefulWidget {
     this.onBack,
     this.pagePlaceholderBuilder,
     this.researchPanelBuilder,
+    this.hideMobileTopBar = false,
   });
+
+  final bool hideMobileTopBar;
 
   final List<AppNavSection> sections;
   final String selectedId;
@@ -437,6 +440,7 @@ class _AppShellState extends State<AppShell> {
       // while their background still paints beneath the floating glass bar.
       final MediaQueryData dockSafeMedia = mediaQuery.copyWith(
         padding: mediaQuery.padding.copyWith(bottom: dockClearance),
+        viewInsets: EdgeInsets.zero,
       );
       final Widget dockSafeContent = MediaQuery(
         data: dockSafeMedia,
@@ -616,37 +620,25 @@ class _AppShellState extends State<AppShell> {
       // only screen content participates in destination swipe transitions.
       final Widget mobileShell = Column(
         children: <Widget>[
-          topBar(
-            onResearch: widget.researchPanelBuilder == null
-                ? null
-                : openResearchOverlay,
-          ),
+          if (!widget.hideMobileTopBar)
+            topBar(
+              onResearch: widget.researchPanelBuilder == null
+                  ? null
+                  : openResearchOverlay,
+            ),
           Expanded(child: dockLayer),
         ],
       );
       return ColoredBox(
         key: const ValueKey<String>('app-mobile-shell-background'),
         color: theme.colors.background,
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            if (constraints.maxHeight < 80.0) {
-              return const SizedBox.shrink();
-            }
-            final double keyboardTop =
-                mediaQuery.size.height - mediaQuery.viewInsets.bottom;
-            final double visibleHeight = keyboardVisible
-                ? constraints.maxHeight.clamp(0.0, keyboardTop)
-                : constraints.maxHeight;
-            return MediaQuery(
-              // The shell height already excludes the keyboard. Prevent the
-              // nested dock Scaffold from applying the inset a second time.
-              data: mediaQuery.copyWith(viewInsets: EdgeInsets.zero),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: SizedBox(height: visibleHeight, child: mobileShell),
-              ),
-            );
-          },
+        child: Padding(
+          padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
+          child: MediaQuery.removeViewInsets(
+            context: context,
+            removeBottom: true,
+            child: mobileShell,
+          ),
         ),
       );
     }

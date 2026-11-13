@@ -45,6 +45,8 @@ class MessagesRepository extends ChangeNotifier {
   final Set<String> _typing = <String>{};
   final List<Timer> _pending = <Timer>[];
   final Map<String, String> _pinnedMessages = <String, String>{};
+  final Map<String, Future<void>> _pendingThreadCreations =
+      <String, Future<void>>{};
   RealtimeChannel? _realtimeChannel;
 
   static bool _isUuid(String id) {
@@ -636,7 +638,9 @@ class MessagesRepository extends ChangeNotifier {
       ...graph.options(AppLinkKind.strategy),
     ];
     if (refs.isNotEmpty) return refs;
-    return MessagesSeed.shareableRefs();
+    return CustomerDataPolicy.allowDemo
+        ? MessagesSeed.shareableRefs()
+        : const <AppLinkRef>[];
   }
 
   /// Emoji offered in the composer's quick-reaction row.
@@ -716,6 +720,10 @@ class MessagesRepository extends ChangeNotifier {
         final client = SupabaseConfig.client;
         final currentUserId = _resolveUserId();
         if (client == null) return;
+        final pendingCreate = _pendingThreadCreations[threadId];
+        if (pendingCreate != null) {
+          await pendingCreate;
+        }
         try {
           await client.from('chat_messages').insert({
             'id': message.id,
@@ -730,6 +738,15 @@ class MessagesRepository extends ChangeNotifier {
             'status': 'sent',
             'created_at': message.sentAt.toIso8601String(),
           });
+          if (_isUuid(threadId)) {
+            await client
+                .from('chat_threads')
+                .update({
+                  'last_message_preview': _previewFor(message),
+                  'last_message_at': message.sentAt.toIso8601String(),
+                })
+                .eq('id', threadId);
+          }
           if (attachment != null) {
             await client.from('chat_attachments').insert({
               'message_id': message.id,
@@ -1075,9 +1092,14 @@ class MessagesRepository extends ChangeNotifier {
   ///
   /// @backend POST /threads { participantId }.
   String startConversation(AppTrader peer, {bool isRequest = false}) {
-    final int existing = _threads.indexWhere(
-      (MessageThread t) => !t.isGroup && t.peer.id == peer.id,
-    );
+    final String normalizedHandle = peer.handle.toLowerCase().trim();
+    bool matchesPeer(MessageThread t) =>
+        !t.isGroup &&
+        (t.peer.id == peer.id ||
+            (normalizedHandle.isNotEmpty &&
+                t.peer.handle.toLowerCase().trim() == normalizedHandle));
+
+    final int existing = _threads.indexWhere(matchesPeer);
     if (existing != -1) {
       if (_threads[existing].archived) {
         _threads[existing] = _threads[existing].copyWith(archived: false);
@@ -1086,9 +1108,7 @@ class MessagesRepository extends ChangeNotifier {
       return _threads[existing].id;
     }
 
-    final int existingReq = _requests.indexWhere(
-      (MessageThread t) => !t.isGroup && t.peer.id == peer.id,
-    );
+    final int existingReq = _requests.indexWhere(matchesPeer);
     if (existingReq != -1) {
       return _requests[existingReq].id;
     }
@@ -1117,7 +1137,7 @@ class MessagesRepository extends ChangeNotifier {
     notifyListeners();
 
     if (SupabaseConfig.isConfigured) {
-      unawaited(() async {
+      final Future<void> createFuture = (() async {
         try {
           final client = SupabaseConfig.client!;
           final currentUserId = _resolveUserId();
@@ -1141,7 +1161,13 @@ class MessagesRepository extends ChangeNotifier {
             '[MessagesRepository] startConversation Supabase error: $e',
           );
         }
-      }());
+      })();
+      _pendingThreadCreations[id] = createFuture;
+      unawaited(
+        createFuture.whenComplete(() {
+          _pendingThreadCreations.remove(id);
+        }),
+      );
     }
 
     return id;

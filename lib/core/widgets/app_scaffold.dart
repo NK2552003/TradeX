@@ -615,9 +615,26 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   void _startDirectMessage(AppTrader trader) {
+    if (_messagesRepo.isMessagingRestricted(trader)) {
+      _go('messages');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _messagesKey.currentState?.openThreadWithTrader(trader);
+      });
+      return;
+    }
+    final String threadId = _messagesRepo.startConversation(trader);
     _go('messages');
+    if (mounted) {
+      setState(() {
+        _linkRequest = AppLinkOpenRequest(
+          kind: AppLinkKind.messageThread,
+          id: threadId,
+          seq: ++_linkSeq,
+        );
+      });
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _messagesKey.currentState?.openThreadWithTrader(trader);
+      _messagesKey.currentState?.openThreadById(threadId);
     });
   }
 
@@ -1903,6 +1920,8 @@ class _AppScaffoldState extends State<AppScaffold> {
                 ? _buildDesktopPreviewControls()
                 : null,
             researchPanelBuilder: null,
+            hideMobileTopBar:
+                _isMessagesFeature && _activeSubpageOnBack != null,
             child: _buildActivePage(),
           ),
         ),
