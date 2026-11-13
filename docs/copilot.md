@@ -2,6 +2,14 @@
 
 The copilot is a new Dart implementation informed by the behavior of the local OpenDots reference. It uses the TraderHub component library and the existing app authentication. It does not use the OpenDots TypeScript application, CopilotKit Intelligence, Composio, or a second AI provider.
 
+## Trader skills
+
+Open **Trader skills** from the trader workspace or the Copilot welcome page. In a conversation, type `/` to see matching commands. Both `/trader-budget` and `/budget` select the budget skill. Selecting a command keeps the rest of your draft editable.
+
+Ask a question in ordinary language to let Copilot choose. For example, “Use these target weights to size a $5,000 paper portfolio and check my proposed orders” uses budget sizing and risk checks. A copy request can start from public filings, pass target weights to sizing and pass proposals to risk. Broker produces a draft ticket for review.
+
+Code-enabled profiles can run the eleven supplied Python tools in a temporary provider sandbox when OpenAI is configured. The bundled toolkit in `supabase/functions/ai-gateway/trader-skills.json` contains the original scripts, skill guides, supporting data and MIT license. Include it when deploying either backend. Public data comes from permitted research or supplied files. Replies carry results into later turns. Text-only profiles can guide the workflow using supplied data. Recurring checks require a configured schedule on the dedicated worker.
+
 ## Hosted deployment on alphajournal.in
 
 With `COPILOT_API_URL` empty, the app uses Supabase workspace storage and the existing authenticated `ai-gateway` Edge Function. AI keys stay in [Edge Function secrets](https://supabase.com/docs/guides/functions/secrets); they are never copied into the browser or downloaded from Supabase. Sign-in and the gateway's account/quota checks are required.

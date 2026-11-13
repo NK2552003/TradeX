@@ -6,7 +6,9 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 
+import '../models/trader_skill.dart';
 import '../models/workspace.dart';
+import 'trader_skill_picker.dart';
 
 part 'copilot_composer_actions.dart';
 
@@ -254,6 +256,19 @@ class _CopilotComposerState extends State<CopilotComposer> {
                         enabled: _editable && !widget.voiceActive,
                         onPressed: widget.onNewConversation,
                       ),
+                      UiMenuItem(
+                        label: 'Trader skills',
+                        icon: Icons.bolt_outlined,
+                        enabled: _editable,
+                        onPressed: () async {
+                          final skill = await pickTraderSkill(context);
+                          if (mounted && skill != null) {
+                            _prompt(
+                              traderSkillDraft(skill, widget.controller.text),
+                            );
+                          }
+                        },
+                      ),
                       if (widget.onConnectWorkspace != null)
                         UiMenuItem(
                           label: 'Connect workspace data',
@@ -308,7 +323,9 @@ class _CopilotComposerState extends State<CopilotComposer> {
                   ),
                 ],
               ),
-              UiGap.v(widget.compactHeight ? theme.spacing.xs : theme.spacing.sm),
+              UiGap.v(
+                widget.compactHeight ? theme.spacing.xs : theme.spacing.sm,
+              ),
             ],
             UiCard(
               key: const ValueKey('copilot-composer-surface'),
@@ -404,8 +421,8 @@ class _CopilotComposerState extends State<CopilotComposer> {
                         onSubmitted: (_) => _send(),
                         semanticLabel: 'Message copilot',
                         hintText: compact
-                            ? 'Ask anything, speak, or add a file…'
-                            : 'Ask anything, speak in natural language, or connect notes & journal…',
+                            ? 'Ask a question or type / for skills…'
+                            : 'Ask a question, attach a file, or type / for trader skills…',
                         minLines: widget.compactHeight ? 1 : 2,
                         maxLines: widget.compactHeight ? 2 : (compact ? 4 : 6),
                         maxLength: 24000,
@@ -414,29 +431,48 @@ class _CopilotComposerState extends State<CopilotComposer> {
                       ),
                     ),
                   ),
-                  if (value.text == '/' && _editable)
+                  if (_editable &&
+                      RegExp(r'^/[a-zA-Z-]*$').hasMatch(value.text))
                     Padding(
                       padding: EdgeInsets.only(
                         bottom: context.sp(theme.spacing.xs),
                       ),
-                      child: Wrap(
-                        spacing: context.sp(theme.spacing.xs),
-                        runSpacing: context.sp(theme.spacing.xs),
-                        children: [
-                          for (final prompt in const [
-                            'Summarize these notes',
-                            'Review my journal trades',
-                            'Analyze my strategies',
-                            'Draft a community post',
-                            'Research this market',
-                          ])
-                            UiButton(
-                              label: prompt,
-                              size: UiSize.xs,
-                              variant: UiVariant.ghost,
-                              onPressed: () => _prompt('$prompt: '),
-                            ),
-                        ],
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final skill in TraderSkill.values.where(
+                              (s) =>
+                                  s.command.startsWith(
+                                    value.text.toLowerCase(),
+                                  ) ||
+                                  '/${s.name}'.startsWith(
+                                    value.text.toLowerCase(),
+                                  ),
+                            ))
+                              UiButton(
+                                label: skill.command,
+                                tooltip: skill.description,
+                                size: UiSize.xs,
+                                variant: UiVariant.soft,
+                                onPressed: () => _prompt('${skill.command} '),
+                              ),
+                            if (value.text == '/')
+                              for (final prompt in const [
+                                'Summarize these notes',
+                                'Review my journal trades',
+                                'Analyze my strategies',
+                                'Draft a community post',
+                                'Research this market',
+                              ])
+                                UiButton(
+                                  label: prompt,
+                                  size: UiSize.xs,
+                                  variant: UiVariant.ghost,
+                                  onPressed: () => _prompt('$prompt: '),
+                                ),
+                          ],
+                        ),
                       ),
                     ),
                   _ComposerActions(

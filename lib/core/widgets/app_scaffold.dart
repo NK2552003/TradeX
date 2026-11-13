@@ -149,6 +149,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       GlobalKey<CopilotScreenState>();
   String _messagesQuery = '';
   String _aiQuery = '';
+  String? _aiInitialPrompt;
 
   UserRole? _previewRoleOverride;
   AccountAccess? _liveAccess;
@@ -743,7 +744,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   /// The one way a destination changes.
-  void _go(String id) {
+  void _go(String id, {String? aiPrompt}) {
     if (id == 'switch_role_customer') {
       if (_switchRole(UserRole.customer) && mounted) {
         UiToast.info(
@@ -803,6 +804,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     setState(() {
       if (_selectedId != id) _rememberDestination(id);
       if (id.startsWith('community')) _communityNavigationRevision++;
+      _aiInitialPrompt = aiPrompt;
       _selectedId = id;
       _showAffiliateApplication = id == 'affiliate_application';
       _activeSubpageTitle = null;
@@ -828,6 +830,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       _communityQuery = '';
       _messagesQuery = '';
       _aiQuery = '';
+      _aiInitialPrompt = null;
       _showAffiliateApplication = false;
       _activeSubpageTitle = null;
       _activeSubpageIcon = null;
@@ -1268,6 +1271,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       onSubpageChanged: _onSubpageChanged,
       onOpenRef: _openLinkRef,
       repository: _aiRepo,
+      initialPrompt: _aiInitialPrompt,
       searchQuery: _aiQuery,
       openRequest: _linkRequest,
     );
@@ -1282,6 +1286,8 @@ class _AppScaffoldState extends State<AppScaffold> {
     'workspace' => WorkspaceScreen(
       key: _workspaceKey,
       onOpenFeature: _go,
+      onOpenTraderSkill: (skill) =>
+          _go('ai_copilot', aiPrompt: '${skill.command} '),
       onOpenRef: _openLinkRef,
       onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
       onSubpageChanged: _onSubpageChanged,

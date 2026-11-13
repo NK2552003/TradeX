@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:tradex/core/config/env_config.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 
+import '../models/trader_skill.dart';
 import '../models/workspace.dart';
 import '../models/workspace_errors.dart';
 import '../models/workspace_mutations.dart';
@@ -166,7 +167,7 @@ class SupabaseCopilotApi extends CopilotApi {
           .toList();
       final instructions = StringBuffer(textOf(specialist, 'instructions'))
         ..write(
-          '\nAnswer using supplied context. Use web search when available for current information and cite sources. Never claim to have searched without tool results. Do not claim to execute code, schedule work, or save documents. Offer document drafts in your reply.',
+          '\nAnswer using supplied context. Use web search when available for current information and cite sources. Never claim to have searched without tool results. Report code execution only when the Python tool returns results. Do not claim to schedule work or save documents. Offer document drafts in your reply.',
         );
       if (specialist['memory'] == true &&
           (state['settings'] as Json)['memory'] == true) {
@@ -211,6 +212,11 @@ class SupabaseCopilotApi extends CopilotApi {
         'prompt': prompt,
         'kind': 'completion',
         'system_prompt': system,
+        'trader_skill_context': TraderSkill.instructions(prompt),
+        if (specialist['code'] == true)
+          'trader_toolkit': TraderSkill.fromCommand(prompt) == null
+              ? 'auto'
+              : 'selected',
         'mode': mode,
         'allow_web_search': allowWebSearch,
         'attachments': records(body['attachments']),

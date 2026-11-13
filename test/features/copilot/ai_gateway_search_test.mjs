@@ -44,3 +44,38 @@ for (const [status, code, message] of [
       Response.json({ error: { code, message: 'sensitive provider details' } }, { status })), message);
   });
 }
+
+for (const selection of ['auto', 'selected']) {
+  test(`trader toolkit loads the shipped pack for ${selection} selection`, async () => {
+    let uploads = 0;
+    const requests = [];
+    const result = await generateResponses([{role: 'user', content: 'Size my positions'}],
+      [], 'auto', 'model', 'key', async (url, options) => {
+        if (url.endsWith('/files')) {
+          uploads++;
+          const file = options.body.get('file');
+          assert.equal(file.name, 'trader-skills.zip');
+          const bytes = Buffer.from(await file.arrayBuffer());
+          assert.equal(bytes.readUInt32LE(0), 0x04034b50);
+          for (const name of ['alerts', 'analyst', 'broker', 'budget', 'copycat', 'news',
+            'pelosi', 'rebalance', 'risk', 'screener', 'tax']) {
+            assert.ok(bytes.includes(Buffer.from(`trader-${name}/SKILL.md`)));
+          }
+          return Response.json({ id: 'file-test' });
+        }
+        const body = JSON.parse(options.body);
+        requests.push(body);
+        if (selection === 'auto' && requests.length === 1) {
+          assert.equal(body.tools[0].name, 'open_trader_skill');
+          return Response.json({output: [{type: 'function_call', name: 'open_trader_skill',
+            call_id: 'call-1', arguments: '{}'}], usage: {input_tokens: 11}});
+        }
+        assert.deepEqual(body.tools, [{type: 'code_interpreter', container: {type: 'auto', file_ids: ['file-test']}}]);
+        if (selection === 'auto') assert.equal(body.input.at(-1).call_id, 'call-1');
+        return Response.json({...answer, usage: {input_tokens: 20}});
+      }, false, selection);
+    assert.equal(uploads, 1);
+    assert.equal(requests.length, selection === 'auto' ? 2 : 1);
+    assert.equal(result.input, selection === 'auto' ? 31 : 20);
+  });
+}

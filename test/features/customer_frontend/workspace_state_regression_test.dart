@@ -3,6 +3,32 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/features/workspace/ui/workspace_screen.dart';
 
 void main() {
+  testWidgets(
+    'workspace skill shortcut opens the catalog and returns a command',
+    (tester) async {
+      String? command;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: WorkspaceScreen(
+              onOpenFeature: (_) {},
+              onOpenTraderSkill: (skill) => command = skill.command,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Trader skills'));
+      await tester.tap(find.text('Trader skills'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('/trader-tax'));
+      await tester.tap(find.text('/trader-tax'));
+      await tester.pumpAndSettle();
+      expect(command, '/trader-tax');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('workspace restores calendar mode and filters after leaving', (
     tester,
   ) async {

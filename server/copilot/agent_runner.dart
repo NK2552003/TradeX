@@ -3,11 +3,13 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'package:tradex/features/copilot/models/trader_skill.dart';
 import 'package:tradex/features/copilot/models/workspace.dart';
 import 'agent_tools.dart';
 import 'computer.dart';
 import 'openai_gateway.dart';
 import 'store.dart';
+import 'trader_toolkit.dart';
 
 typedef Emit = void Function(Json event);
 
@@ -174,6 +176,21 @@ class AgentRunner {
       started = true;
       event({'type': 'started', 'messageId': messageId});
       String? previous = thread['responseId'] as String?;
+      final turnPrompt =
+          prompt ??
+          textOf(
+            records(
+                  thread['messages'],
+                ).where((m) => m['role'] == 'user').lastOrNull ??
+                {},
+            'body',
+          );
+      final skills = TraderSkill.instructions(turnPrompt);
+      String? toolkitFile;
+      if (selected['code'] == true &&
+          TraderSkill.fromCommand(turnPrompt) != null) {
+        toolkitFile = await uploadTraderToolkit(client, gateway.config.key);
+      }
       for (var step = 0; step < 12; step++) {
         if (_cancelled.contains(client)) {
           throw const CopilotFailure('Stopped.', 499);
@@ -192,7 +209,7 @@ class AgentRunner {
         final stepStart = body.length;
         await for (final response in gateway.respond(client, {
           'instructions':
-              '${instructionsFor(state, specialist, thread)}${switch (mode) {
+              '${instructionsFor(state, specialist, thread)}\n$skills\n${toolkitFile == null ? '' : TraderSkill.toolkitGuidance}${switch (mode) {
                 'search' => '\nSearch the web for current information and answer concisely with source citations.',
                 'research' => '\nResearch this question in depth using the web. Compare multiple relevant sources, verify dates and conflicting claims, and give a structured, cited synthesis with uncertainties. Do not claim exhaustive coverage.',
                 _ => '',
@@ -202,8 +219,23 @@ class AgentRunner {
             for (final tool in toolsFor(state, specialist))
               if (tool['type'] == 'web_search' && mode == 'research')
                 {...tool, 'search_context_size': 'high'}
+              else if (tool['type'] == 'code_interpreter' &&
+                  toolkitFile != null)
+                {
+                  ...tool,
+                  'container': {
+                    'type': 'auto',
+                    'file_ids': [toolkitFile],
+                  },
+                }
               else
                 tool,
+            if (specialist['code'] == true && toolkitFile == null)
+              functionTool(
+                'open_trader_skill',
+                'Load the built-in trader skill scripts for the requested workflow.',
+                {},
+              ),
           ],
           if (mode != 'auto' && !resume && step == 0)
             'tool_choice': {'type': 'web_search'},
@@ -282,7 +314,14 @@ class AgentRunner {
           } else if (item['type'] == 'function_call') {
             Json? result;
             try {
-              if (item['name'] == 'computer_read') {
+              if (item['name'] == 'open_trader_skill' &&
+                  specialist['code'] == true) {
+                toolkitFile ??= await uploadTraderToolkit(
+                  client,
+                  gateway.config.key,
+                );
+                result = {'instructions': TraderSkill.toolkitGuidance};
+              } else if (item['name'] == 'computer_read') {
                 final args = parseArguments(item);
                 if (![
                       'snapshot',

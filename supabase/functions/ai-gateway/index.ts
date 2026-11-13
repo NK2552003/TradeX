@@ -134,6 +134,11 @@ export async function handleRequest(request: Request, dependencies: Dependencies
   } else {
     messages.push({ role: 'system', content: 'Help the user analyze their trading records. Clearly distinguish supplied facts from assumptions and do not invent market prices or performance.' });
   }
+  if (typeof body.trader_skill_context === 'string' && body.trader_skill_context.length <= 8000) {
+    messages[0].content += '\n' + body.trader_skill_context;
+  }
+  const toolkit = body.trader_toolkit === 'selected' || body.trader_toolkit === 'auto'
+    ? body.trader_toolkit : undefined;
   if (Array.isArray(body.messages)) {
     for (const message of body.messages.slice(-40)) {
       if (!message || !['user', 'assistant'].includes(message.role) || typeof message.content !== 'string' || message.content.length > 40000) {
@@ -154,9 +159,9 @@ export async function handleRequest(request: Request, dependencies: Dependencies
   if (typeof reservation?.request_id !== 'string' || reservation.user_id !== user.user.id) return reply(500, { error: 'Unable to reserve AI request.' });
   try {
     const openAiKey = env('OPENAI_API_KEY') ?? env('OPEN_AI_KEY');
-    const result = mode !== 'auto' || attachments.length > 0 || (body.allow_web_search === true && !!openAiKey)
+    const result = mode !== 'auto' || attachments.length > 0 || ((body.allow_web_search === true || toolkit) && !!openAiKey)
       ? openAiKey
-        ? await generateResponses(messages, attachments, mode, env('OPENAI_MODEL') || 'gpt-4o', openAiKey, send, body.allow_web_search === true)
+        ? await generateResponses(messages, attachments, mode, env('OPENAI_MODEL') || 'gpt-4o', openAiKey, send, body.allow_web_search === true, toolkit)
         : (() => { throw new Error('OpenAI is required for web search and file attachments.'); })()
       : await generate(messages,
         typeof body.max_tokens === 'number' ? Math.max(128, Math.min(4096, Math.floor(body.max_tokens))) : 2048,

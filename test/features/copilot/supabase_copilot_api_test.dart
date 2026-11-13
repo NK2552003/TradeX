@@ -85,6 +85,35 @@ class HostedFixture {
 
 void main() {
   test(
+    'explicit commands and natural questions reach the hosted skill router',
+    () async {
+      final fixture = HostedFixture();
+      final id = await fixture.thread();
+      for (final entry in {
+        '/budget split my cash': 'selected',
+        'Size my trades': 'auto',
+      }.entries) {
+        await fixture.api.run(id, {'prompt': entry.key}).toList();
+        final body = jsonDecode(
+          fixture.requests
+              .lastWhere((r) => r.url.path.endsWith('ai-gateway'))
+              .body,
+        );
+        expect(body['prompt'], entry.key);
+        expect(body['trader_toolkit'], entry.value);
+        expect(body['trader_skill_context'], contains('/trader-budget'));
+        if (entry.value == 'selected') {
+          expect(
+            body['trader_skill_context'],
+            contains('explicitly selected /trader-budget'),
+          );
+        }
+      }
+      fixture.api.dispose();
+    },
+  );
+
+  test(
     'Auto passes research permission and permits actual web search',
     () async {
       final fixture = HostedFixture();

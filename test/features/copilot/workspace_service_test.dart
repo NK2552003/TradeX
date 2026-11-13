@@ -191,6 +191,70 @@ void main() {
       },
     );
   }
+  for (final manual in [true, false]) {
+    test(
+      'worker mounts trader toolkit for ${manual ? 'explicit' : 'automatic'} selection',
+      () async {
+        final created = await thread();
+        final prompt = manual
+            ? '/trader-budget allocate my cash'
+            : 'Allocate my cash';
+        var uploads = 0;
+        final requests = <Json>[];
+        final gateway = OpenAiGateway(
+          CopilotConfig({'OPEN_AI_KEY': 'test'}),
+          clientFactory: () => MockClient((request) async {
+            if (request.url.path == '/v1/files') {
+              uploads++;
+              expect(
+                request.headers['content-type'],
+                contains('multipart/form-data'),
+              );
+              return http.Response('{"id":"file-pack"}', 200);
+            }
+            final body = jsonDecode(request.body) as Json;
+            requests.add(body);
+            final shouldRoute = !manual && requests.length == 1;
+            if (!shouldRoute) {
+              final code = records(
+                body['tools'],
+              ).firstWhere((t) => t['type'] == 'code_interpreter');
+              expect(code['container']['file_ids'], ['file-pack']);
+              expect(body['instructions'], contains('SKILL.md'));
+            }
+            return http.Response(
+              _sse([
+                {
+                  'type': 'response.completed',
+                  'response': {
+                    'id': 'r${requests.length}',
+                    'output': [
+                      if (shouldRoute)
+                        {
+                          'type': 'function_call',
+                          'name': 'open_trader_skill',
+                          'arguments': '{}',
+                          'call_id': 'load',
+                        },
+                    ],
+                  },
+                },
+              ]),
+              200,
+            );
+          }),
+        );
+        await AgentRunner(
+          store,
+          gateway,
+        ).run('owner', created['id'], prompt: prompt);
+        expect(uploads, 1);
+        expect(requests.length, manual ? 1 : 2);
+        expect(requests.first['input'].last['content'].first['text'], prompt);
+      },
+    );
+  }
+
   test('research mode respects disabled workspace permissions', () async {
     final created = await thread();
     await store.change(

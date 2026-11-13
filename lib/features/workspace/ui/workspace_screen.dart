@@ -7,6 +7,8 @@ import 'package:tradex/core/config/record_access.dart';
 // Required unified primitive import for every writing workspace surface.
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/copilot/models/trader_skill.dart';
+import 'package:tradex/features/copilot/presentation/trader_skill_picker.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/journal/data/journal_templates.dart';
 import 'package:tradex/features/journal/ui/journal_editor_screen.dart';
@@ -46,6 +48,7 @@ class WorkspaceScreen extends StatefulWidget {
   const WorkspaceScreen({
     super.key,
     required this.onOpenFeature,
+    this.onOpenTraderSkill,
     this.onOpenRef,
     this.onOpenWriting,
     this.onSubpageChanged,
@@ -55,6 +58,7 @@ class WorkspaceScreen extends StatefulWidget {
   });
 
   final ValueChanged<String> onOpenFeature;
+  final ValueChanged<TraderSkill>? onOpenTraderSkill;
   final void Function(AppLinkRef ref)? onOpenRef;
   final void Function(AppLinkRef ref)? onOpenWriting;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
@@ -794,6 +798,17 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
           intent: UiIntent.success,
           onTap: () => widget.onOpenFeature('strategies'),
         ),
+        if (widget.onOpenTraderSkill != null)
+          AppQuickLink(
+            icon: Icons.bolt_outlined,
+            label: 'Trader skills',
+            value: '${TraderSkill.values.length}',
+            hint: 'Open in Copilot',
+            onTap: () async {
+              final skill = await pickTraderSkill(context);
+              if (mounted && skill != null) widget.onOpenTraderSkill?.call(skill);
+            },
+          ),
       ],
     );
   }

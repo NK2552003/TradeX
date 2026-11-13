@@ -17,6 +17,7 @@ import 'copilot_composer.dart';
 import 'copilot_feature_modals.dart';
 import 'review_card.dart';
 import 'save_page_dialog.dart';
+import 'trader_skill_picker.dart';
 
 class CopilotChatPane extends StatefulWidget {
   const CopilotChatPane({
@@ -77,6 +78,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
           'txt',
           'md',
           'csv',
+          'json',
         ],
       );
       if (!mounted || picked == null) return;
@@ -189,6 +191,16 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
         }
       });
     }
+  }
+
+  Future<void> _browseSkills() async {
+    final skill = await pickTraderSkill(context);
+    if (!mounted || skill == null) return;
+    final draft = traderSkillDraft(skill, _composer.text);
+    _composer.value = TextEditingValue(
+      text: draft,
+      selection: TextSelection.collapsed(offset: draft.length),
+    );
   }
 
   Future<void> _download(Json artifact) async {
@@ -374,7 +386,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
               composerHint:
                   'Ask ${controller.specialist?.name ?? 'your copilot'} anything…',
               emptyState: _Welcome(
-                specialist: controller.specialist,
+                onSkills: _browseSkills,
                 onPrompt: (prompt) {
                   _composer.text = prompt;
                   _composer.selection = TextSelection.collapsed(
@@ -637,8 +649,8 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
 }
 
 class _Welcome extends StatelessWidget {
-  const _Welcome({this.specialist, required this.onPrompt});
-  final Specialist? specialist;
+  const _Welcome({required this.onSkills, required this.onPrompt});
+  final VoidCallback onSkills;
   final ValueChanged<String> onPrompt;
   @override
   Widget build(BuildContext context) => Center(
@@ -660,7 +672,7 @@ class _Welcome extends StatelessWidget {
           ),
           UiGap.v(context.ui.spacing.sm),
           Text(
-            'Bring a question, a chart, or a fresh idea.',
+            'Ask a trading question and Copilot will choose a skill, or type / to pick one.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: context.ui.colors.foregroundMuted,
@@ -671,6 +683,13 @@ class _Welcome extends StatelessWidget {
             alignment: WrapAlignment.center,
             spacing: context.sp(context.ui.spacing.xs),
             children: [
+              UiButton(
+                label: 'Trader skills',
+                icon: Icons.bolt_outlined,
+                variant: UiVariant.soft,
+                size: UiSize.sm,
+                onPressed: onSkills,
+              ),
               for (final prompt in const [
                 'Review a setup',
                 'Research the market',

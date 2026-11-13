@@ -1,3 +1,5 @@
+import { openTraderSkill, uploadTraderToolkit } from './trader-toolkit.ts';
+
 type Message = { role: 'user' | 'assistant' | 'system'; content: string };
 type ProviderResult = { text: string; provider: string; model: string; input?: number; output?: number };
 type Citation = { type: string; url?: string; title?: string; start_index?: number; end_index?: number };
@@ -32,50 +34,68 @@ export async function generateResponses(
   key: string,
   send: typeof fetch,
   allowWebSearch = false,
+  toolkit?: 'auto' | 'selected',
 ): Promise<ProviderResult> {
   const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n');
-  const input = messages.filter((m) => m.role !== 'system').map((message) => ({
+  const input: unknown[] = messages.filter((m) => m.role !== 'system').map((message) => ({
     role: message.role,
-    content: [
+    content: message.role === 'assistant' ? message.content : [
       { type: 'input_text', text: message.content },
       ...(message.role === 'user' && message === messages.at(-1) ? attachments : []),
     ],
   }));
   const tools = mode === 'auto' && !allowWebSearch ? [] : [{ type: 'web_search', ...(mode === 'research' ? { search_context_size: 'high' } : {}) }];
-  const response = await send('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model,
-      instructions: system,
-      input,
-      tools,
-      ...(mode !== 'auto' && tools.length > 0 ? { tool_choice: { type: 'web_search' } } : {}),
-      max_output_tokens: 4096,
-    }),
-    signal: AbortSignal.timeout(60000),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    const code = error.error?.code;
-    if (response.status === 401) throw new Error('The OpenAI key configured in Supabase Edge Function secrets is invalid.');
-    if (code === 'insufficient_quota') throw new Error('The OpenAI API project has no available quota. Check its billing and usage limits.');
-    if (response.status === 429) throw new Error('OpenAI is rate limiting requests. Please retry shortly.');
-    if (response.status === 403 || code === 'model_not_found') throw new Error('The OpenAI API project cannot access the configured model. Check its model permissions.');
-    throw new Error('OpenAI could not complete this request. Check the gateway model and provider configuration.');
+  let fileId = toolkit === 'selected' ? await uploadTraderToolkit(key, send) : undefined;
+  let inputTokens = 0, outputTokens = 0;
+  for (let step = 0; step < 2; step++) {
+    const response = await send('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model,
+        instructions: system + (fileId ? '\nThe bundled trader-skills.zip is in /mnt/data. Extract it with Python and read the selected SKILL.md. Run the supplied scripts, passing their trader/ files between steps. Retrieve external data via permitted web search or ask for dated inputs. Report the actual results in the reply. Preview tickets only.' : ''),
+        input,
+        tools: [...tools, ...(fileId
+          ? [{ type: 'code_interpreter', container: { type: 'auto', file_ids: [fileId] } }]
+          : toolkit ? [openTraderSkill] : [])],
+        ...(step === 0 && mode !== 'auto' && tools.length > 0 ? { tool_choice: { type: 'web_search' } } : {}),
+        max_output_tokens: 4096,
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      const code = error.error?.code;
+      if (response.status === 401) throw new Error('The OpenAI key configured in Supabase Edge Function secrets is invalid.');
+      if (code === 'insufficient_quota') throw new Error('The OpenAI API project has no available quota. Check its billing and usage limits.');
+      if (response.status === 429) throw new Error('OpenAI is rate limiting requests. Please retry shortly.');
+      if (response.status === 403 || code === 'model_not_found') throw new Error('The OpenAI API project cannot access the configured model. Check its model permissions.');
+      throw new Error('OpenAI could not complete this request. Check the gateway model and provider configuration.');
+    }
+    const data = await response.json();
+    inputTokens += tokenCount(data.usage?.input_tokens) ?? 0;
+    outputTokens += tokenCount(data.usage?.output_tokens) ?? 0;
+    const calls = data.output?.filter((item: {type: string; name?: string}) =>
+      item.type === 'function_call' && item.name === openTraderSkill.name) ?? [];
+    if (calls.length && toolkit === 'auto' && !fileId) {
+      fileId = await uploadTraderToolkit(key, send);
+      input.push(...data.output, ...calls.map((call: {call_id: string}) => ({
+        type: 'function_call_output', call_id: call.call_id, output: 'Trader toolkit loaded into the Python container.',
+      })));
+      continue;
+    }
+    const text = data.output?.flatMap((item: { content?: { type: string; text?: string }[] }) => item.content ?? [])
+      .filter((content: { type: string }) => content.type === 'output_text')
+      .map((content: OutputText) => withCitations(content))
+      .join('');
+    if (typeof text !== 'string' || !text.trim()) throw new Error('The AI service returned an empty response.');
+    return {
+      text: text.trim(),
+      provider: 'openai',
+      model: typeof data.model === 'string' ? data.model : model,
+      input: inputTokens || undefined,
+      output: outputTokens || undefined,
+    };
   }
-  const data = await response.json();
-  const text = data.output?.flatMap((item: { content?: { type: string; text?: string }[] }) => item.content ?? [])
-    .filter((content: { type: string }) => content.type === 'output_text')
-    .map((content: OutputText) => withCitations(content))
-    .join('');
-  if (typeof text !== 'string' || !text.trim()) throw new Error('The AI service returned an empty response.');
-  return {
-    text: text.trim(),
-    provider: 'openai',
-    model: typeof data.model === 'string' ? data.model : model,
-    input: tokenCount(data.usage?.input_tokens),
-    output: tokenCount(data.usage?.output_tokens),
-  };
+  throw new Error('The trader workflow did not finish. Retry this request.');
 }
-

@@ -57,6 +57,38 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
+  testWidgets('browse and type trader commands without sending the draft', (
+    tester,
+  ) async {
+    size(tester, 390);
+    final controller = _RecordingController()..accept = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: CopilotChatPane(controller: controller)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'size my portfolio');
+    await tester.tap(find.text('Trader skills'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('/trader-budget'));
+    await tester.tap(find.text('/trader-budget'));
+    await tester.pumpAndSettle();
+    expect(find.text('/trader-budget size my portfolio'), findsOneWidget);
+    expect(controller.sends, 0);
+    await tester.enterText(find.byType(TextField), '/ris');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('/trader-risk'));
+    await tester.pumpAndSettle();
+    expect(find.text('/trader-risk '), findsOneWidget);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(controller.prompt, '/trader-risk');
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
   for (final width in [320.0, 390.0, 768.0, 1440.0]) {
     testWidgets('composer supports input, modes and shortcuts at $width', (
       tester,
