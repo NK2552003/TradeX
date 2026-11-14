@@ -6,6 +6,7 @@ import 'package:tradex/features/workspace/data/workspace_post_service.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
@@ -2251,6 +2252,10 @@ class CommunityRepository extends ChangeNotifier {
           SupabaseConfig.client!.auth.currentUser?.id ?? '',
         ).create(post);
       } catch (e) {
+        _forYouPosts = _forYouPosts.where((item) => item.id != newId).toList();
+        _followingPosts = _followingPosts.where((item) => item.id != newId).toList();
+        _signalPosts = _signalPosts.where((item) => item.id != newId).toList();
+        notifyListeners();
         debugPrint('[CommunityRepository] createPost Supabase error: $e');
         rethrow;
       }
@@ -2319,22 +2324,25 @@ class CommunityRepository extends ChangeNotifier {
         final ext = compressed.filename.contains('.')
             ? compressed.filename.split('.').last
             : 'webp';
-        final cleanName = '${const Uuid().v4()}.$ext';
+        final cleanName = '${sha256.convert(compressed.bytes)}.$ext';
         final actor = client.auth.currentUser?.id;
         if (actor == null) throw StateError('Sign in to upload an attachment.');
         final storagePath = '$actor/$postId/$cleanName';
 
-        await client.storage
-            .from('community-attachments')
-            .uploadBinary(
-              storagePath,
-              compressed.bytes,
-              fileOptions: FileOptions(
-                contentType: compressed.mimeType,
-                cacheControl: '3600',
-                upsert: true,
-              ),
-            );
+        try {
+          await client.storage.from('community-attachments').uploadBinary(
+            storagePath,
+            compressed.bytes,
+            fileOptions: FileOptions(
+              contentType: compressed.mimeType,
+              cacheControl: '3600',
+              upsert: false,
+            ),
+          );
+        } on StorageException catch (error) {
+          // Reusing this batch on retry reuses the exact same immutable object.
+          if (error.statusCode != '409' && error.error != 'Duplicate') rethrow;
+        }
         return client.storage
             .from('community-attachments')
             .getPublicUrl(storagePath);
@@ -2345,6 +2353,29 @@ class CommunityRepository extends ChangeNotifier {
     }
     RecordAccess.requireService();
     return file?.path ?? filename ?? '';
+  }
+
+  /// Removes this user's staged uploads only when no post references them.
+  Future<void> discardUnusedAttachments(Iterable<String> urls) async {
+    final client = SupabaseConfig.client;
+    final actor = client?.auth.currentUser?.id;
+    if (client == null || actor == null || urls.isEmpty) return;
+    final bucket = client.storage.from('community-attachments');
+    final prefix = bucket.getPublicUrl('$actor/');
+    final owned = urls.where((url) => url.startsWith(prefix)).toSet();
+    if (owned.isEmpty) return;
+    try {
+      final linked = await client.from('community_post_attachments')
+          .select('url').inFilter('url', owned.toList());
+      final used = linked.map((row) => row['url']).toSet();
+      final paths = [
+        for (final url in owned.difference(used))
+          '$actor/${url.substring(prefix.length)}',
+      ];
+      if (paths.isNotEmpty) await bucket.remove(paths);
+    } catch (error) {
+      debugPrint('[CommunityRepository] Draft attachment cleanup failed: $error');
+    }
   }
 
   /// Resolves an attachment reference or storage path to a usable URL.
@@ -2551,19 +2582,26 @@ class CommunityRepository extends ChangeNotifier {
                 .eq('post_id', postId);
           }
           if (imageUrls != null) {
-            await client
-                .from('community_post_attachments')
-                .delete()
-                .eq('post_id', postId)
-                .eq('kind', 'image');
-            for (final imgUrl in imageUrls) {
-              await client.from('community_post_attachments').insert({
-                'post_id': postId,
-                'kind': 'image',
-                'ref_id': imgUrl,
-                'title': 'Chart Image',
-                'url': imgUrl,
-              });
+            final rows = await client.from('community_post_attachments')
+                .select('id, url, ref_id')
+                .eq('post_id', postId).eq('kind', 'image');
+            final currentUrls = rows.map((row) => row['url'] ?? row['ref_id']).toSet();
+            final wanted = imageUrls.toSet();
+            final added = wanted.difference(currentUrls);
+            if (added.isNotEmpty) {
+              await client.from('community_post_attachments').insert([
+                for (final url in added)
+                  {'post_id': postId, 'kind': 'image', 'ref_id': url,
+                   'title': 'Chart Image', 'url': url},
+              ]);
+            }
+            final removedIds = [
+              for (final row in rows)
+                if (!wanted.contains(row['url'] ?? row['ref_id'])) row['id'] as String,
+            ];
+            if (removedIds.isNotEmpty) {
+              await client.from('community_post_attachments').delete()
+                  .eq('post_id', postId).eq('kind', 'image').inFilter('id', removedIds);
             }
           }
           if (attachment != null) {

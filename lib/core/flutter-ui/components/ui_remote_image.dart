@@ -35,6 +35,18 @@ class UiRemoteImage extends StatelessWidget {
     if (src == null || src.isEmpty) {
       return _Panel(icon: Icons.image_not_supported_outlined);
     }
+    if (src.startsWith('data:image/')) {
+      try {
+        return Image.memory(
+          Uri.parse(src).data!.contentAsBytes(),
+          fit: fit,
+          semanticLabel: semanticLabel,
+          errorBuilder: (_, _, _) => _Panel(icon: errorIcon),
+        );
+      } on FormatException {
+        return _Panel(icon: errorIcon);
+      }
+    }
     return Image.network(
       src,
       // Publishers often allow browser <img> embedding but not canvas CORS.

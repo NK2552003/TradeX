@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 import 'package:tradex/features/auth/models/auth_user_role.dart';
@@ -577,12 +579,9 @@ void main() {
               width: 900,
               child: CommunityEngagementBar(
                 comments: 12,
-                reposts: 8,
                 likes: 56,
-                views: 1400,
                 liked: false,
                 reposted: false,
-                bookmarked: false,
               ),
             ),
           ),
@@ -591,7 +590,10 @@ void main() {
       await tester.pumpAndSettle();
 
       final buttons = find.byType(CommunityEngagementButton);
-      expect(buttons, findsNWidgets(6));
+      expect(buttons, findsNWidgets(4));
+      final actions = tester.widgetList<CommunityEngagementButton>(buttons);
+      expect(actions.map((button) => button.tooltip), ['Like', 'Reply', 'Repost', 'Share']);
+      expect(tester.getCenter(find.byIcon(Icons.thumb_up_outlined)).dx, greaterThan(tester.getCenter(buttons.last).dx));
 
       final double firstMetricY = tester.getCenter(buttons.at(0)).dy;
       for (int index = 1; index < 4; index++) {
@@ -639,6 +641,16 @@ void main() {
           ),
         );
 
+        SharedPreferences.setMockInitialValues({});
+        String? copiedLink;
+        final messenger = tester.binding.defaultBinaryMessenger;
+        messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copiedLink = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        });
+        addTearDown(() => messenger.setMockMethodCallHandler(SystemChannels.platform, null));
         bool shareCallbackFired = false;
 
         await tester.pumpWidget(
@@ -659,7 +671,7 @@ void main() {
         expect(repo.shareCountFor('post-share-101'), 0);
 
         // Tap the Share button on the engagement bar
-        await tester.tap(find.byIcon(Icons.ios_share_rounded).last);
+        await tester.tap(find.byTooltip('Share').last);
         await tester.pumpAndSettle();
 
         // Verify CommunityShareSheet opened with post preview, URL, and external share options
@@ -691,11 +703,14 @@ void main() {
 
         expect(repo.shareCountFor('post-share-101'), 1);
         expect(shareCallbackFired, isTrue);
+        expect(copiedLink, 'https://alphajournal.in/community/post/post-share-101?public=true');
 
         // Tap Save Post to Trader Notes
         final int notesBefore =
             (await NotesRepositoryScope.repository.fetchAll()).length;
-        await tester.tap(find.byKey(const ValueKey('share-sheet-save-note')));
+        final saveNote = find.byKey(const ValueKey('share-sheet-save-note'));
+        await tester.ensureVisible(saveNote);
+        await tester.tap(saveNote);
         await tester.pump();
         await tester.pump(const Duration(seconds: 4));
 

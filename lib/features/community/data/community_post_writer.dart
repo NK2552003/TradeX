@@ -37,8 +37,8 @@ class CommunityPostWriter {
             : 'standard',
         'tickers': post.tickers,
         'tags': post.tags,
-        'is_public': post.isPublic,
-        'visibility': post.isPublic ? 'public' : 'private',
+        'is_public': false,
+        'visibility': 'private',
         'moderation_status': 'approved',
       };
 
@@ -120,14 +120,12 @@ class CommunityPostWriter {
         });
       }
     }
-    for (final url in post.effectiveImageUrls) {
-      await client.from('community_post_attachments').insert({
-        'post_id': post.id,
-        'kind': 'image',
-        'ref_id': url,
-        'url': url,
-        'title': 'Chart image',
-      });
+    if (post.effectiveImageUrls.isNotEmpty) {
+      await client.from('community_post_attachments').insert([
+        for (final url in post.effectiveImageUrls.toSet())
+          {'post_id': post.id, 'kind': 'image', 'ref_id': url,
+           'url': url, 'title': 'Chart image'},
+      ]);
     }
     final attachment = post.attachment;
     if (attachment != null) {

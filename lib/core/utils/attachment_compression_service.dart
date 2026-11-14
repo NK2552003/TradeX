@@ -1,5 +1,11 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
+import 'attachment_image_codec_stub.dart'
+    if (dart.library.js_interop) 'attachment_image_codec_web.dart'
+    as browser_codec;
 
 /// Representation of an optimized attachment ready for cloud storage upload.
 class CompressedAttachment {
@@ -42,7 +48,7 @@ class CompressedAttachment {
 /// Global unified attachment and image compression strategy.
 ///
 /// Converts images to modern high-efficiency WebP format and compresses
-/// them below 100 KB while preserving crisp visual fidelity across all surfaces.
+/// them to a 100 KB budget. Large animations retain sampled frames and timing.
 class AttachmentCompressionService {
   AttachmentCompressionService._();
 
@@ -92,7 +98,11 @@ class AttachmentCompressionService {
     final bool appearsToBeImage =
         isImageFileName(filename) || isImageMime(mimeType);
 
-    if (!appearsToBeImage || bytes.isEmpty) {
+    if (maxSizeBytes < 1 || maxDimension < 1) {
+      throw ArgumentError('Invalid image budget.');
+    }
+    if (bytes.isEmpty) throw const FormatException('Attachment is empty.');
+    if (!appearsToBeImage) {
       return CompressedAttachment(
         bytes: bytes,
         filename: filename,
@@ -103,145 +113,183 @@ class AttachmentCompressionService {
       );
     }
 
-    // If already WebP and already under the target limit, preserve directly
-    if (filename.toLowerCase().trim().endsWith('.webp') &&
-        originalLength <= maxSizeBytes &&
-        !isAvatar) {
-      return CompressedAttachment(
-        bytes: bytes,
-        filename: filename,
-        mimeType: 'image/webp',
-        isImage: true,
-        originalByteSize: originalLength,
-        compressedByteSize: originalLength,
-      );
-    }
-
+    final dimension = isAvatar ? avatarMaxDimension : maxDimension;
+    final params = _CompressionParams(
+      rawBytes: bytes,
+      maxSizeBytes: maxSizeBytes,
+      maxDimension: dimension,
+    );
+    Uint8List optimized;
     try {
-      final int effectiveMaxDimension =
-          isAvatar ? avatarMaxDimension : maxDimension;
-
-      final Uint8List optimized = await compute(
-        _compressInIsolate,
-        _CompressionParams(
-          rawBytes: bytes,
-          maxSizeBytes: maxSizeBytes,
-          maxDimension: effectiveMaxDimension,
-        ),
-      );
-
-      // Determine updated WebP filename
-      final String baseName = filename.contains('.')
-          ? filename.substring(0, filename.lastIndexOf('.'))
-          : filename;
-      final String webpFilename = '$baseName.webp';
-
-      return CompressedAttachment(
-        bytes: optimized,
-        filename: webpFilename,
-        mimeType: 'image/webp',
-        isImage: true,
-        originalByteSize: originalLength,
-        compressedByteSize: optimized.length,
-      );
-    } catch (e) {
-      debugPrint('[AttachmentCompressionService] Optimization fallback: $e');
-      return CompressedAttachment(
-        bytes: bytes,
-        filename: filename,
-        mimeType: mimeType ?? 'application/octet-stream',
-        isImage: appearsToBeImage,
-        originalByteSize: originalLength,
-        compressedByteSize: originalLength,
-      );
+      optimized =
+          await browser_codec.compressStaticImage(
+            bytes,
+            dimension,
+            maxSizeBytes,
+          ) ??
+          await compute(_compressInIsolate, params);
+    } on _PlatformDecodeRequired {
+      // Use the platform's image codec for large animations and formats such
+      // as HEIC where the device has a decoder. Read composited frames in order.
+      optimized = await _compressWithPlatformCodec(params);
     }
-  }
-
-  /// Internal worker executed in background isolate to keep UI frame-rates smooth.
-  static Uint8List _compressInIsolate(_CompressionParams params) {
-    return optimizeImageToWebpSync(
-      params.rawBytes,
-      maxSizeBytes: params.maxSizeBytes,
-      maxDimension: params.maxDimension,
+    final dot = filename.lastIndexOf('.');
+    return CompressedAttachment(
+      bytes: optimized,
+      filename: '${dot > 0 ? filename.substring(0, dot) : filename}.webp',
+      mimeType: 'image/webp',
+      isImage: true,
+      originalByteSize: originalLength,
+      compressedByteSize: optimized.length,
     );
   }
 
-  /// Synchronous image optimization logic.
+  static Uint8List _compressInIsolate(_CompressionParams params) =>
+      optimizeImageToWebpSync(
+        params.rawBytes,
+        maxSizeBytes: params.maxSizeBytes,
+        maxDimension: params.maxDimension,
+      );
+
   static Uint8List optimizeImageToWebpSync(
     Uint8List rawBytes, {
     int maxSizeBytes = defaultMaxSizeBytes,
     int maxDimension = defaultMaxDimension,
   }) {
-    final img.Image? decoded = img.decodeImage(rawBytes);
-    if (decoded == null) {
+    final decoder = img.findDecoderForData(rawBytes);
+    final info = decoder?.startDecode(rawBytes);
+    if (info == null) throw const _PlatformDecodeRequired();
+    final dimension = math.max(info.width, info.height);
+    if (decoder is img.WebPDecoder &&
+        rawBytes.length <= maxSizeBytes &&
+        dimension <= maxDimension) {
       return rawBytes;
     }
-
-    img.Image current = decoded;
-
-    // 1. Initial downscale if dimensions exceed maxDimension
-    if (current.width > maxDimension || current.height > maxDimension) {
-      current = img.copyResize(
-        current,
-        width: current.width >= current.height ? maxDimension : null,
-        height: current.height > current.width ? maxDimension : null,
-        interpolation: img.Interpolation.linear,
-      );
+    // Avoid a full-size RGBA allocation for every frame of a large animation.
+    if (info.width * info.height * info.numFrames > 16 * 1024 * 1024) {
+      throw const _PlatformDecodeRequired();
     }
+    final decoded = decoder!.decode(rawBytes);
+    if (decoded == null) throw const _PlatformDecodeRequired();
+    return _encodeWithinBudget(
+      img.bakeOrientation(decoded),
+      maxDimension,
+      maxSizeBytes,
+    );
+  }
 
-    // 2. Progressive quality & dimension steps targeting < maxSizeBytes (< 100 KB)
-    final List<int> qualitySteps = <int>[80, 68, 55, 42, 30];
-    Uint8List? bestCandidate;
+  static Future<Uint8List> _compressWithPlatformCodec(
+    _CompressionParams params,
+  ) async {
+    ui.Codec? codec;
+    try {
+      final info = img
+          .findDecoderForData(params.rawBytes)
+          ?.startDecode(params.rawBytes);
+      // When the Dart decoder requires a fallback, keep the frame working set small.
+      final limit = math.min(params.maxDimension, 640);
+      final portrait = info != null && info.height > info.width;
+      codec = await ui.instantiateImageCodec(
+        params.rawBytes,
+        targetWidth: portrait ? null : limit,
+        targetHeight: portrait ? limit : null,
+        allowUpscaling: false,
+      );
+      final step = (codec.frameCount / 16).ceil();
+      img.Image? animation;
+      img.Image? sampledFrame;
+      for (var i = 0; i < codec.frameCount; i++) {
+        final frame = await codec.getNextFrame();
+        try {
+          if (i % step == 0) {
+            final rgba = await frame.image.toByteData(
+              format: ui.ImageByteFormat.rawStraightRgba,
+            );
+            if (rgba == null) {
+              throw const FormatException('Unable to read image pixels.');
+            }
+            sampledFrame = img.Image.fromBytes(
+              width: frame.image.width,
+              height: frame.image.height,
+              bytes: rgba.buffer,
+              bytesOffset: rgba.offsetInBytes,
+              numChannels: 4,
+            );
+            if (math.max(sampledFrame.width, sampledFrame.height) > limit) {
+              sampledFrame = img.copyResize(
+                sampledFrame,
+                width: sampledFrame.width >= sampledFrame.height ? limit : null,
+                height: sampledFrame.height > sampledFrame.width ? limit : null,
+              );
+            }
+            if (animation == null) {
+              animation = sampledFrame;
+              animation.loopCount = codec.repetitionCount + 1;
+            } else {
+              animation.addFrame(sampledFrame);
+            }
+          }
+          sampledFrame!.frameDuration += frame.duration.inMilliseconds;
+        } finally {
+          frame.image.dispose();
+        }
+      }
+      if (animation == null) {
+        throw const FormatException('Image contains no frames.');
+      }
+      return await compute(_encodeDecoded, (
+        animation,
+        limit,
+        params.maxSizeBytes,
+      ));
+    } catch (error) {
+      debugPrint(
+        '[AttachmentCompressionService] Image preparation failed: $error',
+      );
+      throw const FormatException(
+        'This image could not be optimized. Try a JPEG, PNG, WebP or GIF.',
+      );
+    } finally {
+      codec?.dispose();
+    }
+  }
 
-    for (final int quality in qualitySteps) {
-      final Uint8List webpBytes = img.encodeWebP(
+  static Uint8List _encodeDecoded((img.Image, int, int) input) =>
+      _encodeWithinBudget(input.$1, input.$2, input.$3);
+
+  static Uint8List _encodeWithinBudget(
+    img.Image image,
+    int maxDimension,
+    int maxBytes,
+  ) {
+    if (maxBytes < 1 || maxDimension < 1) {
+      throw ArgumentError('Invalid image budget.');
+    }
+    var current = image;
+    var dimension = math.min(maxDimension, math.max(image.width, image.height));
+    var quality = 80;
+    while (true) {
+      if (math.max(current.width, current.height) > dimension) {
+        current = img.copyResize(
+          current,
+          width: current.width >= current.height ? dimension : null,
+          height: current.height > current.width ? dimension : null,
+          interpolation: img.Interpolation.average,
+        );
+      }
+      final encoded = img.encodeWebP(
         current,
         lossless: false,
         quality: quality,
-        method: 4,
+        method: 2,
       );
-
-      bestCandidate = webpBytes;
-      if (webpBytes.length <= maxSizeBytes) {
-        return webpBytes;
+      if (encoded.length <= maxBytes) return encoded;
+      if (dimension <= 1) {
+        throw const FormatException('Image exceeds the storage budget.');
       }
-
-      // If still above limit, scale down dimensions progressively
-      final int targetDimension = switch (quality) {
-        80 => 1200,
-        68 => 960,
-        55 => 720,
-        42 => 540,
-        _ => 400,
-      };
-
-      if (current.width > targetDimension || current.height > targetDimension) {
-        current = img.copyResize(
-          current,
-          width: current.width >= current.height ? targetDimension : null,
-          height: current.height > current.width ? targetDimension : null,
-          interpolation: img.Interpolation.linear,
-        );
-      }
+      dimension = math.max(1, (dimension * 0.75).floor());
+      quality = math.max(35, quality - 10);
     }
-
-    // 3. Fallback aggressive loop if image contains extreme high-frequency entropy
-    while (bestCandidate != null &&
-        bestCandidate.length > maxSizeBytes &&
-        current.width > 200 &&
-        current.height > 200) {
-      final newW = (current.width * 0.75).round();
-      final newH = (current.height * 0.75).round();
-      current = img.copyResize(current, width: newW, height: newH);
-      bestCandidate = img.encodeWebP(
-        current,
-        lossless: false,
-        quality: 35,
-        method: 3,
-      );
-    }
-
-    return bestCandidate ?? rawBytes;
   }
 
   static String _guessNonImageMime(String filename) {
@@ -249,8 +297,10 @@ class AttachmentCompressionService {
     if (lower.endsWith('.pdf')) return 'application/pdf';
     if (lower.endsWith('.csv')) return 'text/csv';
     if (lower.endsWith('.txt')) return 'text/plain';
-    if (lower.endsWith('.webm')) return 'audio/webm';
-    if (lower.endsWith('.m4a') || lower.endsWith('.mp4')) return 'audio/mp4';
+    if (lower.endsWith('.webm')) return 'video/webm';
+    if (lower.endsWith('.mp4')) return 'video/mp4';
+    if (lower.endsWith('.mov')) return 'video/quicktime';
+    if (lower.endsWith('.m4a')) return 'audio/mp4';
     if (lower.endsWith('.mp3')) return 'audio/mpeg';
     if (lower.endsWith('.wav')) return 'audio/wav';
     return 'application/octet-stream';
@@ -267,4 +317,8 @@ class _CompressionParams {
   final Uint8List rawBytes;
   final int maxSizeBytes;
   final int maxDimension;
+}
+
+class _PlatformDecodeRequired implements Exception {
+  const _PlatformDecodeRequired();
 }

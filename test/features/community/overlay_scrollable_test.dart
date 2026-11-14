@@ -34,6 +34,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.windows),
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(
@@ -79,7 +80,7 @@ void main() {
     // Verify no RenderFlex overflow was thrown
     expect(tester.takeException(), isNull);
 
-    // Verify Scrollbar and SingleChildScrollView exist inside the overlay
+    // Desktop scroll behavior supplies a scrollbar with an attached controller.
     expect(find.byType(SingleChildScrollView), findsWidgets);
     expect(find.byType(Scrollbar), findsWidgets);
 

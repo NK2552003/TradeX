@@ -645,7 +645,7 @@ class CommunityPost {
     tags: tags ?? this.tags,
     tradeSetup: clearTradeSetup ? null : (tradeSetup ?? this.tradeSetup),
     linkPreview: linkPreview,
-    imageUrl: imageUrl,
+    imageUrl: imageUrls == null ? imageUrl : (imageUrls.isEmpty ? null : imageUrls.first),
     imageUrls: imageUrls ?? this.imageUrls,
     likes: likes ?? this.likes,
     comments: comments ?? this.comments,

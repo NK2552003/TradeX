@@ -101,8 +101,10 @@ class _CommunityImageViewerPageState extends State<CommunityImageViewerPage> {
             minScale: 0.8,
             maxScale: 4.0,
             child: Center(
-              child: Image.network(
-                url,
+              child: Image(
+                image: url.startsWith('data:image/')
+                    ? MemoryImage(Uri.parse(url).data!.contentAsBytes())
+                    : NetworkImage(url) as ImageProvider,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) => Container(
                   padding: EdgeInsets.all(context.sp(24)),

@@ -849,6 +849,8 @@ class MessagesRepository extends ChangeNotifier {
         final compressed = await AttachmentCompressionService.compressAttachment(
           bytes: bytes,
           filename: filename,
+          mimeType: filename.startsWith('voice_') && filename.endsWith('.webm')
+              ? 'audio/webm' : null,
         );
 
         final ext = compressed.filename.contains('.')

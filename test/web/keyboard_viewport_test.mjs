@@ -22,6 +22,7 @@ test('resyncs a late viewport restoration after blur without looping or disturbi
   const listeners = new Map();
   document.addEventListener = (type, listener) => listeners.set(type, listener);
   runInNewContext(script, {
+    setTimeout: () => 1, clearTimeout: () => {},
     window, document, Event, navigator: { maxTouchPoints: 5 },
     requestAnimationFrame: (fn) => { frame = fn; return 1; },
     cancelAnimationFrame: () => { frame = undefined; },
@@ -49,4 +50,37 @@ test('resyncs a late viewport restoration after blur without looping or disturbi
   assert.equal(window.scrollY, 0);
   window.dispatchEvent(new Event('resize'));
   assert.equal(resizes, 2);
+});
+
+test('restores the viewport when keyboard hide leaves focus and emits no resize', () => {
+  const window = new EventTarget();
+  const document = new EventTarget();
+  const viewport = Object.assign(new EventTarget(), { height: 800, width: 390, scale: 1 });
+  window.visualViewport = viewport;
+  window.scrollY = 0;
+  const editor = { matches: () => true };
+  document.activeElement = { matches: () => false, shadowRoot: { activeElement: editor } };
+  const listeners = new Map();
+  document.addEventListener = (type, listener) => listeners.set(type, listener);
+  let frame;
+  let timer;
+  let resizes = 0;
+  viewport.addEventListener('resize', () => resizes++);
+  runInNewContext(script, {
+    window, document, Event, navigator: { maxTouchPoints: 5 },
+    requestAnimationFrame: (fn) => { frame = fn; return 1; },
+    cancelAnimationFrame: () => {},
+    setTimeout: (fn) => { timer = fn; return 1; },
+    clearTimeout: () => { timer = undefined; },
+  });
+  listeners.get('focusin')({ target: document.activeElement, composedPath: () => [editor, document.activeElement] });
+  viewport.height = 500;
+  timer();
+  frame();
+  assert.equal(resizes, 1);
+  viewport.height = 800;
+  timer();
+  frame();
+  assert.equal(resizes, 2);
+  assert.equal(timer, undefined);
 });

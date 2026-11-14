@@ -18,6 +18,10 @@ import 'package:tradex/features/community/presentation/widgets/community_space_h
 import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
 import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
 import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
+import 'package:tradex/features/community/presentation/widgets/community_engagement_bar.dart';
+import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
+import 'package:tradex/features/community/presentation/widgets/community_share_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_options_sheet.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/journal/ui/journal_entry_screen.dart';
@@ -2289,10 +2293,6 @@ class _TwitterFeedPreview extends StatelessWidget {
               timestamp: timeStr,
               body: post.body,
               tags: post.tags,
-              likes: '${post.likes}',
-              reposts: '${post.reposts}',
-              replies: '${post.comments}',
-              views: '${post.views}',
               setupSnapshot: post.tradeSetup != null
                   ? _TradeSetupSnippet(
                       ticker: post.tradeSetup!.ticker,
@@ -2309,7 +2309,7 @@ class _TwitterFeedPreview extends StatelessWidget {
                   : null,
               onTap: onPostTap != null ? () => onPostTap!(post) : null,
               onOpenRef: onOpenRef,
-              repository: repository,
+              repository: repository!,
               isAuthor: isAuthor,
             ),
           );
@@ -2335,7 +2335,7 @@ class _TwitterFeedPreview extends StatelessWidget {
 
 class _TwitterPostCard extends StatefulWidget {
   const _TwitterPostCard({
-    this.post,
+    required this.post,
     required this.displayName,
     required this.handle,
     this.avatarUrl,
@@ -2345,18 +2345,14 @@ class _TwitterPostCard extends StatefulWidget {
     required this.timestamp,
     required this.body,
     required this.tags,
-    required this.likes,
-    required this.reposts,
-    required this.replies,
-    required this.views,
     this.setupSnapshot,
     this.onTap,
     this.onOpenRef,
-    this.repository,
+    required this.repository,
     this.isAuthor = false,
   });
 
-  final CommunityPost? post;
+  final CommunityPost post;
   final String displayName;
   final String handle;
   final String? avatarUrl;
@@ -2366,14 +2362,10 @@ class _TwitterPostCard extends StatefulWidget {
   final String timestamp;
   final String body;
   final List<String> tags;
-  final String likes;
-  final String reposts;
-  final String replies;
-  final String views;
   final Widget? setupSnapshot;
   final VoidCallback? onTap;
   final ValueChanged<AppLinkRef>? onOpenRef;
-  final CommunityRepository? repository;
+  final CommunityRepository repository;
   final bool isAuthor;
 
   @override
@@ -2381,8 +2373,6 @@ class _TwitterPostCard extends StatefulWidget {
 }
 
 class _TwitterPostCardState extends State<_TwitterPostCard> {
-  bool _liked = false;
-  bool _bookmarked = false;
   late String _body = widget.body;
   late List<String> _tags = List<String>.from(widget.tags);
 
@@ -2399,14 +2389,12 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
 
   bool get _isAuthor {
     if (widget.isAuthor) return true;
-    final repo = widget.repository ?? CommunityRepository();
+    final repo = widget.repository;
     final current = repo.currentAuthor;
     final p = widget.post;
-    if (p != null) {
-      if (p.author.id == current.id ||
-          p.author.handle.toLowerCase() == current.handle.toLowerCase()) {
-        return true;
-      }
+    if (p.author.id == current.id ||
+        p.author.handle.toLowerCase() == current.handle.toLowerCase()) {
+      return true;
     }
     final cleanCurrent = current.handle
         .toLowerCase()
@@ -2423,8 +2411,8 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
   }
 
   Future<void> _handleEditPost(BuildContext context) async {
-    final effectivePost = widget.post ?? _buildFallbackPost();
-    final repo = widget.repository ?? CommunityRepository();
+    final effectivePost = widget.post;
+    final repo = widget.repository;
     await CommunityEditPostDialog.show(
       context,
       post: effectivePost,
@@ -2440,8 +2428,8 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
   }
 
   void _showPostOptions(BuildContext context) {
-    final effectivePost = widget.post ?? _buildFallbackPost();
-    final repo = widget.repository ?? CommunityRepository();
+    final repo = widget.repository;
+    final effectivePost = repo.findPost(widget.post.id) ?? widget.post;
     final authorMode = _isAuthor;
     CommunityPostOptionsSheet.show(
       context,
@@ -2468,8 +2456,8 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
       widget.onTap!();
       return;
     }
-    final post = widget.post ?? _buildFallbackPost();
-    final repo = widget.repository ?? CommunityRepository();
+    final post = widget.post;
+    final repo = widget.repository;
     final user = repo.currentAuthor;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -2484,32 +2472,10 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
     );
   }
 
-  CommunityPost _buildFallbackPost() {
-    return CommunityPost(
-      id: 'post_${widget.handle}_${widget.timestamp.hashCode.abs()}',
-      author: CommunityAuthor(
-        id: 'usr_${widget.handle}',
-        handle: widget.handle,
-        displayName: widget.displayName,
-        userRole: UserRole.customer,
-        avatarUrl: widget.avatarUrl,
-      ),
-      isPinned: widget.isPinned,
-      body: widget.body,
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      tags: widget.tags,
-      likes: int.tryParse(widget.likes.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
-      reposts:
-          int.tryParse(widget.reposts.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
-      comments:
-          int.tryParse(widget.replies.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
-      views: int.tryParse(widget.views.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final repo = widget.repository;
 
     return InkWell(
       onTap: () => _openActualPost(context),
@@ -2604,7 +2570,7 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                                     color: theme.colors.foregroundMuted,
                                   ),
                                 ),
-                                if (widget.post?.isPendingApproval == true)
+                                if (widget.post.isPendingApproval)
                                   const UiBadge(
                                     label: 'Pending Approval',
                                     intent: UiIntent.warning,
@@ -2650,12 +2616,12 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                       ],
 
                       // Embedded writing desk record attachment (notes/journal/strategy)
-                      if (widget.post?.attachment != null) ...<Widget>[
+                      if (widget.post.attachment != null) ...<Widget>[
                         SizedBox(height: context.sp(theme.spacing.sm)),
                         CommunityAttachmentTile(
-                          attachment: widget.post!.attachment!,
+                          attachment: widget.post.attachment!,
                           onTap: () async {
-                            final source = widget.post!.attachment!.source;
+                            final source = widget.post.attachment!.source;
                             if (widget.onOpenRef != null) {
                               if (ModalRoute.of(context)?.isCurrent == true &&
                                   Navigator.of(context).canPop()) {
@@ -2724,80 +2690,47 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                         ),
                       ],
 
-                      // Engagement bar
-                      SizedBox(height: context.sp(theme.spacing.sm)),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: <Widget>[
-                          _EngagementButton(
-                            icon: Icons.chat_bubble_outline_rounded,
-                            count: widget.replies,
-                            activeColor: theme.colors.primary,
-                            onTap: () => _openActualPost(context),
-                          ),
-                          _EngagementButton(
-                            icon: Icons.repeat_rounded,
-                            count: widget.reposts,
-                            activeColor: theme.colors.bullish,
-                            onTap: () {
-                              UiToast.show(
-                                context,
-                                title: 'Reposted',
-                                message:
-                                    'Setup reposted to your community followers.',
-                                intent: UiIntent.success,
-                              );
-                            },
-                          ),
-                          _EngagementButton(
-                            icon: _liked
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            count:
-                                (int.tryParse(widget.likes) ?? 0) +
-                                        (_liked ? 1 : 0) ==
-                                    0
-                                ? widget.likes
-                                : '${(int.tryParse(widget.likes) ?? 0) + (_liked ? 1 : 0)}',
-                            isActive: _liked,
-                            activeColor: Colors.redAccent,
-                            onTap: () => setState(() => _liked = !_liked),
-                          ),
-                          _EngagementButton(
-                            icon: Icons.bar_chart_rounded,
-                            count: widget.views,
-                            activeColor: theme.colors.primary,
-                            onTap: () {
-                              UiToast.show(
-                                context,
-                                title: 'Analytics',
-                                message:
-                                    '${widget.views} traders viewed this setup.',
-                                intent: UiIntent.info,
-                              );
-                            },
-                          ),
-                          _EngagementButton(
-                            icon: _bookmarked
-                                ? Icons.bookmark_rounded
-                                : Icons.bookmark_border_rounded,
-                            count: '',
-                            isActive: _bookmarked,
-                            activeColor: theme.colors.warning,
-                            onTap: () {
-                              setState(() => _bookmarked = !_bookmarked);
-                              final p = widget.post ?? _buildFallbackPost();
-                              widget.repository?.toggleBookmark(p.id);
-                            },
-                          ),
-                        ],
-                      ),
-
                       SizedBox(height: context.sp(theme.spacing.xs)),
                     ],
                   ),
                 ),
               ],
+            ),
+
+            ListenableBuilder(
+              listenable: repo,
+              builder: (context, _) {
+                final post = repo.findPost(widget.post.id) ?? widget.post;
+                return CommunityEngagementBar(
+                  comments: post.comments,
+                  likes: post.likes,
+                  liked: post.liked,
+                  userReaction: post.userReaction,
+                  reactions: post.reactions,
+                  reposted: post.reposted,
+                  onReply: () => _openActualPost(context),
+                  onLike: () => repo.toggleLike(post.id),
+                  onReact: (emoji) => repo.toggleLike(post.id, reaction: emoji),
+                  onShare: () => CommunityShareSheet.show(
+                    context, post: post, repository: repo,
+                  ),
+                  onRepost: () => CommunityRepostDialog.show(
+                    context,
+                    post: post,
+                    onRepost: () => repo.toggleRepost(post.id),
+                    onQuote: () => UiDialog.show<void>(
+                      context,
+                      child: CommunityComposerCard(
+                        author: repo.currentAuthor,
+                        repository: repo,
+                        quotedPost: post,
+                        onPostCreated: () => Navigator.of(context).pop(),
+                        onClose: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
 
             // Bottom separator hairline
@@ -2806,52 +2739,6 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
               thickness: theme.borders.hairline,
               color: theme.colors.border.withValues(alpha: 0.5),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EngagementButton extends StatelessWidget {
-  const _EngagementButton({
-    required this.icon,
-    required this.count,
-    this.isActive = false,
-    required this.activeColor,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String count;
-  final bool isActive;
-  final Color activeColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.ui;
-    final Color color = isActive ? activeColor : theme.colors.foregroundMuted;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: context.sz(16), color: color),
-            if (count.isNotEmpty) ...<Widget>[
-              const SizedBox(width: 4),
-              Text(
-                count,
-                style: context.uiText.caption.copyWith(
-                  color: color,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.normal,
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -5523,10 +5410,6 @@ class _TraderPendingApprovalPostsPreview extends StatelessWidget {
                   timestamp: timeStr,
                   body: post.body,
                   tags: post.tags,
-                  likes: '${post.likes}',
-                  reposts: '${post.reposts}',
-                  replies: '${post.comments}',
-                  views: '${post.views}',
                   setupSnapshot: post.tradeSetup != null
                       ? _TradeSetupSnippet(
                           ticker: post.tradeSetup!.ticker,

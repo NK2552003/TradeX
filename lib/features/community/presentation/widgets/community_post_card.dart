@@ -12,7 +12,6 @@ import 'package:tradex/features/community/presentation/widgets/community_engagem
 import 'package:tradex/features/community/presentation/widgets/community_highlighted_text.dart';
 import 'package:tradex/features/community/presentation/widgets/community_link_preview_tile.dart';
 import 'package:tradex/features/community/presentation/widgets/community_poll_tile.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_insights_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_options_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/community_quote_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
@@ -116,7 +115,6 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   late bool _reposted;
   late int _reposts;
   late bool _bookmarked;
-  late int _shares;
   bool _shared = false;
 
   CommunityRepository get _resolvedRepository =>
@@ -134,11 +132,6 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     _reposted = widget.post.reposted;
     _reposts = widget.post.reposts;
     _bookmarked = widget.post.bookmarked;
-    _shares = widget.repository is CommunityRepository
-        ? (widget.repository as CommunityRepository).shareCountFor(
-            widget.post.id,
-          )
-        : 0;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && widget.repository is CommunityRepository) {
         (widget.repository as CommunityRepository).recordView(widget.post.id);
@@ -306,18 +299,21 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     }
   }
 
+  CommunityPost get _currentPost => widget.post.copyWith(
+    likes: _likes,
+    liked: _liked,
+    reposts: _reposts,
+    reposted: _reposted,
+    bookmarked: _bookmarked,
+    userReaction: _userReaction,
+    reactions: _reactions,
+  );
+
   void _handleShare(BuildContext context) {
     final CommunityRepository repo = _resolvedRepository;
     CommunityShareSheet.show(
       context,
-      post: widget.post.copyWith(
-        likes: _likes,
-        liked: _liked,
-        reposts: _reposts,
-        reposted: _reposted,
-        bookmarked: _bookmarked,
-        userReaction: _userReaction,
-      ),
+      post: _currentPost,
       repository: repo,
       onRepost: _toggleRepostState,
       onQuote: (CommunityPost quoted) {
@@ -331,8 +327,6 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
         if (mounted) {
           setState(() {
             _shared = true;
-            _shares = repo.shareCountFor(widget.post.id);
-            if (_shares <= 0) _shares = 1;
           });
         }
         widget.onShare?.call();
@@ -662,9 +656,10 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             onMoreTap: () {
               CommunityPostOptionsSheet.show(
                 context,
-                post: post,
+                post: _currentPost,
                 repository: _resolvedRepository,
                 isAuthor: _isAuthor,
+                onBookmark: _handleBookmark,
                 onShare: () => _handleShare(context),
                 onQuote: (CommunityPost quoted) {
                   if (widget.onQuote != null) {
@@ -725,9 +720,10 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                     onPressed: () {
                       CommunityPostOptionsSheet.show(
                         context,
-                        post: post,
+                        post: _currentPost,
                         repository: _resolvedRepository,
                         isAuthor: _isAuthor,
+                        onBookmark: _handleBookmark,
                         onShare: () => _handleShare(context),
                         onQuote: (CommunityPost quoted) {
                           if (widget.onQuote != null) {
@@ -845,47 +841,34 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           ),
         ],
 
-        // Attached Image Media
-        if (post.imageUrls.isNotEmpty) ...<Widget>[
+        if (post.effectiveImageUrls.isNotEmpty) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
-          ClipRRect(
-            borderRadius: context.radius(theme.radii.md),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: GestureDetector(
-                onTap: () {
-                  CommunityImageViewerPage.open(
-                    context,
-                    imageUrls: post.imageUrls,
-                  );
-                },
-                child: UiRemoteImage(
-                  url: post.imageUrls.first,
-                  semanticLabel: 'Post media by ${post.author.displayHandle}',
+          UiCardGrid(
+            mobileColumns: 2,
+            tabletColumns: 2,
+            desktopColumns: 2,
+            largeColumns: 2,
+            childAspectRatio: 16 / 9,
+            children: [
+              for (var index = 0; index < post.effectiveImageUrls.length; index++)
+                ClipRRect(
+                  borderRadius: context.radius(theme.radii.md),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: UiInteractive(
+                      onTap: () => CommunityImageViewerPage.open(
+                        context,
+                        imageUrls: post.effectiveImageUrls,
+                        initialIndex: index,
+                      ),
+                      builder: (context, _) => UiRemoteImage(
+                        url: post.effectiveImageUrls[index],
+                        semanticLabel: 'Post image ${index + 1} of ${post.effectiveImageUrls.length}',
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
-        ] else if (post.imageUrl != null) ...<Widget>[
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          ClipRRect(
-            borderRadius: context.radius(theme.radii.md),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: GestureDetector(
-                onTap: () {
-                  CommunityImageViewerPage.open(
-                    context,
-                    imageUrls: [post.imageUrl!],
-                  );
-                },
-                child: UiRemoteImage(
-                  url: post.imageUrl!,
-                  semanticLabel:
-                      'Post attachment by ${post.author.displayHandle}',
-                ),
-              ),
-            ),
+            ],
           ),
         ],
 
@@ -975,38 +958,17 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           SizedBox(height: context.sp(theme.spacing.xs)),
           CommunityEngagementBar(
             comments: post.comments,
-            reposts: _reposts,
             likes: _likes,
-            views: post.views > 0
-                ? post.views
-                : ((_likes + post.comments > 0)
-                      ? ((_likes + post.comments) * 4 + 14)
-                      : 1),
             liked: _liked,
             userReaction: _userReaction,
             reactions: _reactions,
             reposted: _reposted,
-            bookmarked: _bookmarked,
-            shares: _shares,
             shared: _shared,
             onReply: widget.onReply ?? widget.onTap,
             onRepost: _handleRepost,
             onLike: _handleLike,
             onReact: _handleReact,
-            onBookmark: _handleBookmark,
             onShare: () => _handleShare(context),
-            onViewStats: () => CommunityPostInsightsSheet.show(
-              context,
-              post: post.copyWith(
-                likes: _likes,
-                liked: _liked,
-                reposts: _reposts,
-                reposted: _reposted,
-                bookmarked: _bookmarked,
-                userReaction: _userReaction,
-              ),
-              repository: _resolvedRepository,
-            ),
             showBorder: true,
           ),
         ],
@@ -1222,68 +1184,21 @@ class CommunityPostCardSkeleton extends StatelessWidget {
 
           UiGap.v(theme.spacing.md),
 
-          // 5. Engagement Action Strip Skeleton
-          Container(
-            padding: EdgeInsets.only(top: context.sp(theme.spacing.xs)),
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: colors.border.withValues(alpha: 0.6),
-                  width: theme.borders.hairline,
-                ),
-              ),
-            ),
-            child: Row(
-              children: <Widget>[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(
-                    width: context.sz(44),
-                    height: context.sz(26),
-                  ),
-                ),
-                UiGap.h(theme.spacing.md),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(
-                    width: context.sz(44),
-                    height: context.sz(26),
-                  ),
-                ),
-                UiGap.h(theme.spacing.md),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(
-                    width: context.sz(52),
-                    height: context.sz(26),
-                  ),
-                ),
-                UiGap.h(theme.spacing.md),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(
-                    width: context.sz(38),
-                    height: context.sz(26),
-                  ),
-                ),
-                const Spacer(),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(
-                    width: context.sz(26),
-                    height: context.sz(26),
-                  ),
-                ),
-                UiGap.h(theme.spacing.xs),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(context.sz(6)),
-                  child: UiSkeleton(
-                    width: context.sz(26),
-                    height: context.sz(26),
-                  ),
-                ),
+          UiDivider(spacing: theme.spacing.none),
+          UiGap.v(theme.spacing.xs),
+          Row(
+            children: <Widget>[
+              for (final width in [44.0, 40.0, 22.0, 22.0]) ...[
+                UiSkeleton(width: context.sz(width), height: context.sz(20)),
+                UiGap.h(theme.spacing.sm),
               ],
-            ),
+              const Spacer(),
+              UiSkeleton(
+                width: context.sz(40),
+                height: context.sz(20),
+                borderRadius: context.radius(theme.radii.lg),
+              ),
+            ],
           ),
         ],
       ),

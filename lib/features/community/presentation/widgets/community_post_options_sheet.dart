@@ -17,6 +17,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
     required this.repository,
     required this.isAuthor,
     this.onDelete,
+    this.onBookmark,
     this.onEdit,
     this.onQuote,
     this.onShare,
@@ -26,6 +27,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
   final CommunityRepository repository;
   final bool isAuthor;
   final VoidCallback? onDelete;
+  final VoidCallback? onBookmark;
   final VoidCallback? onEdit;
   final ValueChanged<CommunityPost>? onQuote;
   final VoidCallback? onShare;
@@ -36,6 +38,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
     required CommunityRepository repository,
     required bool isAuthor,
     VoidCallback? onDelete,
+    VoidCallback? onBookmark,
     VoidCallback? onEdit,
     ValueChanged<CommunityPost>? onQuote,
     VoidCallback? onShare,
@@ -76,6 +79,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
                   repository: repository,
                   isAuthor: isAuthor,
                   onDelete: onDelete,
+                  onBookmark: onBookmark,
                   onEdit: onEdit,
                   onQuote: onQuote,
                   onShare: onShare,
@@ -142,23 +146,31 @@ class CommunityPostOptionsSheet extends StatelessWidget {
             if (await ShareActions.copy(host, url)) repository.recordShare(post.id);
           },
         ),
+        _optionRow(
+          context,
+          icon: post.bookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+          title: post.bookmarked ? 'Remove bookmark' : 'Bookmark post',
+          onTap: () {
+            Navigator.of(context).pop();
+            if (onBookmark != null) {
+              onBookmark!();
+            } else {
+              repository.toggleBookmark(post.id);
+            }
+          },
+        ),
+        _optionRow(
+          context,
+          icon: Icons.insights_rounded,
+          title: 'View Post Insights',
+          onTap: () {
+            final host = Navigator.of(context).context;
+            Navigator.of(context).pop();
+            CommunityPostInsightsSheet.show(host, post: post, repository: repository);
+          },
+        ),
         const UiDivider(),
-
-        // Author Options
         if (isAuthor) ...<Widget>[
-          _optionRow(
-            context,
-            icon: Icons.insights_rounded,
-            title: 'View Post Insights',
-            onTap: () {
-              Navigator.of(context).pop();
-              CommunityPostInsightsSheet.show(
-                context,
-                post: post,
-                repository: repository,
-              );
-            },
-          ),
           _optionRow(
             context,
             icon: Icons.edit_outlined,

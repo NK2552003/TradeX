@@ -85,12 +85,9 @@ void main() {
                 width: 360,
                 child: CommunityEngagementBar(
                   comments: 3,
-                  reposts: 1,
                   likes: 5,
-                  views: 120,
                   liked: false,
                   reposted: false,
-                  bookmarked: false,
                   onReact: (rx) => selectedReaction = rx,
                 ),
               ),

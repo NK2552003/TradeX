@@ -441,6 +441,42 @@ void main() {
     expect(find.text('Message'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('post detail shows one primary composer at each screen width', (
+    tester,
+  ) async {
+    viewport(tester, 390);
+    final author = repo.currentAuthor;
+    final post = CommunityPost(
+      id: 'composer-layout',
+      author: author,
+      body: 'Market update',
+      createdAt: DateTime(2026, 10, 26),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CommunityPostDetailView(
+          post: post,
+          repository: repo,
+          currentUser: author,
+          showHeader: false,
+        ),
+      ),
+    );
+    final inline = find.text(
+      'Share technical analysis, key levels, or ask a question...',
+    );
+    final sticky = find.text('Reply to @${author.handle.replaceFirst('@', '')}...');
+    for (final width in [390.0, 800.0, 1400.0, 390.0]) {
+      tester.view.physicalSize = Size(width, 900);
+      await tester.pumpAndSettle();
+      expect(inline, width == 390 ? findsNothing : findsOneWidget);
+      expect(sticky, width == 390 ? findsOneWidget : findsNothing);
+      expect(find.text('Trader Discussion'), findsOneWidget);
+    }
+    await tester.tap(find.byTooltip('Reply').first);
+    await tester.pump();
+    expect(tester.testTextInput.isVisible, isTrue);
+  });
   testWidgets('own post on mobile does not duplicate author name or show follow card', (
     tester,
   ) async {

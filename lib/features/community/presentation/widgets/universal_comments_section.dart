@@ -29,6 +29,7 @@ class UniversalCommentsSection extends StatefulWidget {
     this.onAuthorTap,
     this.onTagTap,
     this.title = 'Trader Discussion',
+    this.showPrimaryComposer = true,
     this.isPublic = true,
     this.canToggleVisibility = true,
     this.onToggleVisibility,
@@ -48,6 +49,7 @@ class UniversalCommentsSection extends StatefulWidget {
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<String>? onTagTap;
   final String title;
+  final bool showPrimaryComposer;
   final bool isPublic;
   final bool canToggleVisibility;
   final ValueChanged<bool>? onToggleVisibility;
@@ -277,131 +279,133 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
           },
         ),
 
-        SizedBox(height: context.sp(theme.spacing.sm)),
+        if (widget.showPrimaryComposer) ...[
+          SizedBox(height: context.sp(theme.spacing.sm)),
 
-        // ---------------------------------------------------------------------
-        // LinkedIn-Style Primary Composer Box
-        // ---------------------------------------------------------------------
-        UiCard(
-          variant: UiCardVariant.surface,
-          padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  UiAvatar(
-                    name: widget.currentUser.displayName,
-                    imageUrl: widget.currentUser.avatarUrl,
-                    size: isMobile ? UiSize.xs : UiSize.sm,
-                    verified: widget.currentUser.verified,
-                    verifiedColor: widget.currentUser.verifiedColor(theme),
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.sm)),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        UiTextarea(
-                          controller: _mainCommentCtrl,
-                          hintText:
-                              'Share technical analysis, key levels, or ask a question...',
-                          rows: 2,
-                          maxRows: 6,
-                          showCounter: false,
-                        ),
-                        if (_selectedSentiment != null) ...<Widget>[
-                          SizedBox(height: context.sp(theme.spacing.xxs)),
-                          Row(
-                            children: [
-                              UiBadge(
-                                label: _selectedSentiment!,
-                                intent: _selectedSentiment == 'BULLISH'
-                                    ? UiIntent.success
-                                    : (_selectedSentiment == 'BEARISH'
-                                          ? UiIntent.danger
-                                          : UiIntent.info),
-                                variant: UiBadgeVariant.solid,
-                                size: UiSize.xs,
-                                onRemove: () =>
-                                    setState(() => _selectedSentiment = null),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
+          // ---------------------------------------------------------------------
+          // LinkedIn-Style Primary Composer Box
+          // ---------------------------------------------------------------------
+          UiCard(
+            variant: UiCardVariant.surface,
+            padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    UiAvatar(
+                      name: widget.currentUser.displayName,
+                      imageUrl: widget.currentUser.avatarUrl,
+                      size: isMobile ? UiSize.xs : UiSize.sm,
+                      verified: widget.currentUser.verified,
+                      verifiedColor: widget.currentUser.verifiedColor(theme),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: context.sp(theme.spacing.xs)),
-              UiDivider(spacing: context.sp(theme.spacing.xxs)),
-              SizedBox(height: context.sp(theme.spacing.xxs)),
-              Row(
-                children: <Widget>[
-                  // Quick Bullish sentiment tag
-                  UiIconButton(
-                    icon: Icons.trending_up_rounded,
-                    tooltip: 'Bullish Bias',
-                    size: UiSize.xs,
-                    variant: _selectedSentiment == 'BULLISH'
-                        ? UiVariant.soft
-                        : UiVariant.ghost,
-                    intent: UiIntent.success,
-                    onPressed: () {
-                      setState(() {
-                        _selectedSentiment = _selectedSentiment == 'BULLISH'
-                            ? null
-                            : 'BULLISH';
-                      });
-                    },
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xxs)),
-                  // Quick Bearish sentiment tag
-                  UiIconButton(
-                    icon: Icons.trending_down_rounded,
-                    tooltip: 'Bearish Bias',
-                    size: UiSize.xs,
-                    variant: _selectedSentiment == 'BEARISH'
-                        ? UiVariant.soft
-                        : UiVariant.ghost,
-                    intent: UiIntent.danger,
-                    onPressed: () {
-                      setState(() {
-                        _selectedSentiment = _selectedSentiment == 'BEARISH'
-                            ? null
-                            : 'BEARISH';
-                      });
-                    },
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xxs)),
-                  // Add quick cash-tag icon
-                  UiIconButton(
-                    icon: Icons.attach_money_rounded,
-                    tooltip: 'Insert \$TICKER',
-                    size: UiSize.xs,
-                    variant: UiVariant.ghost,
-                    onPressed: () {
-                      _mainCommentCtrl.text = '${_mainCommentCtrl.text}\$';
-                      _mainCommentCtrl.selection = TextSelection.collapsed(
-                        offset: _mainCommentCtrl.text.length,
-                      );
-                    },
-                  ),
-                  const Spacer(),
-                  UiButton(
-                    label: 'Comment',
-                    size: UiSize.xs,
-                    loading: _submittingMain,
-                    expandOnMobile: false,
-                    onPressed: _submitMainComment,
-                  ),
-                ],
-              ),
-            ],
+                    SizedBox(width: context.sp(theme.spacing.sm)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          UiTextarea(
+                            controller: _mainCommentCtrl,
+                            hintText:
+                                'Share technical analysis, key levels, or ask a question...',
+                            rows: 2,
+                            maxRows: 6,
+                            showCounter: false,
+                          ),
+                          if (_selectedSentiment != null) ...<Widget>[
+                            SizedBox(height: context.sp(theme.spacing.xxs)),
+                            Row(
+                              children: [
+                                UiBadge(
+                                  label: _selectedSentiment!,
+                                  intent: _selectedSentiment == 'BULLISH'
+                                      ? UiIntent.success
+                                      : (_selectedSentiment == 'BEARISH'
+                                            ? UiIntent.danger
+                                            : UiIntent.info),
+                                  variant: UiBadgeVariant.solid,
+                                  size: UiSize.xs,
+                                  onRemove: () =>
+                                      setState(() => _selectedSentiment = null),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: context.sp(theme.spacing.xs)),
+                UiDivider(spacing: context.sp(theme.spacing.xxs)),
+                SizedBox(height: context.sp(theme.spacing.xxs)),
+                Row(
+                  children: <Widget>[
+                    // Quick Bullish sentiment tag
+                    UiIconButton(
+                      icon: Icons.trending_up_rounded,
+                      tooltip: 'Bullish Bias',
+                      size: UiSize.xs,
+                      variant: _selectedSentiment == 'BULLISH'
+                          ? UiVariant.soft
+                          : UiVariant.ghost,
+                      intent: UiIntent.success,
+                      onPressed: () {
+                        setState(() {
+                          _selectedSentiment = _selectedSentiment == 'BULLISH'
+                              ? null
+                              : 'BULLISH';
+                        });
+                      },
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xxs)),
+                    // Quick Bearish sentiment tag
+                    UiIconButton(
+                      icon: Icons.trending_down_rounded,
+                      tooltip: 'Bearish Bias',
+                      size: UiSize.xs,
+                      variant: _selectedSentiment == 'BEARISH'
+                          ? UiVariant.soft
+                          : UiVariant.ghost,
+                      intent: UiIntent.danger,
+                      onPressed: () {
+                        setState(() {
+                          _selectedSentiment = _selectedSentiment == 'BEARISH'
+                              ? null
+                              : 'BEARISH';
+                        });
+                      },
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xxs)),
+                    // Add quick cash-tag icon
+                    UiIconButton(
+                      icon: Icons.attach_money_rounded,
+                      tooltip: 'Insert \$TICKER',
+                      size: UiSize.xs,
+                      variant: UiVariant.ghost,
+                      onPressed: () {
+                        _mainCommentCtrl.text = '${_mainCommentCtrl.text}\$';
+                        _mainCommentCtrl.selection = TextSelection.collapsed(
+                          offset: _mainCommentCtrl.text.length,
+                        );
+                      },
+                    ),
+                    const Spacer(),
+                    UiButton(
+                      label: 'Comment',
+                      size: UiSize.xs,
+                      loading: _submittingMain,
+                      expandOnMobile: false,
+                      onPressed: _submitMainComment,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
 
         SizedBox(height: context.sp(theme.spacing.md)),
 

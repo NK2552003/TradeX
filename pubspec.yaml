@@ -87,6 +87,7 @@ dependencies:
   crypto: 3.0.7
 
 dev_dependencies:
+  image_picker_platform_interface: ^2.11.2
   shared_preferences_platform_interface: ^2.4.1
   flutter_test:
     sdk: flutter

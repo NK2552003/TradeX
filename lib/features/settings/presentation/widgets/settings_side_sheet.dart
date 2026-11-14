@@ -207,8 +207,7 @@ Future<T?> showSettingsSideSheet<T>(
                             // Side Sheet Body Content
                             Expanded(
                               child: scrollable
-                                  ? Scrollbar(
-                                      child: SingleChildScrollView(
+                                  ? SingleChildScrollView(
                                         padding: EdgeInsets.only(
                                           bottom: isMobile
                                               ? bottomInset + 16.0
@@ -217,7 +216,6 @@ Future<T?> showSettingsSideSheet<T>(
                                         physics:
                                             const AlwaysScrollableScrollPhysics(),
                                         child: child,
-                                      ),
                                     )
                                   : child,
                             ),

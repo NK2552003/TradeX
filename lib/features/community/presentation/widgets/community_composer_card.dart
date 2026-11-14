@@ -1,6 +1,9 @@
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/features/community/data/workspace_attachment_service.dart';
 import 'dart:convert';
+import 'dart:async';
+import 'package:crypto/crypto.dart';
+import 'package:tradex/core/utils/attachment_compression_service.dart';
 
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
@@ -95,6 +98,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
   // ---- Attached images & screenshots ---------------------------------------
   final List<String> _imageUrls = <String>[];
+  final Map<String, CompressedAttachment> _preparedImages = {};
+  final Map<String, String> _uploadedImages = {};
+  String _uploadBatchId = const Uuid().v4();
+  String? _attachmentError;
+  String _preparingLabel = 'Preparing images...';
   final TextEditingController _chartUrlCtrl = TextEditingController();
 
   // ---- Attached record (note, journal, strategy) ---------------------------
@@ -276,6 +284,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
   @override
   void dispose() {
+    if (!_submitting) {
+      unawaited(widget.repository.discardUnusedAttachments(_uploadedImages.values.toList()));
+    }
     _bodyCtrl.removeListener(_onBodyChanged);
     _setupEntryCtrl.removeListener(_onSetupPricesChanged);
     _setupSlCtrl.removeListener(_onSetupPricesChanged);
@@ -570,63 +581,84 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   bool _isUploadingChart = false;
 
   Future<void> _pickAndUploadChart() async {
+    if (_isUploadingChart || _submitting) return;
+    setState(() {
+      _isUploadingChart = true;
+      _attachmentError = null;
+    });
     try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? picked = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 90,
-      );
-      if (picked == null) return;
-
-      setState(() => _isUploadingChart = true);
-      if (mounted) {
-        UiToast.show(
-          context,
-          title: 'Uploading chart...',
-          message: 'Uploading ${picked.name} to community storage',
-          intent: UiIntent.info,
-        );
+      final picked = await ImagePicker().pickMultiImage();
+      for (var index = 0; index < picked.length; index++) {
+        if (!mounted) return;
+        setState(() => _preparingLabel = 'Preparing image ${index + 1} of ${picked.length}...');
+        final file = picked[index];
+        try {
+          final image = await AttachmentCompressionService.compressAttachment(
+            bytes: await file.readAsBytes(), filename: file.name, mimeType: file.mimeType,
+          );
+          if (!image.isImage) throw const FormatException('Select an image file.');
+          if (!mounted) return;
+          final preview = 'data:${image.mimeType};base64,${base64Encode(image.bytes)}';
+          if (_imageUrls.contains(preview)) continue;
+          setState(() {
+            _preparedImages[preview] = image;
+            _imageUrls.add(preview);
+          });
+        } catch (error) {
+          if (!mounted) return;
+          setState(() {
+            _attachmentError = '${_attachmentError == null ? '' : '$_attachmentError\n'}${file.name}: $error';
+          });
+        }
       }
-
-      final bytes = await picked.readAsBytes();
-      final tempId = const Uuid().v4();
-      final publicUrl = await widget.repository.uploadAttachment(
-        postId: tempId,
-        bytes: bytes,
-        filename: picked.name,
-      );
-
-      if (publicUrl.isNotEmpty) {
-        _addImageUrl(publicUrl);
-      }
-    } catch (e) {
-      if (mounted) {
-        UiToast.error(context, title: 'Upload failed', message: '$e');
-      }
+    } catch (error) {
+      if (mounted) setState(() => _attachmentError = '$error');
     } finally {
-      if (mounted) {
-        setState(() => _isUploadingChart = false);
-      }
+      if (mounted) setState(() => _isUploadingChart = false);
     }
   }
 
+  Future<List<String>> _uploadPreparedImages() async {
+    final result = <String>[];
+    for (final url in List<String>.of(_imageUrls)) {
+      final image = _preparedImages[url];
+      if (image == null) {
+        result.add(url);
+        continue;
+      }
+      final uploaded = _uploadedImages[url] ?? await widget.repository.uploadAttachment(
+        postId: _uploadBatchId,
+        bytes: image.bytes,
+        filename: '${sha256.convert(image.bytes)}.webp',
+      );
+      _uploadedImages[url] = uploaded;
+      result.add(uploaded);
+    }
+    return result;
+  }
+
   void _addImageUrl(String url) {
+    if (_submitting || _isUploadingChart) return;
     final clean = url.trim();
     if (clean.isEmpty || _imageUrls.contains(clean)) return;
+    final uri = Uri.tryParse(clean);
+    if (uri == null || !['https', 'http'].contains(uri.scheme) || uri.host.isEmpty) {
+      setState(() => _attachmentError = 'Enter a valid image URL beginning with https://.');
+      return;
+    }
     setState(() {
       _imageUrls.add(clean);
       _chartUrlCtrl.clear();
+      _attachmentError = null;
     });
-    UiToast.show(
-      context,
-      title: 'Chart Attached',
-      message: 'Screenshot added to post.',
-      intent: UiIntent.success,
-    );
   }
 
   void _removeImageUrl(String url) {
-    setState(() => _imageUrls.remove(url));
+    if (_submitting) return;
+    setState(() {
+      _imageUrls.remove(url);
+      _preparedImages.remove(url);
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -830,6 +862,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   // ---------------------------------------------------------------------------
 
   Future<void> _submit() async {
+    if (_submitting || _isUploadingChart) return;
     final String body = _body.trim();
     final bool hasSetup =
         _activeMode == ComposerMode.tradeSetup && _setupFormFilled;
@@ -974,6 +1007,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           requireOwner: true,
         );
       }
+      final imageUrls = await _uploadPreparedImages();
+
       if (widget.postToEdit != null) {
         final p = widget.postToEdit!;
         await widget.repository.editPost(
@@ -991,9 +1026,10 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           sentiment: _sentiment,
           clearSentiment: _sentiment == null && p.sentiment != null,
           replyAudience: _replyAudience,
-          imageUrls: List<String>.unmodifiable(_imageUrls),
+          imageUrls: imageUrls,
         );
 
+        unawaited(widget.repository.discardUnusedAttachments(_uploadedImages.values.toList()));
         if (!mounted) return;
         UiToast.show(
           context,
@@ -1017,11 +1053,12 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         sentiment: _sentiment,
         replyAudience: _replyAudience,
         scheduledFor: _scheduledFor,
-        imageUrl: _imageUrls.isNotEmpty ? _imageUrls.first : null,
-        imageUrls: List<String>.unmodifiable(_imageUrls),
+        imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
+        imageUrls: imageUrls,
         author: widget.author,
       );
 
+      unawaited(widget.repository.discardUnusedAttachments(_uploadedImages.values.toList()));
       if (!mounted) return;
       UiToast.show(
         context,
@@ -1039,6 +1076,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         _tickers.clear();
         _tags.clear();
         _imageUrls.clear();
+        _preparedImages.clear();
+        _uploadedImages.clear();
+        _uploadBatchId = const Uuid().v4();
         _chartUrlCtrl.clear();
         _attachment = null;
         _sentiment = null;
@@ -1084,7 +1124,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         UiToast.error(context, title: 'Post was not saved', message: '$error');
       }
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) {
+        setState(() => _submitting = false);
+      } else {
+        unawaited(widget.repository.discardUnusedAttachments(_uploadedImages.values.toList()));
+      }
     }
   }
 
@@ -2473,10 +2517,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
           // Dropzone for upload
           UiDropzone(
-            title: 'Drop TradingView or Broker Chart',
-            message: 'PNG, JPG, or WebP up to 10 MB',
+            title: _isUploadingChart ? _preparingLabel : 'Attach chart images',
+            message: 'Select multiple images. Optimized before publishing.',
+            error: _attachmentError,
             icon: Icons.add_photo_alternate_outlined,
-            uploading: _isUploadingChart,
+            uploading: _isUploadingChart || _submitting,
             onPick: _pickAndUploadChart,
           ),
 
@@ -2559,16 +2604,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                           decoration: BoxDecoration(
                             border: Border.all(color: theme.colors.border),
                           ),
-                          child: Image.network(
-                            url,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Center(
-                              child: Icon(
-                                Icons.broken_image_outlined,
-                                size: context.sz(20),
-                              ),
-                            ),
-                          ),
+                          child: UiRemoteImage(url: url),
                         ),
                       ),
                       Positioned(
@@ -3220,13 +3256,18 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             size: UiSize.sm,
             variant: UiVariant.ghost,
             intent: UiIntent.danger,
-            onPressed: () {
+            onPressed: _submitting || _isUploadingChart ? null : () {
+              unawaited(widget.repository.discardUnusedAttachments(_uploadedImages.values.toList()));
               setState(() {
                 _bodyCtrl.clear();
                 _body = '';
                 _tickers.clear();
                 _tags.clear();
                 _imageUrls.clear();
+                _preparedImages.clear();
+                _uploadedImages.clear();
+                _uploadBatchId = const Uuid().v4();
+                _attachmentError = null;
                 _attachment = null;
                 _sentiment = null;
                 _conviction = 'Standard';
@@ -3255,7 +3296,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           loading: _submitting,
           expandOnMobile: false,
           onPressed:
-              (_body.trim().isEmpty &&
+              _isUploadingChart || (_body.trim().isEmpty &&
                   _attachment == null &&
                   _imageUrls.isEmpty &&
                   _activeMode != ComposerMode.poll &&

@@ -11,11 +11,13 @@ class UiAvatar extends StatelessWidget {
     this.imageUrl,
     this.imageProvider,
     this.name = '',
+    this.child,
     this.size = UiSize.md,
     this.online = false,
     this.verified = false,
     this.verifiedColor,
     this.gradient,
+    this.backgroundColor,
     this.textStyle,
     this.textColor,
     this.onTap,
@@ -24,11 +26,15 @@ class UiAvatar extends StatelessWidget {
   final String? imageUrl;
   final ImageProvider? imageProvider;
   final String name;
+
+  /// Optional content in place of initials, such as a reaction glyph.
+  final Widget? child;
   final UiSize size;
   final bool online;
   final bool verified;
   final Color? verifiedColor;
   final Gradient? gradient;
+  final Color? backgroundColor;
   final TextStyle? textStyle;
   final Color? textColor;
   final VoidCallback? onTap;
@@ -56,7 +62,9 @@ class UiAvatar extends StatelessWidget {
       height: dim,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: gradient == null ? theme.colors.surfaceMuted : null,
+        color: gradient == null
+            ? backgroundColor ?? theme.colors.surfaceMuted
+            : null,
         gradient: gradient,
         border: Border.all(
           color: theme.colors.border,
@@ -78,17 +86,18 @@ class UiAvatar extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: (imageUrl == null && imageProvider == null)
-          ? Text(
-              _initials,
-              style: (textStyle ?? context.uiText.label).copyWith(
-                color:
-                    textColor ??
-                    (gradient != null
-                        ? Colors.white
-                        : theme.colors.foregroundMuted),
-                fontWeight: gradient != null ? FontWeight.w700 : null,
-              ),
-            )
+          ? child ??
+                Text(
+                  _initials,
+                  style: (textStyle ?? context.uiText.label).copyWith(
+                    color:
+                        textColor ??
+                        (gradient != null
+                            ? Colors.white
+                            : theme.colors.foregroundMuted),
+                    fontWeight: gradient != null ? FontWeight.w700 : null,
+                  ),
+                )
           : null,
     );
 
@@ -139,9 +148,12 @@ class UiAvatarGroup extends StatelessWidget {
     int? max,
     int? maxVisible,
     this.size = UiSize.sm,
-  }) : max = maxVisible ?? max ?? 4;
+    this.overlapFraction = 0.35,
+  }) : assert(overlapFraction >= 0 && overlapFraction < 1),
+       max = maxVisible ?? max ?? 4;
 
   final List<UiAvatar> avatars;
+  final double overlapFraction;
   final int max;
   final UiSize size;
 
@@ -153,7 +165,7 @@ class UiAvatarGroup extends StatelessWidget {
     final double dim = size == UiSize.sm
         ? context.sz(theme.sizes.avatarSm)
         : context.sz(theme.sizes.avatarMd);
-    final double overlap = dim * 0.35;
+    final double overlap = dim * overlapFraction;
     final double totalWidth = shown.isEmpty
         ? 0
         : ((shown.length - 1 + (overflow > 0 ? 1 : 0)) * (dim - overlap) + dim);
@@ -166,6 +178,8 @@ class UiAvatarGroup extends StatelessWidget {
           for (int i = 0; i < shown.length; i++)
             Positioned(
               left: i * (dim - overlap),
+              width: dim,
+              height: dim,
               child: Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,

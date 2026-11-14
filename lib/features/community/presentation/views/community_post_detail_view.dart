@@ -806,6 +806,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                   ],
                   SizedBox(height: context.sp(theme.spacing.md)),
                   UniversalCommentsSection(
+                    showPrimaryComposer: !isMobile,
                     targetId: widget.post.id,
                     targetType: 'post',
                     comments: comments,

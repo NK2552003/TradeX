@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -11,13 +12,9 @@ class CommunityEngagementBar extends StatefulWidget {
   const CommunityEngagementBar({
     super.key,
     required this.comments,
-    required this.reposts,
     required this.likes,
-    required this.views,
     required this.liked,
     required this.reposted,
-    required this.bookmarked,
-    this.shares = 0,
     this.shared = false,
     this.userReaction,
     this.reactions = const <String>[],
@@ -25,20 +22,14 @@ class CommunityEngagementBar extends StatefulWidget {
     this.onRepost,
     this.onLike,
     this.onReact,
-    this.onBookmark,
     this.onShare,
-    this.onViewStats,
     this.showBorder = true,
   });
 
   final int comments;
-  final int reposts;
   final int likes;
-  final int views;
   final bool liked;
   final bool reposted;
-  final bool bookmarked;
-  final int shares;
   final bool shared;
   final String? userReaction;
   final List<String> reactions;
@@ -46,9 +37,7 @@ class CommunityEngagementBar extends StatefulWidget {
   final VoidCallback? onRepost;
   final VoidCallback? onLike;
   final ValueChanged<String>? onReact;
-  final VoidCallback? onBookmark;
   final VoidCallback? onShare;
-  final VoidCallback? onViewStats;
   final bool showBorder;
 
   @override
@@ -176,24 +165,11 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
         effectiveReactions.add(clean);
       }
     }
-    if (effectiveReactions.isEmpty && widget.liked) {
-      effectiveReactions.add('👍');
-    }
-    if (widget.likes > effectiveReactions.length &&
-        !effectiveReactions.contains('👍')) {
+    if (effectiveReactions.isEmpty && (widget.liked || widget.likes > 0)) {
       effectiveReactions.add('👍');
     }
 
-    final String? primaryEmoji =
-        effectiveReactions.isNotEmpty ? effectiveReactions.first : null;
-
-    final Color activeColor = switch (primaryEmoji) {
-      '❤️' => Colors.redAccent,
-      '🔥' => Colors.deepOrangeAccent,
-      '🚀' => theme.colors.bullish,
-      '💡' => Colors.amber,
-      _ => theme.colors.primary,
-    };
+    final activeColor = _reactionColor(context, widget.userReaction ?? '👍');
 
     // Single unified LinkedIn Like / Reaction button
     final Widget likeButton = KeyedSubtree(
@@ -205,10 +181,6 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
           icon: widget.liked
               ? Icons.thumb_up_alt_rounded
               : Icons.thumb_up_alt_outlined,
-          emojis: (widget.liked || widget.likes > 0)
-              ? effectiveReactions
-              : const <String>[],
-          emoji: primaryEmoji,
           count: widget.likes > 0 ? uiCompactNumber(widget.likes) : '',
           tooltip: _overlayEntry != null
               ? ''
@@ -221,7 +193,11 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
             if (widget.liked) {
               widget.onLike?.call();
             } else {
-              widget.onReact?.call('👍');
+              if (widget.onReact != null) {
+                widget.onReact!('👍');
+              } else {
+                widget.onLike?.call();
+              }
             }
           },
           onLongPress: _showOverlay,
@@ -230,134 +206,104 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
       ),
     );
 
-    final List<Widget> primaryMetrics = <Widget>[
-      // Reply / Comments
+    final actions = [
+      likeButton,
       CommunityEngagementButton(
         icon: Icons.chat_bubble_outline_rounded,
         count: widget.comments > 0 ? uiCompactNumber(widget.comments) : '',
         tooltip: 'Reply',
         activeColor: theme.colors.primary,
-        hoverColor: theme.colors.primary.withValues(alpha: 0.06),
         onTap: widget.onReply,
         isMobile: isMobile,
       ),
-
-      // Repost / Retweet
       CommunityEngagementButton(
         icon: Icons.repeat_rounded,
-        count: widget.reposts > 0 ? uiCompactNumber(widget.reposts) : '',
+        count: '',
         tooltip: 'Repost',
         isActive: widget.reposted,
         activeColor: theme.colors.bullish,
-        hoverColor: theme.colors.bullish.withValues(alpha: 0.06),
         onTap: widget.onRepost,
         isMobile: isMobile,
       ),
-
-      // Like / Reaction (Single LinkedIn button)
-      likeButton,
-
-      // Views / Impressions
       CommunityEngagementButton(
-        icon: Icons.bar_chart_rounded,
-        count: widget.views > 0 ? uiCompactNumber(widget.views) : '',
-        tooltip: 'Views',
+        icon: CupertinoIcons.paperplane,
+        count: '',
+        tooltip: 'Share',
+        isActive: widget.shared,
         activeColor: theme.colors.primary,
-        hoverColor: theme.colors.primary.withValues(alpha: 0.06),
-        onTap: widget.onViewStats,
+        onTap: widget.onShare,
         isMobile: isMobile,
       ),
     ];
-
-    final Widget bookmarkButton = CommunityEngagementButton(
-      icon: widget.bookmarked
-          ? Icons.bookmark_rounded
-          : Icons.bookmark_border_rounded,
-      count: '',
-      tooltip: widget.bookmarked ? 'Remove bookmark' : 'Bookmark',
-      isActive: widget.bookmarked,
-      activeColor: theme.colors.warning,
-      hoverColor: theme.colors.warning.withValues(alpha: 0.06),
-      onTap: widget.onBookmark,
-      isMobile: isMobile,
-    );
-
-    final Widget shareButton = CommunityEngagementButton(
-      icon: Icons.ios_share_rounded,
-      count: widget.shares > 0 ? uiCompactNumber(widget.shares) : '',
-      tooltip: 'Share',
-      isActive: widget.shared,
-      activeColor: theme.colors.primary,
-      hoverColor: theme.colors.primary.withValues(alpha: 0.06),
-      onTap: widget.onShare,
-      isMobile: isMobile,
-    );
-
-    return Container(
-      constraints: BoxConstraints(
-        minHeight: isMobile ? 44.0 : 36.0,
-        maxHeight: isMobile ? 54.0 : 48.0,
-      ),
-      padding: EdgeInsets.only(
-        top: context.sp(theme.spacing.xs),
-        bottom: context.sp(theme.spacing.xxs),
-      ),
-      decoration: widget.showBorder
-          ? BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: theme.colors.border.withValues(alpha: 0.6),
-                  width: theme.borders.hairline,
-                ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.showBorder) UiDivider(spacing: theme.spacing.none),
+        Row(
+          children: [
+            Expanded(
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: actions,
               ),
-            )
-          : null,
-      child: LayoutBuilder(
-        builder: (BuildContext ctx, BoxConstraints constraints) {
-          final bool isCompact = isMobile || constraints.maxWidth < 560;
-          if (isCompact) {
-            // Compact: flexible slots so counts never clip; like gets extra
-            // room for the reaction-emoji cluster, bookmark/share stay tight.
-            return Row(
-              children: <Widget>[
-                Expanded(child: primaryMetrics[0]),
-                Expanded(child: primaryMetrics[1]),
-                Expanded(flex: 2, child: primaryMetrics[2]),
-                Expanded(child: primaryMetrics[3]),
-                bookmarkButton,
-                shareButton,
-              ],
-            );
-          }
-
-          return Row(
-            children: <Widget>[
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: SizedBox(
-                    width: 440,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: primaryMetrics,
+            ),
+            if (widget.likes > 0 && effectiveReactions.isNotEmpty)
+              Semantics(
+                label: 'Reactions: ${effectiveReactions.join(' ')}',
+                excludeSemantics: true,
+                child: SizedBox(
+                  height: context.sz(18),
+                  child: FittedBox(
+                    child: UiAvatarGroup(
+                      overlapFraction: 0.24,
+                      avatars: [
+                        for (final emoji in effectiveReactions.take(3))
+                          _reactionBadge(context, emoji),
+                      ],
                     ),
                   ),
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  bookmarkButton,
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  shareButton,
-                ],
-              ),
-            ],
-          );
-        },
+          ],
+        ),
+      ],
+    );
+  }
+
+  UiAvatar _reactionBadge(BuildContext context, String emoji) {
+    final theme = context.ui;
+    final colors = theme.colors;
+    final (icon, accent) = switch (emoji) {
+      '👍' => (Icons.thumb_up_outlined, colors.info),
+      '🚀' => (Icons.rocket_launch_outlined, colors.bullish),
+      '💡' => (Icons.lightbulb_outline_rounded, colors.warning),
+      '🔥' => (
+        Icons.local_fire_department_outlined,
+        Color.lerp(colors.warning, colors.destructive, 0.5)!,
+      ),
+      '❤️' || '❤' => (Icons.favorite_border_rounded, colors.destructive),
+      _ => (Icons.emoji_emotions_outlined, colors.foregroundMuted),
+    };
+    final isDark = theme.brightness == Brightness.dark;
+    final lightBase = isDark ? colors.foreground : colors.surface;
+    return UiAvatar(
+      size: UiSize.sm,
+      backgroundColor: Color.lerp(lightBase, accent, 0.16),
+      child: Icon(
+        icon,
+        size: context.sz(theme.sizes.iconSm),
+        color: isDark ? Color.lerp(accent, colors.background, 0.35) : accent,
+        applyTextScaling: false,
       ),
     );
   }
+
+  Color _reactionColor(BuildContext context, String emoji) => switch (emoji) {
+    '❤️' => context.uiColors.destructive,
+    '🔥' || '💡' => context.uiColors.warning,
+    '🚀' => context.uiColors.bullish,
+    _ => context.uiColors.primary,
+  };
 }
 
 /// Floating LinkedIn-style reaction pill overlay with smooth hover scale effects.
@@ -513,8 +459,6 @@ class CommunityEngagementButton extends StatelessWidget {
   const CommunityEngagementButton({
     super.key,
     required this.icon,
-    this.emoji,
-    this.emojis = const <String>[],
     required this.count,
     required this.tooltip,
     required this.activeColor,
@@ -526,8 +470,6 @@ class CommunityEngagementButton extends StatelessWidget {
   });
 
   final IconData icon;
-  final String? emoji;
-  final List<String> emojis;
   final String count;
   final String tooltip;
   final Color activeColor;
@@ -541,11 +483,8 @@ class CommunityEngagementButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final Color color = isActive ? activeColor : theme.colors.foregroundMuted;
-    final List<String> displayEmojis = emojis.isNotEmpty
-        ? emojis
-        : (emoji != null && emoji!.isNotEmpty ? <String>[emoji!] : const <String>[]);
-
     return UiInteractive(
+      selected: isActive,
       onTap: onTap,
       onLongPress: onLongPress,
       builder: (BuildContext ctx, UiInteractiveState state) {
@@ -560,13 +499,12 @@ class CommunityEngagementButton extends StatelessWidget {
           message: tooltip,
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 2 : 8,
-              vertical: 4,
+              horizontal: ctx.sp(isMobile ? theme.spacing.xs : theme.spacing.sm),
+              vertical: ctx.sp(theme.spacing.xs),
             ),
             constraints: isMobile
                 ? const BoxConstraints(minHeight: 44, minWidth: 44)
                 : const BoxConstraints(minHeight: 36, minWidth: 36),
-            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: isHovered
                   ? (hoverColor ?? activeColor.withValues(alpha: 0.05))
@@ -579,34 +517,14 @@ class CommunityEngagementButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  if (displayEmojis.isNotEmpty)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        for (int i = 0; i < displayEmojis.take(3).length; i++) ...<Widget>[
-                          if (i > 0) const SizedBox(width: 2),
-                          Text(
-                            displayEmojis[i],
-                            style: TextStyle(
-                              fontSize: isMobile ? ctx.fs(13.5) : ctx.fs(14.5),
-                            ),
-                          ),
-                        ],
-                      ],
-                    )
-                  else
-                    Icon(
-                      icon,
-                      size: isMobile ? ctx.sz(16) : ctx.sz(17),
-                      color: effectiveColor,
-                    ),
+                  Icon(icon, size: ctx.sz(20), color: effectiveColor),
                   if (count.isNotEmpty) ...<Widget>[
                     SizedBox(width: isMobile ? 3 : ctx.sp(theme.spacing.xxs)),
                     Text(
                       count,
                       style: ctx.uiText.caption.copyWith(
                         color: effectiveColor,
-                        fontSize: isMobile ? ctx.fs(11.5) : ctx.fs(12),
+                        fontSize: ctx.fs(14),
                         fontWeight:
                             isActive ? FontWeight.w700 : FontWeight.w500,
                       ),
