@@ -45,7 +45,7 @@ class AlphaThread extends StatefulWidget {
     this.scale,
   });
 
-  static const pullDuration = Duration(milliseconds: 4400);
+  static const pullDuration = Duration(milliseconds: 3600);
 
   final String label;
   final double thickness;
@@ -366,19 +366,16 @@ class _ThreadPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (thickness <= 0 || size.isEmpty) return;
-    // A gentle launch and a long, steady pull avoid a burst of speed mid-loop.
-    final progress = const Cubic(
-      .22,
-      .16,
-      .65,
-      1,
-    ).transform((pull?.value ?? 1).clamp(0.0, 1.0));
+    final t = (pull?.value ?? 1).clamp(0.0, 1.0);
+    // Smoothstep starts and ends at rest, with peak speed halfway through.
+    final progress = t * t * (3 - 2 * t);
     if (progress <= 0) return;
     final tip = progress == 1
         ? model.length
         : model.entranceStart + (model.length - model.entranceStart) * progress;
-    // Material coordinates slide along the path by exactly the tip's travel.
-    final remaining = model.length - tip;
+    // The tip reveals the full path, but the lettering only drifts half a
+    // word. Longer ribbons no longer make the characters race past.
+    final remaining = model.repeatLength * .5 * (1 - progress);
     canvas.clipRect(Offset.zero & size);
     final effectiveScale =
         scale ?? math.max(size.width / _kW, size.height / _kH);

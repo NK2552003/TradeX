@@ -60,27 +60,34 @@ void main() {
 
     await showThread(false);
     expect(hasInk(await pixels(), 0, 480), isFalse);
-    await tester.pump(AlphaThread.pullDuration ~/ 2);
-    final halfway = await pixels();
+    final samples = <List<int>>[];
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(AlphaThread.pullDuration ~/ 8);
+      samples.add(await pixels());
+    }
+    final halfway = samples[3];
     expect(hasInk(halfway, 0, 240), isTrue);
     expect(hasInk(halfway, 420, 480), isFalse);
-    await tester.pump(AlphaThread.pullDuration ~/ 2);
-    final resting = await pixels();
+    final resting = samples.last;
     expect(hasInk(resting, 241, 480), isTrue);
-    // A loop folds back behind its tip. At least part of the final ribbon
-    // to the left of that tip must still be absent at the halfway frame.
-    final tipX = List.generate(
-      480,
-      (x) => x,
-    ).lastWhere((x) => hasInk(halfway, x, x + 1));
-    var missingBehindTip = 0;
-    for (var y = 0; y < 160; y++) {
-      for (var x = 0; x < tipX - 12; x++) {
-        final alpha = (y * 480 + x) * 4 + 3;
-        if (halfway[alpha] < 15 && resting[alpha] > 220) missingBehindTip++;
+    // A loop folds back behind its tip. Check across the pull, so this
+    // geometry assertion doesn't depend on the speed of the entrance.
+    bool hasUnfinishedLoop(List<int> frame) {
+      final tipX = List.generate(
+        480,
+        (x) => x,
+      ).lastWhere((x) => hasInk(frame, x, x + 1), orElse: () => 0);
+      var missingBehindTip = 0;
+      for (var y = 0; y < 160; y++) {
+        for (var x = 0; x < tipX - 12; x++) {
+          final alpha = (y * 480 + x) * 4 + 3;
+          if (frame[alpha] < 15 && resting[alpha] > 220) missingBehindTip++;
+        }
       }
+      return missingBehindTip > 50;
     }
-    expect(missingBehindTip, greaterThan(50));
+
+    expect(samples.any(hasUnfinishedLoop), isTrue);
     await showThread(true);
     expect(await pixels(), orderedEquals(resting));
     await tester.pump(const Duration(seconds: 2));

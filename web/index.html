@@ -107,13 +107,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
 </head>
-<body style="background-color: #0D0C0B; margin: 0; padding: 0; overflow: hidden; height: 100vh; width: 100vw;">
+<body style="background-color: #0D0C0B; margin: 0; padding: 0; overflow: hidden;">
   <div id="splash-loader">
     <div class="splash-threads" aria-hidden="true">
       <i class="thread-top"></i><i class="thread-bottom"></i>
       <i class="thread-left"></i><i class="thread-right"></i>
     </div>
-    <h1 class="word" id="word" aria-label="AlphaJournal"></h1>
+    <h1 class="word" id="word" aria-label="AlphaJournal">ALPHAJOURNAL</h1>
     <p class="soon">Intelligent market execution</p>
   </div>
   <style>
@@ -178,7 +178,7 @@
            (min-width: 700px) and (min-height: 600px) {
       .splash-threads .thread-left, .splash-threads .thread-right { display: block; }
     }
-    .word { margin: 0; font-weight: normal; display: flex; justify-content: center; gap: calc(var(--h) * 0.03); }
+    .word { font-size: calc(var(--h) * 1.1); line-height: var(--h); margin: 0; font-weight: normal; display: flex; justify-content: center; gap: calc(var(--h) * 0.03); }
     .letter {
       position: relative;
       display: block;
@@ -187,12 +187,25 @@
       line-height: var(--h);
     }
     .sizer { visibility: hidden; display: block; }
-    .band { position: absolute; inset: 0; }
+    .band {
+      position: absolute;
+      inset: 0;
+      clip-path: var(--rest-clip);
+      animation: aj-band 1700ms cubic-bezier(.42, 0, .58, 1) var(--delay);
+    }
+    @keyframes aj-band {
+      0%, 100% { clip-path: var(--rest-clip); }
+      50% { clip-path: var(--peak-clip); }
+    }
+    @keyframes aj-glyph {
+      0%, 100% { transform: none; }
+      50% { transform: translateY(var(--shift)) scaleY(var(--scale)); }
+    }
     .g {
       position: absolute; left: 0; top: 0; width: 100%;
       height: var(--h);
       transform-origin: 0 0;
-      will-change: transform;
+      animation: aj-glyph 1700ms cubic-bezier(.42, 0, .58, 1) var(--delay);
     }
     .soon {
       margin: 0;
@@ -205,7 +218,9 @@
     }
     @keyframes aj-pulse { from { opacity: 0.4; } to { opacity: 1; } }
     @media (prefers-reduced-motion: reduce) {
-      .soon { animation: none; }
+      .soon, .band, .g { animation: none; }
+      .letter .sizer { visibility: visible; }
+      .letter .band { display: none; }
       .splash-threads i::before { background-image: url("auth-threads.webp"); }
     }
   </style>
@@ -213,65 +228,48 @@
     (function() {
       const TEXT = "ALPHAJOURNAL";
       const word = document.getElementById("word");
-      const SRC = [0, 1 / 3, 2 / 3, 1];
-      const LAYOUTS = [
-        [0, 0.14, 0.78, 1],
-        [0, 0.5, 0.62, 1],
-        [0, 0.24, 0.9, 1]
-      ];
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+      if (word && !reducedMotion.matches) {
+        const fragment = document.createDocumentFragment();
+        const layouts = [[0, .24, .71, 1], [0, .40, .64, 1], [0, .28, .76, 1]];
+        for (const [index, character] of [...TEXT].entries()) {
+          const letter = document.createElement("span");
+          letter.className = "letter";
+          letter.style.setProperty("--delay", `${index * 32}ms`);
+          letter.setAttribute("aria-hidden", "true");
+          const sizer = document.createElement("span");
+          sizer.className = "sizer";
+          sizer.textContent = character;
+          letter.append(sizer);
+          fragment.append(letter);
 
-      let animId = null;
-      if (word) {
-        const letters = [...TEXT].map((ch, i) => {
-          const el = document.createElement("span");
-          el.className = "letter";
-          el.setAttribute("aria-hidden", "true");
-          el.innerHTML = '<span class="sizer">' + ch + "</span>" +
-            [0, 1, 2].map(() => '<span class="band"><span class="g">' + ch + "</span></span>").join("");
-          word.appendChild(el);
-          return {
-            el,
-            bands: [...el.querySelectorAll(".band")].map(b => ({ band: b, g: b.firstChild })),
-            target: LAYOUTS[i % LAYOUTS.length],
-            dur: 2.5 * (0.8 + ((i * 7) % 5) * 0.1),
-            off: i * 0.35
-          };
-        });
+          const stops = layouts[index % layouts.length];
+          for (let slice = 0; slice < 3; slice++) {
+            const band = document.createElement("span");
+            band.className = "band";
+            const glyph = document.createElement("span");
+            glyph.className = "g";
+            glyph.textContent = character;
+            band.append(glyph);
+            letter.append(band);
 
-        const ease = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
-
-        function render(now) {
-          if (!letters.length || !letters[0].el) return;
-          const H = letters[0].el.offsetHeight || 48;
-          for (const L of letters) {
-            let e = 0;
-            if (!reduce) {
-              const u = ((now / 1000 + L.off) / L.dur) % 2;
-              e = ease(u > 1 ? 2 - u : u);
-            }
-            for (let k = 0; k < 3; k++) {
-              const a = SRC[k], b = SRC[k + 1];
-              const c = (a + (L.target[k] - a) * e) * H;
-              const d = (b + (L.target[k + 1] - b) * e) * H;
-              const s = (d - c) / ((b - a) * H);
-              const ty = c - a * H * s;
-              const { band, g } = L.bands[k];
-              band.style.clipPath = "inset(" + c.toFixed(2) + "px 0 " + Math.max(0, H - d - 0.5).toFixed(2) + "px 0)";
-              g.style.transform = "translateY(" + ty.toFixed(2) + "px) scaleY(" + s.toFixed(4) + ")";
-            }
+            const top = slice / 3;
+            const clip = (from, to) =>
+              `inset(${from * 100}% 0 calc(${(1 - to) * 100}% - .5px) 0)`;
+            const scale = (stops[slice + 1] - stops[slice]) * 3;
+            band.style.setProperty("--rest-clip", clip(top, (slice + 1) / 3));
+            band.style.setProperty("--peak-clip", clip(stops[slice], stops[slice + 1]));
+            band.style.setProperty("--shift", `${(stops[slice] - top * scale) * 100}%`);
+            band.style.setProperty("--scale", scale);
           }
-          if (!reduce) animId = requestAnimationFrame(render);
         }
-        animId = requestAnimationFrame(render);
-        if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => reduce && render(0));
+        word.replaceChildren(fragment);
       }
 
       function hideSplash() {
         var splash = document.getElementById('splash-loader');
         if (splash && splash.style.opacity !== '0') {
           splash.style.opacity = '0';
-          if (animId) cancelAnimationFrame(animId);
           setTimeout(function() {
             if (splash.parentNode) splash.parentNode.removeChild(splash);
           }, 450);
@@ -283,6 +281,7 @@
     })();
   </script>
   <script src="app_install.js"></script>
+  <script src="keyboard_viewport.js"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

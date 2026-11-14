@@ -1,9 +1,7 @@
 // Run with flutter test scripts/render_auth_threads.dart --dart-define=THREAD_FRAMES=/tmp/frames.
-// Encode the transparent 50 fps splash (FFmpeg with libaom):
-//   ffmpeg -framerate 50 -pattern_type glob -i '/tmp/frames/*.png' \
-//     -filter_complex '[0:v]split[color][alpha];[color]format=yuv420p[c];[alpha]alphaextract,format=gray[a]' \
-//     -map '[c]' -map '[a]' -c:v libaom-av1 -cpu-used 8 -row-mt 1 -threads 4 \
-//     -crf 32 -crf:v:1 25 -loop 1 web/auth-thread-pull.avif
+// Encode the transparent, single-play sequence from a fresh frame directory:
+//   avifenc --fps 50 --repetition-count 0 --speed 8 --jobs 5 -y 420 -q 67 \
+//     --qalpha 74 /tmp/frames/*.png web/auth-thread-pull.avif
 // Save the last PNG as web/auth-threads.webp for reduced motion.
 import 'dart:io';
 import 'dart:ui' as ui;

@@ -28,19 +28,19 @@ class _SplashScreenState extends State<SplashScreen>
       .animate(
         CurvedAnimation(
           parent: _animController,
-          curve: Interval(0.0, _wordmarkEnd, curve: Curves.easeOut),
+          curve: Interval(0.0, _wordmarkEnd, curve: Curves.easeInOutSine),
         ),
       );
   late final Animation<double> _slideAnim = Tween<double>(begin: 16.0, end: 0.0)
       .animate(
         CurvedAnimation(
           parent: _animController,
-          curve: Interval(0.0, _wordmarkEnd, curve: Curves.easeOutCubic),
+          curve: Interval(0.0, _wordmarkEnd, curve: Curves.easeInOutSine),
         ),
       );
   late final Animation<double> _markProgress = CurvedAnimation(
     parent: _animController,
-    curve: Interval(0.0, _markEnd, curve: Curves.easeOutCubic),
+    curve: Interval(0.0, _markEnd, curve: Curves.easeInOutSine),
   );
 
   @override

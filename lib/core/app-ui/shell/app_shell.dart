@@ -438,10 +438,11 @@ class _AppShellState extends State<AppShell> {
       // Publish the clearance as a safe inset instead of shrinking the whole
       // workspace. SafeArea-aware pages keep their controls above the dock,
       // while their background still paints beneath the floating glass bar.
-      final MediaQueryData dockSafeMedia = mediaQuery.copyWith(
-        padding: mediaQuery.padding.copyWith(bottom: dockClearance),
-        viewInsets: EdgeInsets.zero,
-      );
+      final MediaQueryData dockSafeMedia = mediaQuery
+          .removeViewInsets(removeBottom: true)
+          .copyWith(
+            padding: mediaQuery.padding.copyWith(bottom: dockClearance),
+          );
       final Widget dockSafeContent = MediaQuery(
         data: dockSafeMedia,
         child: contentSurface,
@@ -629,17 +630,12 @@ class _AppShellState extends State<AppShell> {
           Expanded(child: dockLayer),
         ],
       );
-      return ColoredBox(
+      // Let Scaffold resize the workspace and consume the IME inset for its
+      // body. The dock and its pages then share the same usable viewport.
+      return Scaffold(
         key: const ValueKey<String>('app-mobile-shell-background'),
-        color: theme.colors.background,
-        child: Padding(
-          padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
-          child: MediaQuery.removeViewInsets(
-            context: context,
-            removeBottom: true,
-            child: mobileShell,
-          ),
-        ),
+        backgroundColor: theme.colors.background,
+        body: mobileShell,
       );
     }
 
