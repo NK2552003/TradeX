@@ -29,14 +29,16 @@ CREATE POLICY "Authors manage poll options"
 CREATE OR REPLACE FUNCTION update_community_poll_votes()
 RETURNS TRIGGER AS $$
 BEGIN
+    PERFORM set_config('tradex.trusted_counter_write', 'on', true);
     IF TG_OP = 'INSERT' THEN
         UPDATE community_poll_options SET votes_count = votes_count + 1 WHERE id = NEW.option_id;
     ELSIF TG_OP = 'DELETE' THEN
         UPDATE community_poll_options SET votes_count = GREATEST(0, votes_count - 1) WHERE id = OLD.option_id;
     END IF;
+    PERFORM set_config('tradex.trusted_counter_write', 'off', true);
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 DROP TRIGGER IF EXISTS trigger_community_poll_votes ON community_poll_votes;
 CREATE TRIGGER trigger_community_poll_votes
@@ -47,32 +49,35 @@ CREATE TRIGGER trigger_community_poll_votes
 CREATE OR REPLACE FUNCTION update_community_post_reposts()
 RETURNS TRIGGER AS $$
 BEGIN
+    PERFORM set_config('tradex.trusted_counter_write', 'on', true);
     IF TG_OP = 'INSERT' THEN
         UPDATE community_posts SET reposts_count = reposts_count + 1 WHERE id = NEW.post_id;
     ELSIF TG_OP = 'DELETE' THEN
         UPDATE community_posts SET reposts_count = GREATEST(0, reposts_count - 1) WHERE id = OLD.post_id;
     END IF;
+    PERFORM set_config('tradex.trusted_counter_write', 'off', true);
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 DROP TRIGGER IF EXISTS trigger_community_post_reposts ON community_reposts;
 CREATE TRIGGER trigger_community_post_reposts
     AFTER INSERT OR DELETE ON community_reposts
     FOR EACH ROW EXECUTE FUNCTION update_community_post_reposts();
 
--- 5. Public read policies for community social graphs (likes, reposts, follows)
+-- 5. Read policies for community social graphs (likes, reposts, follows)
 DROP POLICY IF EXISTS "Public read for reposts" ON community_reposts;
 CREATE POLICY "Public read for reposts"
     ON community_reposts FOR SELECT
     TO authenticated, anon
-    USING (true);
+    USING (EXISTS (SELECT 1 FROM community_posts p WHERE p.id = community_reposts.post_id));
 
 DROP POLICY IF EXISTS "Public read for likes" ON community_likes;
-CREATE POLICY "Public read for likes"
+DROP POLICY IF EXISTS community_likes_visible_post_read ON community_likes;
+CREATE POLICY community_likes_visible_post_read
     ON community_likes FOR SELECT
     TO authenticated, anon
-    USING (true);
+    USING (EXISTS (SELECT 1 FROM community_posts p WHERE p.id = community_likes.post_id));
 
 DROP POLICY IF EXISTS "Public read for follows" ON community_follows;
 CREATE POLICY "Public read for follows"

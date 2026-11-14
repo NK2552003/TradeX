@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'community_post_discussion.dart';
+import 'community_reactions_dialog.dart';
+import 'community_network_activity.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/linking/link_graph.dart';
@@ -63,8 +68,10 @@ class CommunityPostCard extends StatefulWidget {
     this.showTagsAndTickers = true,
     this.loading = false,
     this.currentUser,
+    this.inlineComments = true,
   });
 
+  final bool inlineComments;
   final CommunityPost post;
   final CommunityPostCardVariant variant;
   final dynamic repository;
@@ -116,6 +123,8 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   late int _reposts;
   late bool _bookmarked;
   bool _shared = false;
+  bool _commentsExpanded = false;
+  bool _reactionSaving = false;
 
   CommunityRepository get _resolvedRepository =>
       widget.repository is CommunityRepository
@@ -161,7 +170,8 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     }
   }
 
-  void _handleLike() {
+  Future<void> _handleLike() async {
+    if (_reactionSaving) return;
     final oldRx = _userReaction;
     setState(() {
       _liked = !_liked;
@@ -179,13 +189,14 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
       }
     });
     if (widget.repository != null) {
-      widget.repository.toggleLike(widget.post.id);
+      await _saveReaction();
     } else {
       widget.onLike?.call();
     }
   }
 
-  void _handleReact(String reaction) {
+  Future<void> _handleReact(String reaction) async {
+    if (_reactionSaving) return;
     final bool wasLiked = _liked;
     final bool sameReaction = wasLiked && _userReaction == reaction;
     final String? oldRx = _userReaction;
@@ -210,9 +221,36 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
       }
     });
     if (widget.repository != null) {
-      widget.repository.toggleLike(widget.post.id, reaction: reaction);
+      await _saveReaction(reaction: reaction);
     } else {
       widget.onLike?.call();
+    }
+  }
+
+  Future<void> _saveReaction({String? reaction}) async {
+    _reactionSaving = true;
+    try {
+      final saved = await widget.repository.toggleLike(
+        widget.post.id,
+        reaction: reaction,
+      );
+      if (!mounted || saved != false) return;
+      final restored =
+          _resolvedRepository.findPost(widget.post.id) ?? widget.post;
+      setState(() {
+        _liked = restored.liked;
+        _likes = restored.likes;
+        _userReaction = restored.userReaction;
+        _reactions = List.of(restored.reactions);
+      });
+      UiToast.show(
+        context,
+        title: 'Reaction not saved',
+        message: 'Please sign in and try again.',
+        intent: UiIntent.warning,
+      );
+    } finally {
+      _reactionSaving = false;
     }
   }
 
@@ -435,7 +473,14 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
         padding: EdgeInsets.all(
           context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
         ),
-        child: _buildPostContent(context, theme, showAvatarInHeader: true),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildNetworkActivity(),
+            _buildPostContent(context, theme, showAvatarInHeader: true),
+          ],
+        ),
       );
     }
 
@@ -462,32 +507,8 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            _buildNetworkActivity(),
             // Repost / Pinned Header Banners
-            if (post.repostedBy != null) ...<Widget>[
-              Padding(
-                padding: EdgeInsets.only(
-                  left: context.sp(theme.spacing.xl),
-                  bottom: context.sp(theme.spacing.xs),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Icon(
-                      Icons.repeat_rounded,
-                      size: context.sz(14),
-                      color: theme.colors.foregroundMuted,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Text(
-                      '${post.repostedBy} reposted',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
             if (post.isPinned) ...<Widget>[
               Padding(
                 padding: EdgeInsets.only(
@@ -552,6 +573,21 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildNetworkActivity() {
+    if (widget.repository is! CommunityRepository || widget.onTap == null) {
+      final repostedBy = widget.post.repostedBy?.trim();
+      return repostedBy == null || repostedBy.isEmpty
+          ? const SizedBox.shrink()
+          : CommunityActivityRow(name: repostedBy, action: 'reposted this');
+    }
+    return CommunityNetworkActivity(
+      repository: _resolvedRepository,
+      postId: widget.post.id,
+      repostedBy: widget.post.repostedBy,
+      onAuthorTap: widget.onAuthorTap,
     );
   }
 
@@ -850,7 +886,11 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             largeColumns: 2,
             childAspectRatio: 16 / 9,
             children: [
-              for (var index = 0; index < post.effectiveImageUrls.length; index++)
+              for (
+                var index = 0;
+                index < post.effectiveImageUrls.length;
+                index++
+              )
                 ClipRRect(
                   borderRadius: context.radius(theme.radii.md),
                   child: AspectRatio(
@@ -863,7 +903,8 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                       ),
                       builder: (context, _) => UiRemoteImage(
                         url: post.effectiveImageUrls[index],
-                        semanticLabel: 'Post image ${index + 1} of ${post.effectiveImageUrls.length}',
+                        semanticLabel:
+                            'Post image ${index + 1} of ${post.effectiveImageUrls.length}',
                       ),
                     ),
                   ),
@@ -964,12 +1005,63 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             reactions: _reactions,
             reposted: _reposted,
             shared: _shared,
-            onReply: widget.onReply ?? widget.onTap,
+            commentsExpanded: _commentsExpanded,
+            onReply:
+                widget.inlineComments &&
+                    widget.repository is CommunityRepository
+                ? () => setState(() => _commentsExpanded = !_commentsExpanded)
+                : widget.onReply ?? widget.onTap,
+            onShowReactions: () => CommunityReactionsDialog.show(
+              context,
+              repository: _resolvedRepository,
+              targetId: post.id,
+              onAuthorTap: widget.onAuthorTap,
+            ),
             onRepost: _handleRepost,
             onLike: _handleLike,
             onReact: _handleReact,
             onShare: () => _handleShare(context),
             showBorder: true,
+          ),
+          UiReveal(
+            child: _commentsExpanded && widget.repository is CommunityRepository
+                ? UiInteractive(
+                    onTap: () {},
+                    builder: (context, _) => Padding(
+                      padding: EdgeInsets.only(
+                        top: context.sp(theme.spacing.md),
+                      ),
+                      child: ListenableBuilder(
+                        listenable: _resolvedRepository,
+                        builder: (context, _) => CommunityPostDiscussion(
+                          key: ValueKey('discussion-${post.id}'),
+                          comments: _resolvedRepository.commentsForPost(
+                            post.id,
+                          ),
+                          currentUser:
+                              widget.currentUser ??
+                              _resolvedRepository.currentAuthor,
+                          repository: _resolvedRepository,
+                          postAuthorId: post.author.id,
+                          onAuthorTap: widget.onAuthorTap,
+                          onTagTap: widget.onTagTap,
+                          onAddComment: (text, {parentCommentId, sentiment}) =>
+                              _resolvedRepository.addComment(
+                                post.id,
+                                text,
+                                author:
+                                    widget.currentUser ??
+                                    _resolvedRepository.currentAuthor,
+                                parentId: parentCommentId,
+                                sentiment: sentiment,
+                              ),
+                          onLikeComment: (id, {reaction}) => _resolvedRepository
+                              .likeComment(post.id, id, reaction: reaction),
+                        ),
+                      ),
+                    ),
+                  )
+                : null,
           ),
         ],
       ],

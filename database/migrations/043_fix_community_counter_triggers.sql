@@ -9,26 +9,30 @@
 CREATE OR REPLACE FUNCTION update_community_post_likes()
 RETURNS TRIGGER AS $$
 BEGIN
+    PERFORM set_config('tradex.trusted_counter_write', 'on', true);
     IF TG_OP = 'INSERT' THEN
         UPDATE community_posts SET likes_count = likes_count + 1 WHERE id = NEW.post_id;
     ELSIF TG_OP = 'DELETE' THEN
         UPDATE community_posts SET likes_count = GREATEST(0, likes_count - 1) WHERE id = OLD.post_id;
     END IF;
+    PERFORM set_config('tradex.trusted_counter_write', 'off', true);
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 CREATE OR REPLACE FUNCTION update_community_post_comments()
 RETURNS TRIGGER AS $$
 BEGIN
+    PERFORM set_config('tradex.trusted_counter_write', 'on', true);
     IF TG_OP = 'INSERT' THEN
         UPDATE community_posts SET comments_count = comments_count + 1 WHERE id = NEW.post_id;
     ELSIF TG_OP = 'DELETE' THEN
         UPDATE community_posts SET comments_count = GREATEST(0, comments_count - 1) WHERE id = OLD.post_id;
     END IF;
+    PERFORM set_config('tradex.trusted_counter_write', 'off', true);
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Resync existing (stale) counters
 UPDATE community_posts p

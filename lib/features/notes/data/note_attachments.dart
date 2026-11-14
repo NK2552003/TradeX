@@ -50,7 +50,7 @@ class NoteAttachments {
     if (_resolved.length >= 512) _resolved.clear();
     _resolved[key] = (
       url: url,
-      expires: DateTime.now().add(const Duration(minutes: 5)),
+      expires: DateTime.now().add(const Duration(minutes: 4)),
     );
   }
 
@@ -124,6 +124,9 @@ class NoteAttachments {
 
   /// The repository reference inside an attachment URI, or null for anything
   /// else — an ordinary `https://` image somebody pasted, say.
+  /// Legacy Supabase Storage URLs pointing to private buckets
+  /// (`strategy-attachments`, `journal-attachments`, `note-attachments`) are
+  /// also extracted so they route through authorized signed-URL resolution.
   static String? refOf(Uri uri) {
     if (uri.scheme == imageScheme || uri.scheme == fileScheme) {
       final host = uri.host;
@@ -132,6 +135,21 @@ class NoteAttachments {
       if (path.isEmpty) return host;
       return path.startsWith('/') ? '$host$path' : '$host/$path';
     }
+    if (uri.scheme == 'http' || uri.scheme == 'https') {
+      final segments = uri.pathSegments;
+      const privateBuckets = <String>{
+        'strategy-attachments',
+        'journal-attachments',
+        'note-attachments',
+      };
+      for (var i = 0; i < segments.length - 1; i++) {
+        if (privateBuckets.contains(segments[i])) {
+          final extracted = segments.sublist(i + 1).join('/');
+          if (extracted.isNotEmpty) return extracted;
+        }
+      }
+      return null;
+    }
     // Also support relative references or path-only markdown images
     if (uri.scheme.isEmpty &&
         uri.path.isNotEmpty &&
@@ -139,6 +157,30 @@ class NoteAttachments {
       return uri.path;
     }
     return null;
+  }
+
+  /// Extracts all owned attachment references (`local-image://`, `local-file://`,
+  /// or private storage bucket URLs) present in [markdown].
+  static Set<String> extractRefs(String markdown) {
+    if (markdown.isEmpty) return const <String>{};
+    final refs = <String>{};
+    final pattern = RegExp(r'!?\[[^\]]*\]\(([^)\s]+)\)');
+    for (final match in pattern.allMatches(markdown)) {
+      final raw = match.group(1)?.trim();
+      if (raw == null || raw.isEmpty) continue;
+      final uri = Uri.tryParse(raw);
+      if (uri == null) continue;
+      if (uri.scheme == imageScheme ||
+          uri.scheme == fileScheme ||
+          uri.scheme == 'http' ||
+          uri.scheme == 'https') {
+        final ref = refOf(uri);
+        if (ref != null && ref.isNotEmpty) {
+          refs.add(ref);
+        }
+      }
+    }
+    return refs;
   }
 
   static bool isImageFile(String path) => const <String>[

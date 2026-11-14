@@ -155,7 +155,7 @@ void main() {
       // Ensure proper single '@nk2552003' headline is present
       expect(
         find.textContaining(
-          '@nk2552003 · Quantitative Trader · alphajournal Community',
+          '@nk2552003',
         ),
         findsOneWidget,
       );

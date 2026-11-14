@@ -35,9 +35,16 @@ VALUES
   (
     'strategy-attachments',
     'strategy-attachments',
-    true,
+    false,
     10485760, -- 10 MB
     ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf']
+  ),
+  (
+    'chat-attachments',
+    'chat-attachments',
+    false,
+    15728640, -- 15 MB (strictly private to active conversation members)
+    ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf', 'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'application/octet-stream']
   )
 ON CONFLICT (id) DO UPDATE SET
   public = EXCLUDED.public,
@@ -83,18 +90,26 @@ FOR ALL
 TO authenticated
 USING (
   bucket_id = 'community-attachments'
-  AND (storage.foldername(name))[1] = auth.uid()::text
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
+  AND (storage.foldername(name))[1] <> 'chat'
+  AND COALESCE((storage.foldername(name))[2], '') <> 'chat'
 )
 WITH CHECK (
   bucket_id = 'community-attachments'
-  AND (storage.foldername(name))[1] = auth.uid()::text
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
+  AND (storage.foldername(name))[1] <> 'chat'
+  AND COALESCE((storage.foldername(name))[2], '') <> 'chat'
 );
 
 DROP POLICY IF EXISTS community_attachments_objects_public_read ON storage.objects;
 CREATE POLICY community_attachments_objects_public_read ON storage.objects
 FOR SELECT
 TO anon, authenticated
-USING (bucket_id = 'community-attachments');
+USING (
+  bucket_id = 'community-attachments'
+  AND (storage.foldername(name))[1] <> 'chat'
+  AND COALESCE((storage.foldername(name))[2], '') <> 'chat'
+);
 
 -- C. Journal Attachments (Owner Only - Zero Public Read)
 DROP POLICY IF EXISTS journal_attachments_owner_all ON storage.objects;
@@ -103,25 +118,35 @@ FOR ALL
 TO authenticated
 USING (
   bucket_id = 'journal-attachments'
-  AND (storage.foldername(name))[1] = auth.uid()::text
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
 )
 WITH CHECK (
   bucket_id = 'journal-attachments'
-  AND (storage.foldername(name))[1] = auth.uid()::text
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
 );
 
--- D. Strategy Attachments
+-- D. Strategy Attachments (Private Bucket - Requires Matching Owner & Strategy)
 DROP POLICY IF EXISTS strategy_attachments_owner_all ON storage.objects;
 CREATE POLICY strategy_attachments_owner_all ON storage.objects
 FOR ALL
 TO authenticated
 USING (
   bucket_id = 'strategy-attachments'
-  AND (storage.foldername(name))[1] = auth.uid()::text
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
+  AND EXISTS (
+    SELECT 1 FROM public.strategies s
+    WHERE s.id::text = (storage.foldername(name))[2]
+      AND s.user_id = (SELECT auth.uid())
+  )
 )
 WITH CHECK (
   bucket_id = 'strategy-attachments'
-  AND (storage.foldername(name))[1] = auth.uid()::text
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
+  AND EXISTS (
+    SELECT 1 FROM public.strategies s
+    WHERE s.id::text = (storage.foldername(name))[2]
+      AND s.user_id = (SELECT auth.uid())
+  )
 );
 
 DROP POLICY IF EXISTS strategy_attachments_objects_public_read ON storage.objects;
@@ -130,12 +155,25 @@ FOR SELECT
 TO anon, authenticated
 USING (
   bucket_id = 'strategy-attachments'
-  AND (
-    (storage.foldername(name))[1] = auth.uid()::text
-    OR EXISTS (
-      SELECT 1 FROM strategies s
-      WHERE s.id::text = (storage.foldername(name))[2]
-        AND s.visibility = 'public'
-    )
+  AND EXISTS (
+    SELECT 1 FROM public.strategies s
+    WHERE s.id::text = (storage.foldername(name))[2]
+      AND s.user_id::text = (storage.foldername(name))[1]
+      AND (
+        s.visibility = 'public'
+        OR s.user_id = (SELECT auth.uid())
+      )
+      AND (
+        EXISTS (
+          SELECT 1 FROM public.strategy_attachments sa
+          WHERE sa.storage_path = storage.objects.name
+            AND sa.strategy_id = s.id
+            AND sa.user_id = s.user_id
+        )
+        OR NOT EXISTS (
+          SELECT 1 FROM public.strategy_attachments sa
+          WHERE sa.storage_path = storage.objects.name
+        )
+      )
   )
 );

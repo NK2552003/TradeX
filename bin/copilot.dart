@@ -21,11 +21,31 @@ Future<void> main(List<String> arguments) async {
     exitCode = 78;
     return;
   }
-  final server = CopilotServer(
-    config,
-    WorkspaceStore(Directory(config.dataPath)),
-  );
-  await server.start();
+  final WorkspaceStore store;
+  try {
+    store = WorkspaceStore(
+      Directory(config.dataPath),
+      encryptionKey: config.workspaceEncryptionKey.isEmpty
+          ? null
+          : config.workspaceEncryptionKey,
+      previousEncryptionKey: config.previousWorkspaceEncryptionKey.isEmpty
+          ? null
+          : config.previousWorkspaceEncryptionKey,
+      requireExplicitKey: true,
+    );
+  } on CopilotFailure catch (error) {
+    stderr.writeln(error.message);
+    exitCode = 78;
+    return;
+  }
+  final server = CopilotServer(config, store);
+  try {
+    await server.start();
+  } on CopilotFailure catch (error) {
+    stderr.writeln(error.message);
+    exitCode = 78;
+    return;
+  }
   stdout.writeln('TradeX copilot listening on ${config.host}:${config.port}');
   final stopped = Completer<void>();
   final signals = [

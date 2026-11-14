@@ -2,6 +2,7 @@ import 'package:tradex/core/utils/share_actions.dart';
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../widgets/community_comment_composer.dart';
 import 'package:tradex/features/market_data/presentation/market_sidebar.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
@@ -64,10 +65,8 @@ class CommunityPostDetailView extends StatefulWidget {
 }
 
 class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
-  final TextEditingController _mobileQuickReplyCtrl = TextEditingController();
   final FocusNode _mobileReplyFocusNode = FocusNode();
   final ScrollController _rightSidebarController = ScrollController();
-  bool _mobileSubmitting = false;
   bool? _authorFollowingOverride;
   late CommunityPost _currentPost = widget.post;
 
@@ -84,7 +83,6 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
 
   @override
   void dispose() {
-    _mobileQuickReplyCtrl.dispose();
     _mobileReplyFocusNode.dispose();
     _rightSidebarController.dispose();
     widget.repository.removeListener(_onDataChanged);
@@ -223,30 +221,6 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
       message:
           'Trade setup for ${setup.ticker} is ready to review in your journal.',
     );
-  }
-
-  Future<void> _handleMobileQuickReply() async {
-    final text = _mobileQuickReplyCtrl.text.trim();
-    if (text.isEmpty || _mobileSubmitting) return;
-
-    setState(() => _mobileSubmitting = true);
-    try {
-      await widget.repository.addComment(
-        widget.post.id,
-        text,
-        author: widget.currentUser,
-      );
-      _mobileQuickReplyCtrl.clear();
-      if (!mounted) return;
-      UiToast.show(
-        context,
-        title: 'Reply sent for review',
-        message: 'An admin must approve it before it appears in the thread.',
-        intent: UiIntent.success,
-      );
-    } finally {
-      if (mounted) setState(() => _mobileSubmitting = false);
-    }
   }
 
   bool get _isAuthor {
@@ -413,7 +387,10 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     size: UiSize.xs,
                     tooltip: 'Copy Thread Link',
                     onPressed: () async {
-                      if (await ShareActions.copy(context, CommunityShareSheet.postUrl(post))) {
+                      if (await ShareActions.copy(
+                        context,
+                        CommunityShareSheet.postUrl(post),
+                      )) {
                         widget.repository.recordShare(post.id);
                       }
                     },
@@ -627,6 +604,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: <Widget>[
                             CommunityPostCard(
+                              inlineComments: false,
                               key: ValueKey<String>(
                                 'detail_${_currentPost.id}',
                               ),
@@ -659,6 +637,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                             UniversalCommentsSection(
                               targetId: widget.post.id,
                               targetType: 'post',
+                              repository: widget.repository,
+                              postAuthorId: _currentPost.author.id,
                               comments: comments,
                               currentUser: widget.currentUser,
                               isPublic: _currentPost.isPublic,
@@ -775,6 +755,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   CommunityPostCard(
+                    inlineComments: false,
                     key: ValueKey<String>('detail_${_currentPost.id}'),
                     post: _currentPost,
                     variant: CommunityPostCardVariant.boxed,
@@ -809,6 +790,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     showPrimaryComposer: !isMobile,
                     targetId: widget.post.id,
                     targetType: 'post',
+                    repository: widget.repository,
+                    postAuthorId: _currentPost.author.id,
                     comments: comments,
                     currentUser: widget.currentUser,
                     isPublic: _currentPost.isPublic,
@@ -863,10 +846,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   // Desktop Sidebar Companion Cards
   // ---------------------------------------------------------------------------
 
-  Widget _buildAuthorProfileCard(
-    UiTheme theme,
-    CommunityAuthor postAuthor,
-  ) {
+  Widget _buildAuthorProfileCard(UiTheme theme, CommunityAuthor postAuthor) {
     final author = widget.repository.authorById(postAuthor.id) ?? postAuthor;
     final bool isCurrentUser = _isAuthor;
     final bool isFollowing = _authorFollowingOverride ?? author.isFollowing;
@@ -1334,56 +1314,23 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   // Mobile Sticky Bottom Quick Reply Bar
   // ---------------------------------------------------------------------------
 
-  Widget _buildMobileStickyReplyBar(UiTheme theme) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        context.sp(theme.spacing.xs),
-        context.sp(theme.spacing.xs),
-        context.sp(theme.spacing.xs),
-        context.sp(theme.spacing.xs) + bottomInset,
-      ),
-      decoration: BoxDecoration(
-        color: theme.colors.surface,
-        border: Border(
-          top: BorderSide(
-            color: theme.colors.border,
-            width: theme.borders.hairline,
-          ),
+  Widget _buildMobileStickyReplyBar(UiTheme theme) => UiCard(
+    variant: UiCardVariant.surface,
+    radius: theme.radii.none,
+    padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
+    child: SafeArea(
+      top: false,
+      child: CommunityCommentComposer(
+        author: widget.currentUser,
+        focusNode: _mobileReplyFocusNode,
+        hintText:
+            'Reply to @${widget.post.author.handle.replaceFirst(RegExp(r'^@'), '')}...',
+        onSubmit: (text) => widget.repository.addComment(
+          widget.post.id,
+          text,
+          author: widget.currentUser,
         ),
       ),
-      child: SafeArea(
-        top: false,
-        bottom: false,
-        child: Row(
-          children: [
-            UiAvatar(
-              name: widget.currentUser.displayName,
-              imageUrl: widget.currentUser.avatarUrl,
-              size: UiSize.xs,
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            Expanded(
-              child: UiInput(
-                controller: _mobileQuickReplyCtrl,
-                focusNode: _mobileReplyFocusNode,
-                hintText:
-                    'Reply to @${widget.post.author.handle.replaceFirst(RegExp(r'^@'), '')}...',
-                size: UiSize.sm,
-              ),
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            UiButton(
-              label: 'Reply',
-              size: UiSize.sm,
-              loading: _mobileSubmitting,
-              expandOnMobile: false,
-              onPressed: _handleMobileQuickReply,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    ),
+  );
 }

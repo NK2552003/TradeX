@@ -205,6 +205,25 @@ void main() {
       final httpUri = Uri.parse('https://example.com/chart.png');
       expect(NoteAttachments.refOf(httpUri), isNull);
     });
+
+    test('NoteAttachments.extractRefs extracts owned attachment refs and ignores ticker/external links', () {
+      const md = '''
+# Trade Review
+Look at [\$AAPL](tradex://ticker/AAPL) and [External](https://example.com/image.png).
+![Chart 1](local-image://user-1/note-1/chart1.webp)
+[Report PDF](local-file://user-1/note-1/report.pdf)
+![Legacy](https://xyz.supabase.co/storage/v1/object/public/note-attachments/user-1/note-1/legacy.webp)
+''';
+      final refs = NoteAttachments.extractRefs(md);
+      expect(
+        refs,
+        equals(<String>{
+          'user-1/note-1/chart1.webp',
+          'user-1/note-1/report.pdf',
+          'user-1/note-1/legacy.webp',
+        }),
+      );
+    });
   });
 
   group('Issue #39: Work Item 3 - Authenticated AI Refactoring & No Simulated Success', () {

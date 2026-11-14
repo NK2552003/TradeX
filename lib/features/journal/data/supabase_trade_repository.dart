@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
 
 abstract class SupabaseTradeRepository {
@@ -66,13 +69,31 @@ class SupabaseTradeRepositoryImpl implements SupabaseTradeRepository {
     await _repo.delete(entryId);
   }
 
+  static Map<String, dynamic> _emptyPortfolioStats() => <String, dynamic>{
+    'total_trades': 0,
+    'winning_trades': 0,
+    'win_rate_percent': 0.0,
+    'total_pnl': 0.0,
+    'avg_rr': 0.0,
+    'best_trade_pnl': 0.0,
+  };
+
   @override
   Future<Map<String, dynamic>> getPortfolioStats() async {
+    final String? callerId =
+        SupabaseConfig.client?.auth.currentUser?.id ??
+        SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+        AuthBackendService.instance.currentUserProfile?.id;
+
     if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        if (user != null) {
+      final client = SupabaseConfig.client!;
+      final user = client.auth.currentUser;
+      if (user == null) {
+        if (!CustomerDataPolicy.allowDemo) {
+          return _emptyPortfolioStats();
+        }
+      } else {
+        try {
           final res = await client
               .from('portfolio_stats')
               .select()
@@ -80,15 +101,28 @@ class SupabaseTradeRepositoryImpl implements SupabaseTradeRepository {
               .maybeSingle();
 
           if (res != null) {
-            return Map<String, dynamic>.from(res);
+            final rowUserId = res['user_id']?.toString();
+            if (rowUserId == null || rowUserId == user.id) {
+              return Map<String, dynamic>.from(res);
+            }
           }
+        } catch (e) {
+          debugPrint('[SupabaseTradeRepository] getPortfolioStats error: $e');
         }
-      } catch (e) {
-        debugPrint('[SupabaseTradeRepository] getPortfolioStats error: $e');
       }
     }
 
-    final trades = await _repo.fetchAll();
+    if ((callerId == null || callerId.isEmpty) &&
+        !CustomerDataPolicy.allowDemo) {
+      return _emptyPortfolioStats();
+    }
+
+    final allTrades = await _repo.fetchAll();
+    final trades = (callerId != null && callerId.isNotEmpty)
+        ? allTrades
+              .where((t) => t.userId.isEmpty || t.userId == callerId)
+              .toList()
+        : allTrades;
     final closed = trades.where((t) => !t.isOpen).toList();
     final wins = closed.where((t) => t.outcome == AppOutcome.win).length;
     final double netPnl = closed.fold(0.0, (sum, t) => sum + t.pnl);

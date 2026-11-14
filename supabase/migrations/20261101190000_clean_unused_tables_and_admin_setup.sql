@@ -82,7 +82,16 @@ DELETE FROM public.watchlist_items;
 DELETE FROM public.watchlists;
 DELETE FROM public.data_export_requests;
 DELETE FROM public.invoices;
-DELETE FROM public.portfolio_stats;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relname = 'portfolio_stats' AND c.relkind = 'r'
+  ) THEN
+    EXECUTE 'DELETE FROM public.portfolio_stats';
+  END IF;
+END $$;
 DELETE FROM public.organization_members;
 DELETE FROM public.organizations;
 DELETE FROM public.subscriptions

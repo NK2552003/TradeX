@@ -469,9 +469,28 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     return _profile;
   }
 
+  static String? _extractAvatarStoragePath(String? url, String userId) {
+    if (url == null || url.isEmpty || url.startsWith('data:') || userId.isEmpty) {
+      return null;
+    }
+    final uri = Uri.tryParse(url.trim());
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+      final segments = uri.pathSegments;
+      final idx = segments.indexOf('avatars');
+      if (idx != -1 && idx < segments.length - 1) {
+        final path = segments.sublist(idx + 1).join('/');
+        if (path.startsWith('${userId}_') || path.startsWith('$userId/')) {
+          return path;
+        }
+      }
+    }
+    return null;
+  }
+
   @override
   Future<String> uploadAvatar(Uint8List imageBytes, String contentType) async {
     String finalAvatarUrl = '';
+    final previousAvatarUrl = _profile.avatarUrl;
     final compressed = await AttachmentCompressionService.compressAttachment(
       bytes: imageBytes,
       filename: 'avatar.png',
@@ -490,6 +509,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
           '';
       if (targetUserId.isEmpty) return finalAvatarUrl;
 
+      String? uploadedFileName;
       try {
         final ext = compressed.filename.contains('.')
             ? compressed.filename.split('.').last
@@ -503,6 +523,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
               effectiveBytes,
               fileOptions: FileOptions(contentType: effectiveMime, upsert: true),
             );
+        uploadedFileName = fileName;
         final publicUrl = client.storage.from('avatars').getPublicUrl(fileName);
         if (publicUrl.isNotEmpty) {
           finalAvatarUrl = publicUrl;
@@ -522,10 +543,27 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
             .from('profiles')
             .update({'avatar_url': finalAvatarUrl})
             .eq('id', targetUserId);
+        final oldPath = _extractAvatarStoragePath(
+          previousAvatarUrl,
+          targetUserId,
+        );
+        if (oldPath != null && oldPath != uploadedFileName) {
+          try {
+            await client.storage.from('avatars').remove(<String>[oldPath]);
+          } catch (_) {}
+        }
       } catch (e) {
         debugPrint(
           '[ProfileSettingsRepository] uploadAvatar database update error: $e',
         );
+        if (uploadedFileName != null) {
+          try {
+            await client.storage
+                .from('avatars')
+                .remove(<String>[uploadedFileName]);
+          } catch (_) {}
+        }
+        rethrow;
       }
     } else {
       finalAvatarUrl = 'data:$effectiveMime;base64,${base64Encode(effectiveBytes)}';
@@ -537,6 +575,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
 
   @override
   Future<void> removeAvatar() async {
+    final previousAvatarUrl = _profile.avatarUrl;
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
@@ -550,6 +589,15 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
             .from('profiles')
             .update({'avatar_url': null})
             .eq('id', targetUserId);
+        final oldPath = _extractAvatarStoragePath(
+          previousAvatarUrl,
+          targetUserId,
+        );
+        if (oldPath != null) {
+          try {
+            await client.storage.from('avatars').remove(<String>[oldPath]);
+          } catch (_) {}
+        }
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] removeAvatar error: $e');
       }

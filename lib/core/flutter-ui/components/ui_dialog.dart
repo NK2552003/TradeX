@@ -32,6 +32,15 @@ class UiDialog extends StatelessWidget {
   final Widget? footer;
   final UiIntent intent;
 
+  /// Matching entrance and exit timing for native modal sheets.
+  static AnimationStyle sheetAnimationStyle(BuildContext context) =>
+      MediaQuery.disableAnimationsOf(context)
+      ? AnimationStyle.noAnimation
+      : AnimationStyle(
+          duration: context.ui.motion.slow,
+          reverseDuration: context.ui.motion.normal,
+        );
+
   /// Completes after the closing transition has removed the dialog's fields.
   /// Callers may then safely dispose their text controllers.
   static Future<T?> present<T>({
@@ -41,8 +50,14 @@ class UiDialog extends StatelessWidget {
     Color? barrierColor,
   }) async {
     final navigator = Navigator.of(context, rootNavigator: true);
-    final route = DialogRoute<T>(
+    final route = _UiDialogRoute<T>(
       context: context,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : context.ui.motion.slow,
+      reverseDuration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : context.ui.motion.normal,
       builder: builder,
       themes: InheritedTheme.capture(from: context, to: navigator.context),
       barrierDismissible: barrierDismissible,
@@ -74,7 +89,9 @@ class UiDialog extends StatelessWidget {
         );
         final body = _UiDialogHost(pinFooter: pinFooter, child: child);
         final panel = AnimatedPadding(
-          duration: theme.motion.fast,
+          duration: MediaQuery.disableAnimationsOf(ctx)
+              ? Duration.zero
+              : theme.motion.fast,
           padding:
               MediaQuery.viewInsetsOf(ctx) +
               EdgeInsets.all(ctx.sp(mobile ? 0 : theme.spacing.md)),
@@ -290,6 +307,50 @@ class UiDialog extends StatelessWidget {
               child: _UiDialogHost(child: completeBody),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UiDialogRoute<T> extends DialogRoute<T> {
+  _UiDialogRoute({
+    required super.context,
+    required super.builder,
+    required super.themes,
+    required super.barrierDismissible,
+    required super.barrierColor,
+    required this.duration,
+    required this.reverseDuration,
+  });
+
+  final Duration duration;
+  final Duration reverseDuration;
+
+  @override
+  Duration get transitionDuration => duration;
+
+  @override
+  Duration get reverseTransitionDuration => reverseDuration;
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (duration == Duration.zero) return child;
+    final progress = animation.drive(CurveTween(curve: Curves.easeOutCubic));
+    return FadeTransition(
+      opacity: progress,
+      child: SlideTransition(
+        position: progress.drive(
+          Tween(begin: const Offset(0, .025), end: Offset.zero),
+        ),
+        child: ScaleTransition(
+          scale: progress.drive(Tween(begin: .98, end: 1.0)),
+          child: child,
         ),
       ),
     );

@@ -465,10 +465,18 @@ BEGIN
   IF TG_OP = 'UPDATE' AND (v_new->'admin_hidden') IS DISTINCT FROM (v_old->'admin_hidden') THEN
     RAISE EXCEPTION 'Only administrators can restore moderated records' USING ERRCODE = '42501';
   END IF;
-  IF TG_OP = 'UPDATE' AND TG_TABLE_NAME IN ('community_posts','community_comments','community_poll_options') AND
-    (v_new - ARRAY['views_count','likes_count','comments_count','reposts_count','bookmarks_count','votes_count','updated_at']) =
-    (v_old - ARRAY['views_count','likes_count','comments_count','reposts_count','bookmarks_count','votes_count','updated_at']) THEN
-    RETURN NEW;
+  IF TG_OP = 'UPDATE' AND TG_TABLE_NAME IN ('community_posts','community_comments','community_poll_options') AND EXISTS (
+    SELECT 1 FROM unnest(ARRAY['views_count','likes_count','comments_count','reposts_count','bookmarks_count','votes_count']) k
+    WHERE v_new ? k AND v_new->k IS DISTINCT FROM v_old->k
+  ) THEN
+    IF coalesce(current_setting('tradex.trusted_counter_write', true), '') = 'on' THEN
+      IF (v_new - ARRAY['views_count','likes_count','comments_count','reposts_count','bookmarks_count','votes_count','updated_at']) =
+         (v_old - ARRAY['views_count','likes_count','comments_count','reposts_count','bookmarks_count','votes_count','updated_at']) THEN
+        RETURN NEW;
+      END IF;
+    ELSE
+      RAISE EXCEPTION 'Derived engagement counters cannot be modified directly' USING ERRCODE = '42501';
+    END IF;
   END IF;
   IF TG_OP='UPDATE' AND TG_TABLE_NAME='chat_threads' AND v_new->'created_by' IS DISTINCT FROM v_old->'created_by' THEN
     RAISE EXCEPTION 'Conversation ownership cannot be changed' USING ERRCODE='42501';

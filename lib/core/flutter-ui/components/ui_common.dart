@@ -413,6 +413,7 @@ class UiInteractive extends StatefulWidget {
     this.autofocus = false,
     this.forceState,
     this.trackHover = true,
+    this.pressScale = 1,
   });
 
   final Widget Function(BuildContext context, UiInteractiveState state) builder;
@@ -431,12 +432,43 @@ class UiInteractive extends StatefulWidget {
   final bool autofocus;
   final UiInteractiveState? forceState;
   final bool trackHover;
+  final double pressScale;
 
   @override
   State<UiInteractive> createState() => _UiInteractiveState();
 }
 
 class _UiInteractiveState extends State<UiInteractive> {
+  late FocusNode _activationFocus;
+  bool _ownsActivationFocus = false;
+
+  void _resolveActivationFocus() {
+    _ownsActivationFocus = widget.focusNode == null;
+    _activationFocus =
+        widget.focusNode ?? FocusNode(debugLabel: 'UiInteractive');
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveActivationFocus();
+  }
+
+  @override
+  void didUpdateWidget(UiInteractive oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusNode != widget.focusNode) {
+      if (_ownsActivationFocus) _activationFocus.dispose();
+      _resolveActivationFocus();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_ownsActivationFocus) _activationFocus.dispose();
+    super.dispose();
+  }
+
   bool _hovered = false;
   bool _pressed = false;
   bool _focused = false;
@@ -474,7 +506,7 @@ class _UiInteractiveState extends State<UiInteractive> {
       selected: widget.selected,
       child: FocusableActionDetector(
         enabled: widget.enabled,
-        focusNode: widget.focusNode,
+        focusNode: _activationFocus,
         autofocus: widget.autofocus,
         mouseCursor: widget.enabled
             ? widget.cursor
@@ -486,7 +518,9 @@ class _UiInteractiveState extends State<UiInteractive> {
           SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
         },
         actions: <Type, Action<Intent>>{
-          ActivateIntent: CallbackAction<ActivateIntent>(
+          ActivateIntent: _UiActivationAction(
+            canActivate: () =>
+                widget.enabled && _activationFocus.hasPrimaryFocus,
             onInvoke: (_) {
               if (widget.enabled) widget.onTap?.call();
               return null;
@@ -501,7 +535,16 @@ class _UiInteractiveState extends State<UiInteractive> {
           onTapDown: tappable ? (_) => setState(() => _pressed = true) : null,
           onTapUp: tappable ? (_) => setState(() => _pressed = false) : null,
           onTapCancel: tappable ? () => setState(() => _pressed = false) : null,
-          child: widget.builder(context, state),
+          child: AnimatedScale(
+            scale: state.pressed && !MediaQuery.disableAnimationsOf(context)
+                ? widget.pressScale
+                : 1,
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : context.ui.motion.fast,
+            curve: context.ui.motion.curve,
+            child: widget.builder(context, state),
+          ),
         ),
       ),
     );
@@ -511,6 +554,15 @@ class _UiInteractiveState extends State<UiInteractive> {
     }
     return child;
   }
+}
+
+// An interactive surface must not consume typing in its descendant fields.
+class _UiActivationAction extends CallbackAction<ActivateIntent> {
+  _UiActivationAction({required this.canActivate, required super.onInvoke});
+  final bool Function() canActivate;
+
+  @override
+  bool isEnabled(ActivateIntent intent) => canActivate();
 }
 
 /// Focus ring decoration derived from tokens.

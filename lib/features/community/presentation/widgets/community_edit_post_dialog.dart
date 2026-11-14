@@ -28,6 +28,7 @@ class CommunityEditPostDialog extends StatelessWidget {
     if (isMobile) {
       return showModalBottomSheet<void>(
         context: context,
+        sheetAnimationStyle: UiDialog.sheetAnimationStyle(context),
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         barrierColor: context.uiColors.overlay,
@@ -51,7 +52,7 @@ class CommunityEditPostDialog extends StatelessWidget {
       );
     }
 
-    return showDialog<void>(
+    return UiDialog.present<void>(
       context: context,
       barrierColor: context.uiColors.overlay,
       builder: (BuildContext ctx) => Dialog(

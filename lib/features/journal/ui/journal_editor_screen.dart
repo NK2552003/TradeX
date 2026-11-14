@@ -24,6 +24,7 @@ import 'package:tradex/features/linking/record_link_picker.dart';
 import 'package:tradex/core/markdown_kit/markdown_kit.dart';
 import 'package:tradex/features/linking/link_graph_service.dart';
 import 'package:tradex/features/notes/data/note_ai_refactor.dart';
+import 'package:tradex/features/notes/data/note_attachments.dart';
 
 import '../data/journal_attachments.dart';
 import '../data/journal_repository.dart';
@@ -158,6 +159,8 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
   bool _refactoring = false;
   bool _detailsOpen = false;
   String _voiceBase = '';
+  final Set<String> _sessionUploadedRefs = <String>{};
+  bool _createdAsSilentDraftForAttachment = false;
 
   @override
   void initState() {
@@ -205,6 +208,9 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
 
   @override
   void dispose() {
+    if (!_saving && (_sessionUploadedRefs.isNotEmpty || (_createdAsSilentDraftForAttachment && _isBlank))) {
+      _discardUncommittedAttachments(deleteBootstrapDraft: _isBlank);
+    }
     _previewDebounce?.cancel();
     if (_listening) _speech.stop();
     _graphSub?.cancel();
@@ -405,7 +411,28 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
   ///
   /// The one hard requirement is an instrument: the journal is filed by ticker,
   /// and an entry without one cannot be found again or grouped with its siblings.
-  Future<AppTrade?> _save({bool silent = false}) async {
+  void _discardUncommittedAttachments({bool deleteBootstrapDraft = false}) {
+    final repo = JournalRepositoryScope.repository;
+    if (_sessionUploadedRefs.isNotEmpty) {
+      final uncommitted = _sessionUploadedRefs.toList();
+      _sessionUploadedRefs.clear();
+      for (final ref in uncommitted) {
+        unawaited(repo.deleteAttachment(ref).catchError((_) {}));
+      }
+    }
+    if (deleteBootstrapDraft &&
+        _createdAsSilentDraftForAttachment &&
+        _entry.id.isNotEmpty) {
+      final draftId = _entry.id;
+      _createdAsSilentDraftForAttachment = false;
+      unawaited(repo.delete(draftId).catchError((_) {}));
+    }
+  }
+
+  Future<AppTrade?> _save({
+    bool silent = false,
+    bool forAttachmentBootstrap = false,
+  }) async {
     if (_saving) return null;
     if (_ticker.text.trim().isEmpty) {
       if (!silent && mounted) {
@@ -486,6 +513,17 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
           ? await repo.create(draft)
           : await repo.update(draft);
       saved = await _reconcileLinks(saved, before: before);
+      if (!forAttachmentBootstrap) {
+        _createdAsSilentDraftForAttachment = false;
+        if (_sessionUploadedRefs.isNotEmpty) {
+          final activeRefs = NoteAttachments.extractRefs(saved.content);
+          final abandoned = _sessionUploadedRefs.difference(activeRefs).toList();
+          _sessionUploadedRefs.clear();
+          for (final ref in abandoned) {
+            unawaited(repo.deleteAttachment(ref).catchError((_) {}));
+          }
+        }
+      }
       if (!mounted) return saved;
       setState(() {
         _entry = saved;
@@ -605,7 +643,9 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
   /// then, and only they can say which symbol it belongs to.
   Future<void> _closeAndSave() async {
     if (_isBlank) {
-      widget.onClose(_entry.id.isEmpty ? null : _entry);
+      final wasBootstrap = _createdAsSilentDraftForAttachment;
+      _discardUncommittedAttachments(deleteBootstrapDraft: true);
+      widget.onClose(_entry.id.isEmpty || wasBootstrap ? null : _entry);
       return;
     }
     if (_ticker.text.trim().isEmpty) {
@@ -624,7 +664,9 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
         _tickerFocus.requestFocus();
         return;
       }
-      widget.onClose(_entry.id.isEmpty ? null : _entry);
+      final wasBootstrap = _createdAsSilentDraftForAttachment;
+      _discardUncommittedAttachments(deleteBootstrapDraft: true);
+      widget.onClose(_entry.id.isEmpty || wasBootstrap ? null : _entry);
       return;
     }
     if (_saving) return;
@@ -972,8 +1014,9 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
   /// otherwise the file would be stored against an id that does not exist yet,
   /// and the journal's bucket is keyed by entry.
   Future<void> _attachBytes(Uint8List bytes, {required String filename}) async {
-    final AppTrade? owner = _entry.id.isEmpty
-        ? await _save(silent: true)
+    final bool wasUnsaved = _entry.id.isEmpty;
+    final AppTrade? owner = wasUnsaved
+        ? await _save(silent: true, forAttachmentBootstrap: true)
         : _entry;
     if (!mounted) return;
     if (owner == null) {
@@ -984,13 +1027,20 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
       );
       return;
     }
+    if (wasUnsaved) {
+      _createdAsSilentDraftForAttachment = true;
+    }
     try {
       final String markdown = await JournalAttachments.attachBytes(
         entryId: owner.id,
         bytes: bytes,
         filename: filename,
       );
-      if (!mounted) return;
+      _sessionUploadedRefs.addAll(NoteAttachments.extractRefs(markdown));
+      if (!mounted) {
+        _discardUncommittedAttachments(deleteBootstrapDraft: _isBlank);
+        return;
+      }
       _editorKey.currentState?.insertBlock(markdown);
     } catch (error) {
       if (!mounted) return;

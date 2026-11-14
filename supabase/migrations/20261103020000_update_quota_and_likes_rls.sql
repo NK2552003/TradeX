@@ -1,18 +1,70 @@
 -- 20261103020000_update_quota_and_likes_rls.sql
--- 1. Fix community_likes RLS so all users can see distinct multi-reaction emoji clusters
-DROP POLICY IF EXISTS "Public read for likes" ON public.community_likes;
-CREATE POLICY "Public read for likes"
-    ON public.community_likes FOR SELECT
-    TO authenticated, anon
-    USING (true);
+-- 1. Restrict community_likes reads to posts the caller can see, and replace FOR ALL with write-specific policies
+ALTER TABLE public.community_posts
+  ADD COLUMN IF NOT EXISTS admin_hidden boolean NOT NULL DEFAULT false;
 
+DROP POLICY IF EXISTS "Public read for likes" ON public.community_likes;
 DROP POLICY IF EXISTS "Users manage own likes" ON public.community_likes;
 DROP POLICY IF EXISTS community_likes_manage ON public.community_likes;
-CREATE POLICY "Users manage own likes"
-    ON public.community_likes FOR ALL
+DROP POLICY IF EXISTS community_likes_visible_post_read ON public.community_likes;
+DROP POLICY IF EXISTS community_likes_insert ON public.community_likes;
+DROP POLICY IF EXISTS community_likes_update ON public.community_likes;
+DROP POLICY IF EXISTS community_likes_delete ON public.community_likes;
+
+CREATE POLICY community_likes_visible_post_read
+    ON public.community_likes FOR SELECT
+    TO authenticated, anon
+    USING (
+      EXISTS (
+        SELECT 1 FROM public.community_posts p
+        WHERE p.id = community_likes.post_id
+          AND NOT COALESCE(p.admin_hidden, false)
+      )
+    );
+
+CREATE POLICY community_likes_insert
+    ON public.community_likes FOR INSERT
     TO authenticated
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+    WITH CHECK (
+      user_id = (SELECT auth.uid())
+      AND EXISTS (
+        SELECT 1 FROM public.community_posts p
+        WHERE p.id = community_likes.post_id
+          AND NOT COALESCE(p.admin_hidden, false)
+      )
+    );
+
+CREATE POLICY community_likes_update
+    ON public.community_likes FOR UPDATE
+    TO authenticated
+    USING (
+      user_id = (SELECT auth.uid())
+      AND EXISTS (
+        SELECT 1 FROM public.community_posts p
+        WHERE p.id = community_likes.post_id
+          AND NOT COALESCE(p.admin_hidden, false)
+      )
+    )
+    WITH CHECK (
+      user_id = (SELECT auth.uid())
+      AND EXISTS (
+        SELECT 1 FROM public.community_posts p
+        WHERE p.id = community_likes.post_id
+          AND NOT COALESCE(p.admin_hidden, false)
+      )
+    );
+
+CREATE POLICY community_likes_delete
+    ON public.community_likes FOR DELETE
+    TO authenticated
+    USING (
+      user_id = (SELECT auth.uid())
+      AND EXISTS (
+        SELECT 1 FROM public.community_posts p
+        WHERE p.id = community_likes.post_id
+          AND NOT COALESCE(p.admin_hidden, false)
+      )
+    );
 
 -- 2. Update get_customer_quota_usage to fall back to profiles.subscription_tier
 CREATE OR REPLACE FUNCTION public.get_customer_quota_usage(target_user_id uuid DEFAULT NULL)

@@ -35,6 +35,7 @@ class UiIconButton extends StatelessWidget {
     final double dim = size.height(context);
 
     Widget child = UiInteractive(
+      pressScale: .92,
       enabled: onPressed != null,
       onTap: onPressed,
       semanticLabel: tooltip ?? 'button',
@@ -85,7 +86,9 @@ class UiIconButton extends StatelessWidget {
             ? c.onPrimary
             : c.foreground;
         return AnimatedContainer(
-          duration: theme.motion.fast,
+          duration: MediaQuery.disableAnimationsOf(ctx)
+              ? Duration.zero
+              : theme.motion.fast,
           width: dim,
           height: dim,
           alignment: Alignment.center,

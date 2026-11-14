@@ -120,6 +120,8 @@ class MessageAttachment {
     this.subtitle,
     this.url,
     this.thumbnailUrl,
+    this.storagePath,
+    this.signedUrlExpiresAt,
     this.sizeLabel,
     this.direction,
     this.entry,
@@ -137,6 +139,14 @@ class MessageAttachment {
   final String? subtitle;
   final String? url;
   final String? thumbnailUrl;
+
+  /// Canonical private object key in `chat-attachments`:
+  /// `<thread_id>/<uploader_id>/<generated_filename>`.
+  final String? storagePath;
+
+  /// Expiration timestamp for the currently resolved short-lived signed URL.
+  final DateTime? signedUrlExpiresAt;
+
   final String? sizeLabel;
 
   /// Trade-setup levels, only set when [kind] is [MessageAttachmentKind.tradeSetup].
@@ -153,6 +163,50 @@ class MessageAttachment {
   final String? chartType;
   final String? timeframe;
   final String? note;
+
+  bool get isSignedUrlExpired =>
+      signedUrlExpiresAt != null &&
+      DateTime.now().isAfter(
+        signedUrlExpiresAt!.subtract(const Duration(seconds: 15)),
+      );
+
+  MessageAttachment copyWith({
+    String? id,
+    MessageAttachmentKind? kind,
+    String? title,
+    String? subtitle,
+    String? url,
+    String? thumbnailUrl,
+    String? storagePath,
+    DateTime? signedUrlExpiresAt,
+    String? sizeLabel,
+    String? direction,
+    double? entry,
+    double? stop,
+    double? target,
+    List<UiCandle>? candles,
+    String? chartType,
+    String? timeframe,
+    String? note,
+  }) => MessageAttachment(
+    id: id ?? this.id,
+    kind: kind ?? this.kind,
+    title: title ?? this.title,
+    subtitle: subtitle ?? this.subtitle,
+    url: url ?? this.url,
+    thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+    storagePath: storagePath ?? this.storagePath,
+    signedUrlExpiresAt: signedUrlExpiresAt ?? this.signedUrlExpiresAt,
+    sizeLabel: sizeLabel ?? this.sizeLabel,
+    direction: direction ?? this.direction,
+    entry: entry ?? this.entry,
+    stop: stop ?? this.stop,
+    target: target ?? this.target,
+    candles: candles ?? this.candles,
+    chartType: chartType ?? this.chartType,
+    timeframe: timeframe ?? this.timeframe,
+    note: note ?? this.note,
+  );
 }
 
 // ---------------------------------------------------------------------------

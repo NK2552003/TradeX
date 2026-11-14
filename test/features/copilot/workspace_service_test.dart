@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -17,11 +18,16 @@ import '../../../server/copilot/workspace_actions.dart';
 
 void main() {
   late Directory directory;
+  late String testEncryptionKey;
   late WorkspaceStore store;
   late WorkspaceActions actions;
   setUp(() async {
     directory = await Directory.systemTemp.createTemp('tradex-copilot-test-');
-    store = WorkspaceStore(directory);
+    final rng = Random.secure();
+    testEncryptionKey = base64.encode(
+      List<int>.generate(32, (_) => rng.nextInt(255) + 1),
+    );
+    store = WorkspaceStore(directory, encryptionKey: testEncryptionKey);
     await store.open();
     actions = WorkspaceActions(store);
   });
@@ -47,7 +53,7 @@ void main() {
       await page();
       expect(records((await store.read('someone-else'))['pages']), isEmpty);
       await store.close();
-      store = WorkspaceStore(directory);
+      store = WorkspaceStore(directory, encryptionKey: testEncryptionKey);
       await store.open();
       expect(
         records((await store.read('owner'))['pages']).single['title'],
@@ -499,7 +505,7 @@ void main() {
         (state) => (state['schedules'] as List).first['status'] = 'running',
       );
       await store.close();
-      store = WorkspaceStore(directory);
+      store = WorkspaceStore(directory, encryptionKey: testEncryptionKey);
       await store.open();
       expect(
         records((await store.read('owner'))['schedules']).single['status'],
@@ -567,7 +573,7 @@ void main() {
       });
     });
     await store.close();
-    store = WorkspaceStore(directory);
+    store = WorkspaceStore(directory, encryptionKey: testEncryptionKey);
     await store.open();
     final saved = recordById(
       await store.read('owner'),

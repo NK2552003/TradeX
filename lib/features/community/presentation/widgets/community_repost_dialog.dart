@@ -24,6 +24,7 @@ class CommunityRepostDialog extends StatelessWidget {
   }) {
     return showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: UiDialog.sheetAnimationStyle(context),
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => Container(
         decoration: BoxDecoration(

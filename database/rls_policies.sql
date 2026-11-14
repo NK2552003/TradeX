@@ -653,63 +653,93 @@ ALTER TABLE chat_shared_refs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_reactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_user_presence ENABLE ROW LEVEL SECURITY;
 
--- Helper to break RLS infinite recursion
-CREATE OR REPLACE FUNCTION public.user_is_chat_participant(p_thread_id uuid, p_user_id uuid DEFAULT auth.uid())
+-- Private caller-scoped helpers break RLS recursion without exposing third-party membership
+CREATE SCHEMA IF NOT EXISTS tradex_private;
+REVOKE ALL ON SCHEMA tradex_private FROM PUBLIC, anon, authenticated;
+GRANT USAGE ON SCHEMA tradex_private TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION tradex_private.chat_member(p_thread uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT EXISTS (
+  SELECT auth.uid() IS NOT NULL AND EXISTS (
     SELECT 1 FROM public.chat_participants
-    WHERE thread_id = p_thread_id AND user_id = p_user_id
+    WHERE thread_id = p_thread AND user_id = auth.uid()
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION tradex_private.chat_owner(p_thread uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.chat_threads
+    WHERE id = p_thread AND created_by = auth.uid()
   );
 $$;
 
 DROP POLICY IF EXISTS chat_threads_select ON chat_threads;
-CREATE POLICY chat_threads_select ON chat_threads FOR SELECT
-    USING (created_by = auth.uid() OR public.user_is_chat_participant(id, auth.uid()));
+CREATE POLICY chat_threads_select ON chat_threads FOR SELECT TO authenticated
+    USING (tradex_private.chat_member(id) OR tradex_private.chat_owner(id));
 
 DROP POLICY IF EXISTS chat_threads_insert ON chat_threads;
-CREATE POLICY chat_threads_insert ON chat_threads FOR INSERT WITH CHECK (auth.uid() = created_by);
+CREATE POLICY chat_threads_insert ON chat_threads FOR INSERT TO authenticated
+    WITH CHECK (auth.uid() = created_by);
 
 DROP POLICY IF EXISTS chat_threads_update ON chat_threads;
-CREATE POLICY chat_threads_update ON chat_threads FOR UPDATE
-    USING (created_by = auth.uid() OR public.user_is_chat_participant(id, auth.uid()));
+CREATE POLICY chat_threads_update ON chat_threads FOR UPDATE TO authenticated
+    USING (tradex_private.chat_member(id) OR tradex_private.chat_owner(id))
+    WITH CHECK (tradex_private.chat_member(id) OR tradex_private.chat_owner(id));
 
 DROP POLICY IF EXISTS chat_participants_select ON chat_participants;
-CREATE POLICY chat_participants_select ON chat_participants FOR SELECT
-    USING (user_id = auth.uid() OR public.user_is_chat_participant(thread_id, auth.uid()));
+CREATE POLICY chat_participants_select ON chat_participants FOR SELECT TO authenticated
+    USING (tradex_private.chat_member(thread_id) OR tradex_private.chat_owner(thread_id));
 
 DROP POLICY IF EXISTS chat_participants_manage ON chat_participants;
-CREATE POLICY chat_participants_manage ON chat_participants FOR ALL
-    USING (auth.uid() = user_id OR public.user_is_chat_participant(thread_id, auth.uid()))
-    WITH CHECK (auth.uid() = user_id OR public.user_is_chat_participant(thread_id, auth.uid()));
+CREATE POLICY chat_participants_manage ON chat_participants FOR ALL TO authenticated
+    USING (auth.uid() = user_id OR tradex_private.chat_member(thread_id) OR tradex_private.chat_owner(thread_id))
+    WITH CHECK (auth.uid() = user_id OR tradex_private.chat_member(thread_id) OR tradex_private.chat_owner(thread_id));
 
 DROP POLICY IF EXISTS chat_messages_select ON chat_messages;
-CREATE POLICY chat_messages_select ON chat_messages FOR SELECT
-    USING (sender_id = auth.uid() OR public.user_is_chat_participant(thread_id, auth.uid()));
+CREATE POLICY chat_messages_select ON chat_messages FOR SELECT TO authenticated
+    USING (tradex_private.chat_member(thread_id));
 
 DROP POLICY IF EXISTS chat_messages_insert ON chat_messages;
-CREATE POLICY chat_messages_insert ON chat_messages FOR INSERT
-    WITH CHECK (auth.uid() = sender_id AND EXISTS (SELECT 1 FROM chat_participants WHERE chat_participants.thread_id = chat_messages.thread_id AND chat_participants.user_id = auth.uid()));
+CREATE POLICY chat_messages_insert ON chat_messages FOR INSERT TO authenticated
+    WITH CHECK (auth.uid() = sender_id AND tradex_private.chat_member(thread_id));
 
 DROP POLICY IF EXISTS chat_messages_delete ON chat_messages;
-CREATE POLICY chat_messages_delete ON chat_messages FOR DELETE USING (auth.uid() = sender_id);
+CREATE POLICY chat_messages_delete ON chat_messages FOR DELETE TO authenticated
+    USING (auth.uid() = sender_id AND tradex_private.chat_member(thread_id));
 
 DROP POLICY IF EXISTS chat_reactions_manage ON chat_reactions;
-CREATE POLICY chat_reactions_manage ON chat_reactions FOR ALL
-    USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM chat_messages m JOIN chat_participants p ON p.thread_id = m.thread_id WHERE m.id = chat_reactions.message_id AND p.user_id = auth.uid()))
+CREATE POLICY chat_reactions_manage ON chat_reactions FOR ALL TO authenticated
+    USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM chat_messages m WHERE m.id = chat_reactions.message_id AND tradex_private.chat_member(m.thread_id)))
     WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS chat_attachments_manage ON chat_attachments;
-CREATE POLICY chat_attachments_manage ON chat_attachments FOR ALL
-    USING (EXISTS (SELECT 1 FROM chat_messages m JOIN chat_participants p ON p.thread_id = m.thread_id WHERE m.id = chat_attachments.message_id AND p.user_id = auth.uid()));
+DROP POLICY IF EXISTS chat_attachments_read ON chat_attachments;
+DROP POLICY IF EXISTS chat_attachments_insert ON chat_attachments;
+DROP POLICY IF EXISTS chat_attachments_delete ON chat_attachments;
+CREATE POLICY chat_attachments_read ON chat_attachments FOR SELECT TO authenticated
+    USING (EXISTS (SELECT 1 FROM chat_messages m WHERE m.id = chat_attachments.message_id AND tradex_private.chat_member(m.thread_id)));
+CREATE POLICY chat_attachments_insert ON chat_attachments FOR INSERT TO authenticated
+    WITH CHECK (EXISTS (SELECT 1 FROM chat_messages m WHERE m.id = chat_attachments.message_id AND m.sender_id = (SELECT auth.uid()) AND tradex_private.chat_member(m.thread_id)));
+CREATE POLICY chat_attachments_delete ON chat_attachments FOR DELETE TO authenticated
+    USING (EXISTS (SELECT 1 FROM chat_messages m WHERE m.id = chat_attachments.message_id AND m.sender_id = (SELECT auth.uid()) AND tradex_private.chat_member(m.thread_id)));
 
 DROP POLICY IF EXISTS chat_shared_refs_manage ON chat_shared_refs;
-CREATE POLICY chat_shared_refs_manage ON chat_shared_refs FOR ALL
-    USING (EXISTS (SELECT 1 FROM chat_messages m JOIN chat_participants p ON p.thread_id = m.thread_id WHERE m.id = chat_shared_refs.message_id AND p.user_id = auth.uid()));
+CREATE POLICY chat_shared_refs_manage ON chat_shared_refs FOR ALL TO authenticated
+    USING (EXISTS (SELECT 1 FROM chat_messages m WHERE m.id = chat_shared_refs.message_id AND tradex_private.chat_member(m.thread_id)))
+    WITH CHECK (EXISTS (SELECT 1 FROM chat_messages m WHERE m.id = chat_shared_refs.message_id AND m.sender_id = (SELECT auth.uid()) AND tradex_private.chat_member(m.thread_id)));
+
+DROP FUNCTION IF EXISTS public.user_is_chat_participant(uuid, uuid);
 
 DROP POLICY IF EXISTS chat_user_presence_select ON chat_user_presence;
 CREATE POLICY chat_user_presence_select ON chat_user_presence FOR SELECT TO authenticated USING (true);
@@ -945,9 +975,59 @@ BEFORE UPDATE ON public.community_comments
 FOR EACH ROW EXECUTE FUNCTION public.check_community_comment_update();
 
 
+DROP POLICY IF EXISTS "Public read for likes" ON community_likes;
+DROP POLICY IF EXISTS "Users manage own likes" ON community_likes;
 DROP POLICY IF EXISTS community_likes_manage ON community_likes;
-CREATE POLICY community_likes_manage ON community_likes FOR ALL
-    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS community_likes_visible_post_read ON community_likes;
+DROP POLICY IF EXISTS community_likes_insert ON community_likes;
+DROP POLICY IF EXISTS community_likes_update ON community_likes;
+DROP POLICY IF EXISTS community_likes_delete ON community_likes;
+
+CREATE POLICY community_likes_visible_post_read ON community_likes
+    FOR SELECT TO anon, authenticated
+    USING (
+      EXISTS (
+        SELECT 1 FROM community_posts p
+        WHERE p.id = community_likes.post_id
+      )
+    );
+
+CREATE POLICY community_likes_insert ON community_likes
+    FOR INSERT TO authenticated
+    WITH CHECK (
+      user_id = (SELECT auth.uid())
+      AND EXISTS (
+        SELECT 1 FROM community_posts p
+        WHERE p.id = community_likes.post_id
+      )
+    );
+
+CREATE POLICY community_likes_update ON community_likes
+    FOR UPDATE TO authenticated
+    USING (
+      user_id = (SELECT auth.uid())
+      AND EXISTS (
+        SELECT 1 FROM community_posts p
+        WHERE p.id = community_likes.post_id
+      )
+    )
+    WITH CHECK (
+      user_id = (SELECT auth.uid())
+      AND EXISTS (
+        SELECT 1 FROM community_posts p
+        WHERE p.id = community_likes.post_id
+      )
+    );
+
+CREATE POLICY community_likes_delete ON community_likes
+    FOR DELETE TO authenticated
+    USING (
+      user_id = (SELECT auth.uid())
+      AND EXISTS (
+        SELECT 1 FROM community_posts p
+        WHERE p.id = community_likes.post_id
+      )
+    );
 
 DROP POLICY IF EXISTS community_bookmarks_manage ON community_bookmarks;
 CREATE POLICY community_bookmarks_manage ON community_bookmarks FOR ALL

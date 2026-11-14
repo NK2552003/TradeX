@@ -748,8 +748,44 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       _strategies[at] = saved;
     }
 
+    if (owned.isPublic && !saved.isPublic) {
+      StrategyAttachments.invalidateForStrategy(saved.id);
+      NoteAttachments.invalidate(saved.id);
+    }
+
     if (versionNote != null) {
       await saveVersion(saved.id, note: versionNote);
+    } else {
+      final existingVersions = _versions[saved.id];
+      if (existingVersions != null && existingVersions.isNotEmpty) {
+        final idx = existingVersions.indexWhere((v) => v.isCurrent);
+        if (idx != -1) {
+          existingVersions[idx] = _versionOf(
+            saved,
+            existingVersions[idx].version,
+            isCurrent: true,
+            note: existingVersions[idx].note,
+          );
+        }
+      }
+    }
+
+    final removedRefs = NoteAttachments.extractRefs(owned.content)
+        .difference(NoteAttachments.extractRefs(saved.content));
+    if (removedRefs.isNotEmpty) {
+      final historicalRefs = <String>{
+        for (final v in _versions[saved.id] ?? const <AppStrategyVersion>[])
+          if (!v.isCurrent) ...NoteAttachments.extractRefs(v.content),
+      };
+      for (final ref in removedRefs.difference(historicalRefs)) {
+        try {
+          await deleteAttachment(ref);
+        } catch (e) {
+          debugPrint(
+            '[StrategiesRepository] update attachment cleanup warning: $e',
+          );
+        }
+      }
     }
 
     _publish();
@@ -768,12 +804,35 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
+        final client = SupabaseConfig.client!;
+        final folder = '${owned.userId}/$id';
+        final files = await client.storage
+            .from('strategy-attachments')
+            .list(path: folder);
+        if (files.isNotEmpty) {
+          final filePaths = files.map((f) => '$folder/${f.name}').toList();
+          await client.storage.from('strategy-attachments').remove(filePaths);
+        }
         await OwnedRecordWriter().delete('strategies', id);
       } catch (e) {
         debugPrint('[StrategiesRepository] delete error: $e');
         rethrow;
       }
+    } else {
+      final allRefs = <String>{
+        ...NoteAttachments.extractRefs(owned.content),
+        for (final v in _versions[id] ?? const <AppStrategyVersion>[])
+          ...NoteAttachments.extractRefs(v.content),
+      };
+      for (final ref in allRefs) {
+        try {
+          await deleteAttachment(ref);
+        } catch (_) {}
+      }
     }
+
+    StrategyAttachments.invalidateForStrategy(id);
+    NoteAttachments.invalidate(id);
 
     _strategies.removeWhere((AppStrategy s) => s.id == id);
     _versions.remove(id);
@@ -861,6 +920,10 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       await OwnedRecordWriter().update('strategies', id, {
         'visibility': isPublic ? 'public' : 'private',
       });
+    }
+    if (!isPublic) {
+      StrategyAttachments.invalidateForStrategy(id);
+      NoteAttachments.invalidate(id);
     }
 
     return _mutate(id, (AppStrategy s) => s.copyWith(isPublic: isPublic));
@@ -1260,28 +1323,38 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
               fileBytes,
               fileOptions: FileOptions(
                 contentType: mimeType,
-                cacheControl: '3600',
-                upsert: true,
+                cacheControl: '300',
+                upsert: false,
               ),
             );
 
-        await client
-            .from('strategy_attachments')
-            .insert({
-              'strategy_id': strategyId,
-              'user_id': currentUserId,
-              'storage_path': storagePath,
-              'filename': rawFileName,
-              'mime_type': mimeType,
-              'byte_size': length,
-              'is_image': isImage,
-            })
-            .catchError((e) {
-              debugPrint(
-                '[StrategiesRepository] strategy_attachments insert warning: $e',
-              );
-              return <String, dynamic>{};
-            });
+        try {
+          await client
+              .from('strategy_attachments')
+              .insert({
+                'strategy_id': strategyId,
+                'user_id': currentUserId,
+                'storage_path': storagePath,
+                'filename': rawFileName,
+                'mime_type': mimeType,
+                'byte_size': length,
+                'is_image': isImage,
+              });
+        } catch (metaError) {
+          final isMissingTable = metaError is PostgrestException &&
+              (metaError.code == '42P01' || metaError.code == 'PGRST205');
+          if (!isMissingTable) {
+            try {
+              await client.storage
+                  .from('strategy-attachments')
+                  .remove(<String>[storagePath]);
+            } catch (_) {}
+            rethrow;
+          }
+          debugPrint(
+            '[StrategiesRepository] strategy_attachments insert warning: $metaError',
+          );
+        }
 
         return storagePath;
       } catch (e) {
@@ -1375,18 +1448,36 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       storagePath = storagePath.split('?').first;
     }
 
-    // 3. Authorization check: Private strategy attachments belong strictly to owner folder
+    if (storagePath.contains('..')) {
+      throw StateError('Unauthorized: invalid attachment storage path.');
+    }
+
+    // 3. Authorization check: Strategy attachments must match both the strategy
+    // ID and that strategy's actual owner, and require visibility when not owned
+    // by the current user.
     final currentUserId = _resolveUserId();
-    final pathSegments = storagePath.split('/');
+    final pathSegments = storagePath
+        .split('/')
+        .where((s) => s.isNotEmpty)
+        .toList();
     if (pathSegments.length >= 2) {
       final ownerId = pathSegments[0];
       final strategyId = pathSegments[1];
+      final strategy = await getById(strategyId);
 
-      // If owner does not match current user, check if strategy is public
-      if (ownerId != currentUserId) {
-        final strategy = await getById(strategyId);
-        final isPublic = strategy?.isPublic ?? false;
-        if (!isPublic) {
+      if (strategy == null) {
+        if (ownerId != currentUserId) {
+          throw StateError(
+            'Unauthorized: access denied to private attachment belonging to another user.',
+          );
+        }
+      } else {
+        if (strategy.userId.isNotEmpty && strategy.userId != ownerId) {
+          throw StateError(
+            'Unauthorized: attachment path owner does not match strategy owner.',
+          );
+        }
+        if (ownerId != currentUserId && !strategy.isPublic) {
           throw StateError(
             'Unauthorized: access denied to private attachment belonging to another user.',
           );
@@ -1401,14 +1492,14 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     }
 
     if (!SupabaseConfig.isConfigured) {
-      return ref;
+      return storagePath;
     }
 
-    // 4. Generate 1-hour (3600s) expiring signed access URL
+    // 4. Generate short-lived (300s) expiring signed access URL from private bucket
     try {
       return await SupabaseConfig.client!.storage
           .from('strategy-attachments')
-          .createSignedUrl(storagePath, 3600);
+          .createSignedUrl(storagePath, 300);
     } catch (e) {
       debugPrint('[StrategiesRepository] createSignedUrl error: $e');
       rethrow;

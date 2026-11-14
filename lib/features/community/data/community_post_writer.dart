@@ -138,18 +138,27 @@ class CommunityPostWriter {
     }
     final poll = post.poll;
     if (poll != null) {
+      final uuidPattern = RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+      );
       final saved = await client
           .from('community_polls')
           .insert({
+            if (uuidPattern.hasMatch(poll.id)) 'id': poll.id,
             'post_id': post.id,
             'question': poll.question,
             'expires_at': poll.expiresAt?.toIso8601String(),
           })
           .select('id')
           .single();
+      final pollId = saved['id'] ?? poll.id;
       await client.from('community_poll_options').insert([
         for (final option in poll.options)
-          {'poll_id': saved['id'], 'option_text': option.text},
+          {
+            if (uuidPattern.hasMatch(option.id)) 'id': option.id,
+            'poll_id': pollId,
+            'option_text': option.text,
+          },
       ]);
     }
   }

@@ -17,14 +17,16 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.chat_participants
-    WHERE thread_id = p_thread_id AND user_id = p_user_id
-  );
+  SELECT auth.uid() IS NOT NULL
+    AND p_user_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.chat_participants
+      WHERE thread_id = p_thread_id AND user_id = auth.uid()
+    );
 $$;
 
-REVOKE ALL ON FUNCTION public.user_is_chat_participant(uuid, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.user_is_chat_participant(uuid, uuid) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.user_is_chat_participant(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.user_is_chat_participant(uuid, uuid) TO authenticated, service_role;
 
 DROP POLICY IF EXISTS "Users can view threads they belong to" ON public.chat_threads;
 DROP POLICY IF EXISTS chat_threads_select ON public.chat_threads;
@@ -372,7 +374,8 @@ ALTER TABLE public.desk_risk_breaches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.account_deletion_requests ENABLE ROW LEVEL SECURITY;
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.desk_risk_configs TO authenticated, anon;
+REVOKE ALL ON public.desk_risk_configs FROM PUBLIC, anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.desk_risk_configs TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.desk_order_approvals TO authenticated, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.desk_risk_breaches TO authenticated, anon;
 GRANT SELECT, INSERT, UPDATE ON public.admin_audit_logs TO authenticated, anon;
@@ -387,11 +390,22 @@ GRANT ALL ON
 TO service_role;
 
 DROP POLICY IF EXISTS desk_risk_configs_read ON public.desk_risk_configs;
-CREATE POLICY desk_risk_configs_read ON public.desk_risk_configs FOR SELECT TO authenticated, anon USING (true);
-
 DROP POLICY IF EXISTS desk_risk_configs_write ON public.desk_risk_configs;
-CREATE POLICY desk_risk_configs_write ON public.desk_risk_configs FOR ALL TO authenticated
-  USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS desk_risk_configs_read_policy ON public.desk_risk_configs;
+CREATE POLICY desk_risk_configs_read_policy ON public.desk_risk_configs FOR SELECT TO authenticated
+  USING (
+    public.is_admin_caller()
+    OR EXISTS (
+      SELECT 1 FROM public.organization_members m
+      WHERE m.user_id = (SELECT auth.uid())
+        AND m.status = 'active'
+    )
+  );
+
+DROP POLICY IF EXISTS desk_risk_configs_admin_write_policy ON public.desk_risk_configs;
+CREATE POLICY desk_risk_configs_admin_write_policy ON public.desk_risk_configs FOR ALL TO authenticated
+  USING (public.is_admin_caller())
+  WITH CHECK (public.is_admin_caller());
 
 DROP POLICY IF EXISTS desk_order_approvals_all ON public.desk_order_approvals;
 CREATE POLICY desk_order_approvals_all ON public.desk_order_approvals FOR ALL TO authenticated, anon

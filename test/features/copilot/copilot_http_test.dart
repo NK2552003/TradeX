@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -15,12 +16,17 @@ http.Client _client() => IOClient(
   HttpOverrides.runWithHttpOverrides(() => HttpClient(), _LoopbackHttp()),
 );
 
+String _randomKey() {
+  final rng = Random.secure();
+  return base64.encode(List<int>.generate(32, (_) => rng.nextInt(255) + 1));
+}
+
 void main() {
   test('HTTP rejects missing identity and unapproved origins', () async {
     final directory = await Directory.systemTemp.createTemp('copilot-http-');
     final server = CopilotServer(
       CopilotConfig({'COPILOT_PORT': '0'}),
-      WorkspaceStore(directory),
+      WorkspaceStore(directory, encryptionKey: _randomKey()),
     );
     await server.start();
     final client = _client();
@@ -58,7 +64,7 @@ void main() {
     'workspace responses redact credentials and provider continuations',
     () async {
       final directory = await Directory.systemTemp.createTemp('copilot-http-');
-      final store = WorkspaceStore(directory);
+      final store = WorkspaceStore(directory, encryptionKey: _randomKey());
       final server = CopilotServer(
         CopilotConfig({
           'COPILOT_PORT': '0',

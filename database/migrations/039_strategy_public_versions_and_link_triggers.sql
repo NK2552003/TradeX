@@ -95,18 +95,30 @@ USING (
   )
 );
 
--- 4. Storage Objects RLS for strategy-attachments bucket
+-- 4. Storage Objects RLS for strategy-attachments bucket (private bucket, matching strategy & owner)
+UPDATE storage.buckets SET public = false WHERE id = 'strategy-attachments';
+
 DROP POLICY IF EXISTS strategy_attachments_owner_all ON storage.objects;
 CREATE POLICY strategy_attachments_owner_all ON storage.objects
 FOR ALL
 TO authenticated
 USING (
   bucket_id = 'strategy-attachments'
-  AND (storage.foldername(name))[1] = auth.uid()::text
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
+  AND EXISTS (
+    SELECT 1 FROM public.strategies s
+    WHERE s.id::text = (storage.foldername(name))[2]
+      AND s.user_id = (SELECT auth.uid())
+  )
 )
 WITH CHECK (
   bucket_id = 'strategy-attachments'
-  AND (storage.foldername(name))[1] = auth.uid()::text
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
+  AND EXISTS (
+    SELECT 1 FROM public.strategies s
+    WHERE s.id::text = (storage.foldername(name))[2]
+      AND s.user_id = (SELECT auth.uid())
+  )
 );
 
 DROP POLICY IF EXISTS strategy_attachments_objects_public_read ON storage.objects;
@@ -116,9 +128,25 @@ TO anon, authenticated
 USING (
   bucket_id = 'strategy-attachments'
   AND EXISTS (
-    SELECT 1 FROM strategies s
+    SELECT 1 FROM public.strategies s
      WHERE s.id::text = (storage.foldername(name))[2]
-       AND s.visibility = 'public'
+       AND s.user_id::text = (storage.foldername(name))[1]
+       AND (
+         s.visibility = 'public'
+         OR s.user_id = (SELECT auth.uid())
+       )
+       AND (
+         EXISTS (
+           SELECT 1 FROM public.strategy_attachments sa
+           WHERE sa.storage_path = storage.objects.name
+             AND sa.strategy_id = s.id
+             AND sa.user_id = s.user_id
+         )
+         OR NOT EXISTS (
+           SELECT 1 FROM public.strategy_attachments sa
+           WHERE sa.storage_path = storage.objects.name
+         )
+       )
   )
 );
 

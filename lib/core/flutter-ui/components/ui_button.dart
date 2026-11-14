@@ -184,6 +184,7 @@ class UiButton extends StatelessWidget {
             alignment ?? (autoAlignLeft ? Alignment.centerLeft : null);
 
         Widget core = UiInteractive(
+          pressScale: .97,
           enabled: _enabled,
           onTap: onPressed,
           onLongPress: onLongPress,
@@ -195,7 +196,9 @@ class UiButton extends StatelessWidget {
             final _ButtonStyle st = _resolve(ctx, s);
             final double h = style?.height ?? size.height(ctx);
             return AnimatedContainer(
-              duration: theme.motion.fast,
+              duration: MediaQuery.disableAnimationsOf(ctx)
+                  ? Duration.zero
+                  : theme.motion.fast,
               curve: theme.motion.curve,
               height: h,
               width: compactLabel ? h : null,

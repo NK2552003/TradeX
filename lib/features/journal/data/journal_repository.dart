@@ -14,6 +14,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
+import 'package:tradex/features/notes/data/note_attachments.dart';
 import 'package:uuid/uuid.dart';
 
 /// Everything the journal feature needs from storage.
@@ -729,6 +730,15 @@ class JournalRepositoryImpl implements JournalRepository {
     } else {
       _entries[at] = saved;
     }
+    final removedRefs = NoteAttachments.extractRefs(owned.content)
+        .difference(NoteAttachments.extractRefs(saved.content));
+    for (final ref in removedRefs) {
+      try {
+        await deleteAttachment(ref);
+      } catch (e) {
+        debugPrint('[JournalRepository] update attachment cleanup warning: $e');
+      }
+    }
     unawaited(_saveLocalCache());
     _publish();
     _recordTickerLinks(saved);
@@ -834,6 +844,12 @@ class JournalRepositoryImpl implements JournalRepository {
       } catch (e) {
         debugPrint('[JournalRepository] delete error: $e');
         rethrow;
+      }
+    } else {
+      for (final ref in NoteAttachments.extractRefs(owned.content)) {
+        try {
+          await deleteAttachment(ref);
+        } catch (_) {}
       }
     }
 
@@ -1073,24 +1089,34 @@ class JournalRepositoryImpl implements JournalRepository {
               ),
             );
 
-        await client
-            .from('journal_entry_attachments')
-            .insert({
-              'id': const Uuid().v4(),
-              'entry_id': entryId,
-              'user_id': currentUserId,
-              'storage_path': storagePath,
-              'filename': rawFileName,
-              'mime_type': _resolveMimeType(ext),
-              'byte_size': length,
-              'is_image': _isImageExtension(ext),
-            })
-            .catchError((e) {
-              debugPrint(
-                '[JournalRepository] journal_entry_attachments insert warning: $e',
-              );
-              return <String, dynamic>{};
-            });
+        try {
+          await client
+              .from('journal_entry_attachments')
+              .insert({
+                'id': const Uuid().v4(),
+                'entry_id': entryId,
+                'user_id': currentUserId,
+                'storage_path': storagePath,
+                'filename': rawFileName,
+                'mime_type': _resolveMimeType(ext),
+                'byte_size': length,
+                'is_image': _isImageExtension(ext),
+              });
+        } catch (metaError) {
+          final isMissingTable = metaError is PostgrestException &&
+              (metaError.code == '42P01' || metaError.code == 'PGRST205');
+          if (!isMissingTable) {
+            try {
+              await client.storage
+                  .from('journal-attachments')
+                  .remove(<String>[storagePath]);
+            } catch (_) {}
+            rethrow;
+          }
+          debugPrint(
+            '[JournalRepository] journal_entry_attachments insert warning: $metaError',
+          );
+        }
 
         return storagePath;
       } catch (e) {
@@ -1194,11 +1220,13 @@ class JournalRepositoryImpl implements JournalRepository {
     }
 
     final segments = cleanPath.split('/');
-    if (segments.isNotEmpty && segments.first != currentUserId) {
+    if (segments.length >= 2 && segments.first != currentUserId) {
       throw StateError(
         'Unauthorized: cannot delete another user\'s attachment.',
       );
     }
+
+    NoteAttachments.invalidate(cleanPath);
 
     if (SupabaseConfig.isConfigured) {
       try {

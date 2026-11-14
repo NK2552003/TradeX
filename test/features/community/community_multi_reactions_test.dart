@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart' show UiAvatar, UiAvatarGroup;
+import 'package:tradex/core/flutter-ui/flutter_ui.dart' show UiAvatar, UiAvatarGroup, UiButton;
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_engagement_bar.dart';
@@ -173,6 +173,17 @@ void main() {
         );
         await tester.pumpAndSettle();
         final rocket = tester.getCenter(find.byTooltip('Bullish'));
+        for (final emoji in ['👍', '🚀', '💡', '🔥', '❤️']) {
+          final button = find.byWidgetPredicate(
+            (widget) => widget is UiButton && widget.label == emoji,
+          );
+          final glyph = tester.getRect(find.text(emoji));
+          final target = tester.getRect(button);
+          expect(glyph.center.dx, closeTo(target.center.dx, 1));
+          expect(glyph.center.dy, closeTo(target.center.dy, 1));
+          expect(glyph.width, lessThan(target.width));
+          expect(glyph.height, lessThan(target.height));
+        }
         await mouse.moveTo(rocket);
         await tester.pump(const Duration(milliseconds: 300));
         expect(find.byTooltip('Bullish'), findsOneWidget);

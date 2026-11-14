@@ -463,7 +463,7 @@ void main() {
       ),
     );
     final inline = find.text(
-      'Share technical analysis, key levels, or ask a question...',
+      'Add a comment…',
     );
     final sticky = find.text('Reply to @${author.handle.replaceFirst('@', '')}...');
     for (final width in [390.0, 800.0, 1400.0, 390.0]) {

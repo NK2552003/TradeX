@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
 import 'ui_common.dart';
+import 'ui_button.dart';
 
 /// A single row, section header, or divider inside [UiDropdownMenu].
 class UiMenuItem {
@@ -12,6 +13,7 @@ class UiMenuItem {
     this.trailingIcon,
     this.shortcut,
     this.description,
+    this.leading,
     UiIntent? intent,
     bool destructive = false,
     this.enabled = true,
@@ -27,6 +29,7 @@ class UiMenuItem {
 
   const UiMenuItem.divider()
     : label = '',
+      leading = null,
       icon = null,
       trailingIcon = null,
       shortcut = null,
@@ -40,7 +43,8 @@ class UiMenuItem {
       isSection = false;
 
   const UiMenuItem.section(this.label)
-    : icon = null,
+    : leading = null,
+      icon = null,
       trailingIcon = null,
       shortcut = null,
       description = null,
@@ -53,6 +57,7 @@ class UiMenuItem {
       isSection = true;
 
   final String label;
+  final Widget? leading;
   final IconData? icon;
   final IconData? trailingIcon;
 
@@ -92,9 +97,13 @@ class UiDropdownMenu extends StatefulWidget {
     this.maxHeight = 360,
     this.closeOnSelect = true,
     this.semanticLabel,
+    this.axis = Axis.vertical,
   }) : items = items ?? actions ?? const <UiMenuItem>[];
 
   final List<UiMenuItem> items;
+
+  /// Use horizontal for compact reaction and quick-action palettes.
+  final Axis axis;
 
   /// The trigger widget.
   final Widget child;
@@ -116,7 +125,11 @@ class UiDropdownMenu extends StatefulWidget {
   State<UiDropdownMenu> createState() => _UiDropdownMenuState();
 }
 
-class _UiDropdownMenuState extends State<UiDropdownMenu> {
+class _UiDropdownMenuState extends State<UiDropdownMenu>
+    with SingleTickerProviderStateMixin {
+  late final _motion = AnimationController(vsync: this);
+  late final _progress = _motion.drive(CurveTween(curve: Curves.easeOutCubic));
+  bool _closing = false;
   final LayerLink _link = LayerLink();
   final GlobalKey _triggerKey = GlobalKey();
   OverlayEntry? _entry;
@@ -124,20 +137,45 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
   @override
   void dispose() {
     _remove();
+    _motion.dispose();
     super.dispose();
   }
 
   void _remove() {
     _entry?.remove();
+    _entry?.dispose();
     _entry = null;
+    _closing = false;
+  }
+
+  Future<void> _dismiss() async {
+    if (_entry == null || _closing) return;
+    _closing = true;
+    _entry?.markNeedsBuild();
+    try {
+      await _motion.reverse().orCancel;
+      if (!mounted) return;
+      _remove();
+      setState(() {});
+    } on TickerCanceled {
+      // Reopening or disposing cancels the closing transition.
+    }
   }
 
   void _toggle() {
     if (_entry != null) {
-      _remove();
-      setState(() {});
+      if (_closing) {
+        _closing = false;
+        _motion.forward();
+        _entry?.markNeedsBuild();
+      } else {
+        _dismiss();
+      }
       return;
     }
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    _motion.duration = reduced ? Duration.zero : context.ui.motion.normal;
+    _motion.reverseDuration = reduced ? Duration.zero : context.ui.motion.fast;
     final RenderBox? box =
         _triggerKey.currentContext?.findRenderObject() as RenderBox?;
     final double triggerWidth = box?.size.width ?? 160;
@@ -180,10 +218,7 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
-              onTap: () {
-                _remove();
-                setState(() {});
-              },
+              onTap: _dismiss,
             ),
           ),
           CompositedTransformFollower(
@@ -205,33 +240,46 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
                   ? -context.sz(widget.offset)
                   : context.sz(widget.offset),
             ),
-            child: _MenuSurface(
-              width: width,
-              maxHeight: math.max(
-                0,
-                math.min(
-                  widget.maxHeight,
-                  availableHeight / context.uiRes.scale.size,
+            child: FadeTransition(
+              opacity: _progress,
+              child: ScaleTransition(
+                scale: _progress.drive(Tween(begin: .95, end: 1.0)),
+                alignment: openUpward
+                    ? Alignment.bottomCenter
+                    : Alignment.topCenter,
+                child: IgnorePointer(
+                  ignoring: _closing,
+                  child: _MenuSurface(
+                    width: width,
+                    maxHeight: math.max(
+                      0,
+                      math.min(
+                        widget.maxHeight,
+                        availableHeight / context.uiRes.scale.size,
+                      ),
+                    ),
+                    size: widget.size,
+                    density: widget.density,
+                    header: widget.header,
+                    footer: widget.footer,
+                    items: widget.items,
+                    axis: widget.axis,
+                    onSelected: (UiMenuItem item) {
+                      if (widget.closeOnSelect) {
+                        _dismiss();
+                      }
+                      item.onTap?.call();
+                    },
+                  ),
                 ),
               ),
-              size: widget.size,
-              density: widget.density,
-              header: widget.header,
-              footer: widget.footer,
-              items: widget.items,
-              onSelected: (UiMenuItem item) {
-                if (widget.closeOnSelect) {
-                  _remove();
-                  if (mounted) setState(() {});
-                }
-                item.onTap?.call();
-              },
             ),
           ),
         ],
       ),
     );
     Overlay.of(context).insert(_entry!);
+    _motion.forward(from: 0);
     setState(() {});
   }
 
@@ -244,6 +292,7 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
         button: true,
         expanded: _entry != null,
         child: UiInteractive(
+          pressScale: .96,
           key: _triggerKey,
           enabled: widget.enabled,
           onTap: widget.enabled ? _toggle : null,
@@ -259,6 +308,7 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
 class _MenuSurface extends StatelessWidget {
   const _MenuSurface({
     required this.width,
+    required this.axis,
     required this.maxHeight,
     required this.items,
     required this.onSelected,
@@ -272,6 +322,7 @@ class _MenuSurface extends StatelessWidget {
   final double maxHeight;
   final List<UiMenuItem> items;
   final ValueChanged<UiMenuItem> onSelected;
+  final Axis axis;
   final UiSize size;
   final UiDensity density;
   final Widget? header;
@@ -288,7 +339,9 @@ class _MenuSurface extends StatelessWidget {
         width: width,
         decoration: BoxDecoration(
           color: c.surface,
-          borderRadius: context.radius(theme.radii.md),
+          borderRadius: context.radius(
+            axis == Axis.horizontal ? theme.radii.pill : theme.radii.md,
+          ),
           border: Border.all(color: c.border, width: theme.borders.hairline),
           boxShadow: theme.shadows.lg,
         ),
@@ -308,14 +361,42 @@ class _MenuSurface extends StatelessWidget {
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: context.sz(maxHeight)),
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    vertical: context.sp(theme.spacing.xxs),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: _rows(context, items, 0),
-                  ),
+                  padding: axis == Axis.horizontal
+                      ? EdgeInsets.all(context.sp(theme.spacing.xs))
+                      : EdgeInsets.symmetric(
+                          vertical: context.sp(theme.spacing.xxs),
+                        ),
+                  child: axis == Axis.horizontal
+                      ? Row(
+                          children: [
+                            for (final item in items)
+                              Expanded(
+                                child: UiButton(
+                                  label: item.label,
+                                  semanticLabel: item.description ?? item.label,
+                                  leading: item.leading,
+                                  iconOnly: item.leading != null,
+                                  alignment: Alignment.center,
+                                  rounded: true,
+                                  variant: UiVariant.ghost,
+                                  size: size,
+                                  selected: item.selected,
+                                  style: UiButtonStyle(
+                                    padding: EdgeInsets.zero,
+                                    textStyle: context.uiText.heading,
+                                  ),
+                                  onPressed: item.enabled
+                                      ? () => onSelected(item)
+                                      : null,
+                                ),
+                              ),
+                          ],
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: _rows(context, items, 0),
+                        ),
                 ),
               ),
             ),

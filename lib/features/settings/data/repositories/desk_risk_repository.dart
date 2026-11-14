@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/settings/models/desk_risk_model.dart';
 
 abstract class DeskRiskRepository {
@@ -14,7 +16,42 @@ class DeskRiskRepositoryImpl implements DeskRiskRepository {
   String _resolveUserId() =>
       SupabaseConfig.client?.auth.currentUser?.id ??
       SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+      AuthBackendService.instance.currentUserProfile?.id ??
       '';
+
+  Future<bool> _isCurrentUserAdmin() async {
+    final profile =
+        SupabaseAuthBackendService.instance.currentUserProfile ??
+        AuthBackendService.instance.currentUserProfile;
+    if (profile != null) {
+      return profile.role == UserRole.userAdmin;
+    }
+
+    if (SupabaseConfig.isConfigured) {
+      final client = SupabaseConfig.client;
+      final userId = client?.auth.currentUser?.id;
+      if (client != null && userId != null && userId.isNotEmpty) {
+        try {
+          final isAdminRes = await client.rpc('is_admin');
+          if (isAdminRes is bool) {
+            return isAdminRes;
+          }
+        } catch (_) {}
+
+        try {
+          final row = await client
+              .from('profiles')
+              .select('role')
+              .eq('id', userId)
+              .maybeSingle();
+          final role = row?['role']?.toString();
+          return role == UserRole.userAdmin.id || role == 'admin';
+        } catch (_) {}
+      }
+    }
+
+    return false;
+  }
 
   @override
   Future<DeskRiskModel> getDeskRiskConfig() async {
@@ -23,6 +60,19 @@ class DeskRiskRepositoryImpl implements DeskRiskRepository {
         final client = SupabaseConfig.client!;
         final targetUserId = _resolveUserId();
         if (targetUserId.isEmpty) return _config;
+
+        try {
+          final configRow = await client
+              .from('desk_risk_configs')
+              .select('*')
+              .order('updated_at', ascending: false)
+              .limit(1)
+              .maybeSingle();
+          if (configRow != null) {
+            _config = DeskRiskModel.fromJson(configRow);
+            return _config;
+          }
+        } catch (_) {}
 
         final data = await client
             .from('desk_risk_policies')
@@ -43,20 +93,44 @@ class DeskRiskRepositoryImpl implements DeskRiskRepository {
 
   @override
   Future<DeskRiskModel> updateDeskRiskConfig(DeskRiskModel updated) async {
+    final bool isAdmin = await _isCurrentUserAdmin();
+    if (!isAdmin) {
+      throw StateError(
+        'Only administrators can modify desk risk configuration.',
+      );
+    }
+
+    final targetUserId = _resolveUserId();
+    if (targetUserId.isEmpty) {
+      throw StateError(
+        'Authenticated administrator session required to update desk risk configuration.',
+      );
+    }
+
     _config = updated;
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        if (targetUserId.isEmpty) return _config;
+        final nowIso = DateTime.now().toUtc().toIso8601String();
+        final configPayload = <String, dynamic>{
+          ...updated.toJson(),
+          'updated_by': targetUserId,
+          'updated_at': nowIso,
+        };
 
-        final jsonMap = updated.toJson();
-        jsonMap['admin_id'] = targetUserId;
-        jsonMap['updated_at'] = DateTime.now().toIso8601String();
-
-        await client.from('desk_risk_policies').upsert(jsonMap);
+        try {
+          await client.from('desk_risk_configs').upsert(configPayload);
+        } catch (_) {
+          final policyPayload = <String, dynamic>{
+            ...updated.toJson(),
+            'admin_id': targetUserId,
+            'updated_at': nowIso,
+          };
+          await client.from('desk_risk_policies').upsert(policyPayload);
+        }
       } catch (e) {
         debugPrint('DeskRiskRepositoryImpl.updateDeskRiskConfig error: $e');
+        rethrow;
       }
     }
     return _config;

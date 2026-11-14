@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'community_emoji_picker.dart';
 
 /// LinkedIn-grade engagement action bar for community posts with floating emoji
 /// reactions support (👍, 🚀, 💡, 🔥, ❤️).
@@ -16,6 +17,7 @@ class CommunityEngagementBar extends StatefulWidget {
     required this.liked,
     required this.reposted,
     this.shared = false,
+    this.commentsExpanded = false,
     this.userReaction,
     this.reactions = const <String>[],
     this.onReply,
@@ -23,6 +25,7 @@ class CommunityEngagementBar extends StatefulWidget {
     this.onLike,
     this.onReact,
     this.onShare,
+    this.onShowReactions,
     this.showBorder = true,
   });
 
@@ -31,6 +34,7 @@ class CommunityEngagementBar extends StatefulWidget {
   final bool liked;
   final bool reposted;
   final bool shared;
+  final bool commentsExpanded;
   final String? userReaction;
   final List<String> reactions;
   final VoidCallback? onReply;
@@ -38,20 +42,36 @@ class CommunityEngagementBar extends StatefulWidget {
   final VoidCallback? onLike;
   final ValueChanged<String>? onReact;
   final VoidCallback? onShare;
+  final VoidCallback? onShowReactions;
   final bool showBorder;
 
   @override
   State<CommunityEngagementBar> createState() => _CommunityEngagementBarState();
 }
 
-class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
+class _CommunityEngagementBarState extends State<CommunityEngagementBar>
+    with SingleTickerProviderStateMixin {
+  late final _motion = AnimationController(vsync: this);
+  late final _progress = _motion.drive(CurveTween(curve: Curves.easeOutCubic));
+  bool _closing = false;
   final GlobalKey _likeButtonKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   Timer? _hideTimer;
 
   void _showOverlay() {
     _hideTimer?.cancel();
-    if (_overlayEntry != null) return;
+    if (_overlayEntry != null) {
+      if (_closing) {
+        _closing = false;
+        _motion.forward();
+        _overlayEntry?.markNeedsBuild();
+      }
+      return;
+    }
+
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    _motion.duration = reduced ? Duration.zero : context.ui.motion.normal;
+    _motion.reverseDuration = reduced ? Duration.zero : context.ui.motion.fast;
 
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
@@ -63,7 +83,8 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
 
     final RenderBox? box =
         _likeButtonKey.currentContext?.findRenderObject() as RenderBox?;
-    final RenderBox? overlayBox = overlay.context.findRenderObject() as RenderBox?;
+    final RenderBox? overlayBox =
+        overlay.context.findRenderObject() as RenderBox?;
     final Size boxSize = box?.size ?? const Size(44, 44);
     // Convert into the overlay's own coordinate space. Posts shown inside
     // drawers / side panels live in an offset overlay, so raw global
@@ -73,12 +94,17 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
         : (box?.localToGlobal(Offset.zero) ?? Offset.zero);
     final Size screenSize = overlayBox?.size ?? MediaQuery.sizeOf(context);
 
-    const double pillWidth = 216.0;
-    const double pillHeight = 44.0;
+    final double pillWidth = context.sz(240).clamp(0, screenSize.width - 16);
+    final double pillHeight =
+        context.sz(context.ui.sizes.controlHeightLg) +
+        context.sp(context.ui.spacing.xs) * 2 +
+        context.ui.borders.hairline * 2;
 
     // Center pill horizontally on the like button, clamped to overlay edges
-    final double left = (anchor.dx + boxSize.width / 2 - pillWidth / 2)
-        .clamp(8.0, (screenSize.width - pillWidth - 8.0).clamp(8.0, 9999.0));
+    final double left = (anchor.dx + boxSize.width / 2 - pillWidth / 2).clamp(
+      8.0,
+      (screenSize.width - pillWidth - 8.0).clamp(8.0, 9999.0),
+    );
 
     // Position above like button; if too close to top, flip below
     final double top = anchor.dy > pillHeight + 12
@@ -97,7 +123,8 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
                   onTap: () {
-                    if (DateTime.now().difference(openedAt).inMilliseconds > 350) {
+                    if (DateTime.now().difference(openedAt).inMilliseconds >
+                        350) {
                       _hideOverlay();
                     }
                   },
@@ -107,14 +134,24 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
               left: left,
               top: top,
               width: pillWidth,
-              child: _LinkedInReactionPill(
-                selectedEmoji: widget.liked ? widget.userReaction : null,
-                onSelect: (String emoji) {
-                  widget.onReact?.call(emoji);
-                  _hideOverlay();
-                },
-                onHoverEnter: () => _hideTimer?.cancel(),
-                onHoverExit: isMobile ? () {} : _scheduleHide,
+              child: FadeTransition(
+                opacity: _progress,
+                child: ScaleTransition(
+                  scale: _progress.drive(Tween(begin: .92, end: 1.0)),
+                  alignment: Alignment.bottomCenter,
+                  child: IgnorePointer(
+                    ignoring: _closing,
+                    child: _LinkedInReactionPill(
+                      selectedEmoji: widget.liked ? widget.userReaction : null,
+                      onSelect: (String emoji) {
+                        widget.onReact?.call(emoji);
+                        _hideOverlay();
+                      },
+                      onHoverEnter: _showOverlay,
+                      onHoverExit: isMobile ? () {} : _scheduleHide,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -123,6 +160,7 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
     );
 
     overlay.insert(_overlayEntry!);
+    _motion.forward(from: 0);
     if (mounted) setState(() {});
   }
 
@@ -133,18 +171,33 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
     });
   }
 
-  void _hideOverlay({bool rebuild = true}) {
+  Future<void> _hideOverlay() async {
     _hideTimer?.cancel();
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-    if (rebuild && mounted) {
+    if (_overlayEntry == null || _closing) return;
+    _closing = true;
+    _overlayEntry?.markNeedsBuild();
+    try {
+      await _motion.reverse().orCancel;
+      if (!mounted) return;
+      _removeOverlay();
       setState(() {});
+    } on TickerCanceled {
+      // Hovering again or leaving the screen cancels the reverse animation.
     }
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry?.dispose();
+    _overlayEntry = null;
+    _closing = false;
   }
 
   @override
   void dispose() {
-    _hideOverlay(rebuild: false);
+    _hideTimer?.cancel();
+    _removeOverlay();
+    _motion.dispose();
     super.dispose();
   }
 
@@ -209,9 +262,12 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
     final actions = [
       likeButton,
       CommunityEngagementButton(
-        icon: Icons.chat_bubble_outline_rounded,
+        icon: widget.commentsExpanded
+            ? Icons.chat_bubble_rounded
+            : Icons.chat_bubble_outline_rounded,
         count: widget.comments > 0 ? uiCompactNumber(widget.comments) : '',
         tooltip: 'Reply',
+        isActive: widget.commentsExpanded,
         activeColor: theme.colors.primary,
         onTap: widget.onReply,
         isMobile: isMobile,
@@ -248,14 +304,14 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
               ),
             ),
             if (widget.likes > 0 && effectiveReactions.isNotEmpty)
-              Semantics(
-                label: 'Reactions: ${effectiveReactions.join(' ')}',
-                excludeSemantics: true,
-                child: SizedBox(
-                  height: context.sz(18),
+              UiButton(
+                label: '',
+                semanticLabel: 'View reactions',
+                leading: SizedBox(
+                  height: context.sz(20),
                   child: FittedBox(
                     child: UiAvatarGroup(
-                      overlapFraction: 0.24,
+                      overlapFraction: .24,
                       avatars: [
                         for (final emoji in effectiveReactions.take(3))
                           _reactionBadge(context, emoji),
@@ -263,6 +319,10 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
                     ),
                   ),
                 ),
+                tooltip: 'View reactions',
+                variant: UiVariant.ghost,
+                size: UiSize.xs,
+                onPressed: widget.onShowReactions,
               ),
           ],
         ),
@@ -324,129 +384,60 @@ class _LinkedInReactionPill extends StatefulWidget {
   State<_LinkedInReactionPill> createState() => _LinkedInReactionPillState();
 }
 
-class _LinkedInReactionPillState extends State<_LinkedInReactionPill>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _anim;
-  late final Animation<double> _scale;
-  late final Animation<double> _opacity;
+class _LinkedInReactionPillState extends State<_LinkedInReactionPill> {
   int? _hoveredIndex;
-
-  static const List<Map<String, String>> _reactions = [
-    {'emoji': '👍', 'label': 'Like'},
-    {'emoji': '🚀', 'label': 'Bullish'},
-    {'emoji': '💡', 'label': 'Insightful'},
-    {'emoji': '🔥', 'label': 'Fire'},
-    {'emoji': '❤️', 'label': 'Love'},
+  static const _reactions = [
+    ('👍', 'Like'),
+    ('🚀', 'Bullish'),
+    ('💡', 'Insightful'),
+    ('🔥', 'Fire'),
+    ('❤️', 'Love'),
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _anim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 180),
-    );
-    _scale = CurvedAnimation(parent: _anim, curve: Curves.easeOutBack);
-    _opacity = CurvedAnimation(parent: _anim, curve: Curves.easeOut);
-    _anim.forward();
-  }
-
-  @override
-  void dispose() {
-    _anim.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
+    final theme = context.ui;
+    final reduced = MediaQuery.disableAnimationsOf(context);
     return MouseRegion(
       onEnter: (_) => widget.onHoverEnter(),
       onExit: (_) => widget.onHoverExit(),
-      child: FadeTransition(
-        opacity: _opacity,
-        child: ScaleTransition(
-          scale: _scale,
-          alignment: Alignment.bottomCenter,
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              decoration: BoxDecoration(
-                color: theme.colors.surface,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: theme.colors.border.withValues(alpha: 0.8),
-                  width: theme.borders.hairline,
-                ),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: List.generate(_reactions.length, (int index) {
-                  final r = _reactions[index];
-                  final emoji = r['emoji']!;
-                  final label = r['label']!;
-                  final isHovered = _hoveredIndex == index;
-                  final isSelected = widget.selectedEmoji == emoji;
-
-                  return MouseRegion(
+      child: Material(
+        type: MaterialType.transparency,
+        child: UiCard(
+          variant: UiCardVariant.elevated,
+          radius: theme.radii.pill,
+          padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              for (var index = 0; index < _reactions.length; index++)
+                Expanded(
+                  child: MouseRegion(
                     onEnter: (_) => setState(() => _hoveredIndex = index),
                     onExit: (_) => setState(() => _hoveredIndex = null),
-                    child: Tooltip(
-                      message: label,
-                      verticalOffset: 24,
-                      child: GestureDetector(
-                        onTap: () => widget.onSelect(emoji),
-                        behavior: HitTestBehavior.opaque,
-                        child: SizedBox(
-                          width: 36,
-                          height: 36,
-                          child: Center(
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 140),
-                              curve: Curves.easeOutCubic,
-                              width: 34,
-                              height: 34,
-                              alignment: Alignment.center,
-                              transform: Matrix4.diagonal3Values(
-                                isHovered ? 1.35 : 1.0,
-                                isHovered ? 1.35 : 1.0,
-                                1.0,
-                              ),
-                              transformAlignment: Alignment.center,
-                              decoration: isSelected
-                                  ? BoxDecoration(
-                                      color: theme.colors.foreground.withValues(
-                                        alpha: 0.12,
-                                      ),
-                                      shape: BoxShape.circle,
-                                    )
-                                  : null,
-                              child: Text(
-                                emoji,
-                                style: const TextStyle(
-                                  fontSize: 19,
-                                  height: 1.0,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
+                    child: AnimatedScale(
+                      scale: !reduced && _hoveredIndex == index ? 1.08 : 1,
+                      duration: reduced ? Duration.zero : theme.motion.fast,
+                      curve: theme.motion.curve,
+                      child: UiButton(
+                        label: _reactions[index].$1,
+                        leading: CommunityReactionGlyph(
+                          emoji: _reactions[index].$1,
                         ),
+                        iconOnly: true,
+                        alignment: Alignment.center,
+                        rounded: true,
+                        tooltip: _reactions[index].$2,
+                        semanticLabel: _reactions[index].$2,
+                        variant: UiVariant.ghost,
+                        size: UiSize.lg,
+                        selected: widget.selectedEmoji == _reactions[index].$1,
+                        onPressed: () => widget.onSelect(_reactions[index].$1),
                       ),
                     ),
-                  );
-                }),
-              ),
-            ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -484,22 +475,30 @@ class CommunityEngagementButton extends StatelessWidget {
     final UiTheme theme = context.ui;
     final Color color = isActive ? activeColor : theme.colors.foregroundMuted;
     return UiInteractive(
+      pressScale: .9,
       selected: isActive,
       onTap: onTap,
       onLongPress: onLongPress,
       builder: (BuildContext ctx, UiInteractiveState state) {
         final bool isHovered = state.hovered;
-        final Color effectiveColor =
-            (isActive || isHovered) ? activeColor : color;
+        final Color effectiveColor = (isActive || isHovered)
+            ? activeColor
+            : color;
 
         return Tooltip(
           triggerMode: isMobile
               ? TooltipTriggerMode.manual
               : TooltipTriggerMode.longPress,
           message: tooltip,
-          child: Container(
+          child: AnimatedContainer(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : theme.motion.fast,
+            curve: theme.motion.curve,
             padding: EdgeInsets.symmetric(
-              horizontal: ctx.sp(isMobile ? theme.spacing.xs : theme.spacing.sm),
+              horizontal: ctx.sp(
+                isMobile ? theme.spacing.xs : theme.spacing.sm,
+              ),
               vertical: ctx.sp(theme.spacing.xs),
             ),
             constraints: isMobile
@@ -517,7 +516,24 @@ class CommunityEngagementButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  Icon(icon, size: ctx.sz(20), color: effectiveColor),
+                  AnimatedSwitcher(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : theme.motion.normal,
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: ScaleTransition(
+                        scale: animation.drive(Tween(begin: .8, end: 1.0)),
+                        child: child,
+                      ),
+                    ),
+                    child: Icon(
+                      icon,
+                      key: ValueKey((icon, isActive)),
+                      size: ctx.sz(20),
+                      color: effectiveColor,
+                    ),
+                  ),
                   if (count.isNotEmpty) ...<Widget>[
                     SizedBox(width: isMobile ? 3 : ctx.sp(theme.spacing.xxs)),
                     Text(
@@ -525,8 +541,9 @@ class CommunityEngagementButton extends StatelessWidget {
                       style: ctx.uiText.caption.copyWith(
                         color: effectiveColor,
                         fontSize: ctx.fs(14),
-                        fontWeight:
-                            isActive ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: isActive
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                       ),
                       maxLines: 1,
                     ),

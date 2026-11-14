@@ -25,6 +25,7 @@ class CommunityAuthorPopover extends StatelessWidget {
   }) {
     showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: UiDialog.sheetAnimationStyle(context),
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => Container(
         padding: EdgeInsets.all(ctx.sp(ctx.ui.spacing.md)),

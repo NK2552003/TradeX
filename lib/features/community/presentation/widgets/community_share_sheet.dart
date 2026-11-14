@@ -115,6 +115,7 @@ class CommunityShareSheet extends StatefulWidget {
         repository ?? CommunityRepository();
     return showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: UiDialog.sheetAnimationStyle(context),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => Align(

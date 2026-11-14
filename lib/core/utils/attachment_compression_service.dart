@@ -114,6 +114,21 @@ class AttachmentCompressionService {
     }
 
     final dimension = isAvatar ? avatarMaxDimension : maxDimension;
+    if (bytes.length <= maxSizeBytes) {
+      final webpInfo = img.WebPDecoder().startDecode(bytes);
+      if (webpInfo != null &&
+          math.max(webpInfo.width, webpInfo.height) <= dimension) {
+        final dot = filename.lastIndexOf('.');
+        return CompressedAttachment(
+          bytes: bytes,
+          filename: '${dot > 0 ? filename.substring(0, dot) : filename}.webp',
+          mimeType: 'image/webp',
+          isImage: true,
+          originalByteSize: originalLength,
+          compressedByteSize: bytes.length,
+        );
+      }
+    }
     final params = _CompressionParams(
       rawBytes: bytes,
       maxSizeBytes: maxSizeBytes,

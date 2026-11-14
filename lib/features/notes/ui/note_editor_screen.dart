@@ -136,6 +136,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   bool _refactoring = false;
   bool _detailsOpen = false;
   String _voiceBase = '';
+  final Set<String> _sessionUploadedRefs = <String>{};
+  bool _createdAsSilentDraftForAttachment = false;
 
   @override
   void initState() {
@@ -165,6 +167,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   @override
   void dispose() {
+    if (!_saving && (_sessionUploadedRefs.isNotEmpty || (_createdAsSilentDraftForAttachment && _isBlank))) {
+      _discardUncommittedAttachments(deleteBootstrapDraft: _isBlank);
+    }
     _graphSub?.cancel();
     _previewDebounce?.cancel();
     if (_listening) _speech.stop();
@@ -258,11 +263,33 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     return _note.strategyName;
   }
 
+  void _discardUncommittedAttachments({bool deleteBootstrapDraft = false}) {
+    final repo = NotesRepositoryScope.repository;
+    if (_sessionUploadedRefs.isNotEmpty) {
+      final uncommitted = _sessionUploadedRefs.toList();
+      _sessionUploadedRefs.clear();
+      for (final ref in uncommitted) {
+        unawaited(repo.deleteAttachment(ref).catchError((_) {}));
+      }
+    }
+    if (deleteBootstrapDraft &&
+        _createdAsSilentDraftForAttachment &&
+        _note.id.isNotEmpty &&
+        widget.sourceDocument == null) {
+      final draftId = _note.id;
+      _createdAsSilentDraftForAttachment = false;
+      unawaited(repo.delete(draftId).catchError((_) {}));
+    }
+  }
+
   /// Persists the draft and returns the stored note, or null if nothing was
   /// written or the write failed.
-  Future<AppNote?> _save({bool silent = false}) async {
+  Future<AppNote?> _save({
+    bool silent = false,
+    bool forAttachmentBootstrap = false,
+  }) async {
     if (_saving) return null;
-    if (_isBlank) {
+    if (_isBlank && !forAttachmentBootstrap) {
       if (!silent) {
         UiToast.info(
           context,
@@ -305,6 +332,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           : await repo.update(draft);
       if (widget.sourceDocument == null) {
         saved = await _reconcileLinks(saved, before: before);
+      }
+      if (!forAttachmentBootstrap) {
+        _createdAsSilentDraftForAttachment = false;
+        if (_sessionUploadedRefs.isNotEmpty) {
+          final activeRefs = NoteAttachments.extractRefs(saved.content);
+          final abandoned = _sessionUploadedRefs.difference(activeRefs).toList();
+          _sessionUploadedRefs.clear();
+          for (final ref in abandoned) {
+            unawaited(repo.deleteAttachment(ref).catchError((_) {}));
+          }
+        }
       }
       if (!mounted) return saved;
       setState(() {
@@ -406,6 +444,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   /// unwanted save is one tap away from being deleted.
   Future<void> _closeAndSave() async {
     if (_saving) return;
+    if (_isBlank) {
+      final wasBootstrap = _createdAsSilentDraftForAttachment;
+      _discardUncommittedAttachments(deleteBootstrapDraft: true);
+      if (mounted) widget.onClose(_note.id.isEmpty || wasBootstrap ? null : _note);
+      return;
+    }
     final needsSave = _dirty && !_isBlank;
     final AppNote? saved = needsSave
         ? await _save(silent: true)
@@ -702,8 +746,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   /// Attachments belong to a saved note, so a draft is written first — otherwise
   /// the file would be uploaded against an id that does not exist yet.
   Future<void> _attachBytes(Uint8List bytes, {required String filename}) async {
-    final AppNote? owner = _note.id.isEmpty ? await _save(silent: true) : _note;
+    final bool wasUnsaved = _note.id.isEmpty;
+    final AppNote? owner = wasUnsaved
+        ? await _save(silent: true, forAttachmentBootstrap: true)
+        : _note;
     if (owner == null || !mounted) return;
+    if (wasUnsaved) {
+      _createdAsSilentDraftForAttachment = true;
+    }
     try {
       final String ref = widget.sourceDocument != null
           ? await widget.sourceDocument!.upload(null, bytes: bytes, filename: filename)
@@ -713,7 +763,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               bytes: bytes,
               filename: filename,
             );
-      if (!mounted) return;
+      _sessionUploadedRefs.add(ref);
+      if (!mounted) {
+        _discardUncommittedAttachments(deleteBootstrapDraft: _isBlank);
+        return;
+      }
       _editorKey.currentState?.insertBlock(
         NoteAttachments.markdownFor(
           ref: ref,

@@ -22,6 +22,7 @@ class CommunityPostInsightsSheet extends StatelessWidget {
   }) {
     return showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: UiDialog.sheetAnimationStyle(context),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => FractionallySizedBox(

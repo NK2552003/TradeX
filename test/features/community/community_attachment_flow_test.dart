@@ -27,6 +27,7 @@ class _Repository extends CommunityRepository {
   final discarded = <List<String>>[];
   List<String>? saved;
   var failSecond = true;
+  var failCreatePostOnce = false;
 
   @override
   Future<void> discardUnusedAttachments(Iterable<String> urls) async {
@@ -67,6 +68,10 @@ class _Repository extends CommunityRepository {
     DateTime? scheduledFor,
     required CommunityAuthor author,
   }) async {
+    if (failCreatePostOnce) {
+      failCreatePostOnce = false;
+      throw StateError('Post persistence failed');
+    }
     saved = imageUrls;
   }
 }
@@ -243,4 +248,72 @@ void main() {
     );
     expect(post.copyWith(imageUrls: []).effectiveImageUrls, isEmpty);
   });
+
+  testWidgets(
+    'failed createPost immediately rolls back uploaded attachments and retry re-uploads from memory',
+    (tester) async {
+      final originalPicker = ImagePickerPlatform.instance;
+      addTearDown(() => ImagePickerPlatform.instance = originalPicker);
+      final green = img.Image(width: 20, height: 20);
+      img.fill(green, color: img.ColorRgb8(0, 255, 0));
+      ImagePickerPlatform.instance = _Picker([
+        XFile.fromData(
+          img.encodePng(green),
+          name: 'green.png',
+          mimeType: 'image/png',
+        ),
+      ]);
+      final repo = _Repository()
+        ..failSecond = false
+        ..failCreatePostOnce = true;
+      addTearDown(repo.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: CommunityComposerCard(
+                author: repo.currentAuthor,
+                repository: repo,
+                initialMode: ComposerMode.chart,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.ensureVisible(find.byType(UiDropzone));
+      await tester.runAsync(() async {
+        await tester.tap(find.byType(UiDropzone));
+        for (var i = 0; i < 500; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          await tester.pump();
+          if (!tester.widget<UiDropzone>(find.byType(UiDropzone)).uploading) {
+            break;
+          }
+        }
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Attached Images (1):'), findsOneWidget);
+
+      final submit = find.widgetWithText(UiButton, 'Post Thesis');
+      await tester.ensureVisible(submit);
+      await tester.tap(submit);
+      await tester.pumpAndSettle();
+
+      // Post save failed: uploaded attachment was immediately scheduled for discard
+      expect(repo.saved, isNull);
+      expect(repo.uploads, hasLength(1));
+      expect(repo.discarded, hasLength(1));
+      expect(repo.discarded.first, hasLength(1));
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      // Retry succeeds by re-uploading from in-memory _preparedImages
+      await tester.ensureVisible(submit);
+      await tester.tap(submit);
+      await tester.pumpAndSettle();
+      expect(repo.saved, hasLength(1));
+      expect(repo.uploads, hasLength(2));
+    },
+  );
 }

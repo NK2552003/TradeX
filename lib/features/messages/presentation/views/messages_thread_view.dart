@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -141,21 +140,23 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
         );
 
         final Uint8List bytes = await picked.readAsBytes();
-        final String publicUrl = await widget.repository.uploadAttachment(
+        final uploaded = await widget.repository.uploadChatAttachment(
           threadId: widget.threadId,
           bytes: bytes,
           filename: picked.name,
         );
 
-        widget.repository.sendMessage(
+        await widget.repository.sendMessageAsync(
           widget.threadId,
           attachment: MessageAttachment(
             id: 'att_${DateTime.now().microsecondsSinceEpoch}',
             kind: MessageAttachmentKind.image,
             title: picked.name,
             subtitle: 'Shared Photo',
-            thumbnailUrl: publicUrl,
-            url: publicUrl,
+            thumbnailUrl: uploaded.url,
+            url: uploaded.url,
+            storagePath: uploaded.storagePath,
+            signedUrlExpiresAt: uploaded.expiresAt,
           ),
         );
         return;
@@ -179,13 +180,13 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
           ),
         );
 
-        final String publicUrl = await widget.repository.uploadAttachment(
+        final uploaded = await widget.repository.uploadChatAttachment(
           threadId: widget.threadId,
           bytes: bytes,
           filename: pickedFile.name,
         );
 
-        widget.repository.sendMessage(
+        await widget.repository.sendMessageAsync(
           widget.threadId,
           attachment: MessageAttachment(
             id: 'att_${DateTime.now().microsecondsSinceEpoch}',
@@ -193,7 +194,9 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
             title: pickedFile.name,
             subtitle: '${(bytes.length / 1024).toStringAsFixed(1)} KB',
             sizeLabel: '${(bytes.length / 1024).toStringAsFixed(1)} KB',
-            url: publicUrl,
+            url: uploaded.url,
+            storagePath: uploaded.storagePath,
+            signedUrlExpiresAt: uploaded.expiresAt,
           ),
         );
         return;
@@ -212,36 +215,47 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
   }
 
   Future<void> _sendVoice(String duration, Uint8List? bytes) async {
-    String? audioUrl;
-    if (bytes != null && bytes.isNotEmpty) {
-      try {
+    try {
+      String? audioUrl;
+      String? storagePath;
+      DateTime? expiresAt;
+      if (bytes != null && bytes.isNotEmpty) {
         final ext = kIsWeb ? 'webm' : 'm4a';
         final filename = 'voice_${DateTime.now().millisecondsSinceEpoch}.$ext';
-        audioUrl = await widget.repository.uploadAttachment(
+        final uploaded = await widget.repository.uploadChatAttachment(
           threadId: widget.threadId,
           bytes: bytes,
           filename: filename,
         );
-      } catch (e) {
-        debugPrint(
-          '[MessagesThreadView] Voice upload failed: $e. Falling back to data URI.',
+        audioUrl = uploaded.url;
+        storagePath = uploaded.storagePath;
+        expiresAt = uploaded.expiresAt;
+      }
+
+      await widget.repository.sendMessageAsync(
+        widget.threadId,
+        attachment: MessageAttachment(
+          id: 'att_${DateTime.now().microsecondsSinceEpoch}',
+          kind: MessageAttachmentKind.voice,
+          title: 'Voice Note',
+          subtitle: 'Audio message ($duration)',
+          sizeLabel: duration,
+          url: audioUrl,
+          storagePath: storagePath,
+          signedUrlExpiresAt: expiresAt,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        UiToastScope.maybeOf(context)?.show(
+          UiToastData(
+            title: 'Could not send voice note',
+            message: '$e',
+            intent: UiIntent.danger,
+          ),
         );
-        final mime = kIsWeb ? 'audio/webm' : 'audio/mp4';
-        audioUrl = 'data:$mime;base64,${base64Encode(bytes)}';
       }
     }
-
-    widget.repository.sendMessage(
-      widget.threadId,
-      attachment: MessageAttachment(
-        id: 'att_${DateTime.now().microsecondsSinceEpoch}',
-        kind: MessageAttachmentKind.voice,
-        title: 'Voice Note',
-        subtitle: 'Audio message ($duration)',
-        sizeLabel: duration,
-        url: audioUrl,
-      ),
-    );
   }
 
   void _reactToLast(String emoji) {
@@ -769,12 +783,32 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
               senderName: sender,
               showTail: tail,
               onOpenRef: widget.onOpenRef,
-              onOpenAttachment: (MessageAttachment attachment) {
+              onOpenAttachment: (MessageAttachment attachment) async {
+                String? resolvedUrl = attachment.url ?? attachment.thumbnailUrl;
+                try {
+                  resolvedUrl = await widget.repository.resolveAttachmentUrl(
+                    attachment,
+                    threadId: thread.id,
+                    forceRefresh: attachment.isSignedUrlExpired,
+                  );
+                } catch (e) {
+                  if (context.mounted) {
+                    UiToastScope.maybeOf(context)?.show(
+                      UiToastData(
+                        title: 'Could not open attachment',
+                        message: '$e',
+                        intent: UiIntent.danger,
+                      ),
+                    );
+                  }
+                  return;
+                }
+                if (!context.mounted) return;
                 if (attachment.kind == MessageAttachmentKind.image ||
                     attachment.kind == MessageAttachmentKind.chart) {
                   showUiLightbox(
                     context,
-                    imageUrls: <String>[attachment.thumbnailUrl ?? ''],
+                    imageUrls: <String>[resolvedUrl ?? ''],
                     caption: attachment.title,
                   );
                 } else {

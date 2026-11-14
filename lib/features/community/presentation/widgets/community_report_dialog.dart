@@ -20,7 +20,7 @@ class CommunityReportDialog extends StatefulWidget {
     required String postId,
     required CommunityRepository repository,
   }) {
-    return showDialog<void>(
+    return UiDialog.present<void>(
       context: context,
       builder: (BuildContext ctx) => Dialog(
         backgroundColor: Colors.transparent,

@@ -127,7 +127,7 @@ ALTER TABLE chat_shared_refs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_reactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_user_presence ENABLE ROW LEVEL SECURITY;
 
--- Helper to break RLS infinite recursion
+-- Helper to break RLS infinite recursion (caller-scoped only; never exposes third-party membership)
 CREATE OR REPLACE FUNCTION public.user_is_chat_participant(p_thread_id uuid, p_user_id uuid DEFAULT auth.uid())
 RETURNS boolean
 LANGUAGE sql
@@ -135,11 +135,16 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.chat_participants
-    WHERE thread_id = p_thread_id AND user_id = p_user_id
-  );
+  SELECT auth.uid() IS NOT NULL
+    AND p_user_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.chat_participants
+      WHERE thread_id = p_thread_id AND user_id = auth.uid()
+    );
 $$;
+
+REVOKE ALL ON FUNCTION public.user_is_chat_participant(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.user_is_chat_participant(uuid, uuid) TO authenticated, service_role;
 
 -- Participant-based RLS Policies
 DROP POLICY IF EXISTS "Users can view threads they belong to" ON chat_threads;

@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/utils/attachment_compression_service.dart';
 
 import '../data/copilot_controller.dart';
 import '../data/copilot_feature_connector.dart';
@@ -98,10 +99,16 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
         final extension = file.extension?.toLowerCase();
         final Json input;
         if (['png', 'jpg', 'jpeg', 'webp'].contains(extension)) {
-          final mime = extension == 'jpg' ? 'jpeg' : extension;
+          final compressed =
+              await AttachmentCompressionService.compressAttachment(
+                bytes: bytes,
+                filename: file.name,
+              );
+          if (!mounted) return;
           input = {
             'type': 'input_image',
-            'image_url': 'data:image/$mime;base64,${base64Encode(bytes)}',
+            'image_url':
+                'data:${compressed.mimeType};base64,${base64Encode(compressed.bytes)}',
           };
         } else if (extension == 'pdf') {
           input = {

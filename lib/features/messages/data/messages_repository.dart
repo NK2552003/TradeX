@@ -39,6 +39,9 @@ class MessagesRepository extends ChangeNotifier {
   /// Global singleton instance so messages can be opened or sent from any feature.
   static final MessagesRepository instance = MessagesRepository();
 
+  static const String chatAttachmentsBucket = 'chat-attachments';
+  static const int signedUrlTtlSeconds = 300;
+
   late List<MessageThread> _threads;
   late List<MessageThread> _requests;
   late Map<String, List<ChatMessage>> _messages;
@@ -47,13 +50,154 @@ class MessagesRepository extends ChangeNotifier {
   final Map<String, String> _pinnedMessages = <String, String>{};
   final Map<String, Future<void>> _pendingThreadCreations =
       <String, Future<void>>{};
+  final Map<String, String> _lastUploadedPathByUrl = <String, String>{};
   RealtimeChannel? _realtimeChannel;
+
+  /// Optional overrides for unit testing private chat storage without live Supabase.
+  Future<void> Function({
+    required String bucket,
+    required String path,
+    required Uint8List bytes,
+    required String contentType,
+    required bool upsert,
+  })? storageUploadOverride;
+
+  Future<String> Function({
+    required String bucket,
+    required String path,
+    required int expiresInSeconds,
+  })? storageSignUrlOverride;
+
+  Future<void> Function({
+    required String bucket,
+    required List<String> paths,
+  })? storageRemoveOverride;
+
+  Future<void> Function({
+    required ChatMessage message,
+    required String uploaderId,
+    required String? storagePath,
+  })? messagePersistOverride;
 
   static bool _isUuid(String id) {
     final uuidRegex = RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
     );
     return uuidRegex.hasMatch(id);
+  }
+
+  /// Validates that [path] follows the canonical `<thread_id>/<uploader_id>/<filename>`
+  /// structure in `chat-attachments`, contains no traversal segments, and matches
+  /// the expected [expectedThreadId] and [expectedUploaderId] when supplied.
+  static bool isValidChatStoragePath(
+    String path, {
+    String? expectedThreadId,
+    String? expectedUploaderId,
+  }) {
+    final clean = path.trim();
+    if (clean.isEmpty || clean.contains('..') || clean.startsWith('/')) {
+      return false;
+    }
+    final parts = clean.split('/');
+    if (parts.length != 3) return false;
+    final threadSegment = parts[0].trim();
+    final uploaderSegment = parts[1].trim();
+    final filenameSegment = parts[2].trim();
+    if (threadSegment.isEmpty ||
+        uploaderSegment.isEmpty ||
+        filenameSegment.isEmpty) {
+      return false;
+    }
+    if (expectedThreadId != null &&
+        expectedThreadId.isNotEmpty &&
+        threadSegment != expectedThreadId) {
+      return false;
+    }
+    if (expectedUploaderId != null &&
+        expectedUploaderId.isNotEmpty &&
+        uploaderSegment != expectedUploaderId) {
+      return false;
+    }
+    return true;
+  }
+
+  /// Normalizes canonical `<thread_id>/<uploader_id>/<file>` paths as well as both
+  /// legacy chat path layouts:
+  /// 1. `<user_id>/chat/<thread_id>/<file>` -> `<thread_id>/<user_id>/<file>`
+  /// 2. `chat/<thread_id>/<file>` -> `<thread_id>/<fallbackUploaderId>/<file>`
+  static String? normalizeLegacyChatStoragePath(
+    String? rawUrlOrPath, {
+    String? fallbackThreadId,
+    String? fallbackUploaderId,
+  }) {
+    if (rawUrlOrPath == null) return null;
+    var candidate = rawUrlOrPath.trim();
+    if (candidate.isEmpty || candidate.startsWith('data:')) return null;
+
+    if (candidate.startsWith('http://') || candidate.startsWith('https://')) {
+      final uri = Uri.tryParse(candidate);
+      if (uri == null) return null;
+      final fullPath = Uri.decodeComponent(uri.path);
+      const bucketMarkers = <String>[
+        '/chat-attachments/',
+        '/community-attachments/',
+      ];
+      String? extracted;
+      for (final marker in bucketMarkers) {
+        final idx = fullPath.indexOf(marker);
+        if (idx != -1) {
+          extracted = fullPath.substring(idx + marker.length);
+          break;
+        }
+      }
+      if (extracted == null || extracted.isEmpty) return null;
+      candidate = extracted;
+    }
+
+    if (candidate.contains('?')) {
+      candidate = candidate.split('?').first;
+    }
+    while (candidate.startsWith('/')) {
+      candidate = candidate.substring(1);
+    }
+    if (candidate.isEmpty || candidate.contains('..')) return null;
+
+    final parts = candidate.split('/');
+    // Legacy layout 1: <user_id>/chat/<thread_id>/<file>
+    if (parts.length == 4 && parts[1] == 'chat') {
+      final userId = parts[0].trim();
+      final threadId = parts[2].trim();
+      final file = parts[3].trim();
+      if (userId.isNotEmpty && threadId.isNotEmpty && file.isNotEmpty) {
+        return '$threadId/$userId/$file';
+      }
+      return null;
+    }
+    // Legacy layout 2: chat/<thread_id>/<file>
+    if (parts.length == 3 && parts[0] == 'chat') {
+      final threadId = parts[1].trim();
+      final file = parts[2].trim();
+      final uploaderId = (fallbackUploaderId ?? '').trim();
+      if (threadId.isNotEmpty && uploaderId.isNotEmpty && file.isNotEmpty) {
+        return '$threadId/$uploaderId/$file';
+      }
+      return null;
+    }
+    // Canonical layout: <thread_id>/<uploader_id>/<file>
+    if (parts.length == 3 && parts[0] != 'chat' && parts[1] != 'chat') {
+      final threadId = parts[0].trim();
+      final uploaderId = parts[1].trim();
+      final file = parts[2].trim();
+      if (threadId.isNotEmpty && uploaderId.isNotEmpty && file.isNotEmpty) {
+        if (fallbackThreadId != null &&
+            fallbackThreadId.isNotEmpty &&
+            threadId != fallbackThreadId) {
+          return null;
+        }
+        return '$threadId/$uploaderId/$file';
+      }
+    }
+    return null;
   }
 
   String _resolveUserId() {
@@ -181,7 +325,7 @@ class MessagesRepository extends ChangeNotifier {
               system_notice,
               status,
               created_at,
-              chat_attachments(id, kind, url, title, file_size_bytes, duration_seconds),
+              chat_attachments(id, kind, url, storage_path, title, file_size_bytes, duration_seconds),
               chat_reactions(id, user_id, emoji),
               chat_shared_refs(id, ref_id, kind, title, subtitle, ticker, tags)
             ''')
@@ -217,13 +361,27 @@ class MessagesRepository extends ChangeNotifier {
               orElse: () => MessageAttachmentKind.image,
             );
             var rawUrl = attMap['url'] as String?;
-            if (rawUrl != null &&
-                rawUrl.isNotEmpty &&
-                !rawUrl.startsWith('http') &&
-                !rawUrl.startsWith('data:')) {
-              rawUrl = client.storage
-                  .from('community-attachments')
-                  .getPublicUrl(rawUrl);
+            final rawStoragePath = attMap['storage_path'] as String?;
+            final normalizedStoragePath =
+                normalizeLegacyChatStoragePath(
+                  rawStoragePath ?? rawUrl,
+                  fallbackThreadId: threadId,
+                  fallbackUploaderId: senderId,
+                );
+            DateTime? signedExpiresAt;
+            if (normalizedStoragePath != null &&
+                normalizedStoragePath.isNotEmpty) {
+              try {
+                rawUrl = await _createAttachmentSignedUrl(normalizedStoragePath);
+                signedExpiresAt = DateTime.now().add(
+                  const Duration(seconds: signedUrlTtlSeconds),
+                );
+              } catch (e) {
+                debugPrint(
+                  '[MessagesRepository] signed URL resolution error for $normalizedStoragePath: $e',
+                );
+                rawUrl = null;
+              }
             }
             attachment = MessageAttachment(
               id: attMap['id'] as String,
@@ -231,6 +389,8 @@ class MessagesRepository extends ChangeNotifier {
               title: attMap['title'] as String? ?? '',
               url: rawUrl,
               thumbnailUrl: rawUrl,
+              storagePath: normalizedStoragePath,
+              signedUrlExpiresAt: signedExpiresAt,
             );
           }
 
@@ -679,18 +839,143 @@ class MessagesRepository extends ChangeNotifier {
   // Mutations
   // ---------------------------------------------------------------------------
 
-  /// Sends a message. Optimistically appended as [MessageStatus.sending], then
-  /// advanced to delivered/read; a peer auto-reply follows on direct threads.
-  ///
-  /// @backend POST /threads/{id}/messages then stream status + inbound replies.
-  void sendMessage(
+  Future<String> _createAttachmentSignedUrl(
+    String storagePath, {
+    int expiresInSeconds = signedUrlTtlSeconds,
+  }) async {
+    if (storageSignUrlOverride != null) {
+      return storageSignUrlOverride!(
+        bucket: chatAttachmentsBucket,
+        path: storagePath,
+        expiresInSeconds: expiresInSeconds,
+      );
+    }
+    final client = SupabaseConfig.client;
+    if (!SupabaseConfig.isConfigured || client == null) {
+      throw StateError('Supabase is not configured to sign attachment URLs.');
+    }
+    return client.storage
+        .from(chatAttachmentsBucket)
+        .createSignedUrl(storagePath, expiresInSeconds);
+  }
+
+  /// Resolves or refreshes a short-lived signed URL for [attachment] in
+  /// `chat-attachments`, updating the in-memory message state when refreshed.
+  Future<String?> resolveAttachmentUrl(
+    MessageAttachment attachment, {
+    String? threadId,
+    String? uploaderId,
+    bool forceRefresh = false,
+  }) async {
+    final currentUrl = attachment.url ?? attachment.thumbnailUrl;
+    if (!forceRefresh &&
+        currentUrl != null &&
+        currentUrl.isNotEmpty &&
+        currentUrl.startsWith('data:')) {
+      return currentUrl;
+    }
+
+    final resolvedPath =
+        attachment.storagePath ??
+        _lastUploadedPathByUrl[currentUrl] ??
+        normalizeLegacyChatStoragePath(
+          currentUrl,
+          fallbackThreadId: threadId,
+          fallbackUploaderId: uploaderId ?? _resolveUserId(),
+        );
+
+    if (!forceRefresh &&
+        currentUrl != null &&
+        currentUrl.isNotEmpty &&
+        !attachment.isSignedUrlExpired &&
+        (currentUrl.startsWith('http://') ||
+            currentUrl.startsWith('https://')) &&
+        !currentUrl.contains('/community-attachments/')) {
+      return currentUrl;
+    }
+
+    if (resolvedPath == null || resolvedPath.isEmpty) {
+      return currentUrl;
+    }
+
+    if (threadId != null &&
+        threadId.isNotEmpty &&
+        !isValidChatStoragePath(resolvedPath, expectedThreadId: threadId)) {
+      throw StateError(
+        'Attachment storage path does not belong to thread $threadId.',
+      );
+    }
+
+    final signedUrl = await _createAttachmentSignedUrl(resolvedPath);
+    final expiresAt = DateTime.now().add(
+      const Duration(seconds: signedUrlTtlSeconds),
+    );
+    _lastUploadedPathByUrl[signedUrl] = resolvedPath;
+
+    // Update cached message attachment with the refreshed signed URL
+    for (final entry in _messages.entries) {
+      if (threadId != null && entry.key != threadId) continue;
+      final list = entry.value;
+      for (var i = 0; i < list.length; i++) {
+        final msg = list[i];
+        if (msg.attachment?.id == attachment.id) {
+          list[i] = msg.copyWith(
+            attachment: msg.attachment!.copyWith(
+              url: signedUrl,
+              thumbnailUrl: signedUrl,
+              storagePath: resolvedPath,
+              signedUrlExpiresAt: expiresAt,
+            ),
+          );
+          notifyListeners();
+          break;
+        }
+      }
+    }
+    return signedUrl;
+  }
+
+  /// Sends a message and awaits persistence when backed by Supabase or a test
+  /// persistence override. Throws on persistence failure after cleaning up any
+  /// optimistic message and orphaned private storage object.
+  Future<ChatMessage> sendMessageAsync(
     String threadId, {
     String body = '',
     MessageAttachment? attachment,
     AppLinkRef? sharedRef,
     String? replyToId,
-  }) {
-    if (body.trim().isEmpty && attachment == null && sharedRef == null) return;
+    String? senderIdOverride,
+  }) async {
+    if (body.trim().isEmpty && attachment == null && sharedRef == null) {
+      throw ArgumentError('Message must have text, attachment, or sharedRef.');
+    }
+    final currentUserId = senderIdOverride ?? _resolveUserId();
+    String? resolvedStoragePath;
+    if (attachment != null) {
+      resolvedStoragePath =
+          attachment.storagePath ??
+          _lastUploadedPathByUrl[attachment.url] ??
+          normalizeLegacyChatStoragePath(
+            attachment.url,
+            fallbackThreadId: threadId,
+            fallbackUploaderId: currentUserId,
+          );
+      if (resolvedStoragePath != null &&
+          !isValidChatStoragePath(
+            resolvedStoragePath,
+            expectedThreadId: threadId,
+            expectedUploaderId: currentUserId.isNotEmpty ? currentUserId : null,
+          )) {
+        throw StateError(
+          'Attachment storage path does not match the active thread and uploader.',
+        );
+      }
+      if (resolvedStoragePath != null &&
+          attachment.storagePath != resolvedStoragePath) {
+        attachment = attachment.copyWith(storagePath: resolvedStoragePath);
+      }
+    }
+
     final msgId = SupabaseConfig.isConfigured
         ? const Uuid().v4()
         : 'msg_${DateTime.now().microsecondsSinceEpoch}';
@@ -715,78 +1000,120 @@ class MessagesRepository extends ChangeNotifier {
     );
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured) {
-      unawaited(() async {
-        final client = SupabaseConfig.client;
-        final currentUserId = _resolveUserId();
-        if (client == null) return;
-        final pendingCreate = _pendingThreadCreations[threadId];
-        if (pendingCreate != null) {
-          await pendingCreate;
+    if (messagePersistOverride != null) {
+      try {
+        await messagePersistOverride!(
+          message: message,
+          uploaderId: currentUserId,
+          storagePath: resolvedStoragePath,
+        );
+        _setStatus(threadId, message.id, MessageStatus.sent);
+      } catch (e) {
+        _messages[threadId]?.removeWhere((m) => m.id == message.id);
+        if (resolvedStoragePath != null && storageRemoveOverride != null) {
+          try {
+            await storageRemoveOverride!(
+              bucket: chatAttachmentsBucket,
+              paths: <String>[resolvedStoragePath],
+            );
+          } catch (_) {}
         }
+        notifyListeners();
+        rethrow;
+      }
+    } else if (SupabaseConfig.isConfigured) {
+      final client = SupabaseConfig.client;
+      if (client == null) {
+        _messages[threadId]?.removeWhere((m) => m.id == message.id);
+        notifyListeners();
+        throw StateError('Supabase client is not initialized.');
+      }
+      final pendingCreate = _pendingThreadCreations[threadId];
+      if (pendingCreate != null) {
+        await pendingCreate;
+      }
+      try {
+        await client.from('chat_messages').insert({
+          'id': message.id,
+          'thread_id': _isUuid(threadId) ? threadId : null,
+          'sender_id': currentUserId,
+          'body': message.body,
+          'reply_to_id':
+              message.replyToId != null && _isUuid(message.replyToId!)
+              ? message.replyToId
+              : null,
+          'system_notice': false,
+          'status': 'sent',
+          'created_at': message.sentAt.toIso8601String(),
+        });
+        if (attachment != null) {
+          await client.from('chat_attachments').insert({
+            'message_id': message.id,
+            'kind': attachment.kind.name,
+            'storage_path': resolvedStoragePath,
+            'url': resolvedStoragePath ?? attachment.url ?? '',
+            'title': attachment.title,
+          });
+        }
+        if (sharedRef != null) {
+          await client.from('chat_shared_refs').insert({
+            'message_id': message.id,
+            'ref_id': sharedRef.id,
+            'kind': sharedRef.kind.name,
+            'title': sharedRef.title,
+            'subtitle': sharedRef.subtitle,
+          });
+        }
+        if (_isUuid(threadId)) {
+          await client
+              .from('chat_threads')
+              .update({
+                'last_message_preview': _previewFor(message),
+                'last_message_at': message.sentAt.toIso8601String(),
+              })
+              .eq('id', threadId);
+        }
+        _setStatus(threadId, message.id, MessageStatus.sent);
+      } catch (e) {
+        // If this message carries an attachment, never fall back to the legacy
+        // text-only `messages` table or leave a broken attachment message.
+        if (attachment != null) {
+          _messages[threadId]?.removeWhere((m) => m.id == message.id);
+          try {
+            await client.from('chat_messages').delete().eq('id', message.id);
+          } catch (_) {}
+          if (resolvedStoragePath != null) {
+            try {
+              await client.storage
+                  .from(chatAttachmentsBucket)
+                  .remove(<String>[resolvedStoragePath]);
+            } catch (_) {}
+          }
+          notifyListeners();
+          rethrow;
+        }
+        debugPrint(
+          '[MessagesRepository] sendMessage Supabase error: $e. Trying fallback messages table.',
+        );
         try {
-          await client.from('chat_messages').insert({
+          await client.from('messages').insert({
             'id': message.id,
-            'thread_id': _isUuid(threadId) ? threadId : null,
+            'conversation_id': _isUuid(threadId) ? threadId : null,
             'sender_id': currentUserId,
-            'body': message.body,
-            'reply_to_id':
-                message.replyToId != null && _isUuid(message.replyToId!)
-                ? message.replyToId
-                : null,
-            'system_notice': false,
-            'status': 'sent',
+            'content': message.body,
             'created_at': message.sentAt.toIso8601String(),
           });
-          if (_isUuid(threadId)) {
-            await client
-                .from('chat_threads')
-                .update({
-                  'last_message_preview': _previewFor(message),
-                  'last_message_at': message.sentAt.toIso8601String(),
-                })
-                .eq('id', threadId);
-          }
-          if (attachment != null) {
-            await client.from('chat_attachments').insert({
-              'message_id': message.id,
-              'kind': attachment.kind.name,
-              'url': attachment.url ?? '',
-              'title': attachment.title,
-            });
-          }
-          if (sharedRef != null) {
-            await client.from('chat_shared_refs').insert({
-              'message_id': message.id,
-              'ref_id': sharedRef.id,
-              'kind': sharedRef.kind.name,
-              'title': sharedRef.title,
-              'subtitle': sharedRef.subtitle,
-            });
-          }
+          await client
+              .from('conversations')
+              .update({'last_message_at': message.sentAt.toIso8601String()})
+              .eq('id', threadId);
           _setStatus(threadId, message.id, MessageStatus.sent);
-        } catch (e) {
-          debugPrint(
-            '[MessagesRepository] sendMessage Supabase error: $e. Trying fallback messages table.',
-          );
-          try {
-            await client.from('messages').insert({
-              'id': message.id,
-              'conversation_id': _isUuid(threadId) ? threadId : null,
-              'sender_id': currentUserId,
-              'content': message.body,
-              'created_at': message.sentAt.toIso8601String(),
-            });
-            await client
-                .from('conversations')
-                .update({'last_message_at': message.sentAt.toIso8601String()})
-                .eq('id', threadId);
-            _setStatus(threadId, message.id, MessageStatus.sent);
-          } catch (e2) {
-            debugPrint('[MessagesRepository] messages fallback error: $e2');
-          }
+        } catch (e2) {
+          _setStatus(threadId, message.id, MessageStatus.failed);
+          debugPrint('[MessagesRepository] messages fallback error: $e2');
+          rethrow;
         }
-      }());
+      }
     } else {
       // Simulated transport: sending → sent → delivered, then a peer reply.
       _after(const Duration(milliseconds: 350), () {
@@ -819,6 +1146,40 @@ class MessagesRepository extends ChangeNotifier {
         ),
       );
     }
+    return message;
+  }
+
+  /// Sends a message. Optimistically appended as [MessageStatus.sending], then
+  /// advanced to delivered/read; a peer auto-reply follows on direct threads.
+  ///
+  /// @backend POST /threads/{id}/messages then stream status + inbound replies.
+  void sendMessage(
+    String threadId, {
+    String body = '',
+    MessageAttachment? attachment,
+    AppLinkRef? sharedRef,
+    String? replyToId,
+  }) {
+    if (body.trim().isEmpty && attachment == null && sharedRef == null) return;
+    unawaited(
+      sendMessageAsync(
+        threadId,
+        body: body,
+        attachment: attachment,
+        sharedRef: sharedRef,
+        replyToId: replyToId,
+      ).catchError((Object e) {
+        debugPrint('[MessagesRepository] sendMessage error: $e');
+        return ChatMessage(
+          id: 'err',
+          threadId: threadId,
+          body: body,
+          fromMe: true,
+          sentAt: DateTime.now(),
+          status: MessageStatus.failed,
+        );
+      }),
+    );
   }
 
   /// Convenience wrapper used by the share-to-conversation flow.
@@ -837,78 +1198,126 @@ class MessagesRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Uploads an attachment to Supabase Storage and returns its public URL.
-  Future<String> uploadAttachment({
+  /// Uploads a chat attachment to the private `chat-attachments` bucket under
+  /// `<thread_id>/<uploader_id>/<generated_filename>` with `upsert: false`,
+  /// returning the short-lived signed URL, stable `storagePath`, and expiry.
+  Future<({String url, String storagePath, DateTime expiresAt})>
+  uploadChatAttachment({
     required String threadId,
     required Uint8List bytes,
     required String filename,
+    String? uploaderId,
   }) async {
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final compressed = await AttachmentCompressionService.compressAttachment(
-          bytes: bytes,
-          filename: filename,
-          mimeType: filename.startsWith('voice_') && filename.endsWith('.webm')
-              ? 'audio/webm' : null,
+    final cleanThreadId = threadId.trim();
+    if (cleanThreadId.isEmpty || cleanThreadId.contains('/')) {
+      throw ArgumentError('Valid threadId is required to upload an attachment.');
+    }
+
+    if (SupabaseConfig.isConfigured || storageUploadOverride != null) {
+      final compressed =
+          await AttachmentCompressionService.compressAttachment(
+            bytes: bytes,
+            filename: filename,
+            mimeType: filename.startsWith('voice_') && filename.endsWith('.webm')
+                ? 'audio/webm'
+                : null,
+          );
+
+      final ext = compressed.filename.contains('.')
+          ? compressed.filename.split('.').last.toLowerCase().trim()
+          : 'webp';
+      final actor =
+          (uploaderId ??
+                  SupabaseConfig.client?.auth.currentUser?.id ??
+                  _resolveUserId())
+              .trim();
+      if (actor.isEmpty) {
+        throw StateError('Sign in required to upload an attachment.');
+      }
+
+      final storagePath = '$cleanThreadId/$actor/${const Uuid().v4()}.$ext';
+      if (!isValidChatStoragePath(
+        storagePath,
+        expectedThreadId: cleanThreadId,
+        expectedUploaderId: actor,
+      )) {
+        throw StateError('Generated invalid chat attachment storage path.');
+      }
+
+      if (storageUploadOverride != null) {
+        await storageUploadOverride!(
+          bucket: chatAttachmentsBucket,
+          path: storagePath,
+          bytes: compressed.bytes,
+          contentType: compressed.mimeType,
+          upsert: false,
         );
-
-        final ext = compressed.filename.contains('.')
-            ? compressed.filename.split('.').last.toLowerCase().trim()
-            : 'webp';
-        final actor = client.auth.currentUser?.id ?? _resolveUserId();
-        if (actor.isEmpty) {
-          throw StateError('Sign in required to upload an attachment.');
-        }
-        final storagePath = '$actor/chat/$threadId/${const Uuid().v4()}.$ext';
-
-        await client.storage.from('community-attachments').uploadBinary(
+      } else {
+        final client = SupabaseConfig.client!;
+        await client.storage.from(chatAttachmentsBucket).uploadBinary(
           storagePath,
           compressed.bytes,
           fileOptions: FileOptions(
             contentType: compressed.mimeType,
-            cacheControl: '3600',
-            upsert: true,
+            cacheControl: '$signedUrlTtlSeconds',
+            upsert: false,
           ),
         );
-
-        return client.storage
-            .from('community-attachments')
-            .getPublicUrl(storagePath);
-      } catch (e) {
-        debugPrint(
-          '[MessagesRepository] Direct storage upload failed: $e. Falling back to inline data attachment.',
-        );
-        final ext = filename.contains('.')
-            ? filename.split('.').last.toLowerCase().trim()
-            : 'png';
-        final mimeType = ext == 'png'
-            ? 'image/png'
-            : (ext == 'jpg' || ext == 'jpeg')
-                ? 'image/jpeg'
-                : ext == 'pdf'
-                    ? 'application/pdf'
-                    : ext == 'webm'
-                        ? 'audio/webm'
-                        : (ext == 'm4a' || ext == 'mp4')
-                            ? 'audio/mp4'
-                            : (ext == 'mp3' || ext == 'wav')
-                                ? 'audio/$ext'
-                                : 'application/octet-stream';
-        return 'data:$mimeType;base64,${base64Encode(bytes)}';
       }
+
+      final signedUrl = await _createAttachmentSignedUrl(
+        storagePath,
+        expiresInSeconds: signedUrlTtlSeconds,
+      );
+      final expiresAt = DateTime.now().add(
+        const Duration(seconds: signedUrlTtlSeconds),
+      );
+      _lastUploadedPathByUrl[signedUrl] = storagePath;
+      return (url: signedUrl, storagePath: storagePath, expiresAt: expiresAt);
     }
+
     final ext = filename.contains('.')
         ? filename.split('.').last.toLowerCase().trim()
         : 'png';
     final mimeType = ext == 'png'
         ? 'image/png'
         : (ext == 'jpg' || ext == 'jpeg')
-            ? 'image/jpeg'
-            : ext == 'pdf'
-                ? 'application/pdf'
-                : 'application/octet-stream';
-    return 'data:$mimeType;base64,${base64Encode(bytes)}';
+        ? 'image/jpeg'
+        : ext == 'pdf'
+        ? 'application/pdf'
+        : ext == 'webm'
+        ? 'audio/webm'
+        : (ext == 'm4a' || ext == 'mp4')
+        ? 'audio/mp4'
+        : (ext == 'mp3' || ext == 'wav')
+        ? 'audio/$ext'
+        : 'application/octet-stream';
+    final dataUrl = 'data:$mimeType;base64,${base64Encode(bytes)}';
+    final actor = (uploaderId ?? _resolveUserId()).trim();
+    final localPath =
+        '$cleanThreadId/${actor.isNotEmpty ? actor : 'local_user'}/${const Uuid().v4()}.$ext';
+    final expiresAt = DateTime.now().add(
+      const Duration(seconds: signedUrlTtlSeconds),
+    );
+    _lastUploadedPathByUrl[dataUrl] = localPath;
+    return (url: dataUrl, storagePath: localPath, expiresAt: expiresAt);
+  }
+
+  /// Uploads an attachment to the private `chat-attachments` bucket and returns
+  /// a short-lived signed URL (or data URI when running offline in tests).
+  Future<String> uploadAttachment({
+    required String threadId,
+    required Uint8List bytes,
+    required String filename,
+    String? uploaderId,
+  }) async {
+    final uploaded = await uploadChatAttachment(
+      threadId: threadId,
+      bytes: bytes,
+      filename: filename,
+      uploaderId: uploaderId,
+    );
+    return uploaded.url;
   }
 
   /// Toggles a per-message emoji reaction for the signed-in trader.

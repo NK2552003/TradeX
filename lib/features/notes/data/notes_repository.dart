@@ -604,6 +604,15 @@ class NotesRepositoryImpl implements NotesRepository {
     } else {
       _notes[at] = saved;
     }
+    final removedRefs = NoteAttachments.extractRefs(owned.content)
+        .difference(NoteAttachments.extractRefs(saved.content));
+    for (final ref in removedRefs) {
+      try {
+        await deleteAttachment(ref);
+      } catch (e) {
+        debugPrint('[NotesRepository] update attachment cleanup warning: $e');
+      }
+    }
     _publish();
     _recordTickerLinks(saved);
     return saved;
@@ -618,10 +627,25 @@ class NotesRepositoryImpl implements NotesRepository {
     await _init();
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
+        final client = SupabaseConfig.client!;
+        final folder = '${owned.userId}/$id';
+        final files = await client.storage
+            .from('note-attachments')
+            .list(path: folder);
+        if (files.isNotEmpty) {
+          final filePaths = files.map((f) => '$folder/${f.name}').toList();
+          await client.storage.from('note-attachments').remove(filePaths);
+        }
         await OwnedRecordWriter().delete('trader_notes', id);
       } catch (e) {
         debugPrint('[NotesRepository] delete error: $e');
         rethrow;
+      }
+    } else {
+      for (final ref in NoteAttachments.extractRefs(owned.content)) {
+        try {
+          await deleteAttachment(ref);
+        } catch (_) {}
       }
     }
 
@@ -872,24 +896,34 @@ class NotesRepositoryImpl implements NotesRepository {
               ),
             );
 
-        await client
-            .from('trader_note_attachments')
-            .insert({
-              'id': const Uuid().v4(),
-              'note_id': noteId,
-              'user_id': currentUserId,
-              'storage_path': storagePath,
-              'filename': rawFileName,
-              'mime_type': mimeType,
-              'byte_size': length,
-              'is_image': isImage,
-            })
-            .catchError((e) {
-              debugPrint(
-                '[NotesRepository] trader_note_attachments insert warning: $e',
-              );
-              return <String, dynamic>{};
-            });
+        try {
+          await client
+              .from('trader_note_attachments')
+              .insert({
+                'id': const Uuid().v4(),
+                'note_id': noteId,
+                'user_id': currentUserId,
+                'storage_path': storagePath,
+                'filename': rawFileName,
+                'mime_type': mimeType,
+                'byte_size': length,
+                'is_image': isImage,
+              });
+        } catch (metaError) {
+          final isMissingTable = metaError is PostgrestException &&
+              (metaError.code == '42P01' || metaError.code == 'PGRST205');
+          if (!isMissingTable) {
+            try {
+              await client.storage
+                  .from('note-attachments')
+                  .remove(<String>[storagePath]);
+            } catch (_) {}
+            rethrow;
+          }
+          debugPrint(
+            '[NotesRepository] trader_note_attachments insert warning: $metaError',
+          );
+        }
 
         return storagePath;
       } catch (e) {

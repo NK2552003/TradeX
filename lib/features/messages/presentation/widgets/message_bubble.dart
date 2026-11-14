@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/linking/link_graph.dart';
+import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 
 /// One chat bubble.
@@ -321,6 +322,7 @@ class MessageBubble extends StatelessWidget {
     if (attachment.kind == MessageAttachmentKind.voice) {
       return _VoiceAttachmentPlayer(
         attachment: attachment,
+        threadId: message.threadId,
         fromMe: message.fromMe,
         fgColor: fg,
       );
@@ -545,6 +547,15 @@ class MessageBubble extends StatelessWidget {
 
   Widget _imageAttachment(BuildContext context, MessageAttachment attachment) {
     final UiTheme theme = context.ui;
+    if (attachment.isSignedUrlExpired) {
+      unawaited(
+        MessagesRepositoryScope.repository.resolveAttachmentUrl(
+          attachment,
+          threadId: message.threadId,
+          forceRefresh: true,
+        ),
+      );
+    }
     return GestureDetector(
       onTap: onOpenAttachment == null
           ? null
@@ -575,8 +586,18 @@ class MessageBubble extends StatelessWidget {
                         if (progress == null) return child;
                         return _mediaFallback(context, loading: true);
                       },
-                  errorBuilder: (BuildContext ctx, Object e, StackTrace? s) =>
-                      _mediaFallback(context),
+                  errorBuilder: (BuildContext ctx, Object e, StackTrace? s) {
+                    if (attachment.storagePath != null) {
+                      unawaited(
+                        MessagesRepositoryScope.repository.resolveAttachmentUrl(
+                          attachment,
+                          threadId: message.threadId,
+                          forceRefresh: true,
+                        ),
+                      );
+                    }
+                    return _mediaFallback(context);
+                  },
                 ),
               ),
             ),
@@ -858,11 +879,13 @@ class _SystemNotice extends StatelessWidget {
 class _VoiceAttachmentPlayer extends StatefulWidget {
   const _VoiceAttachmentPlayer({
     required this.attachment,
+    required this.threadId,
     required this.fromMe,
     required this.fgColor,
   });
 
   final MessageAttachment attachment;
+  final String threadId;
   final bool fromMe;
   final Color fgColor;
 
@@ -974,7 +997,17 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
   }
 
   Future<void> _play() async {
-    final String? url = widget.attachment.url;
+    String? url = widget.attachment.url;
+    if (widget.attachment.isSignedUrlExpired ||
+        (url == null && widget.attachment.storagePath != null)) {
+      try {
+        url = await MessagesRepositoryScope.repository.resolveAttachmentUrl(
+          widget.attachment,
+          threadId: widget.threadId,
+          forceRefresh: true,
+        );
+      } catch (_) {}
+    }
     if (url != null && url.isNotEmpty) {
       try {
         _player ??= AudioPlayer();
@@ -994,6 +1027,22 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
         if (mounted) setState(() => _isPlaying = true);
         return;
       } catch (e) {
+        if (widget.attachment.storagePath != null) {
+          try {
+            final refreshed = await MessagesRepositoryScope.repository
+                .resolveAttachmentUrl(
+                  widget.attachment,
+                  threadId: widget.threadId,
+                  forceRefresh: true,
+                );
+            if (refreshed != null && refreshed.isNotEmpty) {
+              await _player!.play(UrlSource(refreshed));
+              await _player!.setPlaybackRate(_speed);
+              if (mounted) setState(() => _isPlaying = true);
+              return;
+            }
+          } catch (_) {}
+        }
         debugPrint('[VoiceAttachmentPlayer] Real audio playback error: $e. Falling back to timer.');
       }
     }

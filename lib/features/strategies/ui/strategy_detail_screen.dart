@@ -128,6 +128,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
       if (mounted) {
         UiToast.error(context, title: 'Could not post comment', message: '$e');
       }
+      rethrow;
     }
   }
 

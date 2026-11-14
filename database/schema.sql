@@ -728,7 +728,8 @@ CREATE TABLE IF NOT EXISTS desk_risk_policies (
   UNIQUE (admin_id)
 );
 
-CREATE OR REPLACE VIEW portfolio_stats AS
+CREATE OR REPLACE VIEW portfolio_stats
+WITH (security_invoker = true) AS
 SELECT
   user_id,
   SUM(pnl) AS total_pnl,
@@ -743,7 +744,11 @@ SELECT
   MAX(pnl) AS best_trade_pnl
 FROM journal_entries
 WHERE pnl IS NOT NULL
+  AND user_id = (SELECT auth.uid())
 GROUP BY user_id;
+
+REVOKE ALL ON portfolio_stats FROM PUBLIC, anon;
+GRANT SELECT ON portfolio_stats TO authenticated, service_role;
 
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
@@ -1485,24 +1490,63 @@ CREATE OR REPLACE FUNCTION increment_post_views(p_post_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_user_id UUID;
+  v_author_id UUID;
+  v_is_public BOOLEAN;
+  v_moderation_status TEXT;
+  v_admin_hidden BOOLEAN;
 BEGIN
   v_user_id := auth.uid();
-  IF v_user_id IS NOT NULL THEN
-    INSERT INTO post_views (post_id, user_id)
-    VALUES (p_post_id, v_user_id)
-    ON CONFLICT (post_id, user_id) DO NOTHING;
+  IF v_user_id IS NULL OR NOT tradex_private.account_active(v_user_id) THEN
+    RETURN;
+  END IF;
 
-    IF FOUND THEN
-      UPDATE community_posts SET views_count = views_count + 1 WHERE id = p_post_id;
-    END IF;
-  ELSE
-    UPDATE community_posts SET views_count = views_count + 1 WHERE id = p_post_id;
+  SELECT author_id, is_public, moderation_status, COALESCE(admin_hidden, false)
+    INTO v_author_id, v_is_public, v_moderation_status, v_admin_hidden
+    FROM public.community_posts
+   WHERE id = p_post_id;
+
+  IF v_author_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  IF v_admin_hidden AND NOT public.is_user_admin() THEN
+    RETURN;
+  END IF;
+
+  IF NOT (
+    (v_moderation_status = 'approved' AND v_is_public = true)
+    OR v_user_id = v_author_id
+    OR public.is_user_admin()
+  ) THEN
+    RETURN;
+  END IF;
+
+  IF v_user_id <> v_author_id
+     AND NOT public.is_user_admin()
+     AND public.are_blocked(v_user_id, v_author_id) THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO public.post_views (post_id, user_id)
+  VALUES (p_post_id, v_user_id)
+  ON CONFLICT (post_id, user_id) DO NOTHING;
+
+  IF FOUND THEN
+    PERFORM set_config('tradex.trusted_counter_write', 'on', true);
+    UPDATE public.community_posts
+       SET views_count = COALESCE(views_count, 0) + 1
+     WHERE id = p_post_id;
+    PERFORM set_config('tradex.trusted_counter_write', 'off', true);
   END IF;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION increment_post_views(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION increment_post_views(UUID) TO authenticated, service_role;
 
 CREATE INDEX IF NOT EXISTS idx_posts_trending ON posts (likes_count DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_post_views_post_user ON post_views (post_id, user_id);
@@ -1913,6 +1957,7 @@ CREATE TABLE IF NOT EXISTS chat_attachments (
     message_id UUID NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE ON UPDATE CASCADE,
     kind TEXT NOT NULL CHECK (kind IN ('image', 'chart', 'document', 'tradeSetup', 'voice')),
     url TEXT NOT NULL,
+    storage_path TEXT,
     title TEXT NOT NULL DEFAULT '',
     file_size_bytes BIGINT,
     duration_seconds INTEGER,

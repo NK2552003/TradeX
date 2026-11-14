@@ -13,9 +13,12 @@ import 'package:tradex/features/community/data/unified_comments_repository.dart'
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_author_header.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
+import 'package:tradex/features/journal/data/journal_attachments.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:tradex/features/notes/data/note_attachments.dart';
 import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/strategies/data/strategies_repository.dart';
+import 'package:tradex/features/strategies/data/strategy_attachments.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// Interactive modal window presenting a public Writing Desk record (Note, Trade, Strategy)
@@ -555,6 +558,7 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
           variant: UiCardVariant.surface,
           child: RichMarkdownPreview(
             data: note.content,
+            imageResolver: NoteAttachments.resolve,
             onOpenRef: widget.onOpenRef,
           ),
         ),
@@ -651,6 +655,7 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
               data: trade.content.isNotEmpty
                   ? trade.content
                   : (trade.notes ?? ''),
+              imageResolver: JournalAttachments.resolve,
               onOpenRef: widget.onOpenRef,
             ),
           ),
@@ -750,6 +755,7 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
           variant: UiCardVariant.surface,
           child: RichMarkdownPreview(
             data: strategy.content,
+            imageResolver: StrategyAttachments.resolve,
             onOpenRef: widget.onOpenRef,
           ),
         ),

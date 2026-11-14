@@ -41,7 +41,7 @@ class StrategyAttachments {
     if (_resolved.length >= 512) _resolved.clear();
     _resolved[key] = (
       url: url,
-      expires: DateTime.now().add(const Duration(minutes: 5)),
+      expires: DateTime.now().add(const Duration(minutes: 4)),
     );
   }
 

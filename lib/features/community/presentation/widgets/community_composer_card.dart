@@ -10,6 +10,7 @@ import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
+import '../../data/community_writing_assistant.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_attachment_picker.dart';
 import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
@@ -61,9 +62,11 @@ class CommunityComposerCard extends StatefulWidget {
     this.onClose,
     this.compact = false,
     this.isDrawerTile = false,
+    this.writingAssistant,
   });
 
   final ComposerMode initialMode;
+  final CommunityWritingAssistant? writingAssistant;
   final CommunityAuthor author;
   final CommunityRepository repository;
   final String hintText;
@@ -285,7 +288,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   @override
   void dispose() {
     if (!_submitting) {
-      unawaited(widget.repository.discardUnusedAttachments(_uploadedImages.values.toList()));
+      unawaited(
+        widget.repository.discardUnusedAttachments(
+          _uploadedImages.values.toList(),
+        ),
+      );
     }
     _bodyCtrl.removeListener(_onBodyChanged);
     _setupEntryCtrl.removeListener(_onSetupPricesChanged);
@@ -407,175 +414,129 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   // Inline AI-Assist Actions
   // ---------------------------------------------------------------------------
 
-  void _aiPolishThesis() {
-    final String text = _bodyCtrl.text.trim();
-    if (text.isEmpty) {
-      const String template =
-          '📊 **Executive Trade Thesis**\n\n'
-          '• **Macro Context:** Index holding above critical daily 20 EMA with positive FII cash accumulation.\n'
-          '• **Setup Rationale:** Clean ascending triangle breakout with expanding volume delta.\n'
-          '• **Risk Invalidation:** 15m candle close below demand block.\n'
-          '• **Execution Plan:** Scale out 50% at Target 1, trail stop to breakeven for runner.';
-      _bodyCtrl.text = template;
-      setState(() => _body = template);
-      UiToast.show(
-        context,
-        title: 'AI Thesis Generated',
-        message: 'Generated professional executive trading thesis.',
-        intent: UiIntent.success,
+  bool _aiBusy = false;
+
+  void _aiPolishThesis() => _runWritingAssistant(CommunityWritingAction.polish);
+  void _aiAutoTagTickers() =>
+      _runWritingAssistant(CommunityWritingAction.tickers);
+  void _aiFormatSetup() => _runWritingAssistant(CommunityWritingAction.setup);
+  void _aiAddBullBearCatalysts() =>
+      _runWritingAssistant(CommunityWritingAction.catalysts);
+
+  Future<void> _runWritingAssistant(CommunityWritingAction action) async {
+    if (_aiBusy || _submitting) return;
+    final original = _bodyCtrl.text;
+    final originalSetup = <String, String>{
+      'ticker': _setupTickerCtrl.text,
+      'entry': _setupEntryCtrl.text,
+      'stopLoss': _setupSlCtrl.text,
+      'target': _setupTargetCtrl.text,
+      'invalidation': _setupCatalystCtrl.text,
+    };
+    setState(() => _aiBusy = true);
+    try {
+      final suggestion = await (widget.writingAssistant ?? CommunityWritingAssistant()).suggest(
+        action: action,
+        draft: original,
+        setup: originalSetup,
       );
-      return;
-    }
-
-    final List<String> lines = text
-        .split('\n')
-        .where((l) => l.trim().isNotEmpty)
-        .toList();
-    final StringBuffer polished = StringBuffer();
-    polished.writeln('🎯 **Key Trade Thesis & Plan**');
-    polished.writeln();
-    for (final String line in lines) {
-      if (line.startsWith('•') ||
-          line.startsWith('-') ||
-          line.startsWith('*')) {
-        polished.writeln(line);
-      } else {
-        polished.writeln('• ${line.trim()}');
-      }
-    }
-    polished.writeln();
-    polished.writeln(
-      '⚡ **Risk Management:** Strict stop discipline; no overnight carry without hedge.',
-    );
-
-    _bodyCtrl.text = polished.toString();
-    setState(() => _body = polished.toString());
-    UiToast.show(
-      context,
-      title: 'Thesis Polished',
-      message: 'Enhanced structure, readability, and risk framing.',
-      intent: UiIntent.success,
-    );
-  }
-
-  void _aiAutoTagTickers() {
-    final String text = _bodyCtrl.text;
-    if (text.isEmpty) {
-      UiToast.show(
+      if (!mounted) return;
+      final apply = await UiDialog.show<bool>(
         context,
-        title: 'No Text Found',
-        message: 'Write your thesis first to auto-detect tickers.',
-        intent: UiIntent.warning,
+        maxWidth: 640,
+        child: UiDialog(
+          title: 'Review AI suggestion',
+          description: 'Check the wording and supplied levels before applying.',
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SelectableText(suggestion.body, style: context.uiText.body),
+              if (suggestion.tickers.isNotEmpty) ...[
+                UiGap.v(context.ui.spacing.sm),
+                Wrap(
+                  spacing: context.sp(context.ui.spacing.xs),
+                  children: [
+                    for (final ticker in suggestion.tickers)
+                      UiBadge(label: ticker),
+                  ],
+                ),
+              ],
+              if (action == CommunityWritingAction.setup) ...[
+                UiGap.v(context.ui.spacing.sm),
+                for (final entry in suggestion.setup.entries)
+                  Text(
+                    '${entry.key}: ${entry.value}',
+                    style: context.uiText.body,
+                  ),
+              ],
+            ],
+          ),
+          actions: [
+            UiButton(
+              label: 'Discard',
+              variant: UiVariant.ghost,
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+            UiButton(
+              label: 'Apply suggestion',
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        ),
       );
-      return;
-    }
-
-    const List<String> knownTickers = <String>[
-      'NIFTY',
-      'BANKNIFTY',
-      'FINNIFTY',
-      'MIDCPNIFTY',
-      'RELIANCE',
-      'HDFCBANK',
-      'ICICIBANK',
-      'INFY',
-      'TCS',
-      'SBIN',
-      'TATAMOTORS',
-      'ITC',
-      'BHARTIARTL',
-      'KOTAKBANK',
-      'LT',
-      'AXISBANK',
-      'BTC',
-      'ETH',
-      'SOL',
-      'TSLA',
-      'AAPL',
-      'NVDA',
-      'SPY',
-      'QQQ',
-      'GOLD',
-      'CRUDE',
-    ];
-
-    int addedCount = 0;
-    String updatedText = text;
-
-    for (final String sym in knownTickers) {
-      final RegExp regex = RegExp('\\b(?<!\\\$)$sym\\b', caseSensitive: false);
-      if (regex.hasMatch(updatedText)) {
-        updatedText = updatedText.replaceAllMapped(
-          regex,
-          (Match m) => '\$$sym',
+      if (!mounted || apply != true) return;
+      if (_bodyCtrl.text != original ||
+          _setupTickerCtrl.text != originalSetup['ticker'] ||
+          _setupEntryCtrl.text != originalSetup['entry'] ||
+          _setupSlCtrl.text != originalSetup['stopLoss'] ||
+          _setupTargetCtrl.text != originalSetup['target'] ||
+          _setupCatalystCtrl.text != originalSetup['invalidation']) {
+        UiToast.show(
+          context,
+          title: 'Draft changed',
+          message: 'Run the assistant again to include your latest edits.',
+          intent: UiIntent.warning,
         );
-        if (!_tickers.contains(sym)) {
-          _tickers.add(sym);
-          addedCount++;
+        return;
+      }
+      setState(() {
+        _bodyCtrl.text = suggestion.body;
+        _bodyCtrl.selection = TextSelection.collapsed(
+          offset: suggestion.body.length,
+        );
+        _body = suggestion.body;
+        for (final ticker in suggestion.tickers) {
+          if (!_tickers.contains(ticker)) _tickers.add(ticker);
         }
+        if (action == CommunityWritingAction.setup) {
+          _activeMode = ComposerMode.tradeSetup;
+          final fields = <String, TextEditingController>{
+            'ticker': _setupTickerCtrl,
+            'entry': _setupEntryCtrl,
+            'stopLoss': _setupSlCtrl,
+            'target': _setupTargetCtrl,
+            'invalidation': _setupCatalystCtrl,
+          };
+          for (final entry in suggestion.setup.entries) {
+            fields[entry.key]?.text = entry.value;
+          }
+        }
+      });
+    } catch (error) {
+      if (mounted) {
+        UiToast.show(
+          context,
+          title: 'AI assistant unavailable',
+          message: error is StateError
+              ? error.message
+              : 'Could not prepare a suggestion. Your draft is unchanged; please try again.',
+          intent: UiIntent.warning,
+        );
       }
+    } finally {
+      if (mounted) setState(() => _aiBusy = false);
     }
-
-    _bodyCtrl.text = updatedText;
-    setState(() => _body = updatedText);
-
-    if (addedCount > 0) {
-      UiToast.show(
-        context,
-        title: 'Tickers Auto-Tagged',
-        message: 'Detected and tagged $addedCount ticker(s) in your thesis.',
-        intent: UiIntent.success,
-      );
-    } else {
-      UiToast.show(
-        context,
-        title: 'No New Tickers Detected',
-        message: 'All mentioned tickers are already tagged.',
-        intent: UiIntent.info,
-      );
-    }
-  }
-
-  void _aiFormatSetup() {
-    setState(() {
-      _activeMode = ComposerMode.tradeSetup;
-      if (_setupTickerCtrl.text.isEmpty && _tickers.isNotEmpty) {
-        _setupTickerCtrl.text = _tickers.first;
-      }
-      if (_setupEntryCtrl.text.isEmpty) {
-        _setupEntryCtrl.text = '24820';
-        _setupSlCtrl.text = '24760';
-        _setupTargetCtrl.text = '24970';
-        _setupCatalystCtrl.text = '15m close below 24,760 demand block';
-      }
-    });
-
-    UiToast.show(
-      context,
-      title: 'Trade Setup Formatted',
-      message: 'Structured entry, invalidation SL, and targets prepared.',
-      intent: UiIntent.success,
-    );
-  }
-
-  void _aiAddBullBearCatalysts() {
-    final String current = _bodyCtrl.text.trim();
-    const String catalystBlock =
-        '\n\n⚖️ **Bull / Bear Catalyst Matrix**\n'
-        '🟢 **Bull Case:** Sustained volume above VWAP, call OI unwinding, FII index net-long.\n'
-        '🔴 **Bear Risk:** Rejection at daily resistance, India VIX expansion, weakness in US futures.';
-
-    _bodyCtrl.text = current.isEmpty
-        ? catalystBlock.trimLeft()
-        : '$current$catalystBlock';
-    setState(() => _body = _bodyCtrl.text);
-
-    UiToast.show(
-      context,
-      title: 'Catalysts Appended',
-      message: 'Added balanced Bull vs. Bear risk parameters.',
-      intent: UiIntent.info,
-    );
   }
 
   bool _isUploadingChart = false;
@@ -590,15 +551,23 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       final picked = await ImagePicker().pickMultiImage();
       for (var index = 0; index < picked.length; index++) {
         if (!mounted) return;
-        setState(() => _preparingLabel = 'Preparing image ${index + 1} of ${picked.length}...');
+        setState(
+          () => _preparingLabel =
+              'Preparing image ${index + 1} of ${picked.length}...',
+        );
         final file = picked[index];
         try {
           final image = await AttachmentCompressionService.compressAttachment(
-            bytes: await file.readAsBytes(), filename: file.name, mimeType: file.mimeType,
+            bytes: await file.readAsBytes(),
+            filename: file.name,
+            mimeType: file.mimeType,
           );
-          if (!image.isImage) throw const FormatException('Select an image file.');
+          if (!image.isImage) {
+            throw const FormatException('Select an image file.');
+          }
           if (!mounted) return;
-          final preview = 'data:${image.mimeType};base64,${base64Encode(image.bytes)}';
+          final preview =
+              'data:${image.mimeType};base64,${base64Encode(image.bytes)}';
           if (_imageUrls.contains(preview)) continue;
           setState(() {
             _preparedImages[preview] = image;
@@ -607,7 +576,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         } catch (error) {
           if (!mounted) return;
           setState(() {
-            _attachmentError = '${_attachmentError == null ? '' : '$_attachmentError\n'}${file.name}: $error';
+            _attachmentError =
+                '${_attachmentError == null ? '' : '$_attachmentError\n'}${file.name}: $error';
           });
         }
       }
@@ -626,11 +596,13 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         result.add(url);
         continue;
       }
-      final uploaded = _uploadedImages[url] ?? await widget.repository.uploadAttachment(
-        postId: _uploadBatchId,
-        bytes: image.bytes,
-        filename: '${sha256.convert(image.bytes)}.webp',
-      );
+      final uploaded =
+          _uploadedImages[url] ??
+          await widget.repository.uploadAttachment(
+            postId: _uploadBatchId,
+            bytes: image.bytes,
+            filename: '${sha256.convert(image.bytes)}.webp',
+          );
       _uploadedImages[url] = uploaded;
       result.add(uploaded);
     }
@@ -642,8 +614,13 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     final clean = url.trim();
     if (clean.isEmpty || _imageUrls.contains(clean)) return;
     final uri = Uri.tryParse(clean);
-    if (uri == null || !['https', 'http'].contains(uri.scheme) || uri.host.isEmpty) {
-      setState(() => _attachmentError = 'Enter a valid image URL beginning with https://.');
+    if (uri == null ||
+        !['https', 'http'].contains(uri.scheme) ||
+        uri.host.isEmpty) {
+      setState(
+        () => _attachmentError =
+            'Enter a valid image URL beginning with https://.',
+      );
       return;
     }
     setState(() {
@@ -655,6 +632,10 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
   void _removeImageUrl(String url) {
     if (_submitting) return;
+    final uploaded = _uploadedImages.remove(url);
+    if (uploaded != null) {
+      unawaited(widget.repository.discardUnusedAttachments(<String>[uploaded]));
+    }
     setState(() {
       _imageUrls.remove(url);
       _preparedImages.remove(url);
@@ -779,13 +760,14 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         .toList();
     if (validOptions.length < 2) return null;
 
+    final uuid = const Uuid();
     return CommunityPoll(
-      id: 'poll_${DateTime.now().millisecondsSinceEpoch}',
+      id: uuid.v4(),
       question: _pollQuestionCtrl.text.trim(),
       options: [
         for (int i = 0; i < validOptions.length; i++)
           CommunityPollOption(
-            id: 'opt_${i + 1}',
+            id: uuid.v4(),
             text: validOptions[i],
             votes: 0,
           ),
@@ -1009,56 +991,73 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       }
       final imageUrls = await _uploadPreparedImages();
 
-      if (widget.postToEdit != null) {
-        final p = widget.postToEdit!;
-        await widget.repository.editPost(
-          p.id,
-          finalBody,
+      try {
+        if (widget.postToEdit != null) {
+          final p = widget.postToEdit!;
+          await widget.repository.editPost(
+            p.id,
+            finalBody,
+            tickers: List<String>.unmodifiable(allTickers),
+            tags: List<String>.unmodifiable(allTags),
+            tradeSetup: _buildTradeSetup,
+            clearTradeSetup:
+                _activeMode != ComposerMode.tradeSetup && p.tradeSetup != null,
+            attachment: _attachment,
+            clearAttachment: _attachment == null && p.attachment != null,
+            poll: _buildPoll,
+            clearPoll: _activeMode != ComposerMode.poll && p.poll != null,
+            sentiment: _sentiment,
+            clearSentiment: _sentiment == null && p.sentiment != null,
+            replyAudience: _replyAudience,
+            imageUrls: imageUrls,
+          );
+
+          unawaited(
+            widget.repository.discardUnusedAttachments(
+              _uploadedImages.values.toList(),
+            ),
+          );
+          if (!mounted) return;
+          UiToast.show(
+            context,
+            title: 'Post Updated',
+            message: 'Your post edits have been saved.',
+            intent: UiIntent.success,
+          );
+
+          widget.onPostCreated?.call();
+          return;
+        }
+
+        await widget.repository.createPost(
+          body: finalBody,
           tickers: List<String>.unmodifiable(allTickers),
           tags: List<String>.unmodifiable(allTags),
           tradeSetup: _buildTradeSetup,
-          clearTradeSetup:
-              _activeMode != ComposerMode.tradeSetup && p.tradeSetup != null,
           attachment: _attachment,
-          clearAttachment: _attachment == null && p.attachment != null,
           poll: _buildPoll,
-          clearPoll: _activeMode != ComposerMode.poll && p.poll != null,
+          quoted: widget.quotedPost,
           sentiment: _sentiment,
-          clearSentiment: _sentiment == null && p.sentiment != null,
           replyAudience: _replyAudience,
+          scheduledFor: _scheduledFor,
+          imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
           imageUrls: imageUrls,
+          author: widget.author,
         );
-
-        unawaited(widget.repository.discardUnusedAttachments(_uploadedImages.values.toList()));
-        if (!mounted) return;
-        UiToast.show(
-          context,
-          title: 'Post Updated',
-          message: 'Your post edits have been saved.',
-          intent: UiIntent.success,
-        );
-
-        widget.onPostCreated?.call();
-        return;
+      } catch (postSaveError) {
+        if (_uploadedImages.isNotEmpty) {
+          final stagedUrls = _uploadedImages.values.toList();
+          _uploadedImages.clear();
+          unawaited(widget.repository.discardUnusedAttachments(stagedUrls));
+        }
+        rethrow;
       }
 
-      await widget.repository.createPost(
-        body: finalBody,
-        tickers: List<String>.unmodifiable(allTickers),
-        tags: List<String>.unmodifiable(allTags),
-        tradeSetup: _buildTradeSetup,
-        attachment: _attachment,
-        poll: _buildPoll,
-        quoted: widget.quotedPost,
-        sentiment: _sentiment,
-        replyAudience: _replyAudience,
-        scheduledFor: _scheduledFor,
-        imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
-        imageUrls: imageUrls,
-        author: widget.author,
+      unawaited(
+        widget.repository.discardUnusedAttachments(
+          _uploadedImages.values.toList(),
+        ),
       );
-
-      unawaited(widget.repository.discardUnusedAttachments(_uploadedImages.values.toList()));
       if (!mounted) return;
       UiToast.show(
         context,
@@ -1127,7 +1126,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       if (mounted) {
         setState(() => _submitting = false);
       } else {
-        unawaited(widget.repository.discardUnusedAttachments(_uploadedImages.values.toList()));
+        unawaited(
+          widget.repository.discardUnusedAttachments(
+            _uploadedImages.values.toList(),
+          ),
+        );
       }
     }
   }
@@ -1623,199 +1626,90 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   // Unified Smart Intelligence Bar (AI Copilot + Quick-Add Trending)
   // ---------------------------------------------------------------------------
 
-  Widget _buildUnifiedIntelligenceBar(UiTheme theme, bool isMobile) {
-    final double gapXs = context.sp(theme.spacing.xxs);
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(theme.spacing.xs),
-        vertical: context.sp(theme.spacing.xs),
-      ),
-      decoration: BoxDecoration(
-        color: theme.colors.surfaceMuted.withValues(alpha: 0.5),
-        borderRadius: context.radius(theme.radii.md),
-        border: Border.all(color: theme.colors.border.withValues(alpha: 0.8)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          // Row 1: AI Copilot Tools
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: <Widget>[
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(
-                      Icons.auto_awesome,
-                      size: context.sz(12.5),
-                      color: theme.colors.primary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'AI Copilot',
-                      style: context.uiText.label.copyWith(
-                        fontSize: context.fs(11),
-                        fontWeight: FontWeight.w700,
-                        color: theme.colors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                _aiToolButton(
-                  context,
-                  theme,
-                  icon: Icons.auto_fix_high_rounded,
-                  label: 'Polish Thesis',
-                  onTap: _aiPolishThesis,
-                ),
-                SizedBox(width: gapXs),
-                _aiToolButton(
-                  context,
-                  theme,
-                  icon: Icons.tag_rounded,
-                  label: 'Auto-Tag Tickers',
-                  onTap: _aiAutoTagTickers,
-                ),
-                SizedBox(width: gapXs),
-                _aiToolButton(
-                  context,
-                  theme,
-                  icon: Icons.candlestick_chart_rounded,
-                  label: 'Format Setup',
-                  onTap: _aiFormatSetup,
-                ),
-                SizedBox(width: gapXs),
-                _aiToolButton(
-                  context,
-                  theme,
-                  icon: Icons.balance_rounded,
-                  label: 'Add Catalysts',
-                  onTap: _aiAddBullBearCatalysts,
-                ),
-              ],
+  Widget _buildUnifiedIntelligenceBar(UiTheme theme, bool isMobile) => UiCard(
+    variant: UiCardVariant.surface,
+    padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Wrap(
+          spacing: context.sp(theme.spacing.xs),
+          runSpacing: context.sp(theme.spacing.xs),
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              _aiBusy ? 'AI Copilot · Preparing suggestion…' : 'AI Copilot',
+              style: context.uiText.bodyStrong,
             ),
-          ),
-
-          SizedBox(height: gapXs + 2),
-          Container(
-            height: 1,
-            color: theme.colors.border.withValues(alpha: 0.5),
-          ),
-          SizedBox(height: gapXs + 2),
-
-          // Row 2: Quick-Add Trending Tickers & Tags
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: <Widget>[
-                Text(
-                  'Quick Add: ',
-                  style: context.uiText.caption.copyWith(
-                    fontSize: context.fs(11),
-                    color: theme.colors.foregroundMuted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                for (final String t in _trendingCashtags) ...<Widget>[
-                  InkWell(
-                    onTap: () => _addTicker(t),
-                    borderRadius: context.radius(theme.radii.sm),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.sp(theme.spacing.xs),
-                        vertical: 2,
-                      ),
-                      margin: EdgeInsets.only(right: gapXs),
-                      decoration: BoxDecoration(
-                        color: theme.colors.primary.withValues(alpha: 0.08),
-                        borderRadius: context.radius(theme.radii.sm),
-                        border: Border.all(
-                          color: theme.colors.primary.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Text(
-                        '+\$$t',
-                        style: context.uiText.caption.copyWith(
-                          fontSize: context.fs(11),
-                          color: theme.colors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-                InkWell(
-                  onTap: _showTickerDialog,
-                  borderRadius: context.radius(theme.radii.sm),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.sp(theme.spacing.xs),
-                      vertical: 2,
-                    ),
-                    margin: EdgeInsets.only(right: gapXs),
-                    decoration: BoxDecoration(
-                      color: theme.colors.surface,
-                      borderRadius: context.radius(theme.radii.sm),
-                      border: Border.all(color: theme.colors.border),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(
-                          Icons.add,
-                          size: context.sz(11),
-                          color: theme.colors.primary,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          'Symbol',
-                          style: context.uiText.caption.copyWith(
-                            fontSize: context.fs(11),
-                            color: theme.colors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                for (final String tag in _trendingHashtags) ...<Widget>[
-                  InkWell(
-                    onTap: () => _addTag(tag),
-                    borderRadius: context.radius(theme.radii.sm),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.sp(theme.spacing.xs),
-                        vertical: 2,
-                      ),
-                      margin: EdgeInsets.only(right: gapXs),
-                      decoration: BoxDecoration(
-                        color: theme.colors.surface,
-                        borderRadius: context.radius(theme.radii.sm),
-                        border: Border.all(color: theme.colors.border),
-                      ),
-                      child: Text(
-                        '+#$tag',
-                        style: context.uiText.caption.copyWith(
-                          fontSize: context.fs(11),
-                          color: theme.colors.foregroundMuted,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+            _aiToolButton(
+              context,
+              theme,
+              icon: Icons.auto_fix_high,
+              label: 'Polish Thesis',
+              onTap: _aiPolishThesis,
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            _aiToolButton(
+              context,
+              theme,
+              icon: Icons.tag,
+              label: 'Auto-Tag Tickers',
+              onTap: _aiAutoTagTickers,
+            ),
+            _aiToolButton(
+              context,
+              theme,
+              icon: Icons.candlestick_chart_outlined,
+              label: 'Format Setup',
+              onTap: _aiFormatSetup,
+            ),
+            _aiToolButton(
+              context,
+              theme,
+              icon: Icons.balance,
+              label: 'Add Catalysts',
+              onTap: _aiAddBullBearCatalysts,
+            ),
+          ],
+        ),
+        const UiDivider(),
+        Wrap(
+          spacing: context.sp(theme.spacing.xs),
+          runSpacing: context.sp(theme.spacing.xs),
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('Quick Add:', style: context.uiText.caption),
+            for (final ticker in _trendingCashtags)
+              UiButton(
+                label: '+\$$ticker',
+                size: UiSize.xs,
+                variant: UiVariant.soft,
+                onPressed: _submitting ? null : () => _addTicker(ticker),
+              ),
+            UiButton(
+              label: 'Symbol',
+              leadingIcon: Icons.add,
+              size: UiSize.xs,
+              variant: UiVariant.ghost,
+              onPressed: _submitting ? null : _showTickerDialog,
+            ),
+            UiDropdownMenu(
+              items: [
+                for (final tag in _trendingHashtags)
+                  UiMenuItem(label: '#$tag', onTap: () => _addTag(tag)),
+              ],
+              child: const UiButton(
+                label: 'Tags',
+                leadingIcon: Icons.tag,
+                size: UiSize.xs,
+                variant: UiVariant.ghost,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 
   Widget _aiToolButton(
     BuildContext context,
@@ -1823,42 +1717,13 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: context.radius(theme.radii.pill),
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.xs),
-          vertical: 3,
-        ),
-        decoration: BoxDecoration(
-          color: theme.colors.surface,
-          borderRadius: context.radius(theme.radii.pill),
-          border: Border.all(color: theme.colors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: context.sz(11), color: theme.colors.primary),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: context.uiText.label.copyWith(
-                fontSize: context.fs(10.5),
-                fontWeight: FontWeight.w600,
-                color: theme.colors.foreground,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Step 3: Editor Content Column
-  // ---------------------------------------------------------------------------
+  }) => UiButton(
+    label: label,
+    leadingIcon: icon,
+    size: UiSize.xs,
+    variant: UiVariant.outline,
+    onPressed: _aiBusy || _submitting ? null : onTap,
+  );
 
   Widget _buildEditorContent(UiTheme theme, bool isMobile, String activeToken) {
     final double spacingSm = context.sp(theme.spacing.sm);
@@ -3256,24 +3121,30 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             size: UiSize.sm,
             variant: UiVariant.ghost,
             intent: UiIntent.danger,
-            onPressed: _submitting || _isUploadingChart ? null : () {
-              unawaited(widget.repository.discardUnusedAttachments(_uploadedImages.values.toList()));
-              setState(() {
-                _bodyCtrl.clear();
-                _body = '';
-                _tickers.clear();
-                _tags.clear();
-                _imageUrls.clear();
-                _preparedImages.clear();
-                _uploadedImages.clear();
-                _uploadBatchId = const Uuid().v4();
-                _attachmentError = null;
-                _attachment = null;
-                _sentiment = null;
-                _conviction = 'Standard';
-                _scheduledFor = null;
-              });
-            },
+            onPressed: _submitting || _isUploadingChart
+                ? null
+                : () {
+                    unawaited(
+                      widget.repository.discardUnusedAttachments(
+                        _uploadedImages.values.toList(),
+                      ),
+                    );
+                    setState(() {
+                      _bodyCtrl.clear();
+                      _body = '';
+                      _tickers.clear();
+                      _tags.clear();
+                      _imageUrls.clear();
+                      _preparedImages.clear();
+                      _uploadedImages.clear();
+                      _uploadBatchId = const Uuid().v4();
+                      _attachmentError = null;
+                      _attachment = null;
+                      _sentiment = null;
+                      _conviction = 'Standard';
+                      _scheduledFor = null;
+                    });
+                  },
           ),
           SizedBox(width: context.sp(theme.spacing.xxs)),
         ],
@@ -3296,11 +3167,12 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           loading: _submitting,
           expandOnMobile: false,
           onPressed:
-              _isUploadingChart || (_body.trim().isEmpty &&
-                  _attachment == null &&
-                  _imageUrls.isEmpty &&
-                  _activeMode != ComposerMode.poll &&
-                  _activeMode != ComposerMode.tradeSetup)
+              _isUploadingChart ||
+                  (_body.trim().isEmpty &&
+                      _attachment == null &&
+                      _imageUrls.isEmpty &&
+                      _activeMode != ComposerMode.poll &&
+                      _activeMode != ComposerMode.tradeSetup)
               ? null
               : _submit,
         ),

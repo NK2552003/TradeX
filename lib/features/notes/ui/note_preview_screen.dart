@@ -657,6 +657,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
                 await _loadNoteComments();
               } catch (e) {
                 _showCommentError(e);
+                rethrow;
               }
             },
             onLikeComment: (commentId, {reaction}) async {

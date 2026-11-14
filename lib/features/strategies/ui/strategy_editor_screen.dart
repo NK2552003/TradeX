@@ -19,6 +19,7 @@ import 'package:tradex/features/linking/record_link_picker.dart';
 import 'package:tradex/core/markdown_kit/markdown_kit.dart';
 import 'package:tradex/features/linking/link_graph_service.dart';
 import 'package:tradex/features/notes/data/note_ai_refactor.dart';
+import 'package:tradex/features/notes/data/note_attachments.dart';
 
 import '../data/strategies_repository.dart';
 import '../data/strategy_attachments.dart';
@@ -142,6 +143,8 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
   bool _refactoring = false;
   bool _detailsOpen = false;
   String _voiceBase = '';
+  final Set<String> _sessionUploadedRefs = <String>{};
+  bool _createdAsSilentDraftForAttachment = false;
 
   @override
   void initState() {
@@ -171,6 +174,9 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
 
   @override
   void dispose() {
+    if (!_saving && (_sessionUploadedRefs.isNotEmpty || (_createdAsSilentDraftForAttachment && _isBlank))) {
+      _discardUncommittedAttachments(deleteBootstrapDraft: _isBlank);
+    }
     _previewDebounce?.cancel();
     if (_listening) _speech.stop();
     _graphSub?.cancel();
@@ -310,7 +316,29 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
   /// [versionNote] non-null cuts a numbered revision as part of the same save —
   /// an empty string means "cut one, but the trader chose not to name it", which
   /// is a different answer from null.
-  Future<AppStrategy?> _save({bool silent = false, String? versionNote}) async {
+  void _discardUncommittedAttachments({bool deleteBootstrapDraft = false}) {
+    final repo = StrategiesRepositoryScope.repository;
+    if (_sessionUploadedRefs.isNotEmpty) {
+      final uncommitted = _sessionUploadedRefs.toList();
+      _sessionUploadedRefs.clear();
+      for (final ref in uncommitted) {
+        unawaited(repo.deleteAttachment(ref).catchError((_) {}));
+      }
+    }
+    if (deleteBootstrapDraft &&
+        _createdAsSilentDraftForAttachment &&
+        _strategy.id.isNotEmpty) {
+      final draftId = _strategy.id;
+      _createdAsSilentDraftForAttachment = false;
+      unawaited(repo.delete(draftId).catchError((_) {}));
+    }
+  }
+
+  Future<AppStrategy?> _save({
+    bool silent = false,
+    String? versionNote,
+    bool forAttachmentBootstrap = false,
+  }) async {
     if (_saving) return null;
     if (_name.text.trim().isEmpty) {
       if (!silent && mounted) {
@@ -332,6 +360,17 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
           ? await repo.create(draft)
           : await repo.update(draft, versionNote: versionNote);
       saved = await _reconcileLinks(saved, before: before);
+      if (!forAttachmentBootstrap) {
+        _createdAsSilentDraftForAttachment = false;
+        if (_sessionUploadedRefs.isNotEmpty) {
+          final activeRefs = NoteAttachments.extractRefs(saved.content);
+          final abandoned = _sessionUploadedRefs.difference(activeRefs).toList();
+          _sessionUploadedRefs.clear();
+          for (final ref in abandoned) {
+            unawaited(repo.deleteAttachment(ref).catchError((_) {}));
+          }
+        }
+      }
       if (!mounted) return saved;
       setState(() {
         _strategy = saved;
@@ -470,7 +509,9 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
   /// and only they can say what to call them.
   Future<void> _closeAndSave() async {
     if (_isBlank) {
-      widget.onClose(_strategy.id.isEmpty ? null : _strategy);
+      final wasBootstrap = _createdAsSilentDraftForAttachment;
+      _discardUncommittedAttachments(deleteBootstrapDraft: true);
+      widget.onClose(_strategy.id.isEmpty || wasBootstrap ? null : _strategy);
       return;
     }
     if (_name.text.trim().isEmpty) {
@@ -489,7 +530,9 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
         _nameFocus.requestFocus();
         return;
       }
-      widget.onClose(_strategy.id.isEmpty ? null : _strategy);
+      final wasBootstrap = _createdAsSilentDraftForAttachment;
+      _discardUncommittedAttachments(deleteBootstrapDraft: true);
+      widget.onClose(_strategy.id.isEmpty || wasBootstrap ? null : _strategy);
       return;
     }
     if (_saving) return;
@@ -930,8 +973,9 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
   /// otherwise the file would be stored against an id that does not exist yet,
   /// and the playbook bucket is keyed by playbook.
   Future<void> _attachBytes(Uint8List bytes, {required String filename}) async {
-    final AppStrategy? owner = _strategy.id.isEmpty
-        ? await _save(silent: true)
+    final bool wasUnsaved = _strategy.id.isEmpty;
+    final AppStrategy? owner = wasUnsaved
+        ? await _save(silent: true, forAttachmentBootstrap: true)
         : _strategy;
     if (!mounted) return;
     if (owner == null) {
@@ -942,13 +986,20 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
       );
       return;
     }
+    if (wasUnsaved) {
+      _createdAsSilentDraftForAttachment = true;
+    }
     try {
       final String markdown = await StrategyAttachments.attachBytes(
         strategyId: owner.id,
         bytes: bytes,
         filename: filename,
       );
-      if (!mounted) return;
+      _sessionUploadedRefs.addAll(NoteAttachments.extractRefs(markdown));
+      if (!mounted) {
+        _discardUncommittedAttachments(deleteBootstrapDraft: _isBlank);
+        return;
+      }
       _editorKey.currentState?.insertBlock(markdown);
     } catch (error) {
       if (!mounted) return;

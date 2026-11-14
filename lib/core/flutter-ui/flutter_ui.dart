@@ -11,6 +11,7 @@ export 'theme/ui_tokens.dart';
 
 // Foundations
 export 'components/ui_common.dart';
+export 'components/ui_reveal.dart';
 export 'components/ui_common_option.dart';
 export 'components/ui_gap.dart';
 export 'components/ui_divider.dart';
