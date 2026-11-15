@@ -213,18 +213,18 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       destinationId: 'journal',
       icon: Icons.book_outlined,
       subdomain: CustomerSubdomain.app,
-      tierBadge: 'Free (15/mo) · Basic (75/mo) · Pro (Unl.)',
+      tierBadge: 'Free (15) · Basic (100) · Pro (50,000)',
       summary:
           'Capture every execution with 7 structured templates, entry/stop/target metrics, R-multiple & P&L calculation, chart attachments, and mistake tags.',
       detailedParagraphs: <String>[
         'Consistent profitability comes from reviewing process quality alongside P&L. Trade Execution Journal captures side (Long/Short), entry price, stop loss, exit target, quantity, slippage/charges, and conviction score in one responsive ticket.',
         'Instead of manually calculating expectancy in Excel, alphajournal derives net P&L, Realized R-multiple, Win Rate, and Profit Factor automatically across 1W, 1M, and All-Time windows—and correlates losses against custom mistake tags like FOMO, Over-sizing, or Early Exit.',
-        'Each trade can attach chart snapshots, connect back to a Strategy Playbook, export cleanly as a publication-grade PDF, share privately in E2EE Messages, or publish publicly via `?public=true` links.',
+        'Each trade can attach chart snapshots, connect back to a Strategy Playbook, export cleanly as a publication-grade PDF (Pro), share privately in E2EE Messages, or publish publicly via `?public=true` links.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Included in Free Plan', value: '15 entries / mo'),
-        FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '75 entries / mo'),
-        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: 'Unlimited entries'),
+        FeatureSpecRow(label: 'Included in Free Plan', value: '15 entries total'),
+        FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '100 entries total'),
+        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: '50,000 entries + PDF Export'),
         FeatureSpecRow(label: 'Built-in Templates', value: '7 Execution Templates'),
         FeatureSpecRow(label: 'Exports & Sharing', value: 'PDF + E2EE DM + Public Web Link'),
       ],
@@ -266,7 +266,7 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       destinationId: 'notes',
       icon: Icons.note_alt_outlined,
       subdomain: CustomerSubdomain.app,
-      tierBadge: 'Free (20/mo) · Basic (100/mo) · Pro (Unl.)',
+      tierBadge: 'Free (3) · Basic (25) · Pro (10,000)',
       summary:
           'Write pre-market plans, earnings research, macro notes, and ticker theses in Markdown with inline symbol chips and AI Note Refactor.',
       detailedParagraphs: <String>[
@@ -275,9 +275,9 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'After market hours, run AI Note Refactor to transform messy intraday bullets into crisp headings, bull/bear scenarios, and key invalidation triggers ready for PDF export or community sharing.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Included in Free Plan', value: '20 notes / mo'),
-        FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '100 notes / mo'),
-        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: 'Unlimited notes'),
+        FeatureSpecRow(label: 'Included in Free Plan', value: '3 notes'),
+        FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '25 notes'),
+        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: '10,000 notes + PDF Export'),
         FeatureSpecRow(label: 'Research Templates', value: '8 Templates (Pre-Market, Earnings, etc.)'),
         FeatureSpecRow(label: 'AI Integration', value: 'One-Click Note Refactor & Summarizer'),
       ],
@@ -319,7 +319,7 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       destinationId: 'strategies',
       icon: Icons.architecture_outlined,
       subdomain: CustomerSubdomain.app,
-      tierBadge: 'Free (15/mo) · Basic (40/mo) · Pro (Unl.)',
+      tierBadge: 'Free (1 Live) · Basic (3 Live) · Pro (250 Live)',
       summary:
           'Codify repeatable setups across Draft, Backtesting, Live, and Archived stages with risk rules, versioned revisions, and linked execution stats.',
       detailedParagraphs: <String>[
@@ -328,9 +328,9 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'Because Journal trades attach directly to Playbooks, alphajournal measures empirical win rate, average R-multiple, and max drawdown per strategy—and lets AI Playbook Reviewer detect rule drift.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Included in Free Plan', value: '15 playbooks / mo'),
-        FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '40 playbooks / mo'),
-        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: 'Unlimited playbooks'),
+        FeatureSpecRow(label: 'Included in Free Plan', value: '1 live playbook'),
+        FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '3 live playbooks'),
+        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: '250 live playbooks'),
         FeatureSpecRow(label: 'Lifecycle Stages', value: 'Draft · Backtesting · Live · Archived'),
         FeatureSpecRow(label: 'Audit Trail', value: 'Revision History + Linked Trade Telemetry'),
       ],
@@ -485,8 +485,8 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       ],
       specs: <FeatureSpecRow>[
         FeatureSpecRow(label: 'Canonical Host', value: 'community.alphajournal.in'),
-        FeatureSpecRow(label: 'Public Profile Route', value: 'community.alphajournal.in/@<handle>'),
-        FeatureSpecRow(label: 'Public Post Route', value: '/community/post/<id>?public=true'),
+        FeatureSpecRow(label: 'Daily Post Limits', value: 'Free: 2/day · Basic: 15/day · Pro: 100/day'),
+        FeatureSpecRow(label: 'Daily Comment Limits', value: 'Free: 10/day · Basic: 50/day · Pro: 500/day'),
         FeatureSpecRow(label: 'Social Share Channels', value: 'WhatsApp · X · Telegram · LinkedIn · PNG Card'),
         FeatureSpecRow(label: 'Cross-Workflow Hooks', value: 'Clip to Notes · Analyze with AI Copilot'),
       ],
@@ -578,7 +578,7 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       destinationId: 'ai_copilot',
       icon: Icons.auto_awesome_rounded,
       subdomain: CustomerSubdomain.app,
-      tierBadge: '15 Free · 120 Basic · 500 Pro / mo',
+      tierBadge: '5 Free · 20 Basic · 5,000 Pro / mo',
       summary:
           'Conversational trading analyst featuring Auto / Live Search / Deep Research modes, authenticated AI Voice Calls, 11 `/trader-*` skills, tool approvals, and schedules.',
       detailedParagraphs: <String>[
@@ -587,9 +587,9 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'Start an authenticated **AI Voice Call** for hands-free conversational briefings using browser/mic speech recognition plus natural OpenAI TTS audio playback, or pin Copilot Notes & scheduled morning digests.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Included in Free Plan', value: '15 AI prompts / mo'),
-        FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '120 AI prompts / mo'),
-        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: '500 AI prompts / mo'),
+        FeatureSpecRow(label: 'Included in Free Plan', value: '5 AI prompts / mo'),
+        FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '20 AI prompts / mo'),
+        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: '5,000 AI prompts / mo'),
         FeatureSpecRow(label: 'Specialized Skills', value: '11 /trader-* Slash Commands'),
         FeatureSpecRow(label: 'Voice & Search', value: 'Authenticated TTS/STT Proxy + Live web_search'),
       ],
@@ -743,9 +743,9 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'Privacy & Security panes let you audit consent preferences, block/unblock handles, rotate or verify E2EE recovery passphrases, and initiate compliant account deletion.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Free Plan', value: '₹0 / mo · 15 Journal · 15 AI Prompts'),
-        FeatureSpecRow(label: 'Basic Plan', value: '₹299 / mo · 75 Journal · 120 AI Prompts'),
-        FeatureSpecRow(label: 'Pro Plan', value: '₹499 / mo · Unlimited Workspace · 500 AI'),
+        FeatureSpecRow(label: 'Free Plan', value: '₹0 / mo · 3 Notes · 15 Trades · 5 AI Prompts'),
+        FeatureSpecRow(label: 'Basic Plan', value: '₹299 / mo · 25 Notes · 100 Trades · 20 AI Prompts'),
+        FeatureSpecRow(label: 'Pro Plan', value: '₹499 / mo · 10K Notes · 50K Trades · 5K AI + PDF'),
         FeatureSpecRow(label: 'Session Scope', value: 'Single Sign-On across *.alphajournal.in'),
       ],
       helperTips: <String>[

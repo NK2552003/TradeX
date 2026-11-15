@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/config/supabase_storage_egress.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
@@ -188,6 +189,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
     String? ticker,
     String? imageUrl,
   }) async {
+    await CustomerLimitations.assertCanCreateCommunityPost();
     final now = DateTime.now();
 
     if (SupabaseConfig.isConfigured) {
@@ -320,6 +322,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
   @override
   Future<void> commentPost(String postId, String commentText) async {
+    await CustomerLimitations.assertCanCreateCommunityComment();
     if (SupabaseConfig.isConfigured && _isUuid(postId)) {
       try {
         final client = SupabaseConfig.client!;

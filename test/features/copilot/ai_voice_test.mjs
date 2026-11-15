@@ -116,3 +116,30 @@ test('ai-voice sanitizes invalid API key errors without leaking secrets', async 
   assert.match(body.error, /secrets is invalid/);
   assert.ok(!body.error.includes('sk-test-secret'));
 });
+
+test('ai-voice rejects callers with exhausted AI quota (429) without calling OpenAI', async () => {
+  let upstreamCalled = false;
+  const res = await handleVoiceRequest(
+    new Request('https://example.com/functions/v1/ai-voice', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer jwt' },
+      body: JSON.stringify({ action: 'speech', text: 'Should be blocked' }),
+    }),
+    {
+      env: baseEnv,
+      authenticate: async () => ({
+        ok: false,
+        status: 429,
+        error: 'Monthly AI quota exhausted (5 of 5). Upgrade your plan to continue using AI voice.',
+      }),
+      fetch: async () => {
+        upstreamCalled = true;
+        return new Response(null, { status: 200 });
+      },
+    },
+  );
+  assert.equal(res.status, 429);
+  assert.equal(upstreamCalled, false);
+  const body = await res.json();
+  assert.match(body.error, /Monthly AI quota exhausted/);
+});

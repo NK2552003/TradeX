@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import '../../models/community_models.dart';
@@ -78,12 +79,20 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
       if (!mounted) return;
       _controller.clear();
       widget.onSubmitted?.call();
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        setState(
-          () => _error =
-              'Could not publish. Your comment is saved here; please try again.',
-        );
+        final String msg = error is StateError
+            ? error.message
+            : 'Could not publish. Your comment is saved here; please try again.';
+        setState(() => _error = msg);
+        if (error is StateError &&
+            CustomerLimitations.isQuotaErrorMessage(error.message)) {
+          await CustomerLimitations.showPlanUpgradeDialog(
+            context,
+            featureTitle: 'Daily Comment Limit Reached',
+            reason: error.message,
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _sending = false);

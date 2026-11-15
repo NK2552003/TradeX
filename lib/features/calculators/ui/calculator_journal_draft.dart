@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 // ignore: unused_import, unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
@@ -25,6 +26,18 @@ Future<AppTrade?> openCalculatorJournalDraft(
   String? calculatorName,
   String? notes,
 }) async {
+  int existingTradeCount = 0;
+  try {
+    final existing = await JournalRepositoryScope.repository.fetchAll();
+    existingTradeCount = existing.length;
+  } catch (_) {}
+  if (!context.mounted) return null;
+  final allowed = await CustomerLimitations.checkCanCreateTrade(
+    context,
+    currentTradeCount: existingTradeCount,
+  );
+  if (!allowed || !context.mounted) return null;
+
   final AppSide resolvedSide =
       side ??
       (stopLoss != null

@@ -41,7 +41,10 @@ class _AdminAccessFormState extends State<AdminAccessForm> {
     'notes': 'Notes (total)',
     'trades': 'Journal entries (total)',
     'live_playbooks': 'Live strategies',
+    'watchlists': 'Watchlists',
+    'alerts': 'Price alerts',
     'posts_per_day': 'Posts per day',
+    'community_comments_per_day': 'Comments per day',
     'ai_queries_per_month': 'AI requests per month',
     'ai_queries_per_day': 'AI requests per day',
   };

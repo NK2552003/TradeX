@@ -1,4 +1,5 @@
 import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/features/community/data/workspace_attachment_service.dart';
 import 'dart:convert';
 import 'dart:async';
@@ -425,6 +426,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
   Future<void> _runWritingAssistant(CommunityWritingAction action) async {
     if (_aiBusy || _submitting) return;
+    final aiAllowed = await CustomerLimitations.checkCanUseAi(
+      context,
+      featureLabel: 'Community Writing Assistant',
+    );
+    if (!aiAllowed || !mounted) return;
     final original = _bodyCtrl.text;
     final originalSetup = <String, String>{
       'ticker': _setupTickerCtrl.text,
@@ -863,6 +869,15 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     }
 
     if (_submitting) return;
+    if (widget.postToEdit == null) {
+      final postAllowed = await CustomerLimitations.checkCanCreateCommunityPost(
+        context,
+        todayPostCount: widget.repository.todayPostCountForAuthor(
+          widget.author.id,
+        ),
+      );
+      if (!postAllowed || !mounted) return;
+    }
     if (hasSetup) {
       try {
         _parseSetupCandles();

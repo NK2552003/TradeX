@@ -1522,45 +1522,65 @@ class DemoDataSource {
       'ai_queries': 5,
       'journal_trades': 15,
       'notes': 3,
+      'live_playbooks': 1,
       'watchlists': 1,
       'alerts': 3,
+      'community_posts_per_day': 2,
+      'community_comments_per_day': 10,
     },
     AppTier.premium => const <String, int>{
       'ai_queries': 20,
       'journal_trades': 100,
       'notes': 25,
-      'watchlists': 1,
+      'live_playbooks': 3,
+      'watchlists': 5,
       'alerts': 25,
+      'community_posts_per_day': 15,
+      'community_comments_per_day': 50,
     },
     AppTier.enterprise => const <String, int>{
       'ai_queries': 5000,
       'journal_trades': 50000,
       'notes': 10000,
+      'live_playbooks': 250,
       'watchlists': 100,
       'alerts': 500,
+      'community_posts_per_day': 100,
+      'community_comments_per_day': 500,
     },
   };
 
   /// Per-account usage behind the billing meters. Counts come from the same
   /// seeded records the pages render and are capped by the plan, so a meter can
   /// never show more consumed than the plan allows.
-  Map<String, int> accountUsage(AppTier tier) {
+  Map<String, dynamic> accountUsage(AppTier tier) {
     final Map<String, int> limits = planLimits(tier);
     final Random rng = _rng(447);
     int within(String key, int used) =>
         used.clamp(0, limits[key] ?? used).toInt();
-    return <String, int>{
+    return <String, dynamic>{
       'ai_queries_used': within(
         'ai_queries',
-        (limits['ai_queries']! * 0.28).round() + rng.nextInt(24),
+        (limits['ai_queries']! * 0.28).round() + rng.nextInt(4),
       ),
       'ai_queries_limit': limits['ai_queries']!,
       'journal_trades_used': within('journal_trades', trades().length),
       'journal_trades_limit': limits['journal_trades']!,
-      'watchlists_used': within('watchlists', 7),
+      'notes_used': within('notes', notes().length),
+      'notes_limit': limits['notes']!,
+      'live_playbooks_used': within('live_playbooks', 1),
+      'live_playbooks_limit': limits['live_playbooks']!,
+      'watchlists_used': within('watchlists', 1),
       'watchlists_limit': limits['watchlists']!,
-      'alerts_used': within('alerts', 5),
+      'alerts_used': within('alerts', 2),
       'alerts_limit': limits['alerts']!,
+      'community_posts_today': 0,
+      'community_posts_per_day_limit': limits['community_posts_per_day']!,
+      'community_comments_today': 0,
+      'community_comments_per_day_limit':
+          limits['community_comments_per_day']!,
+      'allow_pdf_export': tier == AppTier.enterprise,
+      'allow_advanced_backtest': tier == AppTier.enterprise,
       // Seats are a desk capability: a single-trader plan is one seat, and an
       // enterprise licence carries the same number the plan advertises.
       'seats_used': tier == AppTier.enterprise ? occupiedDeskSeats : 1,

@@ -5,6 +5,7 @@ import '../models/community_activity.dart';
 import 'workspace_attachment_service.dart';
 import 'package:tradex/features/workspace/data/workspace_post_service.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
@@ -1943,6 +1944,39 @@ class CommunityRepository extends ChangeNotifier {
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
+  int todayPostCountForAuthor(String authorId) {
+    final now = DateTime.now();
+    return _forYouPosts.where((p) {
+      if (p.author.id != authorId) return false;
+      final local = p.createdAt.toLocal();
+      return local.year == now.year &&
+          local.month == now.month &&
+          local.day == now.day;
+    }).length;
+  }
+
+  int todayCommentCountForAuthor(String authorId) {
+    final now = DateTime.now();
+    int count = 0;
+    void scan(List<CommunityComment> list) {
+      for (final c in list) {
+        final local = c.createdAt.toLocal();
+        if (c.author.id == authorId &&
+            local.year == now.year &&
+            local.month == now.month &&
+            local.day == now.day) {
+          count++;
+        }
+        if (c.replies.isNotEmpty) scan(c.replies);
+      }
+    }
+
+    for (final list in _commentsByPost.values) {
+      scan(list);
+    }
+    return count;
+  }
+
   /// @backend POST /api/v1/community/posts/{postId}/comments
   /// Body: { "body": String, "parent_comment_id": String?, "sentiment": String? }
   /// Returns: CommunityComment JSON
@@ -1957,10 +1991,20 @@ class CommunityRepository extends ChangeNotifier {
     if (SupabaseConfig.isConfigured && SupabaseConfig.client?.auth.currentUser == null) {
       throw StateError('Sign in to comment.');
     }
+    final a = author ?? currentAuthor;
+    if (SupabaseConfig.isConfigured &&
+        SupabaseConfig.client?.auth.currentUser != null) {
+      await CustomerLimitations.assertCanCreateCommunityComment(
+        todayCommentCount: todayCommentCountForAuthor(a.id),
+      );
+    } else {
+      CustomerLimitations.assertCanCreateCommunityCommentSync(
+        todayCommentCountForAuthor(a.id),
+      );
+    }
     final commentId = SupabaseConfig.isConfigured
         ? const Uuid().v4()
         : 'cmt_${DateTime.now().millisecondsSinceEpoch}';
-    final a = author ?? currentAuthor;
     final comment = CommunityComment(
       id: commentId,
       postId: postId,
@@ -2268,6 +2312,16 @@ class CommunityRepository extends ChangeNotifier {
     required CommunityAuthor author,
   }) async {
     RecordAccess.requireService();
+    if (SupabaseConfig.isConfigured &&
+        SupabaseConfig.client?.auth.currentUser != null) {
+      await CustomerLimitations.assertCanCreateCommunityPost(
+        todayPostCount: todayPostCountForAuthor(author.id),
+      );
+    } else {
+      CustomerLimitations.assertCanCreateCommunityPostSync(
+        todayPostCountForAuthor(author.id),
+      );
+    }
     final newId = SupabaseConfig.isConfigured
         ? const Uuid().v4()
         : 'post_${DateTime.now().millisecondsSinceEpoch}';

@@ -1,5 +1,6 @@
-import 'package:tradex/core/config/record_access.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
+import 'package:tradex/core/config/record_access.dart';
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -163,11 +164,21 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
       final client = SupabaseConfig.client!;
       final user = client.auth.currentUser;
       if (user == null) throw StateError('Sign in to create watchlists.');
+      final existing = await client
+          .from('watchlists')
+          .select('id')
+          .eq('user_id', user.id);
+      await CustomerLimitations.assertCanCreateWatchlist(
+        currentWatchlistCount: existing.length,
+      );
       await client.from('watchlists').insert({
         'user_id': user.id,
         'name': clean,
       });
     } else if (!_inMemoryWatchlists.contains(clean)) {
+      await CustomerLimitations.assertCanCreateWatchlist(
+        currentWatchlistCount: _inMemoryWatchlists.length,
+      );
       _inMemoryWatchlists.add(clean);
     }
   }
@@ -240,12 +251,23 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
     }
     final items = await client
         .from('watchlist_items')
-        .select('id, watchlists!inner(user_id)')
+        .select('id, alert_armed, watchlists!inner(user_id)')
         .eq('ticker', symbol)
         .eq('watchlists.user_id', user.id);
     if (items.isEmpty) {
       throw StateError(
         'Add this symbol to a watchlist before creating an alert.',
+      );
+    }
+    final bool alreadyArmed = items.first['alert_armed'] == true;
+    if (!alreadyArmed) {
+      final armedRows = await client
+          .from('watchlist_items')
+          .select('id, watchlists!inner(user_id)')
+          .eq('alert_armed', true)
+          .eq('watchlists.user_id', user.id);
+      await CustomerLimitations.assertCanCreatePriceAlert(
+        currentAlertCount: armedRows.length,
       );
     }
     await client

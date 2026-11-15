@@ -33,6 +33,19 @@ export async function handleRequest(request: Request): Promise<Response> {
     if (accessError || access?.status !== 'active' || access?.features?.ai !== true) {
       return { ok: false, status: 403, error: 'AI voice access is not available for this account.' };
     }
+    const { data: quota, error: quotaError } = await account.rpc('get_customer_quota_usage');
+    if (quotaError || !quota || typeof quota !== 'object') {
+      return { ok: false, status: 503, error: 'Unable to verify your monthly AI quota right now.' };
+    }
+    const used = Number(quota.ai_queries_used ?? 0);
+    const limit = Number(quota.limits?.ai_queries_per_month ?? 0);
+    if (!Number.isFinite(limit) || limit <= 0 || used >= limit) {
+      return {
+        ok: false,
+        status: 429,
+        error: `Monthly AI quota exhausted (${used} of ${limit}). Upgrade your plan to continue using AI voice.`,
+      };
+    }
     return { ok: true, userId: userData.user.id };
   };
 

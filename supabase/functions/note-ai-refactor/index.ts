@@ -199,26 +199,31 @@ async function handleNoteRefactorRequest(
     noteType = normalizedType === 'cheatSheet' ? 'cheat_sheet' : normalizedType;
   }
 
-  // 7. Enforce per-user quota & record invocation atomically in ai_insight_requests
-  const service = createClient(url, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  const { error: quotaError } = await service.from('ai_insight_requests').insert({
-    user_id: user.id,
-    kind: 'note_refactor',
-    requested_at: new Date().toISOString(),
+  // 7. Enforce per-user quota & record invocation atomically via reserve_ai_request
+  //    using the authenticated user client so auth.uid() quota triggers run under lock.
+  const { data: reservation, error: quotaError } = await account.rpc('reserve_ai_request', {
+    p_kind: 'completion',
+    p_prompt: cleanSelectedText.slice(0, 500),
+    p_thread: null,
+    p_persona: noteType,
   });
 
   if (quotaError) {
-    // Return 429 only when the error has SQLSTATE P0001 and its message indicates quota exhaustion
+    // Return 429 when SQLSTATE P0001 indicates quota or limit exhaustion
+    const lowerMsg = quotaError.message?.toLowerCase() ?? '';
     const isQuotaExceeded =
       quotaError.code === 'P0001' &&
-      Boolean(quotaError.message?.toLowerCase().includes('quota'));
+      (Boolean(quotaError.message?.toLowerCase().includes('quota')) ||
+        lowerMsg.includes('limit reached'));
 
     if (isQuotaExceeded) {
       return reply(429, {
         error: 'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
+      });
+    }
+    if (quotaError.code === '42501') {
+      return reply(403, {
+        error: quotaError.message || 'AI access is not available for this account.',
       });
     }
     console.error('[note-ai-refactor] Database insertion failure:', {
@@ -230,6 +235,10 @@ async function handleNoteRefactorRequest(
       error: 'Failed to record AI request. Please try again later.',
     });
   }
+  const _noteRefactorRequestId = typeof reservation?.request_id === 'string' ? reservation.request_id : null;
+  const service = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 
   // 8. LLM invocation via OpenAI, Gemini or OpenRouter with headers and timeout signals
   const openAiApiKey = Deno.env.get('OPEN_AI_KEY') ?? Deno.env.get('OPENAI_API_KEY');
@@ -361,6 +370,12 @@ ${cleanSelectedText}
   }
 
   if (!enhancedText) {
+    if (_noteRefactorRequestId) {
+      await service.rpc('finish_ai_request', {
+        p_request: _noteRefactorRequestId,
+        p_error: 'AI refactoring service is currently unavailable.',
+      });
+    }
     logger.log('error', 'note_refactor_providers_unavailable', { note_type: noteType });
     return reply(503, { error: 'AI refactoring service is currently unavailable.' });
   }
@@ -372,10 +387,21 @@ ${cleanSelectedText}
     enhancedText = enhancedText.slice(3, -3).trim();
   }
 
+  if (_noteRefactorRequestId) {
+    await service.rpc('finish_ai_request', {
+      p_request: _noteRefactorRequestId,
+      p_body: enhancedText,
+      p_provider: 'note-refactor',
+      p_model: 'refactor',
+      p_input_tokens: cleanSelectedText.length,
+      p_output_tokens: enhancedText.length,
+    });
+  }
+
   logger.log('info', 'note_refactor_succeeded', {
     note_type: noteType,
     input_chars: cleanSelectedText.length,
     output_chars: enhancedText.length,
   });
-  return reply(200, { enhanced: enhancedText });
+  return reply(200, { enhanced: enhancedText, usage: reservation?.usage });
 }

@@ -80,6 +80,17 @@ class SubscriptionSummary {
   int get maxNotes => _count('notes_limit');
   int get livePlaybooksUsed => _count('live_playbooks_used');
   int get maxLivePlaybooks => _count('live_playbooks_limit');
+  int get watchlistsUsed => _count('watchlists_used');
+  int get maxWatchlists => _count('watchlists_limit');
+  int get alertsUsed => _count('alerts_used');
+  int get maxAlerts => _count('alerts_limit');
+  int get communityPostsToday => _count('community_posts_today');
+  int get maxCommunityPostsPerDay => _count('community_posts_per_day_limit');
+  int get communityCommentsToday => _count('community_comments_today');
+  int get maxCommunityCommentsPerDay =>
+      _count('community_comments_per_day_limit');
+  bool get allowPdfExport => usage['allow_pdf_export'] == true;
+  bool get allowAdvancedBacktest => usage['allow_advanced_backtest'] == true;
   int get seatsUsed => _count('seats_used');
   int get maxSeats => _count('seats_limit');
 

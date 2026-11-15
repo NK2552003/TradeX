@@ -108,6 +108,18 @@ class _AdminSubscriptionFormState extends State<AdminSubscriptionForm> {
                         'ai_queries_used',
                         'ai_queries_per_month',
                       ),
+                      ('Watchlists', 'watchlists_used', 'watchlists'),
+                      ('Price alerts', 'alerts_used', 'alerts'),
+                      (
+                        'Community posts today',
+                        'community_posts_today',
+                        'community_posts_per_day',
+                      ),
+                      (
+                        'Comments today',
+                        'community_comments_today',
+                        'community_comments_per_day',
+                      ),
                     ])
                       UiMetricCard(
                         title: entry.$1,

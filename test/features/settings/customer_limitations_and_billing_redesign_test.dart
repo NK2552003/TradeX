@@ -67,11 +67,17 @@ void main() {
       // Verify header title
       expect(find.text('CUSTOMER PLAN & WORKSPACE ALLOWANCES'), findsOneWidget);
 
-      // Verify the 4 metric cards are present
+      // Verify all 8 quota metric cards & feature capability badges are present
       expect(find.text('RESEARCH NOTES'), findsOneWidget);
       expect(find.text('JOURNAL TRADES'), findsOneWidget);
       expect(find.text('LIVE PLAYBOOKS'), findsOneWidget);
       expect(find.text('AI COPILOT QUERIES'), findsOneWidget);
+      expect(find.text('WATCHLISTS'), findsOneWidget);
+      expect(find.text('PRICE ALERTS'), findsOneWidget);
+      expect(find.text('COMMUNITY POSTS / DAY'), findsOneWidget);
+      expect(find.text('COMMENTS / DAY'), findsOneWidget);
+      expect(find.textContaining('PDF & CSV Exports'), findsOneWidget);
+      expect(find.textContaining('Advanced Backtest'), findsOneWidget);
 
       // Verify upgrade plan button is present
       expect(find.widgetWithText(UiButton, 'Upgrade Plan'), findsOneWidget);
@@ -107,6 +113,10 @@ void main() {
       expect(find.text('JOURNAL TRADES'), findsOneWidget);
       expect(find.text('LIVE PLAYBOOKS'), findsOneWidget);
       expect(find.text('AI COPILOT QUERIES'), findsOneWidget);
+      expect(find.text('WATCHLISTS'), findsOneWidget);
+      expect(find.text('PRICE ALERTS'), findsOneWidget);
+      expect(find.text('COMMUNITY POSTS / DAY'), findsOneWidget);
+      expect(find.text('COMMENTS / DAY'), findsOneWidget);
     });
   });
 }

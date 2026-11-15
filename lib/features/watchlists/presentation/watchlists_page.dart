@@ -3,6 +3,7 @@ import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
 import 'watchlist_symbol_dialog.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/watchlists/data/watchlist_repository.dart';
@@ -27,6 +28,7 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
   late final WatchlistRepository _repo;
   bool _loading = true;
   List<AppTicker> _tickers = [];
+  List<String> _watchlists = [];
   String? _error;
   AssetMarketRepository get _market =>
       widget.marketRepository ?? AssetMarketRepository.shared;
@@ -45,9 +47,11 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
     });
     try {
       final list = await _repo.getWatchlistTickers();
+      final watchlists = await _repo.getWatchlists();
       if (mounted) {
         setState(() {
           _tickers = list;
+          _watchlists = watchlists;
           _loading = false;
         });
       }
@@ -154,10 +158,18 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
       return UiSkeleton.watchlists();
     }
 
+    final quota = CustomerLimitations.currentQuota;
     return AppPageBlock(
       title: 'Market Watchlists',
       subtitle: 'Saved symbols and available market snapshots',
       actions: [
+        UiBadge(
+          label:
+              'Lists ${_watchlists.length}/${quota.maxWatchlists} · Alerts max ${quota.maxAlerts}',
+          intent: UiIntent.neutral,
+          variant: UiBadgeVariant.soft,
+          size: UiSize.xs,
+        ),
         UiButton(
           label: 'Add Symbol',
           leadingIcon: Icons.add,

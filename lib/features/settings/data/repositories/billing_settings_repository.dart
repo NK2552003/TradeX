@@ -139,6 +139,17 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
           'notes_limit': counted.notesLimit,
           'live_playbooks_used': counted.livePlaybooksUsed,
           'live_playbooks_limit': counted.livePlaybooksLimit,
+          'watchlists_used': counted.watchlistsUsed,
+          'watchlists_limit': counted.watchlistsLimit,
+          'alerts_used': counted.alertsUsed,
+          'alerts_limit': counted.alertsLimit,
+          'community_posts_today': counted.communityPostsToday,
+          'community_posts_per_day_limit': counted.communityPostsPerDayLimit,
+          'community_comments_today': counted.communityCommentsToday,
+          'community_comments_per_day_limit':
+              counted.communityCommentsPerDayLimit,
+          'allow_pdf_export': counted.allowPdfExport,
+          'allow_advanced_backtest': counted.allowAdvancedBacktest,
         },
       );
     }

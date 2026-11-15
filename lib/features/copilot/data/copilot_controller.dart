@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
+import 'package:tradex/core/config/customer_quota_usage.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/utils/app_visibility.dart';
 
 import '../models/workspace.dart';
 import 'copilot_api.dart';
-import 'copilot_feature_connector.dart';
 import 'supabase_copilot_api.dart';
 
 class CopilotController extends ChangeNotifier {
@@ -25,6 +27,7 @@ class CopilotController extends ChangeNotifier {
     _auth = SupabaseConfig.client?.auth.onAuthStateChange.listen(
       (_) => _accountChanged(),
     );
+    AppSession.instance.aiQueriesUsed.addListener(_onUsageChanged);
     if (autoLoad) {
       AppVisibility.instance.addListener(_onVisibilityChanged);
       unawaited(reload());
@@ -37,6 +40,9 @@ class CopilotController extends ChangeNotifier {
   bool connected = false;
   bool generating = false;
   bool voiceBusy = false;
+  bool quotaExceeded = false;
+  int? quotaUsed;
+  int? quotaLimit;
   String? error;
   String? activeThreadId;
   String specialistId = 'analyst';
@@ -54,8 +60,30 @@ class CopilotController extends ChangeNotifier {
   bool _disposed = false;
 
   int get accountEpoch => _epoch;
+  int get effectiveAiQueriesUsed =>
+      quotaUsed ?? AppSession.instance.aiQueriesUsed.value;
+  int get effectiveAiQueriesLimit =>
+      quotaLimit ?? CustomerLimitations.currentQuota.maxAiQueriesPerMonth;
+  bool get isAiQuotaBlocked =>
+      quotaExceeded ||
+      CustomerLimitations.isAiQuotaExhausted(
+        usedOverride: quotaUsed,
+        limitOverride: quotaLimit,
+      );
   bool get conversationLocked =>
       generating || voiceBusy || _creatingThread != null;
+
+  void _onUsageChanged() {
+    final used = AppSession.instance.aiQueriesUsed.value;
+    if (quotaUsed != null && used > quotaUsed!) {
+      quotaUsed = used;
+    }
+    quotaExceeded = CustomerLimitations.isAiQuotaExhausted(
+      usedOverride: quotaUsed ?? used,
+      limitOverride: quotaLimit,
+    );
+    _notify();
+  }
 
   CopilotThread? get activeThread =>
       workspace.threads.where((t) => t.id == activeThreadId).firstOrNull;
@@ -82,6 +110,9 @@ class CopilotController extends ChangeNotifier {
     streamingMessageId = null;
     activity.clear();
     connected = false;
+    quotaExceeded = false;
+    quotaUsed = null;
+    quotaLimit = null;
     error = null;
     unawaited(reload());
   }
@@ -138,6 +169,24 @@ class CopilotController extends ChangeNotifier {
       workspace = CopilotWorkspace.fromJson(state);
       connected = true;
       _pollFailures = 0;
+      if (SupabaseConfig.isConfigured &&
+          SupabaseConfig.client?.auth.currentUser != null) {
+        try {
+          await CustomerTierQuota.refreshPublishedCatalogue();
+          final usage = await CustomerQuotaUsage.fetch();
+          if (!_disposed && epoch == _epoch) {
+            quotaUsed = usage.aiQueriesUsed;
+            quotaLimit = usage.aiQueriesLimit;
+            AppSession.instance.aiQueriesUsed.value = usage.aiQueriesUsed;
+            quotaExceeded = CustomerLimitations.isAiQuotaExhausted(
+              usedOverride: usage.aiQueriesUsed,
+              limitOverride: usage.aiQueriesLimit,
+            );
+          }
+        } catch (_) {}
+      } else {
+        quotaExceeded = CustomerLimitations.isAiQuotaExhausted();
+      }
       if (!quiet) error = null;
       if (activeThreadId != null && activeThread == null) activeThreadId = null;
     } catch (failure) {
@@ -233,6 +282,13 @@ class CopilotController extends ChangeNotifier {
     String mode = 'auto',
   }) async {
     if (generating || prompt.trim().isEmpty || hasPendingReview) return false;
+    if (isAiQuotaBlocked) {
+      quotaExceeded = true;
+      error =
+          'Monthly AI quota reached ($effectiveAiQueriesUsed/$effectiveAiQueriesLimit). Upgrade your plan to continue.';
+      _notify();
+      return false;
+    }
     final epoch = _epoch;
     generating = true;
     _notify();
@@ -302,29 +358,11 @@ class CopilotController extends ChangeNotifier {
         }
         generating = false;
         await reload(quiet: true);
-        if (error != null &&
-            (error!.toLowerCase().contains('ai_queries_per_month') ||
-                error!.toLowerCase().contains('limit reached'))) {
-          final fallback =
-              await CopilotFeatureConnector.buildConnectedNaturalLanguageReply(
-                textOf(body, 'prompt'),
-                this,
-              );
-          final thread = activeThread;
-          if (thread != null) {
-            thread.json['status'] = 'idle';
-            final rawMsgs = thread.json['messages'] as List?;
-            if (rawMsgs != null && rawMsgs.isNotEmpty) {
-              final last = rawMsgs.last as Map<String, dynamic>;
-              if (last['role'] == 'assistant') {
-                last['body'] = fallback;
-                last['status'] = 'complete';
-              }
-            }
-            workspace = CopilotWorkspace.fromJson(workspace.json);
-          }
-          error = null;
-          accepted = true;
+        if (error != null && CustomerLimitations.isQuotaErrorMessage(error!)) {
+          quotaExceeded = true;
+          CustomerLimitations.markAiQuotaExhausted(limit: quotaLimit);
+          quotaUsed = effectiveAiQueriesLimit;
+          accepted = false;
         }
         streamingText = '';
         streamingMessageId = null;
@@ -351,6 +389,7 @@ class CopilotController extends ChangeNotifier {
     _epoch++;
     _poll?.cancel();
     _auth?.cancel();
+    AppSession.instance.aiQueriesUsed.removeListener(_onUsageChanged);
     if (_autoLoad) {
       AppVisibility.instance.removeListener(_onVisibilityChanged);
     }

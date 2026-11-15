@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/features/journal/data/supabase_trade_repository.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -65,7 +66,12 @@ class _DashboardPageState extends State<DashboardPage> {
           leadingIcon: Icons.download_outlined,
           variant: UiVariant.outline,
           size: UiSize.sm,
-          onPressed: () {
+          onPressed: () async {
+            final allowed = await CustomerLimitations.checkCanExportPdf(
+              context,
+              featureLabel: 'Performance Report Export',
+            );
+            if (!allowed || !context.mounted) return;
             UiToast.show(
               context,
               title: 'Export Started',

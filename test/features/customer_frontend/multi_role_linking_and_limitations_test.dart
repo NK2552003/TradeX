@@ -9,6 +9,7 @@ import 'package:tradex/core/navigation/role_navigation_config.dart';
 import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
+import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/data/workspace_attachment_service.dart';
 import 'package:tradex/features/workspace/data/workspace_post_service.dart';
 
@@ -265,18 +266,81 @@ void main() {
       expect(free.maxNotes, 3);
       expect(free.maxTrades, 15);
       expect(free.maxLiveStrategies, 1);
+      expect(free.maxWatchlists, 1);
+      expect(free.maxAlerts, 3);
+      expect(free.maxCommunityPostsPerDay, 2);
+      expect(free.maxCommunityCommentsPerDay, 10);
+      expect(free.maxAiQueriesPerMonth, 5);
       expect(free.allowPdfExport, isFalse);
+      expect(free.allowAdvancedBacktest, isFalse);
 
       expect(basic.monthlyPriceInr, 299);
       expect(basic.maxNotes, 25);
       expect(basic.maxTrades, 100);
       expect(basic.maxLiveStrategies, 3);
+      expect(basic.maxWatchlists, 5);
+      expect(basic.maxAlerts, 25);
+      expect(basic.maxCommunityPostsPerDay, 15);
+      expect(basic.maxCommunityCommentsPerDay, 50);
+      expect(basic.maxAiQueriesPerMonth, 20);
       expect(basic.allowPdfExport, isFalse);
+      expect(basic.allowAdvancedBacktest, isFalse);
 
       expect(pro.monthlyPriceInr, 499);
       expect(pro.maxNotes, 10000);
       expect(pro.maxTrades, 50000);
+      expect(pro.maxLiveStrategies, 250);
+      expect(pro.maxWatchlists, 100);
+      expect(pro.maxAlerts, 500);
+      expect(pro.maxCommunityPostsPerDay, 100);
+      expect(pro.maxCommunityCommentsPerDay, 500);
+      expect(pro.maxAiQueriesPerMonth, 5000);
       expect(pro.allowPdfExport, isTrue);
+      expect(pro.allowAdvancedBacktest, isTrue);
+    });
+
+    test('repository quota helpers enforce Free limits for watchlists, alerts, posts/day and comments/day', () async {
+      AppSession.instance.changeTier(AppTier.free);
+      expect(
+        () => CustomerLimitations.assertCanCreateCommunityPostSync(2),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        () => CustomerLimitations.assertCanCreateCommunityCommentSync(10),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        () => CustomerLimitations.assertCanCreateWatchlist(currentWatchlistCount: 1),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        () => CustomerLimitations.assertCanCreatePriceAlert(currentAlertCount: 3),
+        throwsA(isA<StateError>()),
+      );
+
+      final repo = CommunityRepository();
+      addTearDown(repo.dispose);
+      const author = CommunityAuthor(
+        id: 'quota-test-author',
+        handle: '@quotatest',
+        displayName: 'Quota Tester',
+        userRole: UserRole.customer,
+      );
+      await repo.createPost(body: 'Free post 1', author: author);
+      await repo.createPost(body: 'Free post 2', author: author);
+      await expectLater(
+        () => repo.createPost(body: 'Free post 3 should be blocked', author: author),
+        throwsA(isA<StateError>()),
+      );
+
+      final postId = repo.forYouPosts.first.id;
+      for (var i = 0; i < 10; i++) {
+        await repo.addComment(postId, 'Comment #$i', author: author);
+      }
+      await expectLater(
+        () => repo.addComment(postId, 'Comment #11 should be blocked', author: author),
+        throwsA(isA<StateError>()),
+      );
     });
 
     test(

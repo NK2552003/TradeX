@@ -4,8 +4,10 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/env_config.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/data/app_session.dart';
 
 import '../models/trader_skill.dart';
 import '../models/workspace.dart';
@@ -251,14 +253,21 @@ class SupabaseCopilotApi extends CopilotApi {
       }
       final result = jsonDecode(response.body) as Json;
       if (response.statusCode >= 400) {
-        throw CopilotFailure(
-          textOf(
-            result,
-            'error',
-            textOf(result, 'message', 'AI request failed.'),
-          ),
-          response.statusCode,
+        final errMsg = textOf(
+          result,
+          'error',
+          textOf(result, 'message', 'AI request failed.'),
         );
+        if (response.statusCode == 429 ||
+            CustomerLimitations.isQuotaErrorMessage(errMsg)) {
+          CustomerLimitations.markAiQuotaExhausted();
+        }
+        throw CopilotFailure(errMsg, response.statusCode);
+      }
+      final usage = result['usage'];
+      if (usage is Map && usage['ai_queries_used'] is num) {
+        AppSession.instance.aiQueriesUsed.value =
+            (usage['ai_queries_used'] as num).toInt();
       }
       final answer = textOf(result, 'text');
       if (answer.trim().isEmpty) {

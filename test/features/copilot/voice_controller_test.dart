@@ -11,6 +11,8 @@ import 'package:record/record.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:tradex/core/ai/voice_gateway_service.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/copilot/data/copilot_api.dart';
 import 'package:tradex/features/copilot/data/voice_controller.dart';
@@ -312,4 +314,43 @@ void main() {
     await voice.end();
     await tester.pump();
   });
+
+  test(
+    'CopilotVoiceController blocks voice start and turn submission when AI quota is exhausted',
+    () async {
+      final previousTier = AppSession.instance.tier.value;
+      AppSession.instance.changeTier(AppTier.free);
+      AppSession.instance.aiQueriesUsed.value = 5;
+      addTearDown(() {
+        AppSession.instance.aiQueriesUsed.value = 0;
+        AppSession.instance.changeTier(previousTier);
+      });
+
+      final api = _RecordingCopilotApi();
+      final controller = CopilotController(api: api, autoLoad: false);
+      addTearDown(controller.dispose);
+      await controller.reload();
+
+      final voice = CopilotVoiceController(
+        controller,
+        voiceGateway: VoiceGatewayService(
+          proxyUri: () => Uri.parse('https://demo.supabase.co/functions/v1/ai-voice'),
+          authHeaders: () => const <String, String>{},
+          devOpenAiKey: () => '',
+        ),
+        speech: _FakeSpeech(available: true),
+        recorderFactory: () => _FakeRecorder(permission: true),
+        playerFactory: _FakePlayer.new,
+      );
+      addTearDown(voice.dispose);
+
+      await voice.start();
+      expect(voice.active, isFalse);
+      expect(voice.error, contains('quota'));
+
+      await voice.submitVoiceTurn('Check NIFTY levels');
+      expect(voice.transcript, isEmpty);
+      expect(api.runPayloads, isEmpty);
+    },
+  );
 }

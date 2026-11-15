@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/env_config.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/app_session.dart';
@@ -60,6 +61,12 @@ class UnifiedAiService {
     String mode = 'auto',
     bool? allowWebSearch,
   }) async {
+    if (CustomerLimitations.isAiQuotaExhausted()) {
+      final quota = CustomerLimitations.currentQuota;
+      throw StateError(
+        'Monthly AI quota exceeded (${AppSession.instance.aiQueriesUsed.value}/${quota.maxAiQueriesPerMonth}). Upgrade your plan for more AI credits.',
+      );
+    }
     if (SupabaseConfig.isConfigured) {
       try {
         return await _completeOnServer({
@@ -74,8 +81,11 @@ class UnifiedAiService {
       } on StateError catch (e) {
         final msg = e.message.toLowerCase();
         // Do not bypass auth, quota, or account status restrictions
+        if (CustomerLimitations.isQuotaErrorMessage(msg)) {
+          CustomerLimitations.markAiQuotaExhausted();
+          rethrow;
+        }
         if (msg.contains('sign in') ||
-            msg.contains('quota') ||
             msg.contains('account changed') ||
             msg.contains('no longer available')) {
           rethrow;
@@ -195,6 +205,12 @@ class UnifiedAiService {
     String? threadId,
     String requestKind = 'chat',
   }) async* {
+    if (CustomerLimitations.isAiQuotaExhausted()) {
+      final quota = CustomerLimitations.currentQuota;
+      throw StateError(
+        'Monthly AI quota exceeded (${AppSession.instance.aiQueriesUsed.value}/${quota.maxAiQueriesPerMonth}). Upgrade your plan for more AI credits.',
+      );
+    }
     if (SupabaseConfig.isConfigured) {
       final history = messages
           .where(
@@ -224,8 +240,11 @@ class UnifiedAiService {
         return;
       } on StateError catch (e) {
         final msg = e.message.toLowerCase();
+        if (CustomerLimitations.isQuotaErrorMessage(msg)) {
+          CustomerLimitations.markAiQuotaExhausted();
+          rethrow;
+        }
         if (msg.contains('sign in') ||
-            msg.contains('quota') ||
             msg.contains('account changed') ||
             msg.contains('no longer available')) {
           rethrow;
@@ -370,12 +389,22 @@ class UnifiedAiService {
         throw StateError('Your account changed. Please retry.');
       }
       final data = response.data;
-      if (response.status != 200 || data is! Map || data['text'] is! String) {
+      if (response.status == 429) {
+        CustomerLimitations.markAiQuotaExhausted();
         throw StateError(
-          data is Map
-              ? '${data['error'] ?? 'AI request failed.'}'
-              : 'AI request failed.',
+          data is Map && data['error'] != null
+              ? '${data['error']}'
+              : 'Monthly AI quota exceeded. Upgrade your plan for more AI credits.',
         );
+      }
+      if (response.status != 200 || data is! Map || data['text'] is! String) {
+        final errText = data is Map
+            ? '${data['error'] ?? 'AI request failed.'}'
+            : 'AI request failed.';
+        if (CustomerLimitations.isQuotaErrorMessage(errText)) {
+          CustomerLimitations.markAiQuotaExhausted();
+        }
+        throw StateError(errText);
       }
       final usage = data['usage'];
       if (usage is Map &&
@@ -387,11 +416,16 @@ class UnifiedAiService {
       return data['text'] as String;
     } on FunctionException catch (error) {
       final details = error.details;
-      throw StateError(
-        details is Map
-            ? '${details['error'] ?? 'AI request failed.'}'
-            : 'AI service is unavailable. Please retry.',
-      );
+      final errText = details is Map && details['error'] != null
+          ? '${details['error']}'
+          : (error.status == 429
+                ? 'Monthly AI quota exceeded. Upgrade your plan for more AI credits.'
+                : 'AI service is unavailable. Please retry.');
+      if (error.status == 429 ||
+          CustomerLimitations.isQuotaErrorMessage(errText)) {
+        CustomerLimitations.markAiQuotaExhausted();
+      }
+      throw StateError(errText);
     }
   }
 

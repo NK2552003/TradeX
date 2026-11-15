@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -675,7 +676,12 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // Mobile compose
   // -------------------------------------------------------------------------
 
-  void _showComposer({ComposerMode initialMode = ComposerMode.post}) {
+  Future<void> _showComposer({ComposerMode initialMode = ComposerMode.post}) async {
+    final allowed = await CustomerLimitations.checkCanCreateCommunityPost(
+      context,
+      todayPostCount: _repo.todayPostCountForAuthor(_currentAuthor.id),
+    );
+    if (!allowed || !mounted) return;
     if (context.uiRes.isMobile) {
       _showMobileComposer(initialMode: initialMode);
     } else {

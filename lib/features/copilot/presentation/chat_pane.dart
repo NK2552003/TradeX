@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
@@ -7,6 +8,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
+import 'package:tradex/core/data/app_session.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/utils/attachment_compression_service.dart';
@@ -160,6 +163,16 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
   Future<void> _send(String prompt) async {
     final trimmed = prompt.trim();
     if (trimmed.isEmpty) return;
+    if (controller.isAiQuotaBlocked) {
+      await CustomerLimitations.showPlanUpgradeDialog(
+        context,
+        featureTitle:
+            'AI Copilot Quota Reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
+        reason:
+            'Your ${CustomerLimitations.currentQuota.planName} plan includes ${controller.effectiveAiQueriesLimit} monthly AI prompts. Upgrade your plan or wait for the monthly cycle reset.',
+      );
+      return;
+    }
     final previousDraft = _composer.text;
     final savedAttachments = List<({String name, Json input})>.from(
       _attachments,
@@ -289,6 +302,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
       builder: (context, constraints) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _AiQuotaBanner(controller: controller),
           if (controller.pageContextId != null)
             Padding(
               padding: EdgeInsets.only(
@@ -301,7 +315,33 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                 intent: UiIntent.neutral,
               ),
             ),
-          if (controller.error != null)
+          if (controller.isAiQuotaBlocked)
+            Padding(
+              padding: EdgeInsets.only(
+                bottom: context.sp(context.ui.spacing.sm),
+              ),
+              child: UiCallout(
+                title:
+                    'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
+                message:
+                    'Your ${CustomerLimitations.currentQuota.planName} plan allows ${controller.effectiveAiQueriesLimit} AI prompts per month. Upgrade your plan to unlock additional capacity.',
+                intent: UiIntent.warning,
+                action: UiButton(
+                  label: 'Upgrade Plan',
+                  size: UiSize.xs,
+                  variant: UiVariant.solid,
+                  intent: UiIntent.primary,
+                  onPressed: () => CustomerLimitations.showPlanUpgradeDialog(
+                    context,
+                    featureTitle:
+                        'AI Copilot Quota Reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
+                    reason:
+                        'Your ${CustomerLimitations.currentQuota.planName} plan includes ${controller.effectiveAiQueriesLimit} AI queries per month.',
+                  ),
+                ),
+              ),
+            )
+          else if (controller.error != null)
             Padding(
               padding: EdgeInsets.only(
                 bottom: context.sp(context.ui.spacing.sm),
@@ -326,12 +366,15 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
               ),
               messages: displayed,
               onSend: _send,
-              onAttach: controller.workspace.setup['attachments'] == false
+              onAttach:
+                  controller.isAiQuotaBlocked ||
+                      controller.workspace.setup['attachments'] == false
                   ? null
                   : _attach,
               generating: controller.generating || thread?.status == 'running',
               onStop: controller.stop,
               canSend:
+                  !controller.isAiQuotaBlocked &&
                   controller.connected &&
                   !controller.hasPendingReview &&
                   controller.workspace.settings['paused'] != true,
@@ -340,6 +383,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                 compactHeight:
                     constraints.maxHeight < 520 || widget.voiceActive,
                 enabled:
+                    !controller.isAiQuotaBlocked &&
                     controller.connected &&
                     (!controller.voiceBusy || widget.voiceActive) &&
                     !controller.hasPendingReview &&
@@ -365,13 +409,15 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                       ? 'Please review the attached files.'
                       : _composer.text.trim(),
                 ),
-                onAttach: controller.workspace.setup['attachments'] == false
+                onAttach:
+                    controller.isAiQuotaBlocked ||
+                        controller.workspace.setup['attachments'] == false
                     ? null
                     : _attach,
                 onRemoveAttachment: (i) =>
                     setState(() => _attachments.removeAt(i)),
                 onStop: controller.stop,
-                onVoice: widget.onVoice,
+                onVoice: controller.isAiQuotaBlocked ? null : widget.onVoice,
                 onConnectWorkspace: () => showCopilotConnectDialog(
                   context,
                   onAttach: (CopilotConnectedItem item) {
@@ -390,11 +436,24 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                 voiceActive: widget.voiceActive,
               ),
               composerController: _composer,
-              composerHint:
-                  'Ask ${controller.specialist?.name ?? 'your copilot'} anything…',
+              composerHint: controller.isAiQuotaBlocked
+                  ? 'Monthly AI quota exhausted — upgrade plan to continue'
+                  : 'Ask ${controller.specialist?.name ?? 'your copilot'} anything…',
               emptyState: _Welcome(
                 onSkills: _browseSkills,
                 onPrompt: (prompt) {
+                  if (controller.isAiQuotaBlocked) {
+                    unawaited(
+                      CustomerLimitations.showPlanUpgradeDialog(
+                        context,
+                        featureTitle:
+                            'AI Copilot Quota Reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
+                        reason:
+                            'Your ${CustomerLimitations.currentQuota.planName} plan includes ${controller.effectiveAiQueriesLimit} monthly AI prompts.',
+                      ),
+                    );
+                    return;
+                  }
                   _composer.text = prompt;
                   _composer.selection = TextSelection.collapsed(
                     offset: prompt.length,
@@ -714,4 +773,94 @@ class _Welcome extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _AiQuotaBanner extends StatelessWidget {
+  const _AiQuotaBanner({required this.controller});
+  final CopilotController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    return ValueListenableBuilder<int>(
+      valueListenable: AppSession.instance.aiQueriesUsed,
+      builder: (context, sessionUsed, _) {
+        final limit = controller.effectiveAiQueriesLimit;
+        final used = controller.quotaUsed ?? sessionUsed;
+        final remaining = limit > 0 ? (limit - used).clamp(0, limit) : 0;
+        final isBlocked = controller.isAiQuotaBlocked;
+        final progress = limit > 0 ? (used / limit).clamp(0.0, 1.0) : 1.0;
+        final intent = isBlocked
+            ? UiIntent.danger
+            : (remaining <= 2 ? UiIntent.warning : UiIntent.primary);
+        final quota = CustomerLimitations.currentQuota;
+        return Padding(
+          padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+          child: UiCard(
+            variant: UiCardVariant.surface,
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.sm),
+              vertical: context.sp(theme.spacing.xs),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: context.sp(theme.spacing.xs),
+                  runSpacing: context.sp(theme.spacing.xs),
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        UiBadge(
+                          label: quota.planName,
+                          intent: isBlocked ? UiIntent.warning : UiIntent.neutral,
+                          variant: UiBadgeVariant.soft,
+                          size: UiSize.xs,
+                        ),
+                        UiGap.h(theme.spacing.xs),
+                        Text(
+                          isBlocked
+                              ? 'AI Credits Exhausted ($used / $limit)'
+                              : '$remaining of $limit AI credits remaining',
+                          style: context.uiText.caption.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: isBlocked
+                                ? theme.colors.danger
+                                : theme.colors.foreground,
+                          ),
+                        ),
+                      ],
+                    ),
+                    UiButton(
+                      label: isBlocked ? 'Upgrade Plan' : 'View Quotas',
+                      size: UiSize.xs,
+                      variant: isBlocked ? UiVariant.solid : UiVariant.ghost,
+                      intent: isBlocked ? UiIntent.primary : UiIntent.neutral,
+                      onPressed: () => CustomerLimitations.showPlanUpgradeDialog(
+                        context,
+                        featureTitle: 'AI Copilot Quota ($used/$limit)',
+                        reason:
+                            'Your ${quota.planName} plan includes $limit AI queries per month.',
+                      ),
+                    ),
+                  ],
+                ),
+                UiGap.v(theme.spacing.xs),
+                UiProgressBar(
+                  value: progress,
+                  showValue: false,
+                  intent: intent,
+                  thickness: context.sz(4),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

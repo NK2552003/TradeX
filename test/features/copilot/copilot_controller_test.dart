@@ -1,9 +1,34 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/copilot/data/copilot_api.dart';
 import 'package:tradex/features/copilot/data/voice_controller.dart';
+
+class _QuotaErrorApi extends CopilotApi {
+  int runs = 0;
+  @override
+  Future<Json> getWorkspace() async => {
+    ...initialWorkspace(),
+    'threads': [
+      {'id': 't-quota', 'specialistId': 'analyst', 'messages': []},
+    ],
+  };
+
+  @override
+  Future<Json> action(Json body) async => {'id': 't-quota'};
+
+  @override
+  Stream<Json> run(String threadId, Json body, {bool approval = false}) async* {
+    runs++;
+    yield {'type': 'started', 'messageId': 'msg-quota'};
+    yield {
+      'type': 'error',
+      'message': 'Monthly ai_queries_per_month limit reached.',
+    };
+  }
+}
 
 class DeferredApi extends CopilotApi {
   final reads = <Completer<Json>>[];
@@ -79,5 +104,27 @@ void main() {
     controller.selectThread('another');
     controller.newConversation();
     expect(controller.activeThreadId, 'call');
+  });
+
+  test('sendPrompt blocks local fallback on quota exhaustion and locks subsequent sends', () async {
+    AppSession.instance.aiQueriesUsed.value = 0;
+    addTearDown(() => AppSession.instance.aiQueriesUsed.value = 0);
+
+    final api = _QuotaErrorApi();
+    final controller = CopilotController(api: api, autoLoad: false);
+    addTearDown(controller.dispose);
+    await controller.reload();
+    controller.selectThread('t-quota');
+
+    final accepted = await controller.sendPrompt('Analyze NIFTY support levels');
+    expect(accepted, isFalse);
+    expect(controller.quotaExceeded, isTrue);
+    expect(controller.isAiQuotaBlocked, isTrue);
+    expect(controller.error, isNotNull);
+    expect(api.runs, 1);
+
+    final secondAttempt = await controller.sendPrompt('Any follow-up');
+    expect(secondAttempt, isFalse);
+    expect(api.runs, 1);
   });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/linking/link_graph.dart';
@@ -172,7 +173,10 @@ class CopilotScreenState extends State<CopilotScreen> {
                 onOpenRef: widget.onOpenRef,
                 onVoice: _voice.active
                     ? _voice.end
-                    : (!_voice.connecting && !_controller.conversationLocked
+                    : (!_controller.isAiQuotaBlocked &&
+                              !CustomerLimitations.isAiQuotaExhausted() &&
+                              !_voice.connecting &&
+                              !_controller.conversationLocked
                           ? _voice.start
                           : null),
                 onSpeakMessage: _voice.speakAssistantMessage,

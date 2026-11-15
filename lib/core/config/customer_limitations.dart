@@ -24,6 +24,9 @@ class CustomerTierQuota {
     required this.maxAiQueriesPerMonth,
     required this.allowPdfExport,
     required this.allowAdvancedBacktest,
+    this.maxAlerts = 3,
+    this.maxCommunityPostsPerDay = 2,
+    this.maxCommunityCommentsPerDay = 10,
   });
 
   final AppTier tier;
@@ -36,6 +39,9 @@ class CustomerTierQuota {
   final int maxAiQueriesPerMonth;
   final bool allowPdfExport;
   final bool allowAdvancedBacktest;
+  final int maxAlerts;
+  final int maxCommunityPostsPerDay;
+  final int maxCommunityCommentsPerDay;
 
   String get priceLabel => monthlyPriceInr == 0
       ? '₹0 / mo'
@@ -44,6 +50,9 @@ class CustomerTierQuota {
   static final Map<AppTier, CustomerTierQuota> _published = {};
 
   static bool get hasPublishedQuotas => _published.isNotEmpty;
+
+  static CustomerTierQuota defaultsForTier(AppTier tier) =>
+      _baselineForTier(tier);
 
   static void installPublishedCatalogue(Map<String, dynamic> catalogue) {
     final plans = catalogue['plans'];
@@ -65,6 +74,18 @@ class CustomerTierQuota {
         return value;
       }
 
+      int optionalLimit(String key, int fallback) {
+        final value = limits[key];
+        if (value is int && value >= 0) return value;
+        return fallback;
+      }
+
+      bool optionalFlag(String key, bool fallback) {
+        final value = limits[key];
+        if (value is bool) return value;
+        return fallback;
+      }
+
       next[tier] = CustomerTierQuota(
         tier: tier,
         planName: plan['name']?.toString() ?? base.planName,
@@ -72,10 +93,22 @@ class CustomerTierQuota {
         maxNotes: requiredLimit('notes'),
         maxTrades: requiredLimit('trades'),
         maxLiveStrategies: requiredLimit('live_playbooks'),
-        maxWatchlists: base.maxWatchlists,
+        maxWatchlists: optionalLimit('watchlists', base.maxWatchlists),
         maxAiQueriesPerMonth: requiredLimit('ai_queries_per_month'),
-        allowPdfExport: base.allowPdfExport,
-        allowAdvancedBacktest: base.allowAdvancedBacktest,
+        allowPdfExport: optionalFlag('allow_pdf_export', base.allowPdfExport),
+        allowAdvancedBacktest: optionalFlag(
+          'allow_advanced_backtest',
+          base.allowAdvancedBacktest,
+        ),
+        maxAlerts: optionalLimit('alerts', base.maxAlerts),
+        maxCommunityPostsPerDay: optionalLimit(
+          'community_posts_per_day',
+          base.maxCommunityPostsPerDay,
+        ),
+        maxCommunityCommentsPerDay: optionalLimit(
+          'community_comments_per_day',
+          base.maxCommunityCommentsPerDay,
+        ),
       );
     }
     if (next.length != AppTier.values.length) {
@@ -106,6 +139,9 @@ class CustomerTierQuota {
       maxAiQueriesPerMonth: 5,
       allowPdfExport: false,
       allowAdvancedBacktest: false,
+      maxAlerts: 3,
+      maxCommunityPostsPerDay: 2,
+      maxCommunityCommentsPerDay: 10,
     ),
     AppTier.premium => const CustomerTierQuota(
       tier: AppTier.premium,
@@ -114,10 +150,13 @@ class CustomerTierQuota {
       maxNotes: 25,
       maxTrades: 100,
       maxLiveStrategies: 3,
-      maxWatchlists: 1,
+      maxWatchlists: 5,
       maxAiQueriesPerMonth: 20,
       allowPdfExport: false,
       allowAdvancedBacktest: false,
+      maxAlerts: 25,
+      maxCommunityPostsPerDay: 15,
+      maxCommunityCommentsPerDay: 50,
     ),
     AppTier.enterprise => const CustomerTierQuota(
       tier: AppTier.enterprise,
@@ -130,6 +169,9 @@ class CustomerTierQuota {
       maxAiQueriesPerMonth: 5000,
       allowPdfExport: true,
       allowAdvancedBacktest: true,
+      maxAlerts: 500,
+      maxCommunityPostsPerDay: 100,
+      maxCommunityCommentsPerDay: 500,
     ),
   };
 }
@@ -248,6 +290,316 @@ class CustomerLimitations {
       featureTitle: 'Active Playbook Limit Reached ($limit Live)',
       reason:
           'Your ${quota.planName} plan allows up to $limit live playbooks. Contact support to review your account allowance.',
+    );
+    return false;
+  }
+
+  /// True when [message] indicates a server or local AI quota exhaustion.
+  static bool isQuotaErrorMessage(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('ai_queries_per_month') ||
+        lower.contains('limit reached') ||
+        lower.contains('quota exceeded') ||
+        lower.contains('quota exhausted') ||
+        lower.contains('monthly ai quota') ||
+        lower.contains('daily ai request limit');
+  }
+
+  /// Current monthly AI query allowance for the active tier.
+  static bool isAiQuotaExhausted({int? usedOverride, int? limitOverride}) {
+    final quota = currentQuota;
+    final limit = limitOverride ?? quota.maxAiQueriesPerMonth;
+    final used = usedOverride ?? AppSession.instance.aiQueriesUsed.value;
+    return limit <= 0 || used >= limit;
+  }
+
+  static int aiQueriesRemaining({int? usedOverride, int? limitOverride}) {
+    final quota = currentQuota;
+    final limit = limitOverride ?? quota.maxAiQueriesPerMonth;
+    final used = usedOverride ?? AppSession.instance.aiQueriesUsed.value;
+    return (limit - used).clamp(0, 999999);
+  }
+
+  static void markAiQuotaExhausted({int? limit}) {
+    final max = limit ?? currentQuota.maxAiQueriesPerMonth;
+    if (AppSession.instance.aiQueriesUsed.value < max) {
+      AppSession.instance.aiQueriesUsed.value = max;
+    }
+  }
+
+  /// Checks whether the customer still has monthly AI credits available.
+  static Future<bool> checkCanUseAi(
+    BuildContext context, {
+    String featureLabel = 'AI Assistant',
+    bool showDialogOnLimit = true,
+  }) async {
+    if (!await _refreshForAction(context) || !context.mounted) return false;
+    final usage = SupabaseConfig.isConfigured
+        ? await _readUsageForAction(context)
+        : null;
+    if (SupabaseConfig.isConfigured && usage == null) return false;
+    if (!context.mounted) return false;
+    final quota = currentQuota;
+    final limit = usage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth;
+    final used = usage?.aiQueriesUsed ?? AppSession.instance.aiQueriesUsed.value;
+    if (limit > 0 && used < limit) return true;
+    markAiQuotaExhausted(limit: limit);
+    if (showDialogOnLimit && context.mounted) {
+      await showPlanUpgradeDialog(
+        context,
+        featureTitle: '$featureLabel Quota Reached ($used/$limit)',
+        reason:
+            'Your ${quota.planName} plan includes $limit AI prompts per month. Upgrade your plan or wait for the monthly cycle reset.',
+      );
+    }
+    return false;
+  }
+
+  /// Repository-safe watchlist creation check (throws [StateError] when capped).
+  static Future<void> assertCanCreateWatchlist({
+    required int currentWatchlistCount,
+  }) async {
+    if (SupabaseConfig.isConfigured &&
+        SupabaseConfig.client?.auth.currentUser != null) {
+      await CustomerTierQuota.refreshPublishedCatalogue().catchError((_) {});
+      final usage = await CustomerQuotaUsage.fetch();
+      final limit = usage.watchlistsLimit;
+      if (usage.watchlistsUsed >= limit) {
+        throw StateError(
+          'Watchlist limit reached (${usage.watchlistsUsed} of $limit) on ${CustomerTierQuota.forTier(usage.tier).planName}.',
+        );
+      }
+      return;
+    }
+    final quota = currentQuota;
+    if (currentWatchlistCount >= quota.maxWatchlists) {
+      throw StateError(
+        'Watchlist limit reached ($currentWatchlistCount of ${quota.maxWatchlists}) on ${quota.planName}.',
+      );
+    }
+  }
+
+  /// Checks whether the customer can create another watchlist.
+  static Future<bool> checkCanCreateWatchlist(
+    BuildContext context, {
+    required int currentWatchlistCount,
+  }) async {
+    if (!await _refreshForAction(context) || !context.mounted) return false;
+    final usage = SupabaseConfig.isConfigured
+        ? await _readUsageForAction(context)
+        : null;
+    if (SupabaseConfig.isConfigured && usage == null) return false;
+    if (!context.mounted) return false;
+    final quota = currentQuota;
+    final limit = usage?.watchlistsLimit ?? quota.maxWatchlists;
+    final used = usage?.watchlistsUsed ?? currentWatchlistCount;
+    if (used < limit) return true;
+    await showPlanUpgradeDialog(
+      context,
+      featureTitle: 'Watchlist Limit Reached ($used/$limit)',
+      reason:
+          'Your ${quota.planName} plan supports up to $limit watchlist${limit == 1 ? '' : 's'}. Upgrade your tier to organize more watchlists.',
+    );
+    return false;
+  }
+
+  /// Repository-safe price alert check (throws [StateError] when capped).
+  static Future<void> assertCanCreatePriceAlert({int? currentAlertCount}) async {
+    if (SupabaseConfig.isConfigured &&
+        SupabaseConfig.client?.auth.currentUser != null) {
+      await CustomerTierQuota.refreshPublishedCatalogue().catchError((_) {});
+      final usage = await CustomerQuotaUsage.fetch();
+      if (usage.alertsUsed >= usage.alertsLimit) {
+        throw StateError(
+          'Price alert limit reached (${usage.alertsUsed} of ${usage.alertsLimit}) on ${CustomerTierQuota.forTier(usage.tier).planName}.',
+        );
+      }
+      return;
+    }
+    final quota = currentQuota;
+    if (currentAlertCount != null && currentAlertCount >= quota.maxAlerts) {
+      throw StateError(
+        'Price alert limit reached ($currentAlertCount of ${quota.maxAlerts}) on ${quota.planName}.',
+      );
+    }
+  }
+
+  /// Checks whether the customer can arm another price alert.
+  static Future<bool> checkCanCreatePriceAlert(
+    BuildContext context, {
+    int currentAlertCount = 0,
+  }) async {
+    if (!await _refreshForAction(context) || !context.mounted) return false;
+    final usage = SupabaseConfig.isConfigured
+        ? await _readUsageForAction(context)
+        : null;
+    if (SupabaseConfig.isConfigured && usage == null) return false;
+    if (!context.mounted) return false;
+    final quota = currentQuota;
+    final limit = usage?.alertsLimit ?? quota.maxAlerts;
+    final used = usage?.alertsUsed ?? currentAlertCount;
+    if (used < limit) return true;
+    await showPlanUpgradeDialog(
+      context,
+      featureTitle: 'Price Alert Limit Reached ($used/$limit)',
+      reason:
+          'Your ${quota.planName} plan supports up to $limit active price alerts. Remove an existing alert or upgrade your tier.',
+    );
+    return false;
+  }
+
+  /// Synchronous local daily post quota check for offline/optimistic flows.
+  static void assertCanCreateCommunityPostSync(int todayPostCount) {
+    final quota = currentQuota;
+    if (todayPostCount >= quota.maxCommunityPostsPerDay) {
+      throw StateError(
+        'Daily community post limit reached ($todayPostCount of ${quota.maxCommunityPostsPerDay} today) on ${quota.planName}.',
+      );
+    }
+  }
+
+  /// Repository-safe daily community post check.
+  static Future<void> assertCanCreateCommunityPost({
+    int? todayPostCount,
+  }) async {
+    if (SupabaseConfig.isConfigured &&
+        SupabaseConfig.client?.auth.currentUser != null) {
+      await CustomerTierQuota.refreshPublishedCatalogue().catchError((_) {});
+      final usage = await CustomerQuotaUsage.fetch();
+      if (usage.communityPostsToday >= usage.communityPostsPerDayLimit) {
+        throw StateError(
+          'Daily community post limit reached (${usage.communityPostsToday} of ${usage.communityPostsPerDayLimit} today) on ${CustomerTierQuota.forTier(usage.tier).planName}.',
+        );
+      }
+      return;
+    }
+    if (todayPostCount != null) {
+      assertCanCreateCommunityPostSync(todayPostCount);
+    }
+  }
+
+  /// Checks whether the customer can publish another community post today.
+  static Future<bool> checkCanCreateCommunityPost(
+    BuildContext context, {
+    int todayPostCount = 0,
+  }) async {
+    if (!await _refreshForAction(context) || !context.mounted) return false;
+    final usage = SupabaseConfig.isConfigured
+        ? await _readUsageForAction(context)
+        : null;
+    if (SupabaseConfig.isConfigured && usage == null) return false;
+    if (!context.mounted) return false;
+    final quota = currentQuota;
+    final limit =
+        usage?.communityPostsPerDayLimit ?? quota.maxCommunityPostsPerDay;
+    final used = usage?.communityPostsToday ?? todayPostCount;
+    if (used < limit) return true;
+    await showPlanUpgradeDialog(
+      context,
+      featureTitle: 'Daily Post Limit Reached ($used/$limit)',
+      reason:
+          'Your ${quota.planName} plan allows up to $limit community post${limit == 1 ? '' : 's'} per day. Try again tomorrow or upgrade for higher daily capacity.',
+    );
+    return false;
+  }
+
+  /// Synchronous local daily comment quota check for offline/optimistic flows.
+  static void assertCanCreateCommunityCommentSync(int todayCommentCount) {
+    final quota = currentQuota;
+    if (todayCommentCount >= quota.maxCommunityCommentsPerDay) {
+      throw StateError(
+        'Daily comment limit reached ($todayCommentCount of ${quota.maxCommunityCommentsPerDay} today) on ${quota.planName}.',
+      );
+    }
+  }
+
+  /// Repository-safe daily community comment check.
+  static Future<void> assertCanCreateCommunityComment({
+    int? todayCommentCount,
+  }) async {
+    if (SupabaseConfig.isConfigured &&
+        SupabaseConfig.client?.auth.currentUser != null) {
+      await CustomerTierQuota.refreshPublishedCatalogue().catchError((_) {});
+      final usage = await CustomerQuotaUsage.fetch();
+      if (usage.communityCommentsToday >= usage.communityCommentsPerDayLimit) {
+        throw StateError(
+          'Daily community comment limit reached (${usage.communityCommentsToday} of ${usage.communityCommentsPerDayLimit} today) on ${CustomerTierQuota.forTier(usage.tier).planName}.',
+        );
+      }
+      return;
+    }
+    if (todayCommentCount != null) {
+      assertCanCreateCommunityCommentSync(todayCommentCount);
+    }
+  }
+
+  /// Checks whether the customer can post another community comment/reply today.
+  static Future<bool> checkCanCreateCommunityComment(
+    BuildContext context, {
+    int todayCommentCount = 0,
+  }) async {
+    if (!await _refreshForAction(context) || !context.mounted) return false;
+    final usage = SupabaseConfig.isConfigured
+        ? await _readUsageForAction(context)
+        : null;
+    if (SupabaseConfig.isConfigured && usage == null) return false;
+    if (!context.mounted) return false;
+    final quota = currentQuota;
+    final limit =
+        usage?.communityCommentsPerDayLimit ?? quota.maxCommunityCommentsPerDay;
+    final used = usage?.communityCommentsToday ?? todayCommentCount;
+    if (used < limit) return true;
+    await showPlanUpgradeDialog(
+      context,
+      featureTitle: 'Daily Comment Limit Reached ($used/$limit)',
+      reason:
+          'Your ${quota.planName} plan allows up to $limit comments per day. Try again tomorrow or upgrade your tier.',
+    );
+    return false;
+  }
+
+  /// Checks whether PDF / CSV report export is unlocked for the customer's tier.
+  static Future<bool> checkCanExportPdf(
+    BuildContext context, {
+    String featureLabel = 'PDF & CSV Export',
+  }) async {
+    if (!await _refreshForAction(context) || !context.mounted) return false;
+    final usage = SupabaseConfig.isConfigured
+        ? await _readUsageForAction(context)
+        : null;
+    if (SupabaseConfig.isConfigured && usage == null) return false;
+    if (!context.mounted) return false;
+    final quota = currentQuota;
+    final allowed = usage?.allowPdfExport ?? quota.allowPdfExport;
+    if (allowed) return true;
+    await showPlanUpgradeDialog(
+      context,
+      featureTitle: '$featureLabel (Pro Tier)',
+      reason:
+          '${quota.planName} does not include publication-grade PDF or CSV exports. Upgrade to alphajournal Pro (₹499/mo) to unlock unlimited exports.',
+    );
+    return false;
+  }
+
+  /// Checks whether advanced backtesting & institutional analytics are unlocked.
+  static Future<bool> checkCanUseAdvancedBacktest(
+    BuildContext context, {
+    String featureLabel = 'Advanced Backtesting & Analytics',
+  }) async {
+    if (!await _refreshForAction(context) || !context.mounted) return false;
+    final usage = SupabaseConfig.isConfigured
+        ? await _readUsageForAction(context)
+        : null;
+    if (SupabaseConfig.isConfigured && usage == null) return false;
+    if (!context.mounted) return false;
+    final quota = currentQuota;
+    final allowed = usage?.allowAdvancedBacktest ?? quota.allowAdvancedBacktest;
+    if (allowed) return true;
+    await showPlanUpgradeDialog(
+      context,
+      featureTitle: '$featureLabel (Pro Tier)',
+      reason:
+          '${quota.planName} includes core strategy tracking. Upgrade to alphajournal Pro (₹499/mo) for advanced backtesting and institutional analytics.',
     );
     return false;
   }
@@ -474,11 +826,19 @@ class CustomerLimitationsBanner extends StatefulWidget {
     required this.noteCount,
     required this.tradeCount,
     required this.liveStrategyCount,
+    this.watchlistCount = 0,
+    this.alertCount = 0,
+    this.communityPostsToday = 0,
+    this.communityCommentsToday = 0,
   });
 
   final int noteCount;
   final int tradeCount;
   final int liveStrategyCount;
+  final int watchlistCount;
+  final int alertCount;
+  final int communityPostsToday;
+  final int communityCommentsToday;
 
   @override
   State<CustomerLimitationsBanner> createState() =>
@@ -572,6 +932,30 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                 SupabaseConfig.isConfigured && _accountUsage == null
                 ? null
                 : aiUsed;
+            final int watchlistsUsed =
+                _accountUsage?.watchlistsUsed ?? widget.watchlistCount;
+            final int watchlistsLimit =
+                _accountUsage?.watchlistsLimit ?? quota.maxWatchlists;
+            final int alertsUsed =
+                _accountUsage?.alertsUsed ?? widget.alertCount;
+            final int alertsLimit =
+                _accountUsage?.alertsLimit ?? quota.maxAlerts;
+            final int postsToday =
+                _accountUsage?.communityPostsToday ?? widget.communityPostsToday;
+            final int postsLimit =
+                _accountUsage?.communityPostsPerDayLimit ??
+                quota.maxCommunityPostsPerDay;
+            final int commentsToday =
+                _accountUsage?.communityCommentsToday ??
+                widget.communityCommentsToday;
+            final int commentsLimit =
+                _accountUsage?.communityCommentsPerDayLimit ??
+                quota.maxCommunityCommentsPerDay;
+            final bool pdfUnlocked =
+                _accountUsage?.allowPdfExport ?? quota.allowPdfExport;
+            final bool backtestUnlocked =
+                _accountUsage?.allowAdvancedBacktest ??
+                quota.allowAdvancedBacktest;
             final bool isHalted = _breakerState == 'halted';
             final bool isTripped = _breakerState == 'tripped';
 
@@ -627,83 +1011,173 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                         )
                       : null,
                   padding: EdgeInsets.zero,
-                  child: UiStatStrip(
-                    stats: <UiStat>[
-                      UiStat(
-                        icon: Icons.note_alt_outlined,
-                        label: 'Research Notes',
-                        value:
-                            '${notesUsed ?? 0} / ${_accountUsage?.notesLimit ?? quota.maxNotes}',
-                        hint: (notesUsed != null &&
-                                notesUsed >=
-                                    (_accountUsage?.notesLimit ??
-                                        quota.maxNotes))
-                            ? 'Limit reached · upgrade tier'
-                            : '${((_accountUsage?.notesLimit ?? quota.maxNotes) - (notesUsed ?? 0)).clamp(0, 99999)} notes available',
-                        intent: (notesUsed != null &&
-                                notesUsed >=
-                                    (_accountUsage?.notesLimit ??
-                                        quota.maxNotes))
-                            ? UiIntent.danger
-                            : UiIntent.primary,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      UiStatStrip(
+                        stats: <UiStat>[
+                          UiStat(
+                            icon: Icons.note_alt_outlined,
+                            label: 'Research Notes',
+                            value:
+                                '${notesUsed ?? 0} / ${_accountUsage?.notesLimit ?? quota.maxNotes}',
+                            hint: (notesUsed != null &&
+                                    notesUsed >=
+                                        (_accountUsage?.notesLimit ??
+                                            quota.maxNotes))
+                                ? 'Limit reached · upgrade tier'
+                                : '${((_accountUsage?.notesLimit ?? quota.maxNotes) - (notesUsed ?? 0)).clamp(0, 99999)} notes available',
+                            intent: (notesUsed != null &&
+                                    notesUsed >=
+                                        (_accountUsage?.notesLimit ??
+                                            quota.maxNotes))
+                                ? UiIntent.danger
+                                : UiIntent.primary,
+                          ),
+                          UiStat(
+                            icon: Icons.candlestick_chart_outlined,
+                            label: 'Journal Trades',
+                            value:
+                                '${tradesUsed ?? 0} / ${_accountUsage?.tradesLimit ?? quota.maxTrades}',
+                            hint: (tradesUsed != null &&
+                                    tradesUsed >=
+                                        (_accountUsage?.tradesLimit ??
+                                            quota.maxTrades))
+                                ? 'Monthly cap reached'
+                                : '${((_accountUsage?.tradesLimit ?? quota.maxTrades) - (tradesUsed ?? 0)).clamp(0, 99999)} entries remaining',
+                            intent: (tradesUsed != null &&
+                                    tradesUsed >=
+                                        (_accountUsage?.tradesLimit ??
+                                            quota.maxTrades))
+                                ? UiIntent.danger
+                                : UiIntent.info,
+                          ),
+                          UiStat(
+                            icon: Icons.psychology_outlined,
+                            label: 'Live Playbooks',
+                            value:
+                                '${playbooksUsed ?? 0} / ${_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies}',
+                            hint: (playbooksUsed != null &&
+                                    playbooksUsed >=
+                                        (_accountUsage?.livePlaybooksLimit ??
+                                            quota.maxLiveStrategies))
+                                ? 'Strategy limit reached'
+                                : '${((_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies) - (playbooksUsed ?? 0)).clamp(0, 99999)} active rules left',
+                            intent: (playbooksUsed != null &&
+                                    playbooksUsed >=
+                                        (_accountUsage?.livePlaybooksLimit ??
+                                            quota.maxLiveStrategies))
+                                ? UiIntent.warning
+                                : UiIntent.success,
+                          ),
+                          UiStat(
+                            icon: Icons.auto_awesome_outlined,
+                            label: 'AI Copilot Queries',
+                            value:
+                                '${aiUsedForAccount ?? 0} / ${_accountUsage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth}',
+                            hint: (aiUsedForAccount != null &&
+                                    aiUsedForAccount >=
+                                        (_accountUsage?.aiQueriesLimit ??
+                                            quota.maxAiQueriesPerMonth))
+                                ? 'Monthly credits exhausted'
+                                : '${((_accountUsage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth) - (aiUsedForAccount ?? 0)).clamp(0, 99999)} prompt credits',
+                            intent: (aiUsedForAccount != null &&
+                                    aiUsedForAccount >=
+                                        (_accountUsage?.aiQueriesLimit ??
+                                            quota.maxAiQueriesPerMonth))
+                                ? UiIntent.danger
+                                : UiIntent.bullish,
+                          ),
+                          UiStat(
+                            icon: Icons.bookmark_border_rounded,
+                            label: 'Watchlists',
+                            value: '$watchlistsUsed / $watchlistsLimit',
+                            hint: watchlistsUsed >= watchlistsLimit
+                                ? 'Watchlist limit reached'
+                                : '${(watchlistsLimit - watchlistsUsed).clamp(0, 99999)} watchlists remaining',
+                            intent: watchlistsUsed >= watchlistsLimit
+                                ? UiIntent.warning
+                                : UiIntent.info,
+                          ),
+                          UiStat(
+                            icon: Icons.notifications_active_outlined,
+                            label: 'Price Alerts',
+                            value: '$alertsUsed / $alertsLimit',
+                            hint: alertsUsed >= alertsLimit
+                                ? 'Alert limit reached'
+                                : '${(alertsLimit - alertsUsed).clamp(0, 99999)} alerts remaining',
+                            intent: alertsUsed >= alertsLimit
+                                ? UiIntent.warning
+                                : UiIntent.primary,
+                          ),
+                          UiStat(
+                            icon: Icons.forum_outlined,
+                            label: 'Community Posts / Day',
+                            value: '$postsToday / $postsLimit',
+                            hint: postsToday >= postsLimit
+                                ? 'Daily post cap reached'
+                                : '${(postsLimit - postsToday).clamp(0, 99999)} posts left today',
+                            intent: postsToday >= postsLimit
+                                ? UiIntent.warning
+                                : UiIntent.bullish,
+                          ),
+                          UiStat(
+                            icon: Icons.chat_bubble_outline_rounded,
+                            label: 'Comments / Day',
+                            value: '$commentsToday / $commentsLimit',
+                            hint: commentsToday >= commentsLimit
+                                ? 'Daily comment cap reached'
+                                : '${(commentsLimit - commentsToday).clamp(0, 99999)} replies left today',
+                            intent: commentsToday >= commentsLimit
+                                ? UiIntent.warning
+                                : UiIntent.neutral,
+                          ),
+                        ],
+                        columns: context.uiRes.isMobile ? 2 : 4,
+                        density: UiDensity.comfortable,
                       ),
-                      UiStat(
-                        icon: Icons.candlestick_chart_outlined,
-                        label: 'Journal Trades',
-                        value:
-                            '${tradesUsed ?? 0} / ${_accountUsage?.tradesLimit ?? quota.maxTrades}',
-                        hint: (tradesUsed != null &&
-                                tradesUsed >=
-                                    (_accountUsage?.tradesLimit ??
-                                        quota.maxTrades))
-                            ? 'Monthly cap reached'
-                            : '${((_accountUsage?.tradesLimit ?? quota.maxTrades) - (tradesUsed ?? 0)).clamp(0, 99999)} entries remaining',
-                        intent: (tradesUsed != null &&
-                                tradesUsed >=
-                                    (_accountUsage?.tradesLimit ??
-                                        quota.maxTrades))
-                            ? UiIntent.danger
-                            : UiIntent.info,
-                      ),
-                      UiStat(
-                        icon: Icons.psychology_outlined,
-                        label: 'Live Playbooks',
-                        value:
-                            '${playbooksUsed ?? 0} / ${_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies}',
-                        hint: (playbooksUsed != null &&
-                                playbooksUsed >=
-                                    (_accountUsage?.livePlaybooksLimit ??
-                                        quota.maxLiveStrategies))
-                            ? 'Strategy limit reached'
-                            : '${((_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies) - (playbooksUsed ?? 0)).clamp(0, 99999)} active rules left',
-                        intent: (playbooksUsed != null &&
-                                playbooksUsed >=
-                                    (_accountUsage?.livePlaybooksLimit ??
-                                        quota.maxLiveStrategies))
-                            ? UiIntent.warning
-                            : UiIntent.success,
-                      ),
-                      UiStat(
-                        icon: Icons.auto_awesome_outlined,
-                        label: 'AI Copilot Queries',
-                        value:
-                            '${aiUsedForAccount ?? 0} / ${_accountUsage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth}',
-                        hint: (aiUsedForAccount != null &&
-                                aiUsedForAccount >=
-                                    (_accountUsage?.aiQueriesLimit ??
-                                        quota.maxAiQueriesPerMonth))
-                            ? 'Monthly credits exhausted'
-                            : '${((_accountUsage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth) - (aiUsedForAccount ?? 0)).clamp(0, 99999)} prompt credits',
-                        intent: (aiUsedForAccount != null &&
-                                aiUsedForAccount >=
-                                    (_accountUsage?.aiQueriesLimit ??
-                                        quota.maxAiQueriesPerMonth))
-                            ? UiIntent.danger
-                            : UiIntent.bullish,
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          context.sp(theme.spacing.md),
+                          context.sp(theme.spacing.xs),
+                          context.sp(theme.spacing.md),
+                          context.sp(theme.spacing.sm),
+                        ),
+                        child: Wrap(
+                          spacing: context.sp(theme.spacing.sm),
+                          runSpacing: context.sp(theme.spacing.xs),
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: <Widget>[
+                            UiBadge(
+                              label: pdfUnlocked
+                                  ? 'PDF & CSV Exports: Enabled'
+                                  : 'PDF & CSV Exports: Pro Plan',
+                              icon: pdfUnlocked
+                                  ? Icons.picture_as_pdf_outlined
+                                  : Icons.lock_outline_rounded,
+                              intent: pdfUnlocked
+                                  ? UiIntent.success
+                                  : UiIntent.neutral,
+                              variant: UiBadgeVariant.soft,
+                              size: UiSize.xs,
+                            ),
+                            UiBadge(
+                              label: backtestUnlocked
+                                  ? 'Advanced Backtest: Enabled'
+                                  : 'Advanced Backtest: Pro Plan',
+                              icon: backtestUnlocked
+                                  ? Icons.insights_outlined
+                                  : Icons.lock_outline_rounded,
+                              intent: backtestUnlocked
+                                  ? UiIntent.success
+                                  : UiIntent.neutral,
+                              variant: UiBadgeVariant.soft,
+                              size: UiSize.xs,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
-                    columns: context.uiRes.isMobile ? 2 : 4,
-                    density: UiDensity.comfortable,
                   ),
                 ),
               ],

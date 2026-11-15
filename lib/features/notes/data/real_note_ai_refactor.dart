@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/ai/unified_ai_service.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/env_config.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'note_ai_refactor.dart';
@@ -18,6 +19,12 @@ class RealNoteAiRefactor implements NoteAiRefactor {
   }) async {
     final cleanText = selectedText.trim();
     if (cleanText.isEmpty) return selectedText;
+
+    if (CustomerLimitations.isAiQuotaExhausted()) {
+      throw StateError(
+        'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
+      );
+    }
 
     // 1. Authenticated session check
     if (SupabaseConfig.isConfigured) {
@@ -54,6 +61,7 @@ class RealNoteAiRefactor implements NoteAiRefactor {
           throw StateError('Sign in required to use AI note refactoring.');
         }
         if (res.status == 429) {
+          CustomerLimitations.markAiQuotaExhausted();
           throw StateError(
             'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
           );
@@ -78,6 +86,7 @@ class RealNoteAiRefactor implements NoteAiRefactor {
           throw StateError('Sign in required to use AI note refactoring.');
         }
         if (fe.status == 429) {
+          CustomerLimitations.markAiQuotaExhausted();
           throw StateError(
             'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
           );
@@ -141,6 +150,12 @@ $cleanText
         if (enhanced.trim().isNotEmpty) {
           return enhanced.trim();
         }
+      } on StateError catch (e) {
+        if (CustomerLimitations.isQuotaErrorMessage(e.message) ||
+            e.message.toLowerCase().contains('sign in')) {
+          rethrow;
+        }
+        debugPrint('[RealNoteAiRefactor] Client AI provider error: $e');
       } catch (e) {
         debugPrint('[RealNoteAiRefactor] Client AI provider error: $e');
       }

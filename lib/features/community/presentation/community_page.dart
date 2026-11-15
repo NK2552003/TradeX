@@ -3,6 +3,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
@@ -125,6 +126,20 @@ class _CommunityPageState extends State<CommunityPage> {
   Future<void> _handleCreatePost() async {
     final text = _postDraft.trim();
     if (text.isEmpty) return;
+
+    final now = DateTime.now();
+    final todayPosts = _posts.where((p) {
+      if (p.author.id != _me.id) return false;
+      final local = p.createdAt.toLocal();
+      return local.year == now.year &&
+          local.month == now.month &&
+          local.day == now.day;
+    }).length;
+    final allowed = await CustomerLimitations.checkCanCreateCommunityPost(
+      context,
+      todayPostCount: todayPosts,
+    );
+    if (!allowed || !mounted) return;
 
     setState(() => _postDraft = '');
     try {

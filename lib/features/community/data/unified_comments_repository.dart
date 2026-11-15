@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
@@ -251,6 +252,7 @@ class UnifiedCommentsRepositoryImpl implements UnifiedCommentsRepository {
     String? parentCommentId,
     String? sentiment,
   }) async {
+    await CustomerLimitations.assertCanCreateCommunityComment();
     final client = SupabaseConfig.client;
     final currentUserId = _resolveUserId();
     final author = getCurrentAuthor();

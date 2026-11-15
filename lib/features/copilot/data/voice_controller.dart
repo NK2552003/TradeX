@@ -10,6 +10,7 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:tradex/core/ai/unified_ai_service.dart';
 import 'package:tradex/core/ai/voice_gateway_service.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/env_config.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -175,6 +176,14 @@ class CopilotVoiceController extends ChangeNotifier {
   Future<void> start() async {
     await _ending;
     if (active || connecting || controller.voiceBusy) return;
+    if (controller.isAiQuotaBlocked || CustomerLimitations.isAiQuotaExhausted()) {
+      error =
+          'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit}). Upgrade your plan to continue.';
+      controller.quotaExceeded = true;
+      stage = CopilotVoiceStage.idle;
+      _notify();
+      return;
+    }
     final session = ++_session;
     connecting = true;
     stage = CopilotVoiceStage.connecting;
@@ -550,10 +559,19 @@ class CopilotVoiceController extends ChangeNotifier {
   Future<void> submitVoiceTurn(String utterance) async {
     final String trimmed = utterance.trim();
     if (trimmed.isEmpty || _disposed) return;
+    if (controller.isAiQuotaBlocked || CustomerLimitations.isAiQuotaExhausted()) {
+      error =
+          'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit}). Upgrade your plan to continue.';
+      controller.quotaExceeded = true;
+      assistantCaption = error!;
+      stage = CopilotVoiceStage.idle;
+      _notify();
+      return;
+    }
     if (!active && !connecting) {
       await start();
     }
-    if (_disposed) return;
+    if (_disposed || !active) return;
 
     final int session = _session;
     try {
@@ -585,24 +603,43 @@ class CopilotVoiceController extends ChangeNotifier {
           : false;
       if (_ownsCall) controller.voiceBusy = true;
 
+      final String? controllerErr = controller.error;
+      final bool isControllerQuotaError =
+          controller.isAiQuotaBlocked ||
+          (controllerErr != null &&
+              CustomerLimitations.isQuotaErrorMessage(controllerErr));
+
       if (sentToThread) {
         final CopilotMessage? lastMsg =
             controller.activeThread?.messages.lastOrNull;
         final String candidate = lastMsg?.body.trim() ?? '';
         final bool isQuotaOrGatewayError =
+            isControllerQuotaError ||
             lastMsg?.status == 'error' ||
             lastMsg?.status == 'failed' ||
             controller.error != null ||
-            candidate.toLowerCase().contains('ai_queries_per_month') ||
-            candidate.toLowerCase().contains('limit reached');
+            CustomerLimitations.isQuotaErrorMessage(candidate);
         if (lastMsg != null &&
             !lastMsg.isUser &&
             candidate.isNotEmpty &&
             !isQuotaOrGatewayError) {
           reply = candidate;
-        } else if (isQuotaOrGatewayError) {
-          controller.error = null;
         }
+      }
+
+      if (isControllerQuotaError) {
+        controller.quotaExceeded = true;
+        CustomerLimitations.markAiQuotaExhausted(
+          limit: controller.quotaLimit,
+        );
+        error =
+            controllerErr ??
+            'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit}). Upgrade your plan to continue.';
+        assistantCaption = error!;
+        stage = CopilotVoiceStage.idle;
+        _updateWaveform();
+        _notify();
+        return;
       }
 
       if (reply.trim().isEmpty) {
@@ -621,20 +658,70 @@ class CopilotVoiceController extends ChangeNotifier {
             mode: voiceMode,
             allowWebSearch: canWebSearch,
           );
-          if (!aiReply.toLowerCase().contains('ai_queries_per_month') &&
-              !aiReply.toLowerCase().contains('limit reached')) {
-            reply = aiReply;
+          if (CustomerLimitations.isQuotaErrorMessage(aiReply)) {
+            controller.quotaExceeded = true;
+            CustomerLimitations.markAiQuotaExhausted(
+              limit: controller.quotaLimit,
+            );
+            error = aiReply;
+            assistantCaption = aiReply;
+            stage = CopilotVoiceStage.idle;
+            _updateWaveform();
+            _notify();
+            return;
           }
-        } catch (_) {}
+          reply = aiReply;
+        } catch (e) {
+          final errText = '$e';
+          if (CustomerLimitations.isQuotaErrorMessage(errText) ||
+              controller.isAiQuotaBlocked ||
+              CustomerLimitations.isAiQuotaExhausted()) {
+            controller.quotaExceeded = true;
+            CustomerLimitations.markAiQuotaExhausted(
+              limit: controller.quotaLimit,
+            );
+            error = e is StateError ? e.message : errText;
+            assistantCaption = error!;
+            stage = CopilotVoiceStage.idle;
+            _updateWaveform();
+            _notify();
+            return;
+          }
+        }
       }
 
       if (reply.trim().isEmpty) {
+        if (controller.isAiQuotaBlocked ||
+            CustomerLimitations.isAiQuotaExhausted()) {
+          error =
+              'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit}). Upgrade your plan to continue.';
+          assistantCaption = error!;
+          stage = CopilotVoiceStage.idle;
+          _updateWaveform();
+          _notify();
+          return;
+        }
         reply = await CopilotFeatureConnector.buildConnectedNaturalLanguageReply(
           trimmed,
           controller,
         );
       }
-    } catch (_) {
+    } catch (e) {
+      final errText = '$e';
+      if (CustomerLimitations.isQuotaErrorMessage(errText) ||
+          controller.isAiQuotaBlocked ||
+          CustomerLimitations.isAiQuotaExhausted()) {
+        controller.quotaExceeded = true;
+        CustomerLimitations.markAiQuotaExhausted(
+          limit: controller.quotaLimit,
+        );
+        error = e is StateError ? e.message : errText;
+        assistantCaption = error!;
+        stage = CopilotVoiceStage.idle;
+        _updateWaveform();
+        _notify();
+        return;
+      }
       controller.error = null;
       reply = await CopilotFeatureConnector.buildConnectedNaturalLanguageReply(
         trimmed,

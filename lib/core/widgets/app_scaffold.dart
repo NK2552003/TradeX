@@ -2119,16 +2119,16 @@ class _AppScaffoldState extends State<AppScaffold> {
             tier: tier,
             workspaceName: _effectiveRole == UserRole.customer
                 ? switch (tier) {
-                    AppTier.free => 'alphajournal Basic',
-                    AppTier.premium => 'alphajournal Pro',
-                    AppTier.enterprise => 'alphajournal Business',
+                    AppTier.free => 'alphajournal Free',
+                    AppTier.premium => 'alphajournal Basic',
+                    AppTier.enterprise => 'alphajournal Pro',
                   }
                 : navigation.workspaceName,
             tierLabel: _effectiveRole == UserRole.customer
                 ? switch (tier) {
-                    AppTier.free => 'Basic Plan',
-                    AppTier.premium => 'Pro Plan',
-                    AppTier.enterprise => 'Business Plan',
+                    AppTier.free => 'Free Plan',
+                    AppTier.premium => 'Basic Plan',
+                    AppTier.enterprise => 'Pro Plan',
                   }
                 : navigation.workspaceLabel,
             unreadNotifications: _unread,

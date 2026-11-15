@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
@@ -43,6 +44,14 @@ class _WatchlistSymbolDialogState extends State<WatchlistSymbolDialog> {
     });
     try {
       if (_createList) {
+        final allowed = await CustomerLimitations.checkCanCreateWatchlist(
+          context,
+          currentWatchlistCount: 0,
+        );
+        if (!allowed || !mounted) {
+          if (mounted) setState(() => _saving = false);
+          return;
+        }
         await widget.repository.createWatchlist(_watchlist!);
         _createList = false;
       }
@@ -51,11 +60,13 @@ class _WatchlistSymbolDialogState extends State<WatchlistSymbolDialog> {
         _selected!.symbol,
       );
       if (mounted) Navigator.of(context).pop(true);
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = 'Could not save this symbol. Please retry.';
+          _error = e is StateError
+              ? e.message
+              : 'Could not save this symbol. Please retry.';
         });
       }
     }

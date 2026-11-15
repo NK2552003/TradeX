@@ -192,16 +192,26 @@ async function handleAiChatRequest(
     }
   }
 
-  // 3. Atomically check and record quota
-  try {
-    await adminClient.from('ai_insight_requests').insert({
-      user_id: user.id,
-      kind: 'copilot_chat',
-    });
-  } catch (err) {
-    console.error('Quota recording failed');
-    return jsonReply(429, { error: 'Monthly AI quota reached or request rate limit exceeded.' });
+  // 3. Atomically reserve quota and validate AI entitlement as the authenticated user.
+  //    Unlike unchecked admin inserts, reserve_ai_request acquires an advisory lock,
+  //    enforces published tier limits & daily caps, and returns SQLSTATE P0001/42501 on denial.
+  const { data: reservation, error: reserveError } = await userClient.rpc('reserve_ai_request', {
+    p_kind: 'chat',
+    p_prompt: message,
+    p_thread: threadId,
+    p_persona: persona,
+  });
+  if (reserveError) {
+    console.error('Quota recording failed:', reserveError.code, reserveError.message);
+    if (reserveError.code === '42501') {
+      return jsonReply(403, { error: reserveError.message || 'AI access is not available for this account.' });
+    }
+    if (reserveError.code === 'P0001') {
+      return jsonReply(429, { error: reserveError.message || 'Monthly AI quota reached or request rate limit exceeded.' });
+    }
+    return jsonReply(503, { error: reserveError.message || 'Unable to verify AI quota.' });
   }
+  const requestId = typeof reservation?.request_id === 'string' ? reservation.request_id : null;
 
   // 4. Ensure thread exists or create it
   if (!threadId) {
@@ -376,6 +386,16 @@ Directives:
       }
 
       if (completeText.trim().length > 0) {
+        if (requestId) {
+          await adminClient.rpc('finish_ai_request', {
+            p_request: requestId,
+            p_body: completeText,
+            p_provider: openAiApiKey ? 'openai' : (geminiApiKey ? 'gemini' : 'openrouter'),
+            p_model: 'copilot-chat',
+            p_input_tokens: fullPrompt.length,
+            p_output_tokens: completeText.length,
+          });
+        }
         await adminClient
           .from('ai_threads')
           .update({ updated_at: new Date().toISOString() })
@@ -389,9 +409,19 @@ Directives:
         });
         sendEvent('complete', {
           messageId: assistantMessageId,
-          usage: { inputTokens: fullPrompt.length, outputTokens: completeText.length },
+          usage: {
+            inputTokens: fullPrompt.length,
+            outputTokens: completeText.length,
+            ...(reservation?.usage ?? {}),
+          },
         });
       } else {
+        if (requestId) {
+          await adminClient.rpc('finish_ai_request', {
+            p_request: requestId,
+            p_error: 'AI assistant is currently unavailable. Please try again.',
+          });
+        }
         logger.log('error', 'ai_chat_providers_unavailable', { persona, thread_id: threadId });
         sendEvent('error', {
           code: 'service_unavailable',

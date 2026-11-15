@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
@@ -345,6 +346,11 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
   /// blocking overlay — rendering flowcharts off-screen takes seconds, and an
   /// unguarded second tap would start a duplicate export.
   Future<void> _exportPdf() async {
+    final allowed = await CustomerLimitations.checkCanExportPdf(
+      context,
+      featureLabel: 'Trade Journal PDF Export',
+    );
+    if (!allowed || !mounted) return;
     final PdfExportOptions? options = await showPdfExportOptions(context);
     if (options == null || !mounted) return;
 
