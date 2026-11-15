@@ -64,6 +64,8 @@ class FakeAi extends UnifiedAiService {
     double temperature = .3,
     int maxTokens = 2048,
     bool allowLocalFallback = true,
+    String mode = 'auto',
+    bool? allowWebSearch,
   }) async {
     fallback = allowLocalFallback;
     this.prompt = prompt;

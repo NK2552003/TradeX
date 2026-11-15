@@ -9,6 +9,7 @@ import 'package:tradex/features/market_data/models/market_snapshot.dart';
 import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
 import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
 import 'package:tradex/core/linking/link_graph.dart';
+import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 import 'market_screeners_view.dart';
 import 'market_catalogue_view.dart';
 import 'market_overview_view.dart';
@@ -539,6 +540,30 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
                         label: '${_history.length + 1}',
                         variant: UiBadgeVariant.outline,
                       ),
+                    if (_instrument != null) ...[
+                      UiGap.h(context.ui.spacing.xs),
+                      UiIconButton(
+                        icon: Icons.ios_share_rounded,
+                        size: UiSize.sm,
+                        tooltip: 'Share ${_instrument!.symbol}',
+                        onPressed: () {
+                          final inst = _instrument!;
+                          ShareToConversationDialog.showShareMenu(
+                            context,
+                            reference: AppLinkRef(
+                              id: inst.symbol,
+                              kind: AppLinkKind.ticker,
+                              title: '${inst.symbol} — ${inst.name}',
+                              subtitle:
+                                  'Live quotes, charts & fundamentals on alphajournal Markets',
+                              icon: Icons.candlestick_chart_outlined,
+                              isPublicContext: true,
+                            ),
+                            isPublic: true,
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),

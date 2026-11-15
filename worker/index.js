@@ -9,7 +9,7 @@
 // Only public, approved posts & public profiles are exposed (enforced by Supabase RLS).
 
 const ROOT_DOMAIN = 'alphajournal.in';
-const POST_PATH = /^\/community\/post\/([0-9a-fA-F-]{36})\/?$/;
+const POST_PATH = /^\/(?:community\/post|p|posts?)\/([0-9a-fA-F-]{36})\/?$/;
 const HANDLE_PATH = /^\/@([a-zA-Z0-9_][a-zA-Z0-9_.-]*)\/?$/;
 const STATIC_EXT = /\.[a-zA-Z0-9]{1,8}$/;
 
@@ -206,11 +206,15 @@ export function resolvePageSeo(url, { post = null, profile = null } = {}) {
     };
   }
 
+  const isExplicitPublicShare =
+    url.searchParams.get('public') === 'true' &&
+    ['notes', 'note', 'journal', 'strategies', 'strategy'].includes(firstSegment);
+
   const isPrivateRoute =
     lower.startsWith('/auth/') ||
     lower.startsWith('/r/') ||
     lower.startsWith('/join/') ||
-    PRIVATE_APP_SEGMENTS.has(firstSegment);
+    (!isExplicitPublicShare && PRIVATE_APP_SEGMENTS.has(firstSegment));
 
   if (post) {
     const name = post.profiles?.display_name || post.profiles?.handle || 'A trader';
@@ -218,10 +222,14 @@ export function resolvePageSeo(url, { post = null, profile = null } = {}) {
     const img = (post.community_post_attachments || []).find(
       (a) => a.kind === 'image' && /^https?:\/\//.test(a.url || ''),
     )?.url;
+    const postMatch = POST_PATH.exec(pathname);
+    const canonicalPath = postMatch
+      ? `/community/post/${postMatch[1]}`
+      : pathname;
     return {
       title: `${name}${handle} on alphajournal`,
       description: excerpt(post.body, 200) || 'Verified trade commentary on alphajournal Community.',
-      canonical: `https://community.${ROOT_DOMAIN}${pathname}?public=true`,
+      canonical: `https://community.${ROOT_DOMAIN}${canonicalPath}?public=true`,
       image: img || `https://community.${ROOT_DOMAIN}/icons/Icon-512.png`,
       ogType: 'article',
       robots: DEFAULT_ROBOTS_INDEX,
@@ -278,6 +286,20 @@ export function resolvePageSeo(url, { post = null, profile = null } = {}) {
 
   if (host === `app.${ROOT_DOMAIN}`) {
     if (firstSegment === 'market' || firstSegment.startsWith('market_')) {
+      const segments = pathname.split('/').filter(Boolean);
+      const symbol = segments.length >= 2 ? decodeURIComponent(segments[1]).toUpperCase() : '';
+      if (symbol) {
+        return {
+          title: `${symbol} Live Quote, Charts & Analysis — alphajournal Markets`,
+          description: `View ${symbol} real-time market price, technical charts, fundamentals, and company news on alphajournal.`,
+          canonical: `https://app.${ROOT_DOMAIN}/market/${encodeURIComponent(symbol)}`,
+          image: `https://app.${ROOT_DOMAIN}/icons/Icon-512.png`,
+          ogType: 'website',
+          robots: DEFAULT_ROBOTS_INDEX,
+          noindex: false,
+          hasCustomImage: false,
+        };
+      }
       return {
         title: 'alphajournal Markets — Live Quotes, Screeners & Market Movers',
         description:
@@ -285,6 +307,24 @@ export function resolvePageSeo(url, { post = null, profile = null } = {}) {
         canonical: `https://app.${ROOT_DOMAIN}${pathname}`,
         image: `https://app.${ROOT_DOMAIN}/icons/Icon-512.png`,
         ogType: 'website',
+        robots: DEFAULT_ROBOTS_INDEX,
+        noindex: false,
+        hasCustomImage: false,
+      };
+    }
+    if (isExplicitPublicShare) {
+      const shareLabel = firstSegment.startsWith('journal')
+        ? 'Shared Trade Execution'
+        : firstSegment.startsWith('strateg')
+          ? 'Shared Strategy Playbook'
+          : 'Shared Research Note';
+      return {
+        title: `${shareLabel} — alphajournal`,
+        description:
+          'View shared trading research, execution breakdowns, and risk analytics published from alphajournal Workspace.',
+        canonical: `https://app.${ROOT_DOMAIN}${pathname}?public=true`,
+        image: `https://app.${ROOT_DOMAIN}/icons/Icon-512.png`,
+        ogType: 'article',
         robots: DEFAULT_ROBOTS_INDEX,
         noindex: false,
         hasCustomImage: false,

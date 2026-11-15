@@ -16,6 +16,7 @@
 library;
 
 import 'package:markdown/markdown.dart' as md;
+import '../config/subdomain_cookie_codec.dart';
 import '../navigation/share_links.dart';
 
 import '../app-ui/models/app_models.dart';
@@ -32,12 +33,6 @@ class AppDeepLink {
   const AppDeepLink._();
 
   static const String scheme = 'tradex';
-  static const Set<String> _webHosts = <String>{
-    'alphajournal.in',
-    'www.alphajournal.in',
-    'app.alphajournal.in',
-    'community.alphajournal.in',
-  };
 
   /// The canonical URL for one record.
   static Uri of(AppLinkKind kind, String id) =>
@@ -46,7 +41,7 @@ class AppDeepLink {
   static bool isInternal(Uri uri) {
     if (uri.scheme == scheme) return true;
     if ((uri.scheme == 'https' || uri.scheme == 'http') &&
-        _webHosts.contains(uri.host.toLowerCase())) {
+        SubdomainCookieCodec.isProductionDomain(uri.host)) {
       return _parseWebTarget(uri) != null;
     }
     return false;
@@ -58,8 +53,8 @@ class AppDeepLink {
   }
 
   /// The record a URL points at, or null if this is not a `tradex://` or
-  /// shared alphajournal web link (`https://alphajournal.in/p/...`, `https://alphajournal.in/post/...`)
-  /// the app understands.
+  /// shared alphajournal web link (`https://community.alphajournal.in/community/post/...`,
+  /// `https://app.alphajournal.in/notes/...`, etc.) the app understands.
   static ({AppLinkKind kind, String id})? target(Uri uri) {
     if (uri.scheme == scheme) {
       final AppLinkKind? kind = AppLinkKind.fromHost(uri.host);
@@ -71,7 +66,7 @@ class AppDeepLink {
       return (kind: kind, id: id.trim());
     }
     if ((uri.scheme == 'https' || uri.scheme == 'http') &&
-        _webHosts.contains(uri.host.toLowerCase())) {
+        SubdomainCookieCodec.isProductionDomain(uri.host)) {
       return _parseWebTarget(uri);
     }
     return null;

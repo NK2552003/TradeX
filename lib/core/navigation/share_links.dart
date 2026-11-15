@@ -1,3 +1,5 @@
+import 'package:tradex/features/auth/models/auth_user_role.dart';
+
 import '../app-ui/models/app_models.dart';
 import '../config/app_constants.dart';
 import 'customer_routes.dart';
@@ -5,6 +7,30 @@ import 'customer_routes.dart';
 /// Browser links emitted by every share surface, including older URL aliases.
 class AppShareLinks {
   const AppShareLinks._();
+
+  /// Canonical `https://<sub>.alphajournal.in/<destination>` URL for a workspace destination.
+  static String destinationUrl(
+    String destination, {
+    UserRole? activeRole,
+    String currentHost = '',
+  }) {
+    final clean = destination.trim().replaceFirst(RegExp(r'^/+'), '');
+    final subdomain = CustomerRoute.subdomainForDestination(
+      clean,
+      activeRole: activeRole,
+      currentHost: currentHost,
+    );
+    if (clean.isEmpty) return subdomain.baseUrl;
+    return '${subdomain.baseUrl}/${Uri.encodeComponent(clean)}';
+  }
+
+  /// Compact host + path label suitable for cards and watermark stamps.
+  static String displayHostAndPath(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.host.isEmpty) return url;
+    final path = uri.path == '/' ? '' : uri.path;
+    return '${uri.host}$path';
+  }
 
   static String record(AppLinkRef ref) => Uri.parse(
         CustomerRoute.subdomainForRecord(ref.kind).baseUrl,

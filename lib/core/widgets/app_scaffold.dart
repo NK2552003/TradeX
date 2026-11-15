@@ -59,6 +59,8 @@ import 'package:tradex/features/messages/messages.dart';
 import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/core/widgets/app_global_notifications_page.dart';
 import 'package:tradex/core/widgets/app_notifications_overlay.dart';
+import 'package:tradex/core/widgets/feature_showcase_catalog.dart';
+import 'package:tradex/core/widgets/feature_showcase_sheet.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
 import 'package:tradex/features/community/presentation/views/shared_profile_page.dart';
@@ -663,23 +665,76 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   void _showActiveWritingGuide() {
-    final List<GlobalKey> targets = <GlobalKey>[_workspaceSearchKey];
-    switch (_selectedId) {
-      case 'journal':
-        _journalKey.currentState?.showGuide();
-      case 'strategies':
-        _strategiesKey.currentState?.showGuideWithTargets(targets);
-      case 'notes':
-        _notesKey.currentState?.showGuideWithTargets(targets);
-      default:
-        UiToast.show(
-          context,
-          title: 'alphajournal Guide',
-          message:
-              'Welcome to ${AppConstants.appName}. Use ⌘K to quickly search and jump across tools.',
-          intent: UiIntent.info,
-        );
+    showFeatureShowcaseOverlay(
+      context,
+      currentDestination: _selectedId,
+      activeRole: _effectiveRole,
+      hasAffiliateAccess:
+          _effectiveRole == UserRole.affiliate || _hasEverOwnedAffiliateRole,
+      hasAdminAccess:
+          _effectiveRole == UserRole.userAdmin || _hasEverOwnedAdminRole,
+      onOpenFeature: _openShowcaseFeature,
+      onStartPageTour: _startShowcasePageTour,
+    );
+  }
+
+  void _openShowcaseFeature(FeatureShowcaseItem item) {
+    if (item.requiresAdminAccess) {
+      if (_effectiveRole != UserRole.userAdmin) {
+        _switchRole(UserRole.userAdmin);
+      } else {
+        _go('overview');
+      }
+      return;
     }
+    if (item.id == 'affiliate') {
+      if (_effectiveRole == UserRole.affiliate) {
+        _go('overview');
+      } else if (_hasEverOwnedAffiliateRole) {
+        _switchRole(UserRole.affiliate);
+      } else {
+        _go('affiliate_application');
+      }
+      return;
+    }
+    _go(item.destinationId);
+  }
+
+  void _startShowcasePageTour(FeatureShowcaseItem item) {
+    final List<GlobalKey> targets = <GlobalKey>[_workspaceSearchKey];
+    if (_selectedId != item.destinationId) {
+      _go(item.destinationId);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      switch (item.destinationId) {
+        case 'journal':
+          _journalKey.currentState?.showGuide();
+        case 'strategies':
+          _strategiesKey.currentState?.showGuideWithTargets(targets);
+        case 'notes':
+          _notesKey.currentState?.showGuideWithTargets(targets);
+      }
+    });
+  }
+
+  Widget _buildHeaderFeatureGuideAction() {
+    if (MediaQuery.sizeOf(context).width < 960) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: EdgeInsets.only(right: context.sp(context.ui.spacing.xs)),
+      child: UiButton(
+        key: const ValueKey<String>('header-feature-guide-btn'),
+        label: 'Features',
+        icon: Icons.explore_outlined,
+        size: UiSize.sm,
+        variant: UiVariant.soft,
+        intent: UiIntent.primary,
+        tooltip: 'Explore every feature with live previews',
+        onPressed: _showActiveWritingGuide,
+      ),
+    );
   }
 
   /// Sends the reader home and forgets every pending deep link. Written without
@@ -1992,7 +2047,10 @@ class _AppScaffoldState extends State<AppScaffold> {
                             ? _updateMessagesQuery
                             : (_isAiFeature ? _updateAiQuery : null))),
             searchTargetKey: _isWritingFeature ? _workspaceSearchKey : null,
-            headerActions: <Widget>[_buildHeaderRoleSwitcherAction()],
+            headerActions: <Widget>[
+              _buildHeaderFeatureGuideAction(),
+              _buildHeaderRoleSwitcherAction(),
+            ],
             onSettings: () => _go('settings'),
             onAi: () => _go('ai_copilot'),
             onNotifications: _openNotificationsOverlay,

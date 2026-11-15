@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/config/app_constants.dart';
+import 'package:tradex/core/navigation/share_links.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
 import 'package:tradex/features/affiliate_program/presentation/widgets/affiliate_workspace_view.dart';
 import 'package:tradex/features/settings/data/repositories/affiliate_settings_repository.dart';
@@ -155,8 +155,9 @@ class _AffiliateSettingsPageState extends State<AffiliateSettingsPage> {
       );
     }
     final s = _settings!;
-    final referralUrl =
-        '${AppConstants.appUrl}/r/${_slug.trim().isEmpty ? s.referralCode : _slug.trim()}';
+    final referralUrl = AppShareLinks.referral(
+      _slug.trim().isEmpty ? s.referralCode : _slug.trim(),
+    );
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(context.sp(theme.spacing.lg)),

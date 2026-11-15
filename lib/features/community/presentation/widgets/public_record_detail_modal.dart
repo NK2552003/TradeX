@@ -1,5 +1,4 @@
-import 'package:tradex/core/navigation/share_links.dart';
-import 'package:tradex/core/utils/share_actions.dart';
+import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -314,8 +313,11 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
   }
 
   void _copyShareLink() {
-    ShareActions.copy(context,
-      AppShareLinks.record(widget.ref.copyWith(isPublicContext: true)));
+    ShareToConversationDialog.showShareMenu(
+      context,
+      reference: widget.ref.copyWith(isPublicContext: true),
+      isPublic: true,
+    );
   }
 
   bool get _isAuthor {

@@ -114,6 +114,34 @@ test('resolves per-subdomain canonical, robots, and social metadata', () => {
   const messagesSeo = resolvePageSeo(new URL('https://app.alphajournal.in/messages'));
   assert.equal(messagesSeo.noindex, true);
 
+  const marketSymbolSeo = resolvePageSeo(
+    new URL('https://app.alphajournal.in/market/RELIANCE'),
+  );
+  assert.equal(marketSymbolSeo.canonical, 'https://app.alphajournal.in/market/RELIANCE');
+  assert.match(marketSymbolSeo.title, /^RELIANCE Live Quote/);
+  assert.equal(marketSymbolSeo.noindex, false);
+
+  const publicJournalSeo = resolvePageSeo(
+    new URL('https://app.alphajournal.in/journal/j-42?public=true'),
+  );
+  assert.equal(publicJournalSeo.canonical, 'https://app.alphajournal.in/journal/j-42?public=true');
+  assert.equal(publicJournalSeo.ogType, 'article');
+  assert.equal(publicJournalSeo.noindex, false);
+
+  const legacyPostSeo = resolvePageSeo(
+    new URL('https://community.alphajournal.in/p/12345678-1234-1234-1234-1234567890ab'),
+    {
+      post: {
+        body: 'Nifty breakout call.',
+        profiles: { display_name: 'Nitish', handle: 'nitish' },
+      },
+    },
+  );
+  assert.equal(
+    legacyPostSeo.canonical,
+    'https://community.alphajournal.in/community/post/12345678-1234-1234-1234-1234567890ab?public=true',
+  );
+
   const profileSeo = resolvePageSeo(
     new URL('https://community.alphajournal.in/@nitish'),
     {

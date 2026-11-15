@@ -106,6 +106,27 @@ void main() {
     );
   });
 
+  test('destinationUrl and displayHostAndPath resolve canonical subdomains', () {
+    expect(
+      AppShareLinks.destinationUrl('calculators'),
+      'https://app.alphajournal.in/calculators',
+    );
+    expect(
+      AppShareLinks.destinationUrl('community_feed'),
+      'https://community.alphajournal.in/community_feed',
+    );
+    expect(
+      AppShareLinks.destinationUrl('affiliate_application'),
+      'https://affiliate.alphajournal.in/affiliate_application',
+    );
+    expect(
+      AppShareLinks.displayHostAndPath(
+        'https://community.alphajournal.in/community/post/p-1?public=true',
+      ),
+      'community.alphajournal.in/community/post/p-1',
+    );
+  });
+
   test('malformed profile and extra record segments are rejected', () {
     for (final path in [
       '/@',

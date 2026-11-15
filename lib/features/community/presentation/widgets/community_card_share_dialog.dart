@@ -1,3 +1,4 @@
+import 'package:tradex/core/navigation/share_links.dart';
 import 'package:tradex/core/utils/share_actions.dart';
 import 'package:tradex/core/utils/image_export.dart';
 import 'community_share_sheet.dart';
@@ -237,13 +238,20 @@ class _CommunityCardShareDialogState extends State<CommunityCardShareDialog> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'alphajournal/post/${post.id}',
-                            style: context.uiText.label.copyWith(
-                              color: colors.foregroundSubtle,
-                              fontSize: 10,
+                          Expanded(
+                            child: Text(
+                              AppShareLinks.displayHostAndPath(
+                                CommunityShareSheet.postUrl(post),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.uiText.label.copyWith(
+                                color: colors.foregroundSubtle,
+                                fontSize: 10,
+                              ),
                             ),
                           ),
+                          SizedBox(width: context.sp(8)),
                           Text(
                             'Verified on alphajournal',
                             style: context.uiText.label.copyWith(

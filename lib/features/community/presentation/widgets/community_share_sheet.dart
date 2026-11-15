@@ -75,7 +75,7 @@ class CommunityShareSheet extends StatefulWidget {
     }
 
     buffer.writeln();
-    buffer.writeln('Read the full post (sign in required):');
+    buffer.writeln('View on alphajournal Community:');
     buffer.write(postUrl(post));
     return buffer.toString();
   }

@@ -1156,10 +1156,19 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                         final link = isAffiliate
                                             ? AppShareLinks.referral(widget.referralCode ?? _cleanHandle)
                                             : AppShareLinks.profile(_cleanHandle);
-                                        ShareActions.copy(context, link,
+                                        ShareActions.showLinkShareSheet(
+                                          context,
                                           title: isAffiliate
+                                              ? 'Share Affiliate Referral'
+                                              : 'Share Trader Profile',
+                                          subtitle: isAffiliate
+                                              ? effectiveDisplayName
+                                              : '@$_cleanHandle',
+                                          url: link,
+                                          copyToastTitle: isAffiliate
                                               ? 'Referral link copied'
-                                              : 'Profile link copied');
+                                              : 'Profile link copied',
+                                        );
                                       },
                                     ),
                                     if (isViewingSelf && widget.onEditProfile != null)

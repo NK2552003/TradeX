@@ -994,7 +994,7 @@ class AppPostShareModal extends StatefulWidget {
       );
     }
     buf.writeln();
-    buf.writeln('Read the full post (sign in required):');
+    buf.writeln('View on alphajournal Community:');
     buf.write(postUrlFor(postId));
     return buf.toString();
   }

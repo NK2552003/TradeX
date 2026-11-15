@@ -156,7 +156,10 @@ void main() {
         await tester.tap(find.text('Community Perks'));
         await tester.pumpAndSettle();
         expect(find.text('Partner Verification & Settlement Rails'), findsOneWidget);
-        expect(find.text('https://alphajournal.in/join/MENTOR-2026'), findsOneWidget);
+        expect(
+          find.text('https://alphajournal.in/r/MENTOR-2026'),
+          findsAtLeastNWidgets(1),
+        );
       },
     );
 

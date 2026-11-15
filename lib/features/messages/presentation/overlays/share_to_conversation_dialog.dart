@@ -249,6 +249,62 @@ class ShareToConversationDialog extends StatefulWidget {
                       ),
                       _buildShareAction(
                         ctx,
+                        icon: Icons.near_me_rounded,
+                        title: 'Share via Telegram',
+                        subtitle: 'Post to trading groups & channels',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          ShareActions.external(
+                            context,
+                            uri: Uri.https('t.me', '/share/url', {
+                              'url': shareUrl,
+                              'text': reference.title,
+                            }),
+                            text: fullShareText,
+                            platform: 'Telegram',
+                          );
+                        },
+                      ),
+                      _buildShareAction(
+                        ctx,
+                        icon: Icons.business_center_outlined,
+                        title: 'Share on LinkedIn',
+                        subtitle: 'Share market thesis & insights',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          ShareActions.external(
+                            context,
+                            uri: Uri.https(
+                              'www.linkedin.com',
+                              '/sharing/share-offsite/',
+                              {'url': shareUrl},
+                            ),
+                            text: fullShareText,
+                            platform: 'LinkedIn',
+                          );
+                        },
+                      ),
+                      _buildShareAction(
+                        ctx,
+                        icon: Icons.mail_outline_rounded,
+                        title: 'Share via Email',
+                        subtitle: 'Send formatted link over email',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          ShareActions.external(
+                            context,
+                            uri: Uri(
+                              scheme: 'mailto',
+                              query:
+                                  'subject=${Uri.encodeComponent(reference.title)}&body=${Uri.encodeComponent(fullShareText)}',
+                            ),
+                            text: fullShareText,
+                            platform: 'Email',
+                          );
+                        },
+                      ),
+                      _buildShareAction(
+                        ctx,
                         icon: Icons.ios_share_rounded,
                         title: 'System Share...',
                         subtitle: 'Share via OS share sheet',
