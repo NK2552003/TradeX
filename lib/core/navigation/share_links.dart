@@ -1,11 +1,14 @@
 import '../app-ui/models/app_models.dart';
 import '../config/app_constants.dart';
+import 'customer_routes.dart';
 
 /// Browser links emitted by every share surface, including older URL aliases.
 class AppShareLinks {
   const AppShareLinks._();
 
-  static String record(AppLinkRef ref) => Uri.parse(AppConstants.appUrl)
+  static String record(AppLinkRef ref) => Uri.parse(
+        CustomerRoute.subdomainForRecord(ref.kind).baseUrl,
+      )
       .resolveUri(
         Uri(
           pathSegments: [
@@ -29,7 +32,7 @@ class AppShareLinks {
       .toString();
 
   static String profile(String handle) =>
-      '${AppConstants.appUrl}/@${Uri.encodeComponent(handle.trim().replaceFirst(RegExp(r'^@+'), ''))}';
+      '${CustomerSubdomain.community.baseUrl}/@${Uri.encodeComponent(handle.trim().replaceFirst(RegExp(r'^@+'), ''))}';
 
   static String referral(String code) =>
       '${AppConstants.appUrl}/r/${Uri.encodeComponent(code.trim())}';

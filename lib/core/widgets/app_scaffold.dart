@@ -1439,7 +1439,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   };
 
   Widget _adminPage() => switch (_selectedId) {
-    'workspace' || 'overview' => _DeferredFeatureView(
+    'admin_console' || 'workspace' || 'overview' => _DeferredFeatureView(
       libraryId: 'admin_overview',
       loadLibrary: deferred_admin_overview.loadLibrary,
       builder: (BuildContext _) =>

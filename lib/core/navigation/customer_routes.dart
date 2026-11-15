@@ -1,9 +1,30 @@
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/app_constants.dart';
+import 'package:tradex/core/config/subdomain_cookie_codec.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/features/auth/models/auth_state.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'role_navigation_config.dart';
 import 'share_links.dart';
+
+/// Canonical web host surface for each product area on `alphajournal.in`.
+enum CustomerSubdomain {
+  root,
+  app,
+  community,
+  affiliate,
+  admin;
+
+  String get host => switch (this) {
+    CustomerSubdomain.root => AppConstants.rootDomain,
+    CustomerSubdomain.app => 'app.${AppConstants.rootDomain}',
+    CustomerSubdomain.community => 'community.${AppConstants.rootDomain}',
+    CustomerSubdomain.affiliate => 'affiliate.${AppConstants.rootDomain}',
+    CustomerSubdomain.admin => 'admin.${AppConstants.rootDomain}',
+  };
+
+  String get baseUrl => 'https://$host';
+}
 
 /// URL codec shared by browser navigation and platform deep links.
 class CustomerRoute {
@@ -19,6 +40,141 @@ class CustomerRoute {
   final AppLinkOpenRequest? request;
   final AuthStage stage;
   final bool valid;
+
+  /// Returns `true` when [host] is `alphajournal.in` or a subdomain of it.
+  static bool isAlphajournalHost(String host) =>
+      SubdomainCookieCodec.isProductionDomain(host);
+
+  /// Identifies the canonical subdomain represented by [host].
+  static CustomerSubdomain subdomainFromHost(String host) {
+    final normalized = host.trim().toLowerCase();
+    if (normalized.startsWith('community.')) return CustomerSubdomain.community;
+    if (normalized.startsWith('affiliate.')) return CustomerSubdomain.affiliate;
+    if (normalized.startsWith('admin.')) return CustomerSubdomain.admin;
+    if (normalized.startsWith('app.')) return CustomerSubdomain.app;
+    return CustomerSubdomain.root;
+  }
+
+  /// Resolves the canonical subdomain for a linked record [kind].
+  static CustomerSubdomain subdomainForRecord(AppLinkKind kind) => switch (kind) {
+    AppLinkKind.communityPost => CustomerSubdomain.community,
+    _ => CustomerSubdomain.app,
+  };
+
+  /// Resolves which `alphajournal.in` subdomain owns [destination].
+  static CustomerSubdomain subdomainForDestination(
+    String? destination, {
+    UserRole? activeRole,
+    String currentHost = '',
+  }) {
+    final normalized = (destination ?? '').trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return subdomainFromHost(currentHost);
+    }
+    if (normalized == 'community' ||
+        normalized.startsWith('community_') ||
+        normalized == 'public_profile') {
+      return CustomerSubdomain.community;
+    }
+    if (normalized == 'admin_console' ||
+        normalized == 'affiliate_reviews' ||
+        normalized == 'settings_platform' ||
+        normalized.startsWith('admin_') ||
+        normalized.startsWith('org_')) {
+      return CustomerSubdomain.admin;
+    }
+    if (normalized == 'affiliate_application' ||
+        normalized == 'referrals' ||
+        normalized == 'marketing' ||
+        normalized == 'payouts' ||
+        normalized == 'settings_affiliate' ||
+        normalized.startsWith('affiliate_')) {
+      return CustomerSubdomain.affiliate;
+    }
+    if (normalized == 'overview') {
+      if (activeRole == UserRole.userAdmin ||
+          currentHost.trim().toLowerCase().startsWith('admin.')) {
+        return CustomerSubdomain.admin;
+      }
+      return CustomerSubdomain.affiliate;
+    }
+    if (normalized == 'settings' ||
+        normalized == 'settings_profile' ||
+        normalized == 'settings_security' ||
+        normalized == 'settings_notifications' ||
+        normalized == 'settings_privacy' ||
+        normalized == 'settings_appearance' ||
+        normalized == 'settings_help') {
+      final current = subdomainFromHost(currentHost);
+      if (current == CustomerSubdomain.admin ||
+          current == CustomerSubdomain.affiliate) {
+        return current;
+      }
+      return CustomerSubdomain.app;
+    }
+    return CustomerSubdomain.app;
+  }
+
+  /// Returns an absolute `https://<sub>.alphajournal.in/...` URI when [target]
+  /// belongs to a different subdomain than [currentHost], or `null` when the
+  /// router can handle [target] in-place via SPA navigation.
+  ///
+  /// Returns `null` on localhost / preview deploys (`*.pages.dev`, `*.workers.dev`)
+  /// unless [requireProductionHost] is `false`.
+  static Uri? crossOriginRedirectUri(
+    Uri target, {
+    required String currentHost,
+    UserRole? activeRole,
+    bool requireProductionHost = true,
+  }) {
+    final normalizedHost = currentHost.trim().toLowerCase();
+    if (requireProductionHost && !isAlphajournalHost(normalizedHost)) {
+      return null;
+    }
+
+    final path = target.path.isEmpty ? '/' : target.path;
+    if (path == '/' ||
+        path.startsWith('/auth/') ||
+        path.startsWith('/r/') ||
+        path.startsWith('/join/') ||
+        path == '/help' ||
+        path.startsWith('/help/')) {
+      return null;
+    }
+
+    final parsed = parse(
+      target,
+      host: target.host.isNotEmpty ? target.host : normalizedHost,
+    );
+    if (!parsed.valid) return null;
+
+    final CustomerSubdomain targetSubdomain;
+    if (parsed.request != null) {
+      targetSubdomain = subdomainForRecord(parsed.request!.kind);
+    } else if (parsed.profileHandle != null) {
+      targetSubdomain = CustomerSubdomain.community;
+    } else if (parsed.destination != null) {
+      targetSubdomain = subdomainForDestination(
+        parsed.destination,
+        activeRole: activeRole,
+        currentHost: normalizedHost,
+      );
+    } else {
+      return null;
+    }
+
+    if (targetSubdomain == CustomerSubdomain.root) return null;
+    final targetHost = targetSubdomain.host;
+    if (targetHost == normalizedHost) return null;
+
+    return Uri(
+      scheme: 'https',
+      host: targetHost,
+      path: path,
+      queryParameters:
+          target.queryParameters.isEmpty ? null : target.queryParameters,
+    );
+  }
 
   /// Returns the minimum role required when accessing the app from a dedicated
   /// subdomain (`admin.*`, `affiliate.*`, `app.*`, `community.*`), or `null`
@@ -145,20 +301,25 @@ class CustomerRoute {
     return const CustomerRoute(valid: false);
   }
 
-  /// Accept only known local destinations; never redirect to an external URL.
+  /// Accept only known local or verified `alphajournal.in` subdomain
+  /// destinations; never redirect to an external URL.
   static (Uri, CustomerRoute)? afterAuthentication(Uri uri) {
     final next = uri.queryParameters['next'];
-    if (next == null ||
-        !next.startsWith('/') ||
-        next.startsWith('//') ||
-        next.contains('\\')) {
+    if (next == null || next.startsWith('//') || next.contains('\\')) {
       return null;
     }
     final target = Uri.tryParse(next);
-    if (target == null ||
-        target.hasScheme ||
-        target.hasAuthority ||
-        target.path.startsWith('/auth/')) {
+    if (target == null) return null;
+    if (target.hasScheme || target.hasAuthority) {
+      if (target.scheme != 'https' ||
+          !isAlphajournalHost(target.host) ||
+          target.path.startsWith('/auth/')) {
+        return null;
+      }
+      final route = parse(target);
+      return route.valid && route.destination != null ? (target, route) : null;
+    }
+    if (!next.startsWith('/') || target.path.startsWith('/auth/')) {
       return null;
     }
     final route = parse(target);

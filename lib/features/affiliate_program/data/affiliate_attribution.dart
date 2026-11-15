@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tradex/core/config/cross_subdomain_storage.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/privacy/consent_preferences.dart';
 
@@ -12,7 +13,7 @@ class AffiliateAttribution {
     await ConsentController.instance.initialize();
     if (!ConsentController.instance.value.affiliate) return null;
     final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getString(_key);
+    final value = prefs.getString(_key) ?? CrossSubdomainState.getFlag(_key);
     if (value == null) return null;
     try {
       final data = Map<String, dynamic>.from(jsonDecode(value) as Map);
@@ -47,14 +48,13 @@ class AffiliateAttribution {
         ).join();
     if (!ConsentController.instance.value.affiliate) return;
     await prefs.setString('affiliate_visitor_v1', visitor);
-    await prefs.setString(
-      _key,
-      jsonEncode({
-        'code': code,
-        'campaign': campaign,
-        'captured_at': DateTime.now().toUtc().toIso8601String(),
-      }),
-    );
+    final encodedAttribution = jsonEncode({
+      'code': code,
+      'campaign': campaign,
+      'captured_at': DateTime.now().toUtc().toIso8601String(),
+    });
+    await prefs.setString(_key, encodedAttribution);
+    CrossSubdomainState.setFlag(_key, encodedAttribution, maxAgeDays: 30);
     // A withdrawal can arrive while the asynchronous storage writes complete.
     if (!ConsentController.instance.value.affiliate) {
       await clear();
@@ -80,5 +80,6 @@ class AffiliateAttribution {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_key);
     await prefs.remove('affiliate_visitor_v1');
+    CrossSubdomainState.removeFlag(_key);
   }
 }

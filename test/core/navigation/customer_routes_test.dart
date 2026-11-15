@@ -149,4 +149,202 @@ void main() {
       'affiliate_application',
     );
   });
+
+  test('destination and record subdomain mapping matches product surfaces', () {
+    expect(
+      CustomerRoute.subdomainForDestination('workspace'),
+      CustomerSubdomain.app,
+    );
+    expect(
+      CustomerRoute.subdomainForDestination('journal'),
+      CustomerSubdomain.app,
+    );
+    expect(
+      CustomerRoute.subdomainForDestination('messages'),
+      CustomerSubdomain.app,
+    );
+    expect(
+      CustomerRoute.subdomainForDestination('ai_copilot'),
+      CustomerSubdomain.app,
+    );
+    for (final dest in [
+      'community',
+      'community_feed',
+      'community_explore',
+      'community_network',
+      'community_profile',
+      'community_bookmarks',
+      'public_profile',
+    ]) {
+      expect(
+        CustomerRoute.subdomainForDestination(dest),
+        CustomerSubdomain.community,
+        reason: dest,
+      );
+    }
+    for (final dest in [
+      'affiliate_application',
+      'affiliate_overview',
+      'referrals',
+      'marketing',
+      'payouts',
+      'settings_affiliate',
+    ]) {
+      expect(
+        CustomerRoute.subdomainForDestination(dest),
+        CustomerSubdomain.affiliate,
+        reason: dest,
+      );
+    }
+    for (final dest in [
+      'admin_console',
+      'admin_comments',
+      'affiliate_reviews',
+      'org_team',
+      'org_audit',
+      'settings_platform',
+    ]) {
+      expect(
+        CustomerRoute.subdomainForDestination(dest),
+        CustomerSubdomain.admin,
+        reason: dest,
+      );
+    }
+    expect(
+      CustomerRoute.subdomainForDestination(
+        'overview',
+        activeRole: UserRole.affiliate,
+      ),
+      CustomerSubdomain.affiliate,
+    );
+    expect(
+      CustomerRoute.subdomainForDestination(
+        'overview',
+        activeRole: UserRole.userAdmin,
+      ),
+      CustomerSubdomain.admin,
+    );
+    expect(
+      CustomerRoute.subdomainForRecord(AppLinkKind.communityPost),
+      CustomerSubdomain.community,
+    );
+    expect(
+      CustomerRoute.subdomainForRecord(AppLinkKind.journal),
+      CustomerSubdomain.app,
+    );
+  });
+
+  test('crossOriginRedirectUri transitions between subdomains only when needed', () {
+    // From apex after login -> app.alphajournal.in/workspace
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/workspace'),
+        currentHost: 'alphajournal.in',
+      ).toString(),
+      'https://app.alphajournal.in/workspace',
+    );
+    // From app -> community page or post
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/community_feed'),
+        currentHost: 'app.alphajournal.in',
+      ).toString(),
+      'https://community.alphajournal.in/community_feed',
+    );
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/community/post/post-42?public=true'),
+        currentHost: 'app.alphajournal.in',
+      ).toString(),
+      'https://community.alphajournal.in/community/post/post-42?public=true',
+    );
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/@trader_one'),
+        currentHost: 'app.alphajournal.in',
+      ).toString(),
+      'https://community.alphajournal.in/@trader_one',
+    );
+    // Inside community subdomain -> SPA navigation (no reload redirect)
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/community_explore'),
+        currentHost: 'community.alphajournal.in',
+      ),
+      isNull,
+    );
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/community/post/post-42?public=true'),
+        currentHost: 'community.alphajournal.in',
+      ),
+      isNull,
+    );
+    // Role workspaces
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/overview'),
+        currentHost: 'app.alphajournal.in',
+        activeRole: UserRole.affiliate,
+      ).toString(),
+      'https://affiliate.alphajournal.in/overview',
+    );
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/overview'),
+        currentHost: 'app.alphajournal.in',
+        activeRole: UserRole.userAdmin,
+      ).toString(),
+      'https://admin.alphajournal.in/overview',
+    );
+    // Local dev & preview hosts never trigger external subdomain redirects
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/community_feed'),
+        currentHost: 'localhost',
+      ),
+      isNull,
+    );
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/workspace'),
+        currentHost: 'alphajournal.pages.dev',
+      ),
+      isNull,
+    );
+    // Auth, referral, and help routes stay on current origin
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/auth/login'),
+        currentHost: 'alphajournal.in',
+      ),
+      isNull,
+    );
+    expect(
+      CustomerRoute.crossOriginRedirectUri(
+        Uri.parse('/r/ABC123'),
+        currentHost: 'alphajournal.in',
+      ),
+      isNull,
+    );
+  });
+
+  test('afterAuthentication supports validated alphajournal subdomain next URLs', () {
+    final uri = Uri(
+      path: '/auth/login',
+      queryParameters: {
+        'next': 'https://community.alphajournal.in/community/post/p-1?public=true',
+      },
+    );
+    final res = CustomerRoute.afterAuthentication(uri);
+    expect(res, isNotNull);
+    expect(res!.$1.host, 'community.alphajournal.in');
+    expect(res.$2.destination, 'community_feed');
+
+    final evil = Uri(
+      path: '/auth/login',
+      queryParameters: {'next': 'https://evil.com/workspace'},
+    );
+    expect(CustomerRoute.afterAuthentication(evil), isNull);
+  });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tradex/core/config/cross_subdomain_storage.dart';
 import 'package:tradex/core/config/env_config.dart';
 
 class SupabaseConfig {
@@ -51,6 +52,9 @@ class SupabaseConfig {
         url: supabaseUrl,
         publishableKey: supabaseAnonKey,
         debug: kDebugMode,
+        authOptions: FlutterAuthClientOptions(
+          localStorage: CrossSubdomainLocalStorage.forUrl(supabaseUrl),
+        ),
       );
       _isInitialized = true;
       debugPrint(

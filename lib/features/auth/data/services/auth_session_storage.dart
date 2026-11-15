@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tradex/core/config/cross_subdomain_storage.dart';
 import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
@@ -38,6 +39,7 @@ class AuthSessionStorage {
       await prefs.setString(_keyRole, sanitizedProfile.role.id);
       await prefs.setString(_keyProfile, jsonEncode(sanitizedProfile.toJson()));
       await prefs.setBool(_keyHasSeenOnboarding, true);
+      CrossSubdomainState.setFlag('ax_onboard', '1');
 
       if (affiliateProfile != null) {
         await prefs.setString(
@@ -62,6 +64,7 @@ class AuthSessionStorage {
   static Future<void> clearSession() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString(_keyUserId);
       await prefs.remove(_keyUserId);
       await prefs.remove(_keyEmail);
       await prefs.remove(_keyRole);
@@ -69,6 +72,12 @@ class AuthSessionStorage {
       await prefs.remove(_keyAffiliateProfile);
       await prefs.remove(_keyToken);
       await prefs.remove(_keyTimestamp);
+      await prefs.remove(_keyLastDestination);
+      if (userId != null && userId.isNotEmpty) {
+        await prefs.remove('auth_workspace_role_$userId');
+      }
+      CrossSubdomainState.removeFlag('ax_role');
+      CrossSubdomainState.removeFlag('ax_post_auth_next');
     } catch (e) {
       debugPrint('[AuthSessionStorage] Failed to clear session: $e');
     }
@@ -129,6 +138,9 @@ class AuthSessionStorage {
   /// Remembers whether the user has finished or dismissed the onboarding flow.
   static Future<bool> hasCompletedOnboarding() async {
     try {
+      if (CrossSubdomainState.getFlag('ax_onboard') == '1') {
+        return true;
+      }
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_keyHasSeenOnboarding) ?? false;
     } catch (_) {
@@ -138,6 +150,7 @@ class AuthSessionStorage {
 
   /// Flags onboarding as completed.
   static Future<void> markOnboardingCompleted() async {
+    CrossSubdomainState.setFlag('ax_onboard', '1');
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyHasSeenOnboarding, true);
@@ -154,6 +167,9 @@ class AuthSessionStorage {
 
   static Future<void> saveWorkspaceRole(String userId, UserRole role) async {
     if (userId.isEmpty || role == UserRole.userAdmin) return;
+    // Write cookie synchronously first so immediate cross-subdomain navigation
+    // preserves the chosen role on the target host without waiting for async IO.
+    CrossSubdomainState.setFlag('ax_role', '$userId:${role.id}');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_workspace_role_$userId', role.id);
   }
@@ -161,6 +177,13 @@ class AuthSessionStorage {
   static Future<UserRole> workspaceRoleFor(UserProfileModel profile) async {
     // A preference never grants partner/admin access to a customer account.
     if (profile.role != UserRole.affiliate) return profile.role;
+    final shared = CrossSubdomainState.getFlag('ax_role');
+    if (shared == '${profile.id}:${UserRole.customer.id}') {
+      return UserRole.customer;
+    }
+    if (shared == '${profile.id}:${UserRole.affiliate.id}') {
+      return UserRole.affiliate;
+    }
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('auth_workspace_role_${profile.id}') ==
             UserRole.customer.id

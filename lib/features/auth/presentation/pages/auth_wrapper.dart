@@ -46,6 +46,7 @@ class AuthWrapper extends StatefulWidget {
     this.onDestinationChanged,
     this.onOpenRecord,
     this.onStageChanged,
+    this.onRoleChanged,
     this.loginNotice,
   });
 
@@ -56,6 +57,7 @@ class AuthWrapper extends StatefulWidget {
   final ValueChanged<String>? onDestinationChanged;
   final ValueChanged<AppLinkRef>? onOpenRecord;
   final ValueChanged<AuthStage>? onStageChanged;
+  final ValueChanged<UserRole>? onRoleChanged;
 
   /// Context message shown on the login screen (e.g. deep-link sign-in prompt).
   final String? loginNotice;
@@ -226,6 +228,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       }
     });
     if (stage == AuthStage.authenticated) {
+      widget.onRoleChanged?.call(_sessionState.role);
       widget.onStageChanged?.call(AuthStage.authenticated);
     }
   }
@@ -347,9 +350,22 @@ class _AuthWrapperState extends State<AuthWrapper> {
               token: client.auth.currentSession?.accessToken,
             );
 
-            final workspaceRole = await AuthSessionStorage.workspaceRoleFor(
+            var workspaceRole = await AuthSessionStorage.workspaceRoleFor(
               profile,
             );
+            final currentSubdomain = kIsWeb
+                ? CustomerRoute.subdomainFromHost(Uri.base.host)
+                : CustomerSubdomain.root;
+            if (currentSubdomain == CustomerSubdomain.app &&
+                workspaceRole != UserRole.userAdmin) {
+              workspaceRole = UserRole.customer;
+            } else if (currentSubdomain == CustomerSubdomain.affiliate &&
+                profile.role == UserRole.affiliate) {
+              workspaceRole = UserRole.affiliate;
+            } else if (currentSubdomain == CustomerSubdomain.admin &&
+                profile.role == UserRole.userAdmin) {
+              workspaceRole = UserRole.userAdmin;
+            }
             final lastDest = await AuthSessionStorage.getLastDestination();
             if (lastDest != null && lastDest.isNotEmpty) {
               _initialAppDestination = lastDest;
@@ -444,6 +460,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         affiliateProfile: activeService.currentAffiliateProfile,
       );
     });
+    widget.onRoleChanged?.call(_sessionState.role);
     widget.onStageChanged?.call(stage);
   }
 
@@ -469,6 +486,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     setState(() {
       _sessionState = _sessionState.copyWith(role: newRole);
     });
+    widget.onRoleChanged?.call(newRole);
   }
 
   @override
@@ -727,7 +745,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
                       requestedDest != 'affiliate_application' &&
                       !isAffiliateUser)
                   ? 'affiliate_application'
-                  : requestedDest;
+                  : (host.startsWith('affiliate.') &&
+                          requestedDest == 'affiliate_application' &&
+                          isAffiliateUser &&
+                          Uri.base.path == '/')
+                      ? 'overview'
+                      : requestedDest;
 
               return AppScaffold(
                 userRole: _sessionState.role,

@@ -84,6 +84,26 @@ void main() {
       AppShareLinks.referral('ref code'),
       'https://alphajournal.in/r/ref%20code',
     );
+    expect(
+      AppShareLinks.profile('@dev_admin'),
+      'https://community.alphajournal.in/@dev_admin',
+    );
+    expect(
+      AppShareLinks.record(
+        const AppLinkRef(
+          kind: AppLinkKind.communityPost,
+          id: 'abc',
+          title: 'Post',
+        ),
+      ),
+      'https://community.alphajournal.in/community/post/abc?public=true',
+    );
+    expect(
+      AppShareLinks.record(
+        const AppLinkRef(kind: AppLinkKind.journal, id: 'j-1', title: 'Trade'),
+      ),
+      'https://app.alphajournal.in/journal/j-1',
+    );
   });
 
   test('malformed profile and extra record segments are rejected', () {

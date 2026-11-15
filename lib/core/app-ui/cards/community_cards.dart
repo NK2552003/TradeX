@@ -967,7 +967,7 @@ class AppPostShareModal extends StatefulWidget {
   final List<String> tickers;
 
   static String postUrlFor(String postId) =>
-      'https://alphajournal.in/community/post/$postId?public=true';
+      'https://community.alphajournal.in/community/post/$postId?public=true';
 
   static String formatShareText({
     required String postId,

@@ -7,6 +7,7 @@ import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dar
 import 'core/navigation/feature_location_scope.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tradex/core/config/cross_subdomain_storage.dart';
 import 'package:tradex/core/navigation/customer_routes.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -26,6 +27,9 @@ class TradeXApp extends StatefulWidget {
 }
 
 class _TradeXAppState extends State<TradeXApp> {
+  UserRole? _activeRole;
+  String? _pendingExternalRedirect;
+
   late final GoRouter _router = GoRouter(
     routes: [
       GoRoute(
@@ -147,11 +151,63 @@ class _TradeXAppState extends State<TradeXApp> {
           .toString();
     }
 
+    final String? preview = state.uri.queryParameters['preview'];
+    if (kIsWeb && preview == null && state.uri.path.startsWith('/auth/')) {
+      final validatedNext = CustomerRoute.afterAuthentication(state.uri);
+      if (validatedNext != null) {
+        CrossSubdomainState.setFlag(
+          'ax_post_auth_next',
+          validatedNext.$1.toString(),
+          maxAgeDays: 1,
+        );
+      }
+    }
+
+    if (kIsWeb && preview == null) {
+      final initialRedirect = CustomerRoute.crossOriginRedirectUri(
+        state.uri,
+        currentHost: Uri.base.host,
+        activeRole: _activeRole,
+      );
+      if (initialRedirect != null) {
+        final targetUrl = initialRedirect.toString();
+        if (_pendingExternalRedirect != targetUrl) {
+          _pendingExternalRedirect = targetUrl;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            CrossSubdomainState.navigateExternal(targetUrl);
+          });
+        }
+        return NoTransitionPage(
+          key: ValueKey('redirect-$targetUrl'),
+          child: const SizedBox.shrink(),
+        );
+      }
+    }
+
+    void navigateTarget(Uri target, {UserRole? roleOverride}) {
+      if (kIsWeb && preview == null) {
+        final redirect = CustomerRoute.crossOriginRedirectUri(
+          target,
+          currentHost: Uri.base.host,
+          activeRole: roleOverride ?? _activeRole,
+        );
+        if (redirect != null) {
+          final targetUrl = redirect.toString();
+          if (_pendingExternalRedirect != targetUrl) {
+            _pendingExternalRedirect = targetUrl;
+            CrossSubdomainState.navigateExternal(targetUrl);
+          }
+          return;
+        }
+      }
+      _router.go(location(target));
+    }
+
     return NoTransitionPage(
       key: const ValueKey('customer-auth-shell'),
       child: FeatureLocationScope(
         location: state.uri,
-        onNavigate: (target) => _router.go(location(target)),
+        onNavigate: navigateTarget,
         child: BrowserExperienceGate(
           child: AuthWrapper(
             loginNotice: _loginNotice(state.uri, route),
@@ -159,25 +215,72 @@ class _TradeXAppState extends State<TradeXApp> {
             initialDestination: route.destination,
             openRequest: route.request,
             profileHandle: route.profileHandle,
+            onRoleChanged: (role) => _activeRole = role,
             onDestinationChanged: (destination) =>
-                _router.go(location(Uri(path: '/$destination'))),
-            onOpenRecord: (ref) =>
-                _router.go(location(CustomerRoute.forRecord(ref))),
+                navigateTarget(Uri(path: '/$destination')),
+            onOpenRecord: (ref) => navigateTarget(CustomerRoute.forRecord(ref)),
             onStageChanged: (stage) {
+              if (stage == AuthStage.authenticated) {
+                final bool shouldResolveEntry =
+                    state.uri.path.startsWith('/auth/') ||
+                    state.uri.path == '/' ||
+                    state.uri.queryParameters.containsKey('code') ||
+                    state.uri.queryParameters.containsKey('error');
+                if (!shouldResolveEntry) return;
+
+                Uri? target = CustomerRoute.afterAuthentication(state.uri)?.$1;
+                if (target == null && kIsWeb) {
+                  final savedNext = CrossSubdomainState.getFlag(
+                    'ax_post_auth_next',
+                  );
+                  if (savedNext != null && savedNext.isNotEmpty) {
+                    target = CustomerRoute.afterAuthentication(
+                      Uri(queryParameters: {'next': savedNext}),
+                    )?.$1;
+                  }
+                }
+                CrossSubdomainState.removeFlag('ax_post_auth_next');
+
+                if (target == null) {
+                  final hostSubdomain = kIsWeb
+                      ? CustomerRoute.subdomainFromHost(Uri.base.host)
+                      : CustomerSubdomain.root;
+                  final defaultDest = switch (hostSubdomain) {
+                    CustomerSubdomain.community => 'community_feed',
+                    CustomerSubdomain.admin => 'overview',
+                    CustomerSubdomain.affiliate =>
+                      _activeRole == UserRole.affiliate
+                          ? 'overview'
+                          : 'affiliate_application',
+                    CustomerSubdomain.root || CustomerSubdomain.app => switch (
+                      _activeRole
+                    ) {
+                      UserRole.userAdmin => 'overview',
+                      UserRole.affiliate => 'overview',
+                      _ => route.destination ?? 'workspace',
+                    },
+                  };
+                  target = Uri(path: '/$defaultDest');
+                }
+
+                if (target.toString() != state.uri.toString() ||
+                    (kIsWeb &&
+                        CustomerRoute.crossOriginRedirectUri(
+                              target,
+                              currentHost: Uri.base.host,
+                              activeRole: _activeRole,
+                            ) !=
+                            null)) {
+                  navigateTarget(target);
+                }
+                return;
+              }
+
               final String? path = switch (stage) {
                 AuthStage.login => '/auth/login',
                 AuthStage.signup => '/auth/signup',
                 AuthStage.forgotPassword => '/auth/forgot-password',
                 AuthStage.onboarding => '/',
-                AuthStage.authenticated =>
-                  (state.uri.path.startsWith('/auth/') ||
-                          state.uri.path == '/' ||
-                          state.uri.queryParameters.containsKey('code'))
-                      ? (CustomerRoute.afterAuthentication(
-                              state.uri,
-                            )?.$1.toString() ??
-                            '/${route.destination ?? 'workspace'}')
-                      : null,
                 _ => null,
               };
               if (path != null && path != state.uri.path) {

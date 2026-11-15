@@ -1,15 +1,138 @@
-// Cloudflare Worker: serves the Flutter web app and injects per-post Open Graph /
-// Twitter card metadata for shared community-post links, so WhatsApp, X, LinkedIn,
-// Telegram, Slack etc. render a rich card (author, excerpt, image) instead of
-// the generic site logo.
+// Cloudflare Worker: serves the Flutter web app, enforces canonical
+// subdomain routing across alphajournal.in / app. / community. / affiliate. /
+// admin., and injects per-post Open Graph / Twitter card metadata for shared
+// community-post links.
 //
 // Required vars (wrangler secrets / vars): SUPABASE_URL, SUPABASE_ANON_KEY.
 // Only public, approved posts are exposed (enforced by Supabase RLS for anon).
 
+const ROOT_DOMAIN = 'alphajournal.in';
 const POST_PATH = /^\/community\/post\/([0-9a-fA-F-]{36})\/?$/;
+const STATIC_EXT = /\.[a-zA-Z0-9]{1,8}$/;
+const HANDLE_PATH = /^\/@[a-zA-Z0-9_][a-zA-Z0-9_.-]*\/?$/;
 
-const esc = (s) =>
-  String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const ASSET_PREFIXES = ['/assets/', '/canvaskit/', '/icons/', '/.well-known/'];
+const NEUTRAL_PREFIXES = ['/auth/', '/r/', '/join/', '/help'];
+
+const COMMUNITY_PREFIXES = ['/community', '/p/', '/post/', '/posts/'];
+const AFFILIATE_SEGMENTS = new Set([
+  'affiliate_application',
+  'referrals',
+  'marketing',
+  'payouts',
+  'settings_affiliate',
+]);
+const ADMIN_SEGMENTS = new Set([
+  'admin_console',
+  'affiliate_reviews',
+  'settings_platform',
+]);
+const APP_SEGMENTS = new Set([
+  'workspace',
+  'journal',
+  'strategies',
+  'strategy',
+  'notes',
+  'note',
+  'calculators',
+  'market',
+  'messages',
+  'message',
+  'thread',
+  'ai_copilot',
+  'ai',
+  'copilot',
+  'notifications',
+  'search',
+  'settings_billing',
+  'settings_affiliate_perks',
+]);
+
+export function isAlphajournalHost(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return host === ROOT_DOMAIN || host.endsWith(`.${ROOT_DOMAIN}`);
+}
+
+export function canonicalSubdomainHost(url) {
+  const pathname = url.pathname || '/';
+  const lower = pathname.toLowerCase();
+  if (lower === '/' || STATIC_EXT.test(lower)) return null;
+  if (ASSET_PREFIXES.some((prefix) => lower.startsWith(prefix))) return null;
+  if (
+    lower === '/help' ||
+    NEUTRAL_PREFIXES.some((prefix) => lower.startsWith(prefix))
+  ) {
+    return null;
+  }
+
+  const firstSegment = lower.split('/').filter(Boolean)[0] || '';
+
+  if (
+    HANDLE_PATH.test(pathname) ||
+    firstSegment === 'community' ||
+    firstSegment.startsWith('community_') ||
+    COMMUNITY_PREFIXES.some((prefix) => lower === prefix || lower.startsWith(prefix))
+  ) {
+    return `community.${ROOT_DOMAIN}`;
+  }
+
+  if (
+    ADMIN_SEGMENTS.has(firstSegment) ||
+    firstSegment.startsWith('admin_') ||
+    firstSegment.startsWith('org_')
+  ) {
+    return `admin.${ROOT_DOMAIN}`;
+  }
+
+  if (
+    AFFILIATE_SEGMENTS.has(firstSegment) ||
+    (firstSegment.startsWith('affiliate_') && firstSegment !== 'affiliate_reviews')
+  ) {
+    return `affiliate.${ROOT_DOMAIN}`;
+  }
+
+  if (APP_SEGMENTS.has(firstSegment) || firstSegment.startsWith('market_')) {
+    return `app.${ROOT_DOMAIN}`;
+  }
+
+  return null;
+}
+
+export function resolveRedirectUrl(requestUrl, method = 'GET') {
+  const url = new URL(requestUrl);
+  const host = url.hostname.toLowerCase();
+  if (!isAlphajournalHost(host)) return null;
+
+  const upperMethod = String(method || 'GET').toUpperCase();
+  const canSubdomainRedirect =
+    (upperMethod === 'GET' || upperMethod === 'HEAD') &&
+    !url.searchParams.has('preview');
+  const targetHost = canSubdomainRedirect ? canonicalSubdomainHost(url) : null;
+
+  // Clipboard, cookies, and Web Share require HTTPS. Combine protocol upgrade
+  // and canonical subdomain resolution into a single 308 hop when possible.
+  if (url.protocol === 'http:') {
+    url.protocol = 'https:';
+    if (targetHost) {
+      url.hostname = targetHost;
+    } else if (host === `www.${ROOT_DOMAIN}`) {
+      url.hostname = ROOT_DOMAIN;
+    }
+    return url.toString();
+  }
+
+  if (targetHost && targetHost !== host) {
+    url.hostname = targetHost;
+    return url.toString();
+  }
+
+  if (host === `www.${ROOT_DOMAIN}`) {
+    url.hostname = ROOT_DOMAIN;
+    return url.toString();
+  }
+
+  return null;
+}
 
 function excerpt(text, max) {
   const clean = String(text || '').replace(/\s+/g, ' ').trim();
@@ -37,14 +160,12 @@ async function loadPost(env, id) {
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
-    // Clipboard and Web Share require a secure browser context. Preserve the
-    // exact shared path/query while upgrading old http:// links.
-    if (url.protocol === 'http:' &&
-        (url.hostname === 'alphajournal.in' || url.hostname.endsWith('.alphajournal.in'))) {
-      url.protocol = 'https:';
-      return Response.redirect(url.toString(), 308);
+    const redirectTo = resolveRedirectUrl(request.url, request.method);
+    if (redirectTo) {
+      return Response.redirect(redirectTo, 308);
     }
+
+    const url = new URL(request.url);
     const match = POST_PATH.exec(url.pathname);
     const page = await env.ASSETS.fetch(request);
     if (!match || request.method !== 'GET') {
