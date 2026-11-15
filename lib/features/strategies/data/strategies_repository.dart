@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/supabase_storage_egress.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as p;
@@ -1359,7 +1360,8 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
               fileBytes,
               fileOptions: FileOptions(
                 contentType: mimeType,
-                cacheControl: '300',
+                cacheControl:
+                    SupabaseStorageEgress.strategyAttachments.uploadCacheControl,
                 upsert: false,
               ),
             );
@@ -1531,11 +1533,14 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       return storagePath;
     }
 
-    // 4. Generate short-lived (300s) expiring signed access URL from private bucket
+    // 4. Generate short-lived (300s) expiring signed Direct Egress access URL from private bucket
     try {
       return await SupabaseConfig.client!.storage
-          .from('strategy-attachments')
-          .createSignedUrl(storagePath, 300);
+          .from(SupabaseStorageEgress.strategyAttachments.bucketId)
+          .createSignedUrl(
+            storagePath,
+            SupabaseStorageEgress.strategyAttachments.signedUrlTtlSeconds!,
+          );
     } catch (e) {
       debugPrint('[StrategiesRepository] createSignedUrl error: $e');
       rethrow;

@@ -5,6 +5,7 @@ import worker, {
   canonicalSubdomainHost,
   isAlphajournalHost,
   resolvePageSeo,
+  resolvePublicStorageUrl,
   resolveRedirectUrl,
 } from '../worker/index.js';
 
@@ -219,4 +220,24 @@ test('serves host-aware robots.txt, noindex header on admin, and dynamic sitemap
   } finally {
     globalThis.fetch = origFetch;
   }
+});
+
+test('normalizes public community and avatar URLs to Smart CDN Cached Egress paths', () => {
+  const env = { SUPABASE_URL: 'https://example.supabase.co' };
+  assert.equal(
+    resolvePublicStorageUrl(env, 'community-attachments', 'u1/p1/hash.webp'),
+    'https://example.supabase.co/storage/v1/object/public/community-attachments/u1/p1/hash.webp',
+  );
+  assert.equal(
+    resolvePublicStorageUrl(
+      env,
+      'avatars',
+      'https://example.supabase.co/storage/v1/object/sign/avatars/u1_42.webp?token=jwt',
+    ),
+    'https://example.supabase.co/storage/v1/object/public/avatars/u1_42.webp',
+  );
+  assert.equal(
+    resolvePublicStorageUrl(env, 'avatars', 'https://cdn.example.com/avatar.png'),
+    'https://cdn.example.com/avatar.png',
+  );
 });

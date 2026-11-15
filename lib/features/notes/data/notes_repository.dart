@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/supabase_storage_egress.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
@@ -813,6 +814,7 @@ class NotesRepositoryImpl implements NotesRepository {
       });
     }
 
+    NoteAttachments.invalidateForNote(id);
     return _mutate(id, (AppNote note) => note.copyWith(isPublic: isPublic));
   }
 
@@ -927,7 +929,8 @@ class NotesRepositoryImpl implements NotesRepository {
               fileBytes,
               fileOptions: FileOptions(
                 contentType: mimeType,
-                cacheControl: '3600',
+                cacheControl:
+                    SupabaseStorageEgress.noteAttachments.uploadCacheControl,
                 upsert: true,
               ),
             );
@@ -1081,11 +1084,14 @@ class NotesRepositoryImpl implements NotesRepository {
       return ref;
     }
 
-    // 4. Generate 1-hour (3600s) expiring signed access URL
+    // 4. Generate 1-hour (3600s) expiring signed Direct Egress access URL
     try {
       return await SupabaseConfig.client!.storage
-          .from('note-attachments')
-          .createSignedUrl(storagePath, 3600);
+          .from(SupabaseStorageEgress.noteAttachments.bucketId)
+          .createSignedUrl(
+            storagePath,
+            SupabaseStorageEgress.noteAttachments.signedUrlTtlSeconds!,
+          );
     } catch (e) {
       debugPrint(
         '[NotesRepository] resolveAttachmentUrl createSignedUrl error: $e',

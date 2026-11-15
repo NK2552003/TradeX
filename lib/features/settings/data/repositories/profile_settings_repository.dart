@@ -5,6 +5,7 @@ import 'package:tradex/core/utils/attachment_compression_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/supabase_storage_egress.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/data/session_trader.dart';
@@ -329,7 +330,16 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
               notif?['public_journals'] as bool? ??
               savedJournals ??
               parsed.publicJournals;
+          final normalizedAvatar = parsed.avatarUrl != null &&
+                  parsed.avatarUrl!.trim().isNotEmpty
+              ? SupabaseStorageEgress.resolvePublicCdnUrl(
+                  client: client,
+                  bucket: SupabaseStorageEgress.avatars.bucketId,
+                  ref: parsed.avatarUrl!,
+                )
+              : parsed.avatarUrl;
           _profile = parsed.copyWith(
+            avatarUrl: normalizedAvatar,
             publicStats: resolvedStats,
             publicJournals: resolvedJournals,
           );
@@ -470,10 +480,19 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
             .single();
 
         final fetchedProfile = UserProfileModel.fromJson(res);
+        final rawUpdatedAvatar = fetchedProfile.avatarUrl?.isNotEmpty == true
+            ? fetchedProfile.avatarUrl
+            : effectiveAvatarUrl;
+        final normalizedUpdatedAvatar = rawUpdatedAvatar != null &&
+                rawUpdatedAvatar.trim().isNotEmpty
+            ? SupabaseStorageEgress.resolvePublicCdnUrl(
+                client: client,
+                bucket: SupabaseStorageEgress.avatars.bucketId,
+                ref: rawUpdatedAvatar,
+              )
+            : rawUpdatedAvatar;
         _profile = fetchedProfile.copyWith(
-          avatarUrl: fetchedProfile.avatarUrl?.isNotEmpty == true
-              ? fetchedProfile.avatarUrl
-              : effectiveAvatarUrl,
+          avatarUrl: normalizedUpdatedAvatar,
           publicStats: _profile.publicStats,
           publicJournals: _profile.publicJournals,
         );
@@ -537,10 +556,19 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
             .uploadBinary(
               fileName,
               effectiveBytes,
-              fileOptions: FileOptions(contentType: effectiveMime, upsert: true),
+              fileOptions: FileOptions(
+                contentType: effectiveMime,
+                // Timestamped filename is immutable -> maximize Smart CDN Cached Egress.
+                cacheControl: SupabaseStorageEgress.avatars.uploadCacheControl,
+                upsert: false,
+              ),
             );
         uploadedFileName = fileName;
-        final publicUrl = client.storage.from('avatars').getPublicUrl(fileName);
+        final publicUrl = SupabaseStorageEgress.resolvePublicCdnUrl(
+          client: client,
+          bucket: SupabaseStorageEgress.avatars.bucketId,
+          ref: fileName,
+        );
         if (publicUrl.isNotEmpty) {
           finalAvatarUrl = publicUrl;
         }

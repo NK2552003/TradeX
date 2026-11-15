@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/supabase_storage_egress.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:tradex/features/linking/link_graph_service.dart';
@@ -47,6 +48,7 @@ class MessagesRepository extends ChangeNotifier {
         _requests.clear();
         _messages.clear();
         _lastUploadedPathByUrl.clear();
+        _decryptedAttachmentDataByKey.clear();
         _pinnedMessages.clear();
         _typing.clear();
         for (final timer in _pending) {
@@ -103,6 +105,7 @@ class MessagesRepository extends ChangeNotifier {
   final Map<String, Future<void>> _pendingThreadCreations =
       <String, Future<void>>{};
   final Map<String, String> _lastUploadedPathByUrl = <String, String>{};
+  final Map<String, String> _decryptedAttachmentDataByKey = <String, String>{};
   RealtimeChannel? _realtimeChannel;
   StreamSubscription<AuthState>? _authSubscription;
 
@@ -976,6 +979,11 @@ class MessagesRepository extends ChangeNotifier {
       throw StateError('Supabase is not configured to sign attachment URLs.');
     }
     if (storagePath.endsWith('.enc')) {
+      final cacheKey = '${_resolveUserId()}:$storagePath';
+      final cachedDataUri = _decryptedAttachmentDataByKey[cacheKey];
+      if (cachedDataUri != null && cachedDataUri.isNotEmpty) {
+        return cachedDataUri;
+      }
       final bytes = await client.storage
           .from(chatAttachmentsBucket)
           .download(storagePath);
@@ -985,7 +993,12 @@ class MessagesRepository extends ChangeNotifier {
         storagePath.split('/')[1],
       );
       final data = jsonDecode(plaintext) as Map<String, dynamic>;
-      return 'data:${data['mime']};base64,${data['bytes']}';
+      final dataUri = 'data:${data['mime']};base64,${data['bytes']}';
+      if (_decryptedAttachmentDataByKey.length >= 64) {
+        _decryptedAttachmentDataByKey.clear();
+      }
+      _decryptedAttachmentDataByKey[cacheKey] = dataUri;
+      return dataUri;
     }
     return client.storage
         .from(chatAttachmentsBucket)
@@ -1390,10 +1403,16 @@ class MessagesRepository extends ChangeNotifier {
               ),
               fileOptions: FileOptions(
                 contentType: 'application/octet-stream',
-                cacheControl: '$signedUrlTtlSeconds',
+                cacheControl:
+                    SupabaseStorageEgress.chatAttachments.uploadCacheControl,
                 upsert: false,
               ),
             );
+        if (_decryptedAttachmentDataByKey.length >= 64) {
+          _decryptedAttachmentDataByKey.clear();
+        }
+        _decryptedAttachmentDataByKey['$actor:$storagePath'] =
+            'data:${compressed.mimeType};base64,${base64Encode(compressed.bytes)}';
       }
 
       final signedUrl = await _createAttachmentSignedUrl(

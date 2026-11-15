@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/supabase_storage_egress.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:uuid/uuid.dart';
@@ -125,17 +126,14 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
                 final rawImg =
                     att['url']?.toString() ?? att['ref_id']?.toString();
                 if (rawImg != null && rawImg.isNotEmpty) {
-                  if (!rawImg.startsWith('http') &&
-                      !rawImg.startsWith('file:') &&
-                      !rawImg.startsWith('data:')) {
-                    try {
-                      postImageUrl = client.storage
-                          .from('community-attachments')
-                          .getPublicUrl(rawImg);
-                    } catch (_) {
-                      postImageUrl = rawImg;
-                    }
-                  } else {
+                  try {
+                    postImageUrl = SupabaseStorageEgress.resolvePublicCdnUrl(
+                      client: client,
+                      bucket:
+                          SupabaseStorageEgress.communityAttachments.bucketId,
+                      ref: rawImg,
+                    );
+                  } catch (_) {
                     postImageUrl = rawImg;
                   }
                 }
@@ -144,13 +142,22 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
             }
           }
 
+          final rawAvatarUrl = profile?['avatar_url'] as String?;
+          final resolvedAvatarUrl = rawAvatarUrl != null && rawAvatarUrl.isNotEmpty
+              ? SupabaseStorageEgress.resolvePublicCdnUrl(
+                  client: client,
+                  bucket: SupabaseStorageEgress.avatars.bucketId,
+                  ref: rawAvatarUrl,
+                )
+              : null;
+
           return AppPost(
             id: row['id']?.toString() ?? '',
             author: AppTrader(
               id: row['author_id']?.toString() ?? 'usr_trader',
               handle: handle,
               displayName: name,
-              avatarUrl: profile?['avatar_url'] as String?,
+              avatarUrl: resolvedAvatarUrl,
             ),
             body: row['body'] as String? ?? '',
             createdAt: row['created_at'] != null

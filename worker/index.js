@@ -388,6 +388,37 @@ async function fetchSupabaseJson(env, pathAndQuery, cacheTtl = 300) {
   }
 }
 
+export function resolvePublicStorageUrl(env, bucket, rawValue) {
+  const raw = String(rawValue || '').trim();
+  if (!raw || raw.startsWith('data:') || raw.startsWith('file:')) return '';
+
+  const base = String(env?.SUPABASE_URL || '').trim().replace(/\/+$/, '');
+  const marker = `/storage/v1/object/`;
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const u = new URL(raw);
+      const idx = u.pathname.indexOf(marker);
+      if (idx !== -1) {
+        const tail = u.pathname.slice(idx + marker.length);
+        const parts = tail.split('/').filter(Boolean);
+        // Expected: <accessType>/<bucket>/<...key>
+        if (parts.length >= 3 && parts[1] === bucket) {
+          const objectPath = parts.slice(2).join('/');
+          return `${u.origin}/storage/v1/object/public/${bucket}/${objectPath}`;
+        }
+      }
+    } catch (_) {
+      return raw;
+    }
+    return raw;
+  }
+
+  if (!base) return '';
+  const cleanPath = raw.replace(new RegExp(`^/+|^${bucket}/+`), '').replace(/^\/+/, '');
+  if (!cleanPath || cleanPath.includes('..')) return '';
+  return `${base}/storage/v1/object/public/${bucket}/${cleanPath}`;
+}
+
 async function loadPost(env, id) {
   const select =
     'body,created_at,profiles!community_posts_author_id_fkey(display_name,handle),' +
@@ -397,7 +428,17 @@ async function loadPost(env, id) {
     `/rest/v1/community_posts?id=eq.${id}&select=${encodeURIComponent(select)}&limit=1`,
     300,
   );
-  return Array.isArray(rows) ? rows[0] || null : null;
+  const row = Array.isArray(rows) ? rows[0] || null : null;
+  if (row && Array.isArray(row.community_post_attachments)) {
+    row.community_post_attachments = row.community_post_attachments.map((att) => {
+      if (att && att.kind === 'image' && att.url) {
+        const normalized = resolvePublicStorageUrl(env, 'community-attachments', att.url);
+        return normalized ? { ...att, url: normalized } : att;
+      }
+      return att;
+    });
+  }
+  return row;
 }
 
 async function loadProfile(env, rawHandle) {
@@ -409,7 +450,12 @@ async function loadProfile(env, rawHandle) {
     `/rest/v1/profiles?select=display_name,handle,bio,avatar_url&or=${filter}&limit=1`,
     300,
   );
-  return Array.isArray(rows) ? rows[0] || null : null;
+  const profile = Array.isArray(rows) ? rows[0] || null : null;
+  if (profile && profile.avatar_url) {
+    const normalized = resolvePublicStorageUrl(env, 'avatars', profile.avatar_url);
+    if (normalized) profile.avatar_url = normalized;
+  }
+  return profile;
 }
 
 export async function buildDynamicSitemapXml(env) {

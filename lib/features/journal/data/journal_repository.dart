@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/supabase_storage_egress.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:tradex/features/notes/data/note_attachments.dart';
 import 'package:uuid/uuid.dart';
@@ -1116,7 +1117,8 @@ class JournalRepositoryImpl implements JournalRepository {
               fileBytes,
               fileOptions: FileOptions(
                 contentType: _resolveMimeType(ext),
-                cacheControl: '3600',
+                cacheControl:
+                    SupabaseStorageEgress.journalAttachments.uploadCacheControl,
                 upsert: true,
               ),
             );
@@ -1221,11 +1223,14 @@ class JournalRepositoryImpl implements JournalRepository {
       );
     }
 
-    // 4. Generate 1-hour (3600s) expiring signed access URL
+    // 4. Generate 1-hour (3600s) expiring signed Direct Egress access URL
     try {
       return await SupabaseConfig.client!.storage
-          .from('journal-attachments')
-          .createSignedUrl(storagePath, 3600);
+          .from(SupabaseStorageEgress.journalAttachments.bucketId)
+          .createSignedUrl(
+            storagePath,
+            SupabaseStorageEgress.journalAttachments.signedUrlTtlSeconds!,
+          );
     } catch (e) {
       debugPrint('[JournalRepository] resolveAttachmentUrl createSignedUrl error: $e');
       rethrow;

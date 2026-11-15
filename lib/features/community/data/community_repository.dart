@@ -18,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/supabase_storage_egress.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/core/utils/app_visibility.dart';
 import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
@@ -406,14 +407,13 @@ class CommunityRepository extends ChangeNotifier {
           if (kind == 'image') {
             var img = url ?? refId;
             if (img.isNotEmpty) {
-              if (!img.startsWith('http') &&
-                  !img.startsWith('file:') &&
-                  !img.startsWith('data:') &&
-                  SupabaseConfig.isConfigured) {
+              if (SupabaseConfig.isConfigured) {
                 try {
-                  img = client.storage
-                      .from('community-attachments')
-                      .getPublicUrl(img);
+                  img = SupabaseStorageEgress.resolvePublicCdnUrl(
+                    client: client,
+                    bucket: SupabaseStorageEgress.communityAttachments.bucketId,
+                    ref: img,
+                  );
                 } catch (_) {}
               }
               if (!imageUrls.contains(img)) {
@@ -630,7 +630,7 @@ class CommunityRepository extends ChangeNotifier {
                 profile?['handle'] as String? ??
                 'Trader',
             userRole: _parseUserRole(profile?['role'] as String?),
-            avatarUrl: profile?['avatar_url'] as String?,
+            avatarUrl: _resolveAvatarUrl(profile?['avatar_url'] as String?),
             bio: profile?['bio'] as String?,
             verified: profile?['verified'] as bool? ?? false,
           );
@@ -869,7 +869,7 @@ class CommunityRepository extends ChangeNotifier {
             id: pId,
             handle: cleanHandle,
             displayName: pmap['display_name'] as String? ?? cleanHandle,
-            avatarUrl: pmap['avatar_url'] as String?,
+            avatarUrl: _resolveAvatarUrl(pmap['avatar_url'] as String?),
             bio: pmap['bio'] as String?,
             tradingStyle:
                 (pmap['top_strategy'] ?? pmap['trading_style']) as String?,
@@ -949,6 +949,19 @@ class CommunityRepository extends ChangeNotifier {
     return UserRole.customer;
   }
 
+  static String? _resolveAvatarUrl(String? raw) {
+    if (raw == null || raw.trim().isEmpty || !SupabaseConfig.isConfigured) {
+      return raw;
+    }
+    final client = SupabaseConfig.client;
+    if (client == null) return raw;
+    return SupabaseStorageEgress.resolvePublicCdnUrl(
+      client: client,
+      bucket: SupabaseStorageEgress.avatars.bucketId,
+      ref: raw,
+    );
+  }
+
   static CommunityAuthor mapProfileToCommunityAuthor({
     required String authorId,
     required Map<String, dynamic>? authorProfile,
@@ -969,7 +982,7 @@ class CommunityRepository extends ChangeNotifier {
           authorProfile?['username'] as String? ??
           'Trader',
       userRole: parseUserRoleStatic(authorProfile?['role'] as String?),
-      avatarUrl: authorProfile?['avatar_url'] as String?,
+      avatarUrl: _resolveAvatarUrl(authorProfile?['avatar_url'] as String?),
       bio: authorProfile?['bio'] as String?,
       verified: authorProfile?['verified'] as bool? ?? false,
       subscriptionTier: subTier,
@@ -2377,7 +2390,9 @@ class CommunityRepository extends ChangeNotifier {
             compressed.bytes,
             fileOptions: FileOptions(
               contentType: compressed.mimeType,
-              cacheControl: '3600',
+              // SHA-256 content-addressed object is immutable -> maximize Smart CDN Cached Egress.
+              cacheControl:
+                  SupabaseStorageEgress.communityAttachments.uploadCacheControl,
               upsert: false,
             ),
           );
@@ -2385,9 +2400,11 @@ class CommunityRepository extends ChangeNotifier {
           // Reusing this batch on retry reuses the exact same immutable object.
           if (error.statusCode != '409' && error.error != 'Duplicate') rethrow;
         }
-        return client.storage
-            .from('community-attachments')
-            .getPublicUrl(storagePath);
+        return SupabaseStorageEgress.resolvePublicCdnUrl(
+          client: client,
+          bucket: SupabaseStorageEgress.communityAttachments.bucketId,
+          ref: storagePath,
+        );
       } catch (e) {
         debugPrint('[CommunityRepository] uploadAttachment error: $e');
         rethrow;
@@ -2422,14 +2439,14 @@ class CommunityRepository extends ChangeNotifier {
 
   /// Resolves an attachment reference or storage path to a usable URL.
   Future<String> resolveAttachmentUrl(String ref) async {
-    if (SupabaseConfig.isConfigured &&
-        !ref.startsWith('http') &&
-        !ref.contains(':\\') &&
-        !ref.startsWith('file:') &&
-        !ref.startsWith('data:')) {
+    if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        return client.storage.from('community-attachments').getPublicUrl(ref);
+        return SupabaseStorageEgress.resolvePublicCdnUrl(
+          client: client,
+          bucket: SupabaseStorageEgress.communityAttachments.bucketId,
+          ref: ref,
+        );
       } catch (e) {
         debugPrint('[CommunityRepository] resolveAttachmentUrl error: $e');
       }
@@ -3155,14 +3172,14 @@ class CommunityRepository extends ChangeNotifier {
             if (kind == 'image') {
               var img = url ?? refId;
               if (img.isNotEmpty) {
-                if (!img.startsWith('http') &&
-                    !img.startsWith('file:') &&
-                    !img.startsWith('data:') &&
-                    SupabaseConfig.isConfigured) {
+                if (SupabaseConfig.isConfigured) {
                   try {
-                    img = client.storage
-                        .from('community-attachments')
-                        .getPublicUrl(img);
+                    img = SupabaseStorageEgress.resolvePublicCdnUrl(
+                      client: client,
+                      bucket:
+                          SupabaseStorageEgress.communityAttachments.bucketId,
+                      ref: img,
+                    );
                   } catch (_) {}
                 }
                 if (!imageUrls.contains(img)) {

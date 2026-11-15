@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/supabase_storage_egress.dart';
 
 import '../../notes/data/note_attachments.dart';
 import 'strategies_repository.dart';
@@ -39,9 +40,12 @@ class StrategyAttachments {
 
   static void _remember(String key, String url) {
     if (_resolved.length >= 512) _resolved.clear();
+    final cacheTtl =
+        SupabaseStorageEgress.strategyAttachments.clientUrlCacheTtl ??
+        const Duration(minutes: 4);
     _resolved[key] = (
       url: url,
-      expires: DateTime.now().add(const Duration(minutes: 4)),
+      expires: DateTime.now().add(cacheTtl),
     );
   }
 

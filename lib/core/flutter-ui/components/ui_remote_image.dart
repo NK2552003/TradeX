@@ -56,14 +56,41 @@ class UiRemoteImage extends StatelessWidget {
     return px > 0 ? px : null;
   }
 
-  /// Appends width/format parameters ONLY for image hosts known to support
-  /// dynamic URL resizing (Cloudinary, imgix, Unsplash). Never invents params.
+  /// Appends width/format parameters for image hosts known to support
+  /// dynamic URL resizing (Cloudinary, imgix, Unsplash) and canonicalizes
+  /// Supabase Storage public Smart CDN buckets (`avatars`,
+  /// `community-attachments`) to `/storage/v1/object/public/...` so requests hit
+  /// Cached Egress instead of uncached signed origin URLs.
   static String resizeImageUrl(String src, {int? targetWidthPx}) {
-    if (targetWidthPx == null || targetWidthPx <= 0) return src;
     final Uri? uri = Uri.tryParse(src);
     if (uri == null || !uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https')) {
       return src;
     }
+
+    // Upgrade legacy signed URLs for public Smart CDN buckets only.
+    const Set<String> publicCdnBuckets = <String>{
+      'avatars',
+      'community-attachments',
+    };
+    final List<String> segs = uri.pathSegments;
+    final int objIdx = segs.indexOf('object');
+    if (objIdx != -1 &&
+        segs.contains('storage') &&
+        objIdx + 2 < segs.length &&
+        (segs[objIdx + 1] == 'sign' || segs[objIdx + 1] == 'authenticated') &&
+        publicCdnBuckets.contains(segs[objIdx + 2])) {
+      final List<String> publicSegs = List<String>.from(segs);
+      publicSegs[objIdx + 1] = 'public';
+      return Uri(
+        scheme: uri.scheme,
+        userInfo: uri.userInfo,
+        host: uri.host,
+        port: uri.hasPort ? uri.port : null,
+        pathSegments: publicSegs,
+      ).toString();
+    }
+
+    if (targetWidthPx == null || targetWidthPx <= 0) return src;
     final int bucketWidth = (((targetWidthPx + 79) ~/ 80) * 80).clamp(80, 1600);
     final String host = uri.host.toLowerCase();
 

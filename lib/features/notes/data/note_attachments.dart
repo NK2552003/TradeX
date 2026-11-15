@@ -1,4 +1,5 @@
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/supabase_storage_egress.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -48,9 +49,12 @@ class NoteAttachments {
 
   static void _remember(String key, String url) {
     if (_resolved.length >= 512) _resolved.clear();
+    final cacheTtl =
+        SupabaseStorageEgress.noteAttachments.clientUrlCacheTtl ??
+        const Duration(minutes: 50);
     _resolved[key] = (
       url: url,
-      expires: DateTime.now().add(const Duration(minutes: 4)),
+      expires: DateTime.now().add(cacheTtl),
     );
   }
 
