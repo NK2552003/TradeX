@@ -19,6 +19,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/core/utils/app_visibility.dart';
 import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
@@ -47,13 +48,29 @@ class CommunityRepository extends ChangeNotifier {
   late final Map<String, List<CommunityAuthor>> _networkReposts = {};
   int _networkRequest = 0;
   Future<List<CommunityReaction>> fetchReactions(String targetId, {bool comment = false}) => _fetchReactions(targetId, comment: comment);
+  static const int _postsPageSize = 30;
+  static const Duration _realtimeDebounce = Duration(seconds: 5);
+
   bool _initialized = false;
   bool _subscribedToRealtime = false;
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMorePosts = true;
+  int _loadedPostRows = 0;
   RealtimeChannel? _realtimeChannel;
+  Timer? _realtimeDebounceTimer;
+  bool _pendingRealtimeRefresh = false;
+  DateTime? _suppressRealtimeUntil;
 
   bool get isLoading => _isLoading;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMorePosts => _hasMorePosts;
   RealtimeChannel? get realtimeChannel => _realtimeChannel;
+
+  /// Suppresses self-triggered realtime refetches briefly after local mutations.
+  void suppressRealtimeEcho([Duration duration = const Duration(seconds: 3)]) {
+    _suppressRealtimeUntil = DateTime.now().add(duration);
+  }
 
   String _resolveUserId() {
     if (SupabaseConfig.isConfigured) {
@@ -121,9 +138,39 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
+  void _onVisibilityChanged(bool isVisible) {
+    if (_disposed || !isVisible) return;
+    if (_pendingRealtimeRefresh) {
+      _pendingRealtimeRefresh = false;
+      _scheduleRealtimeRefresh();
+    }
+  }
+
+  void _scheduleRealtimeRefresh() {
+    if (_disposed) return;
+    final suppressedUntil = _suppressRealtimeUntil;
+    if (suppressedUntil != null && DateTime.now().isBefore(suppressedUntil)) {
+      return;
+    }
+    if (!AppVisibility.instance.isVisible) {
+      _pendingRealtimeRefresh = true;
+      return;
+    }
+    _realtimeDebounceTimer?.cancel();
+    _realtimeDebounceTimer = Timer(_realtimeDebounce, () {
+      if (_disposed) return;
+      if (!AppVisibility.instance.isVisible) {
+        _pendingRealtimeRefresh = true;
+        return;
+      }
+      unawaited(fetchFromSupabase());
+    });
+  }
+
   void _initRealtime() {
     if (_subscribedToRealtime || !SupabaseConfig.isConfigured) return;
     _subscribedToRealtime = true;
+    AppVisibility.instance.addListener(_onVisibilityChanged);
 
     try {
       final client = SupabaseConfig.client!;
@@ -134,43 +181,37 @@ class CommunityRepository extends ChangeNotifier {
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'community_posts',
-                callback: (PostgresChangePayload payload) {
-                  fetchFromSupabase();
-                },
+                callback: (_) => _scheduleRealtimeRefresh(),
               )
               .onPostgresChanges(
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'community_comments',
-                callback: (PostgresChangePayload payload) {
-                  fetchFromSupabase();
-                },
+                callback: (_) => _scheduleRealtimeRefresh(),
               )
               .onPostgresChanges(
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'community_post_attachments',
-                callback: (PostgresChangePayload payload) {
-                  fetchFromSupabase();
-                },
+                callback: (_) => _scheduleRealtimeRefresh(),
               )
               .onPostgresChanges(
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'community_likes',
-                callback: (_) => fetchFromSupabase(),
+                callback: (_) => _scheduleRealtimeRefresh(),
               )
               .onPostgresChanges(
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'community_reposts',
-                callback: (_) => fetchFromSupabase(),
+                callback: (_) => _scheduleRealtimeRefresh(),
               )
               .onPostgresChanges(
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'community_follows',
-                callback: (_) => fetchFromSupabase(),
+                callback: (_) => _scheduleRealtimeRefresh(),
               )
             ..subscribe();
     } catch (e) {
@@ -180,100 +221,126 @@ class CommunityRepository extends ChangeNotifier {
 
   String? refreshError;
 
-  Future<void> fetchFromSupabase() async {
-    refreshError = null;
-    if (!SupabaseConfig.isConfigured) {
-      if (!CustomerDataPolicy.allowDemo) {
-        refreshError = 'Sign in to refresh community posts.';
+  static const String _postSelectColumns =
+      'id, author_id, body, created_at, is_pinned, is_public, tickers, tags, '
+      'likes_count, comments_count, reposts_count, views_count, moderation_status, '
+      'profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, win_rate, followers_count, following_count, posts_count, subscription_tier), '
+      'community_post_trade_setups(ticker, side, entry, stop_loss, target1), '
+      'community_post_attachments(kind, url, title, ref_id), '
+      'community_polls(id, question, expires_at, community_poll_options(id, option_text, votes_count))';
+
+  Future<({
+    List<CommunityPost> posts,
+    Map<String, List<CommunityComment>> comments,
+    int rawRowCount,
+  })> _fetchPostsPage({
+    required SupabaseClient client,
+    required String targetUserId,
+    required int offset,
+    required int limit,
+  }) async {
+    final res = await client
+        .from('community_posts')
+        .select(_postSelectColumns)
+        .or('is_public.eq.true,author_id.eq.$targetUserId')
+        .order('created_at', ascending: false)
+        .range(offset, offset + limit - 1);
+
+    final rawRows = (res as List).whereType<Map<String, dynamic>>().toList();
+    final pagePostIds = <String>[];
+    final pagePollIds = <String>[];
+
+    for (final row in rawRows) {
+      final pid = row['id']?.toString() ?? '';
+      if (pid.isNotEmpty) pagePostIds.add(pid);
+      final rawPoll = row['community_polls'];
+      if (rawPoll is Map<String, dynamic>) {
+        final pollId = rawPoll['id']?.toString() ?? '';
+        if (pollId.isNotEmpty) pagePollIds.add(pollId);
+      } else if (rawPoll is List) {
+        for (final p in rawPoll.whereType<Map<String, dynamic>>()) {
+          final pollId = p['id']?.toString() ?? '';
+          if (pollId.isNotEmpty) pagePollIds.add(pollId);
+        }
       }
-      return;
     }
-    _isLoading = true;
-    notifyListeners();
-    try {
-      final client = SupabaseConfig.client!;
-      final targetUserId = _resolveUserId();
 
-      final Set<String> likedPostIds = <String>{};
-      final Map<String, String> userPostReactions = <String, String>{};
-      final Map<String, Set<String>> allPostReactions = <String, Set<String>>{};
-      final Set<String> bookmarkedPostIds = <String>{};
-      final Set<String> repostedPostIds = <String>{};
-      _followedAuthorIds.clear();
-      _followerAuthorIds.clear();
-      final Map<String, String> userPollVotes = <String, String>{};
+    final Set<String> likedPostIds = <String>{};
+    final Map<String, String> userPostReactions = <String, String>{};
+    final Map<String, Set<String>> allPostReactions = <String, Set<String>>{};
+    final Set<String> bookmarkedPostIds = <String>{};
+    final Set<String> repostedPostIds = <String>{};
+    final Map<String, String> userPollVotes = <String, String>{};
 
+    if (pagePostIds.isNotEmpty) {
       try {
         List likesRes = const [];
         try {
           likesRes = await client
               .from('community_likes')
-              .select('post_id, reaction')
-              .eq('user_id', targetUserId);
+              .select('post_id, user_id, reaction')
+              .inFilter('post_id', pagePostIds);
         } catch (_) {
           likesRes = await client
               .from('community_likes')
-              .select('post_id')
-              .eq('user_id', targetUserId);
+              .select('post_id, user_id')
+              .inFilter('post_id', pagePostIds);
         }
         for (final item in likesRes) {
           final id = item['post_id']?.toString();
-          if (id != null) {
-            likedPostIds.add(id);
-            final rx = item['reaction']?.toString().trim() ?? '👍';
-            userPostReactions[id] = rx;
+          final uid = item['user_id']?.toString();
+          final rx = item['reaction']?.toString().trim() ?? '👍';
+          if (id == null || id.isEmpty) continue;
+          if (rx.isNotEmpty) {
             (allPostReactions[id] ??= <String>{}).add(rx);
           }
-        }
-      } catch (e) {
-        debugPrint('[CommunityRepository] Error fetching likes: $e');
-      }
-
-      // Query all post reactions across all users to display multi-reaction emoji cluster
-      try {
-        final allLikesRes = await client
-            .from('community_likes')
-            .select('post_id, reaction');
-        for (final item in (allLikesRes as List)) {
-          final pid = item['post_id']?.toString();
-          final rx = item['reaction']?.toString().trim();
-          if (pid != null && pid.isNotEmpty && rx != null && rx.isNotEmpty) {
-            (allPostReactions[pid] ??= <String>{}).add(rx);
+          if (uid == targetUserId) {
+            likedPostIds.add(id);
+            userPostReactions[id] = rx.isNotEmpty ? rx : '👍';
           }
         }
-      } catch (_) {}
-
-      try {
-        final bookmarksRes = await client
-            .from('community_bookmarks')
-            .select('post_id')
-            .eq('user_id', targetUserId);
-        for (final item in bookmarksRes as List) {
-          final id = item['post_id']?.toString();
-          if (id != null) bookmarkedPostIds.add(id);
-        }
       } catch (e) {
-        debugPrint('[CommunityRepository] Error fetching bookmarks: $e');
+        debugPrint('[CommunityRepository] Error fetching scoped likes: $e');
       }
 
-      try {
-        final repostsRes = await client
-            .from('community_reposts')
-            .select('post_id')
-            .eq('user_id', targetUserId);
-        for (final item in repostsRes as List) {
-          final id = item['post_id']?.toString();
-          if (id != null) repostedPostIds.add(id);
+      if (targetUserId.isNotEmpty) {
+        try {
+          final bookmarksRes = await client
+              .from('community_bookmarks')
+              .select('post_id')
+              .eq('user_id', targetUserId)
+              .inFilter('post_id', pagePostIds);
+          for (final item in bookmarksRes as List) {
+            final id = item['post_id']?.toString();
+            if (id != null) bookmarkedPostIds.add(id);
+          }
+        } catch (e) {
+          debugPrint('[CommunityRepository] Error fetching bookmarks: $e');
         }
-      } catch (e) {
-        debugPrint('[CommunityRepository] Error fetching reposts: $e');
-      }
 
+        try {
+          final repostsRes = await client
+              .from('community_reposts')
+              .select('post_id')
+              .eq('user_id', targetUserId)
+              .inFilter('post_id', pagePostIds);
+          for (final item in repostsRes as List) {
+            final id = item['post_id']?.toString();
+            if (id != null) repostedPostIds.add(id);
+          }
+        } catch (e) {
+          debugPrint('[CommunityRepository] Error fetching reposts: $e');
+        }
+      }
+    }
+
+    if (pagePollIds.isNotEmpty && targetUserId.isNotEmpty) {
       try {
         final votesRes = await client
             .from('community_poll_votes')
             .select('poll_id, option_id')
-            .eq('user_id', targetUserId);
+            .eq('user_id', targetUserId)
+            .inFilter('poll_id', pagePollIds);
         for (final item in votesRes as List) {
           final pId = item['poll_id']?.toString();
           final oId = item['option_id']?.toString();
@@ -282,268 +349,165 @@ class CommunityRepository extends ChangeNotifier {
       } catch (e) {
         debugPrint('[CommunityRepository] Error fetching poll votes: $e');
       }
+    }
 
-      final Map<String, int> followersCountByAuthor = <String, int>{};
-      final Map<String, int> followingCountByAuthor = <String, int>{};
-
-      try {
-        final allFollowsRes = await client
-            .from('community_follows')
-            .select('follower_id, following_id');
-        for (final item in allFollowsRes as List) {
-          final follower = item['follower_id']?.toString() ?? '';
-          final following = item['following_id']?.toString() ?? '';
-          if (follower == targetUserId && following.isNotEmpty) {
-            _followedAuthorIds.add(following);
-          }
-          if (following == targetUserId && follower.isNotEmpty) {
-            _followerAuthorIds.add(follower);
-          }
-          if (following.isNotEmpty) {
-            followersCountByAuthor[following] =
-                (followersCountByAuthor[following] ?? 0) + 1;
-          }
-          if (follower.isNotEmpty) {
-            followingCountByAuthor[follower] =
-                (followingCountByAuthor[follower] ?? 0) + 1;
-          }
-        }
-      } catch (e) {
-        debugPrint('[CommunityRepository] Error fetching all community_follows: $e');
-        try {
-          final altFollowsRes = await client
-              .from('follows')
-              .select('follower_id, followee_id');
-          for (final item in altFollowsRes as List) {
-            final follower = item['follower_id']?.toString() ?? '';
-            final followee = item['followee_id']?.toString() ?? '';
-            if (follower == targetUserId && followee.isNotEmpty) {
-              _followedAuthorIds.add(followee);
-            }
-            if (followee == targetUserId && follower.isNotEmpty) {
-              _followerAuthorIds.add(follower);
-            }
-            if (followee.isNotEmpty) {
-              followersCountByAuthor[followee] =
-                  (followersCountByAuthor[followee] ?? 0) + 1;
-            }
-            if (follower.isNotEmpty) {
-              followingCountByAuthor[follower] =
-                  (followingCountByAuthor[follower] ?? 0) + 1;
-            }
-          }
-        } catch (_) {}
+    final List<CommunityPost> posts = [];
+    for (final row in rawRows) {
+      final postId = row['id']?.toString() ?? '';
+      final authorProfile = row['profiles'] as Map<String, dynamic>?;
+      final authorId = row['author_id']?.toString() ?? '';
+      if (_blockedUsers.contains(authorId)) {
+        continue;
       }
 
-      final currentRefreshEpoch = _blockRefreshEpoch;
-      final tempOutgoing = <String>{};
-      final tempIncoming = <String>{};
-      var blockFetchFailed = false;
-
-      try {
-        final blockedRes = await client
-            .from('blocks')
-            .select('blocked_id')
-            .eq('blocker_id', targetUserId);
-        for (final item in blockedRes as List) {
-          final id = item['blocked_id']?.toString();
-          if (id != null && id.isNotEmpty && id != targetUserId) {
-            tempOutgoing.add(id);
-          }
-        }
-      } catch (e) {
-        blockFetchFailed = true;
-        debugPrint('[CommunityRepository] Error fetching blocked users: $e');
+      final moderationStatus =
+          row['moderation_status']?.toString().toLowerCase() ?? 'approved';
+      if (moderationStatus == 'rejected' && authorId != targetUserId) {
+        continue;
       }
 
-      try {
-        final blockerRes = await client
-            .from('blocks')
-            .select('blocker_id')
-            .eq('blocked_id', targetUserId);
-        for (final item in blockerRes as List) {
-          final id = item['blocker_id']?.toString();
-          if (id != null && id.isNotEmpty && id != targetUserId) {
-            tempIncoming.add(id);
-          }
-        }
-      } catch (e) {
-        blockFetchFailed = true;
-        debugPrint('[CommunityRepository] Error fetching blockers: $e');
+      final author = mapProfileToCommunityAuthor(
+        authorId: authorId,
+        authorProfile: authorProfile,
+        isFollowing: _followedAuthorIds.contains(authorId),
+      );
+
+      CommunityTradeSetup? setup;
+      final rawSetups = row['community_post_trade_setups'];
+      Map<String, dynamic>? s;
+      if (rawSetups is Map<String, dynamic>) {
+        s = rawSetups;
+      } else if (rawSetups is List && rawSetups.isNotEmpty) {
+        s = rawSetups.first as Map<String, dynamic>;
       }
-
-      // Preserve previous block state if either query fails or if a newer mutation occurred
-      if (!blockFetchFailed && currentRefreshEpoch == _blockRefreshEpoch) {
-        _outgoingBlockedUserIds = tempOutgoing;
-        _incomingBlockedUserIds = tempIncoming;
-        _blockedUsers = {..._outgoingBlockedUserIds, ..._incomingBlockedUserIds};
-      }
-
-      final res = await client
-          .from('community_posts')
-          .select(
-            '*, profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, win_rate, followers_count, following_count, posts_count, subscription_tier), community_post_trade_setups(*), community_post_attachments(*), community_polls(*, community_poll_options(*))',
-          )
-          .or('is_public.eq.true,author_id.eq.$targetUserId')
-          .order('created_at', ascending: false);
-
-      final List<CommunityPost> allPosts = [];
-      for (final item in res as List) {
-        final row = item as Map<String, dynamic>;
-        final postId = row['id']?.toString() ?? '';
-        final authorProfile = row['profiles'] as Map<String, dynamic>?;
-        final authorId = row['author_id']?.toString() ?? '';
-        if (_blockedUsers.contains(authorId)) {
-          continue;
-        }
-
-        final moderationStatus =
-            row['moderation_status']?.toString().toLowerCase() ?? 'approved';
-        if (moderationStatus == 'rejected' && authorId != targetUserId) {
-          continue;
-        }
-
-        final author = mapProfileToCommunityAuthor(
-          authorId: authorId,
-          authorProfile: authorProfile,
-          isFollowing: _followedAuthorIds.contains(authorId),
+      if (s != null) {
+        setup = CommunityTradeSetup(
+          ticker: s['ticker'] as String? ?? '',
+          side: (s['side']?.toString().toUpperCase() == 'SHORT')
+              ? 'SHORT'
+              : 'LONG',
+          entry: s['entry']?.toString() ?? '0.0',
+          stopLoss: s['stop_loss']?.toString(),
+          target: s['target1']?.toString(),
         );
+      }
 
-        CommunityTradeSetup? setup;
-        final rawSetups = row['community_post_trade_setups'];
-        Map<String, dynamic>? s;
-        if (rawSetups is Map<String, dynamic>) {
-          s = rawSetups;
-        } else if (rawSetups is List && rawSetups.isNotEmpty) {
-          s = rawSetups.first as Map<String, dynamic>;
-        }
-        if (s != null) {
-          setup = CommunityTradeSetup(
-            ticker: s['ticker'] as String? ?? '',
-            side: (s['side']?.toString().toUpperCase() == 'SHORT')
-                ? 'SHORT'
-                : 'LONG',
-            entry: s['entry']?.toString() ?? '0.0',
-            stopLoss: s['stop_loss']?.toString(),
-            target: s['target1']?.toString(),
-          );
-        }
+      final List<String> imageUrls = <String>[];
+      AppWritingPostAttachment? attachment;
+      final attachmentsList = row['community_post_attachments'];
+      if (attachmentsList != null && attachmentsList is List) {
+        for (final attItem in attachmentsList) {
+          final attMap = attItem as Map<String, dynamic>;
+          final kind = attMap['kind']?.toString() ?? '';
+          final url = attMap['url']?.toString();
+          final title = attMap['title']?.toString() ?? '';
+          final refId = attMap['ref_id']?.toString() ?? '';
 
-        final List<String> imageUrls = <String>[];
-        AppWritingPostAttachment? attachment;
-        final attachmentsList = row['community_post_attachments'];
-        if (attachmentsList != null && attachmentsList is List) {
-          for (final attItem in attachmentsList) {
-            final attMap = attItem as Map<String, dynamic>;
-            final kind = attMap['kind']?.toString() ?? '';
-            final url = attMap['url']?.toString();
-            final title = attMap['title']?.toString() ?? '';
-            final refId = attMap['ref_id']?.toString() ?? '';
-
-            if (kind == 'image') {
-              var img = url ?? refId;
-              if (img.isNotEmpty) {
-                if (!img.startsWith('http') &&
-                    !img.startsWith('file:') &&
-                    !img.startsWith('data:') &&
-                    SupabaseConfig.isConfigured) {
-                  try {
-                    img = client.storage
-                        .from('community-attachments')
-                        .getPublicUrl(img);
-                  } catch (_) {}
-                }
-                if (!imageUrls.contains(img)) {
-                  imageUrls.add(img);
-                }
+          if (kind == 'image') {
+            var img = url ?? refId;
+            if (img.isNotEmpty) {
+              if (!img.startsWith('http') &&
+                  !img.startsWith('file:') &&
+                  !img.startsWith('data:') &&
+                  SupabaseConfig.isConfigured) {
+                try {
+                  img = client.storage
+                      .from('community-attachments')
+                      .getPublicUrl(img);
+                } catch (_) {}
               }
-            } else if (kind == 'note' ||
-                kind == 'journal' ||
-                kind == 'strategy' ||
-                kind == 'manual' ||
-                kind == 'document') {
-              final linkKind = AppLinkKind.fromHost(kind) ?? AppLinkKind.note;
-              attachment = AppWritingPostAttachment.manual(
-                source: AppLinkRef(
-                  kind: linkKind,
-                  id: refId,
-                  title: title,
-                  subtitle: url,
-                ),
-                excerpt: title,
-              );
-            } else if (kind == 'chart_candles' && url != null) {
-              try {
-                final decoded = jsonDecode(url);
-                if (decoded is List) {
-                  final candles = <UiCandle>[];
-                  for (final item in decoded) {
-                    if (item is Map) {
-                      final time = DateTime.tryParse('${item['time']}');
-                      if (time != null) {
-                        candles.add(
-                          UiCandle(
-                            time: time,
-                            open: (item['open'] as num?)?.toDouble() ?? 0.0,
-                            high: (item['high'] as num?)?.toDouble() ?? 0.0,
-                            low: (item['low'] as num?)?.toDouble() ?? 0.0,
-                            close: (item['close'] as num?)?.toDouble() ?? 0.0,
-                            volume: (item['volume'] as num?)?.toDouble() ?? 0.0,
-                          ),
-                        );
-                      }
+              if (!imageUrls.contains(img)) {
+                imageUrls.add(img);
+              }
+            }
+          } else if (kind == 'note' ||
+              kind == 'journal' ||
+              kind == 'strategy' ||
+              kind == 'manual' ||
+              kind == 'document') {
+            final linkKind = AppLinkKind.fromHost(kind) ?? AppLinkKind.note;
+            attachment = AppWritingPostAttachment.manual(
+              source: AppLinkRef(
+                kind: linkKind,
+                id: refId,
+                title: title,
+                subtitle: url,
+              ),
+              excerpt: title,
+            );
+          } else if (kind == 'chart_candles' && url != null) {
+            try {
+              final decoded = jsonDecode(url);
+              if (decoded is List) {
+                final candles = <UiCandle>[];
+                for (final item in decoded) {
+                  if (item is Map) {
+                    final time = DateTime.tryParse('${item['time']}');
+                    if (time != null) {
+                      candles.add(
+                        UiCandle(
+                          time: time,
+                          open: (item['open'] as num?)?.toDouble() ?? 0.0,
+                          high: (item['high'] as num?)?.toDouble() ?? 0.0,
+                          low: (item['low'] as num?)?.toDouble() ?? 0.0,
+                          close: (item['close'] as num?)?.toDouble() ?? 0.0,
+                          volume: (item['volume'] as num?)?.toDouble() ?? 0.0,
+                        ),
+                      );
                     }
                   }
-                  if (candles.isNotEmpty && setup != null) {
-                    setup = setup.copyWith(candles: candles);
-                  }
                 }
-              } catch (_) {}
-            }
+                if (candles.isNotEmpty && setup != null) {
+                  setup = setup.copyWith(candles: candles);
+                }
+              }
+            } catch (_) {}
           }
         }
+      }
 
-        CommunityPoll? poll;
-        final rawPoll = row['community_polls'];
-        if (rawPoll != null) {
-          final pMap = (rawPoll is List && rawPoll.isNotEmpty)
-              ? rawPoll.first as Map<String, dynamic>
-              : (rawPoll is Map<String, dynamic> ? rawPoll : null);
-          if (pMap != null) {
-            final pollId = pMap['id']?.toString() ?? '';
-            final rawOptions =
-                pMap['community_poll_options'] as List? ?? const [];
-            final options = <CommunityPollOption>[];
-            int? userVotedIndex;
-            final userVotedOptionId = userPollVotes[pollId];
-            for (int i = 0; i < rawOptions.length; i++) {
-              final opt = rawOptions[i] as Map<String, dynamic>;
-              final optId = opt['id']?.toString() ?? '';
-              final text = opt['option_text']?.toString() ?? '';
-              final votes = (opt['votes_count'] as num?)?.toInt() ?? 0;
-              if (userVotedOptionId == optId) {
-                userVotedIndex = i;
-              }
-              options.add(
-                CommunityPollOption(id: optId, text: text, votes: votes),
-              );
+      CommunityPoll? poll;
+      final rawPoll = row['community_polls'];
+      if (rawPoll != null) {
+        final pMap = (rawPoll is List && rawPoll.isNotEmpty)
+            ? rawPoll.first as Map<String, dynamic>
+            : (rawPoll is Map<String, dynamic> ? rawPoll : null);
+        if (pMap != null) {
+          final pollId = pMap['id']?.toString() ?? '';
+          final rawOptions =
+              pMap['community_poll_options'] as List? ?? const [];
+          final options = <CommunityPollOption>[];
+          int? userVotedIndex;
+          final userVotedOptionId = userPollVotes[pollId];
+          for (int i = 0; i < rawOptions.length; i++) {
+            final opt = rawOptions[i] as Map<String, dynamic>;
+            final optId = opt['id']?.toString() ?? '';
+            final text = opt['option_text']?.toString() ?? '';
+            final votes = (opt['votes_count'] as num?)?.toInt() ?? 0;
+            if (userVotedOptionId == optId) {
+              userVotedIndex = i;
             }
-            poll = CommunityPoll(
-              id: pollId,
-              question: pMap['question'] as String? ?? '',
-              options: options,
-              expiresAt: DateTime.tryParse(
-                pMap['expires_at']?.toString() ?? '',
-              ),
-              votedOptionIndex: userVotedIndex,
-              votedOptionIndices: userVotedIndex != null
-                  ? [userVotedIndex]
-                  : const [],
+            options.add(
+              CommunityPollOption(id: optId, text: text, votes: votes),
             );
           }
+          poll = CommunityPoll(
+            id: pollId,
+            question: pMap['question'] as String? ?? '',
+            options: options,
+            expiresAt: DateTime.tryParse(
+              pMap['expires_at']?.toString() ?? '',
+            ),
+            votedOptionIndex: userVotedIndex,
+            votedOptionIndices: userVotedIndex != null
+                ? [userVotedIndex]
+                : const [],
+          );
         }
+      }
 
-        final post = CommunityPost(
+      posts.add(
+        CommunityPost(
           id: postId,
           author: author,
           body: row['body'] as String? ?? '',
@@ -573,96 +537,83 @@ class CommunityRepository extends ChangeNotifier {
           reposted: repostedPostIds.contains(postId),
           bookmarked: bookmarkedPostIds.contains(postId),
           moderationStatus: row['moderation_status']?.toString() ?? 'approved',
-        );
+        ),
+      );
+    }
 
-        allPosts.add(post);
-      }
-
-      if (_disposed) return;
-      await _fetchNetworkActivity(allPosts);
-      if (_disposed) return;
-      _forYouPosts = allPosts;
-      _followingPosts = allPosts
-          .where((p) => _followedAuthorIds.contains(p.author.id) || (followedReactionsForPost(p.id).isNotEmpty || followedRepostsForPost(p.id).isNotEmpty))
-          .toList();
-      _signalPosts = allPosts.where((p) => p.tradeSetup != null).toList();
-      _rebuildBookmarks();
-
+    final Map<String, List<CommunityComment>> pageComments = {};
+    if (pagePostIds.isNotEmpty) {
       try {
-        final Map<String, String> userCommentLikes = {};
-        if (targetUserId.isNotEmpty) {
-          // 1. Load local persistent reactions first
-          final localLikes = await _loadLocalCommentReactions(targetUserId);
-          userCommentLikes.addAll(localLikes);
+        final commentsRes = await client
+            .from('community_comments')
+            .select(
+              'id, post_id, author_id, parent_id, body, created_at, likes_count, '
+              'profiles!community_comments_author_id_fkey(id, handle, display_name, avatar_url, bio, role, verified)',
+            )
+            .inFilter('post_id', pagePostIds)
+            .order('created_at', ascending: true)
+            .limit(300);
 
-          // 2. Query community_comment_likes table from Supabase
+        final commentRows =
+            (commentsRes as List).whereType<Map<String, dynamic>>().toList();
+        final commentIds = commentRows
+            .map((r) => r['id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList();
+
+        final Map<String, String> userCommentLikes = {};
+        final Map<String, Set<String>> commentReactions = {};
+        if (targetUserId.isNotEmpty) {
+          userCommentLikes.addAll(
+            await _loadLocalCommentReactions(targetUserId),
+          );
+        }
+
+        if (commentIds.isNotEmpty) {
           try {
-            final cLikes = await client
+            final allReactions = await client
                 .from('community_comment_likes')
-                .select('comment_id, reaction')
-                .eq('user_id', targetUserId);
-            userCommentLikes.clear();
-            for (final cl in cLikes as List) {
-              final cid = cl['comment_id']?.toString();
-              if (cid != null) {
-                userCommentLikes[cid] = cl['reaction']?.toString() ?? '👍';
+                .select('comment_id, user_id, reaction')
+                .inFilter('comment_id', commentIds);
+            if (targetUserId.isNotEmpty) {
+              userCommentLikes.clear();
+            }
+            for (final r in allReactions as List) {
+              final cid = r['comment_id']?.toString();
+              final uid = r['user_id']?.toString();
+              final rx = r['reaction']?.toString().trim() ?? '👍';
+              if (cid == null || cid.isEmpty) continue;
+              if (rx.isNotEmpty) {
+                (commentReactions[cid] ??= <String>{}).add(rx);
+              }
+              if (targetUserId.isNotEmpty && uid == targetUserId) {
+                userCommentLikes[cid] = rx.isNotEmpty ? rx : '👍';
               }
             }
           } catch (_) {
-            // Fallback: check unified_comment_likes
             try {
-              final cLikes = await client
+              final allReactions = await client
                   .from('unified_comment_likes')
-                  .select('comment_id, reaction')
-                  .eq('user_id', targetUserId);
-              for (final cl in cLikes as List) {
-                final cid = cl['comment_id']?.toString();
-                if (cid != null) {
-                  userCommentLikes[cid] = cl['reaction']?.toString() ?? '👍';
+                  .select('comment_id, user_id, reaction')
+                  .inFilter('comment_id', commentIds);
+              for (final r in allReactions as List) {
+                final cid = r['comment_id']?.toString();
+                final uid = r['user_id']?.toString();
+                final rx = r['reaction']?.toString().trim() ?? '👍';
+                if (cid == null || cid.isEmpty) continue;
+                if (rx.isNotEmpty) {
+                  (commentReactions[cid] ??= <String>{}).add(rx);
+                }
+                if (targetUserId.isNotEmpty && uid == targetUserId) {
+                  userCommentLikes[cid] = rx.isNotEmpty ? rx : '👍';
                 }
               }
             } catch (_) {}
           }
         }
 
-        // 3. Query all comment reactions to display emoji reactions badge
-        final Map<String, Set<String>> commentReactions = {};
-        try {
-          final allReactions = await client
-              .from('community_comment_likes')
-              .select('comment_id, reaction');
-          for (final r in allReactions as List) {
-            final cid = r['comment_id']?.toString();
-            final rx = r['reaction']?.toString();
-            if (cid != null && rx != null && rx.trim().isNotEmpty) {
-              (commentReactions[cid] ??= <String>{}).add(rx.trim());
-            }
-          }
-        } catch (_) {
-          try {
-            final allReactions = await client
-                .from('unified_comment_likes')
-                .select('comment_id, reaction');
-            for (final r in allReactions as List) {
-              final cid = r['comment_id']?.toString();
-              final rx = r['reaction']?.toString();
-              if (cid != null && rx != null && rx.trim().isNotEmpty) {
-                (commentReactions[cid] ??= <String>{}).add(rx.trim());
-              }
-            }
-          } catch (_) {}
-        }
-
-        final commentsRes = await client
-            .from('community_comments')
-            .select(
-              '*, profiles!community_comments_author_id_fkey(id, handle, display_name, avatar_url, bio, role, verified)',
-            )
-            .order('created_at', ascending: true);
-
-        final Map<String, List<CommunityComment>> newComments = {};
-        for (final item in commentsRes as List) {
-          final row = item as Map<String, dynamic>;
+        final Map<String, List<CommunityComment>> grouped = {};
+        for (final row in commentRows) {
           final postId = row['post_id']?.toString();
           if (postId == null) continue;
           final commentAuthorId = row['author_id']?.toString() ?? '';
@@ -670,7 +621,7 @@ class CommunityRepository extends ChangeNotifier {
 
           final profile = row['profiles'] as Map<String, dynamic>?;
           final commentAuthor = CommunityAuthor(
-            id: row['author_id']?.toString() ?? '',
+            id: commentAuthorId,
             handle:
                 (profile?['handle'] ?? profile?['username']) as String? ??
                 'trader',
@@ -694,27 +645,183 @@ class CommunityRepository extends ChangeNotifier {
           final serverLikes = (row['likes_count'] as num?)?.toInt() ?? 0;
           final effectiveLikes = isLiked && serverLikes == 0 ? 1 : serverLikes;
 
-          final comment = CommunityComment(
-            id: commentId,
-            postId: postId,
-            author: commentAuthor,
-            body: row['body'] as String? ?? '',
-            createdAt:
-                DateTime.tryParse(row['created_at']?.toString() ?? '') ??
-                DateTime.now(),
-            likes: effectiveLikes,
-            liked: isLiked,
-            userReaction: userRx,
-            reactions: rxSet.toList(),
-            parentCommentId: row['parent_id']?.toString(),
+          (grouped[postId] ??= <CommunityComment>[]).add(
+            CommunityComment(
+              id: commentId,
+              postId: postId,
+              author: commentAuthor,
+              body: row['body'] as String? ?? '',
+              createdAt:
+                  DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+                  DateTime.now(),
+              likes: effectiveLikes,
+              liked: isLiked,
+              userReaction: userRx,
+              reactions: rxSet.toList(),
+              parentCommentId: row['parent_id']?.toString(),
+            ),
           );
-
-          (newComments[postId] ??= <CommunityComment>[]).add(comment);
         }
-        _commentsByPost = newComments.map((id, comments) => MapEntry(id, buildCommunityCommentTree(comments)));
+        grouped.forEach((id, comments) {
+          pageComments[id] = buildCommunityCommentTree(comments);
+        });
       } catch (e) {
-        debugPrint('[CommunityRepository] Error fetching comments: $e');
+        debugPrint('[CommunityRepository] Error fetching scoped comments: $e');
       }
+    }
+
+    return (
+      posts: posts,
+      comments: pageComments,
+      rawRowCount: rawRows.length,
+    );
+  }
+
+  Future<void> fetchFromSupabase() async {
+    refreshError = null;
+    if (!SupabaseConfig.isConfigured) {
+      if (!CustomerDataPolicy.allowDemo) {
+        refreshError = 'Sign in to refresh community posts.';
+      }
+      return;
+    }
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+
+      _followedAuthorIds.clear();
+      _followerAuthorIds.clear();
+
+      final Map<String, int> followersCountByAuthor = <String, int>{};
+      final Map<String, int> followingCountByAuthor = <String, int>{};
+
+      if (_isUuid(targetUserId)) {
+        try {
+          final allFollowsRes = await client
+              .from('community_follows')
+              .select('follower_id, following_id')
+              .or('follower_id.eq.$targetUserId,following_id.eq.$targetUserId');
+          for (final item in allFollowsRes as List) {
+            final follower = item['follower_id']?.toString() ?? '';
+            final following = item['following_id']?.toString() ?? '';
+            if (follower == targetUserId && following.isNotEmpty) {
+              _followedAuthorIds.add(following);
+            }
+            if (following == targetUserId && follower.isNotEmpty) {
+              _followerAuthorIds.add(follower);
+            }
+            if (following.isNotEmpty) {
+              followersCountByAuthor[following] =
+                  (followersCountByAuthor[following] ?? 0) + 1;
+            }
+            if (follower.isNotEmpty) {
+              followingCountByAuthor[follower] =
+                  (followingCountByAuthor[follower] ?? 0) + 1;
+            }
+          }
+        } catch (e) {
+          debugPrint('[CommunityRepository] Error fetching scoped community_follows: $e');
+          try {
+            final altFollowsRes = await client
+                .from('follows')
+                .select('follower_id, followee_id')
+                .or('follower_id.eq.$targetUserId,followee_id.eq.$targetUserId');
+            for (final item in altFollowsRes as List) {
+              final follower = item['follower_id']?.toString() ?? '';
+              final followee = item['followee_id']?.toString() ?? '';
+              if (follower == targetUserId && followee.isNotEmpty) {
+                _followedAuthorIds.add(followee);
+              }
+              if (followee == targetUserId && follower.isNotEmpty) {
+                _followerAuthorIds.add(follower);
+              }
+              if (followee.isNotEmpty) {
+                followersCountByAuthor[followee] =
+                    (followersCountByAuthor[followee] ?? 0) + 1;
+              }
+              if (follower.isNotEmpty) {
+                followingCountByAuthor[follower] =
+                    (followingCountByAuthor[follower] ?? 0) + 1;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      final currentRefreshEpoch = _blockRefreshEpoch;
+      final tempOutgoing = <String>{};
+      final tempIncoming = <String>{};
+      var blockFetchFailed = false;
+
+      if (targetUserId.isNotEmpty) {
+        try {
+          final blockedRes = await client
+              .from('blocks')
+              .select('blocked_id')
+              .eq('blocker_id', targetUserId);
+          for (final item in blockedRes as List) {
+            final id = item['blocked_id']?.toString();
+            if (id != null && id.isNotEmpty && id != targetUserId) {
+              tempOutgoing.add(id);
+            }
+          }
+        } catch (e) {
+          blockFetchFailed = true;
+          debugPrint('[CommunityRepository] Error fetching blocked users: $e');
+        }
+
+        try {
+          final blockerRes = await client
+              .from('blocks')
+              .select('blocker_id')
+              .eq('blocked_id', targetUserId);
+          for (final item in blockerRes as List) {
+            final id = item['blocker_id']?.toString();
+            if (id != null && id.isNotEmpty && id != targetUserId) {
+              tempIncoming.add(id);
+            }
+          }
+        } catch (e) {
+          blockFetchFailed = true;
+          debugPrint('[CommunityRepository] Error fetching blockers: $e');
+        }
+      }
+
+      // Preserve previous block state if either query fails or if a newer mutation occurred
+      if (!blockFetchFailed && currentRefreshEpoch == _blockRefreshEpoch) {
+        _outgoingBlockedUserIds = tempOutgoing;
+        _incomingBlockedUserIds = tempIncoming;
+        _blockedUsers = {..._outgoingBlockedUserIds, ..._incomingBlockedUserIds};
+      }
+
+      final page = await _fetchPostsPage(
+        client: client,
+        targetUserId: targetUserId,
+        offset: 0,
+        limit: _postsPageSize,
+      );
+      if (_disposed) return;
+
+      _loadedPostRows = page.rawRowCount;
+      _hasMorePosts = page.rawRowCount >= _postsPageSize;
+
+      await _fetchNetworkActivity(page.posts);
+      if (_disposed) return;
+
+      _forYouPosts = page.posts;
+      _followingPosts = page.posts
+          .where(
+            (p) =>
+                _followedAuthorIds.contains(p.author.id) ||
+                followedReactionsForPost(p.id).isNotEmpty ||
+                followedRepostsForPost(p.id).isNotEmpty,
+          )
+          .toList();
+      _signalPosts = page.posts.where((p) => p.tradeSetup != null).toList();
+      _commentsByPost = page.comments;
+      _rebuildBookmarks();
 
       await fetchLiveRooms();
 
@@ -724,7 +831,7 @@ class CommunityRepository extends ChangeNotifier {
             .select(
               'id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, posts_count, subscription_tier',
             )
-            .limit(100);
+            .limit(40);
         final List<CommunityAuthor> authors = [];
         CommunityAuthor fromProfile(Map<String, dynamic> pmap) {
           final pId = pmap['id']?.toString() ?? '';
@@ -915,11 +1022,82 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
+  Future<void> loadMorePosts() async {
+    if (!SupabaseConfig.isConfigured ||
+        _disposed ||
+        _isLoading ||
+        _isLoadingMore ||
+        !_hasMorePosts) {
+      return;
+    }
+    _isLoadingMore = true;
+    notifyListeners();
+    try {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+      final page = await _fetchPostsPage(
+        client: client,
+        targetUserId: targetUserId,
+        offset: _loadedPostRows,
+        limit: _postsPageSize,
+      );
+      if (_disposed) return;
+
+      _loadedPostRows += page.rawRowCount;
+      _hasMorePosts = page.rawRowCount >= _postsPageSize;
+
+      if (page.posts.isNotEmpty) {
+        final existingIds = _forYouPosts.map((p) => p.id).toSet();
+        final nextPosts =
+            page.posts.where((p) => !existingIds.contains(p.id)).toList();
+        if (nextPosts.isNotEmpty) {
+          _forYouPosts = [..._forYouPosts, ...nextPosts];
+          await _fetchNetworkActivity(_forYouPosts);
+          if (_disposed) return;
+          _followingPosts = _forYouPosts
+              .where(
+                (p) =>
+                    _followedAuthorIds.contains(p.author.id) ||
+                    followedReactionsForPost(p.id).isNotEmpty ||
+                    followedRepostsForPost(p.id).isNotEmpty,
+              )
+              .toList();
+          _signalPosts =
+              _forYouPosts.where((p) => p.tradeSetup != null).toList();
+          _rebuildBookmarks();
+        }
+      }
+      if (page.comments.isNotEmpty) {
+        _commentsByPost = {..._commentsByPost, ...page.comments};
+      }
+    } catch (e) {
+      debugPrint('[CommunityRepository] Error loading more posts: $e');
+    } finally {
+      _isLoadingMore = false;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
     _disposed = true;
-    _realtimeChannel?.unsubscribe();
-    _notificationsChannel?.unsubscribe();
+    _realtimeDebounceTimer?.cancel();
+    AppVisibility.instance.removeListener(_onVisibilityChanged);
+    final realtime = _realtimeChannel;
+    final notifications = _notificationsChannel;
+    _realtimeChannel = null;
+    _notificationsChannel = null;
+    if (SupabaseConfig.isConfigured) {
+      final client = SupabaseConfig.client;
+      if (client != null) {
+        if (realtime != null) {
+          unawaited(client.removeChannel(realtime).catchError((_) => ''));
+        }
+        if (notifications != null) {
+          unawaited(client.removeChannel(notifications).catchError((_) => ''));
+        }
+      }
+    }
     super.dispose();
   }
 

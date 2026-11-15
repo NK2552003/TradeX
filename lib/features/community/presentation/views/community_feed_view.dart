@@ -1,4 +1,5 @@
 import 'package:tradex/core/navigation/feature_location_scope.dart';
+import 'dart:async' show unawaited;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -61,7 +62,16 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     super.initState();
     _subTabController = TabController(length: _subTabs.length, vsync: this);
     _subTabController.addListener(_routeSubTab);
+    _forYouScrollController.addListener(_onFeedScroll);
     widget.repository.addListener(_onDataChanged);
+  }
+
+  void _onFeedScroll() {
+    if (!_forYouScrollController.hasClients) return;
+    final pos = _forYouScrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 320) {
+      unawaited(widget.repository.loadMorePosts());
+    }
   }
 
   static const _routeTabs = [
@@ -97,6 +107,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
 
   @override
   void dispose() {
+    _forYouScrollController.removeListener(_onFeedScroll);
     _forYouScrollController.dispose();
     _subTabController.removeListener(_routeSubTab);
     _subTabController.dispose();
