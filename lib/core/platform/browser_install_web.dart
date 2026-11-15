@@ -45,4 +45,8 @@ class BrowserInstall extends ChangeNotifier {
   void dismiss() {
     if (_bridge != null) _dismiss();
   }
+
+  void refresh() {
+    if (_bridge != null) _refresh();
+  }
 }

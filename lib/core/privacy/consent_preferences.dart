@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tradex/core/config/cross_subdomain_storage.dart';
 
 import 'consent_browser_sync.dart';
 
@@ -60,13 +61,25 @@ class ConsentController extends ChangeNotifier {
   ConsentController({
     Future<SharedPreferences> Function()? storage,
     bool syncBrowser = false,
-  }) : _storage = storage ?? SharedPreferences.getInstance {
+    String? Function(String key)? readShared,
+    void Function(String key, String value, {int maxAgeDays})? writeShared,
+    void Function(String key)? removeShared,
+  }) : _storage = storage ?? SharedPreferences.getInstance,
+       _syncBrowser = syncBrowser,
+       _readShared = readShared ?? CrossSubdomainState.getFlag,
+       _writeShared = writeShared ?? CrossSubdomainState.setFlag,
+       _removeShared = removeShared ?? CrossSubdomainState.removeFlag {
     if (syncBrowser) watchConsentStorage(refresh);
   }
 
   static final instance = ConsentController(syncBrowser: true);
   static const storageKey = 'alphajournal_consent_v1';
+  static const dismissedNoticeKey = 'ax_cookie_notice_dismissed_v1';
   final Future<SharedPreferences> Function() _storage;
+  final bool _syncBrowser;
+  final String? Function(String key) _readShared;
+  final void Function(String key, String value, {int maxAgeDays}) _writeShared;
+  final void Function(String key) _removeShared;
   ConsentPreferences _value = const ConsentPreferences();
   Future<void>? _initializing;
   int _revision = 0;
@@ -86,9 +99,24 @@ class ConsentController extends ChangeNotifier {
       _refreshAfterSave = true;
       return;
     }
-    _value = const ConsentPreferences();
-    notifyListeners();
     await _load();
+  }
+
+  ConsentPreferences _pickLatest(
+    ConsentPreferences localChoice,
+    ConsentPreferences sharedChoice,
+    DateTime now,
+  ) {
+    final localValid = localChoice.isCurrent(now);
+    final sharedValid = sharedChoice.isCurrent(now);
+    if (localValid && sharedValid) {
+      return sharedChoice.savedAt!.isAfter(localChoice.savedAt!)
+          ? sharedChoice
+          : localChoice;
+    }
+    if (sharedValid) return sharedChoice;
+    if (localValid) return localChoice;
+    return const ConsentPreferences();
   }
 
   Future<void> _load() async {
@@ -97,10 +125,35 @@ class ConsentController extends ChangeNotifier {
       final prefs = await _storage();
       await prefs.reload();
       if (revision != _revision) return;
-      _value = ConsentPreferences.parse(
-        prefs.getString(storageKey),
-        DateTime.now(),
-      );
+      final now = DateTime.now();
+      final localRaw = prefs.getString(storageKey);
+      final localChoice = ConsentPreferences.parse(localRaw, now);
+      final sharedRaw = _syncBrowser ? _readShared(storageKey) : null;
+      final sharedChoice = _syncBrowser
+          ? ConsentPreferences.parse(sharedRaw, now)
+          : const ConsentPreferences();
+      final resolved = _pickLatest(localChoice, sharedChoice, now);
+      if (_syncBrowser) {
+        if (resolved.isCurrent(now)) {
+          final encoded = jsonEncode(resolved.toJson());
+          if (localRaw != encoded) {
+            try {
+              await prefs.setString(storageKey, encoded);
+            } catch (_) {}
+          }
+          if (sharedRaw != encoded) {
+            _writeShared(
+              storageKey,
+              encoded,
+              maxAgeDays: ConsentPreferences.lifetime.inDays,
+            );
+          }
+          _removeShared(dismissedNoticeKey);
+        } else if (sharedRaw != null) {
+          _removeShared(storageKey);
+        }
+      }
+      _value = resolved;
       if (!_value.affiliate) await _clearAttribution(prefs);
       error = null;
     } catch (_) {
@@ -132,8 +185,17 @@ class ConsentController extends ChangeNotifier {
         affiliate: choice.affiliate,
         savedAt: DateTime.now().toUtc(),
       );
-      if (!await prefs.setString(storageKey, jsonEncode(saved.toJson()))) {
+      final encoded = jsonEncode(saved.toJson());
+      if (!await prefs.setString(storageKey, encoded)) {
         throw StateError('Preferences were not persisted');
+      }
+      if (_syncBrowser) {
+        _writeShared(
+          storageKey,
+          encoded,
+          maxAgeDays: ConsentPreferences.lifetime.inDays,
+        );
+        _removeShared(dismissedNoticeKey);
       }
       _value = saved;
     } catch (_) {
@@ -153,6 +215,9 @@ class ConsentController extends ChangeNotifier {
 
   Future<void> _clearAttribution(SharedPreferences prefs) async {
     for (final key in ['affiliate_attribution_v1', 'affiliate_visitor_v1']) {
+      if (_syncBrowser) {
+        _removeShared(key);
+      }
       if (prefs.containsKey(key) && !await prefs.remove(key)) {
         throw StateError('Optional attribution could not be removed');
       }

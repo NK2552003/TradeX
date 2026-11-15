@@ -145,7 +145,11 @@ class AuthSessionStorage {
         return true;
       }
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(_keyHasSeenOnboarding) ?? false;
+      final seen = prefs.getBool(_keyHasSeenOnboarding) ?? false;
+      if (seen) {
+        CrossSubdomainState.setFlag('ax_onboard', '1');
+      }
+      return seen;
     } catch (_) {
       return false;
     }

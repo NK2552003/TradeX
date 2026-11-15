@@ -8,4 +8,5 @@ class BrowserInstall extends ChangeNotifier {
   bool get supported => false;
   Future<String> prompt() async => 'unavailable';
   void dismiss() {}
+  void refresh() {}
 }

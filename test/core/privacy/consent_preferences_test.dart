@@ -143,4 +143,85 @@ void main() {
       expect(controller.needsChoice, false);
     },
   );
+
+  test(
+    'cross-subdomain cookie unifies consent across origins and newest choice wins',
+    () async {
+      final sharedCookies = <String, String>{
+        ConsentController.dismissedNoticeKey: '1',
+      };
+      // Subdomain A (e.g. alphajournal.in) accepts optional cookies.
+      final subdomainA = ConsentController(
+        syncBrowser: true,
+        readShared: (k) => sharedCookies[k],
+        writeShared: (k, v, {maxAgeDays = 30}) => sharedCookies[k] = v,
+        removeShared: (k) => sharedCookies.remove(k),
+      );
+      await subdomainA.initialize();
+      expect(
+        await subdomainA.save(
+          const ConsentPreferences(
+            analytics: true,
+            advertising: true,
+            personalizedAds: true,
+            affiliate: true,
+          ),
+        ),
+        true,
+      );
+      expect(sharedCookies.containsKey(ConsentController.dismissedNoticeKey), false);
+
+      // Simulate navigating to Subdomain B (e.g. app.alphajournal.in) whose
+      // origin localStorage is empty.
+      SharedPreferences.setMockInitialValues({});
+      final subdomainB = ConsentController(
+        syncBrowser: true,
+        readShared: (k) => sharedCookies[k],
+        writeShared: (k, v, {maxAgeDays = 30}) => sharedCookies[k] = v,
+        removeShared: (k) => sharedCookies.remove(k),
+      );
+      await subdomainB.initialize();
+      expect(subdomainB.needsChoice, false);
+      expect(subdomainB.value.analytics, true);
+      expect(subdomainB.value.advertising, true);
+      expect(subdomainB.value.affiliate, true);
+
+      // Subdomain B withdraws optional consent 1 second later; Subdomain A's
+      // stale localStorage must be superseded by the newer shared cookie.
+      final oldLocalTime = DateTime.now().toUtc().subtract(
+        const Duration(minutes: 5),
+      );
+      SharedPreferences.setMockInitialValues({
+        ConsentController.storageKey: jsonEncode(
+          ConsentPreferences(
+            analytics: true,
+            advertising: true,
+            affiliate: true,
+            savedAt: oldLocalTime,
+          ).toJson(),
+        ),
+        'affiliate_attribution_v1': 'ref',
+        'affiliate_visitor_v1': 'vis',
+      });
+      sharedCookies['affiliate_attribution_v1'] = 'ref';
+      sharedCookies['affiliate_visitor_v1'] = 'vis';
+      sharedCookies[ConsentController.storageKey] = jsonEncode(
+        ConsentPreferences(savedAt: DateTime.now().toUtc()).toJson(),
+      );
+
+      final subdomainAReloaded = ConsentController(
+        syncBrowser: true,
+        readShared: (k) => sharedCookies[k],
+        writeShared: (k, v, {maxAgeDays = 30}) => sharedCookies[k] = v,
+        removeShared: (k) => sharedCookies.remove(k),
+      );
+      await subdomainAReloaded.initialize();
+      expect(subdomainAReloaded.needsChoice, false);
+      expect(subdomainAReloaded.value.analytics, false);
+      expect(subdomainAReloaded.value.advertising, false);
+      expect(subdomainAReloaded.value.affiliate, false);
+      expect(sharedCookies.containsKey('affiliate_attribution_v1'), false);
+      expect(sharedCookies.containsKey('affiliate_visitor_v1'), false);
+    },
+  );
 }

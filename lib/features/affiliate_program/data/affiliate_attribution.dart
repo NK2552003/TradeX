@@ -42,12 +42,14 @@ class AffiliateAttribution {
     final prefs = await SharedPreferences.getInstance();
     final visitor =
         prefs.getString('affiliate_visitor_v1') ??
+        CrossSubdomainState.getFlag('affiliate_visitor_v1') ??
         List.generate(
           24,
           (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0'),
         ).join();
     if (!ConsentController.instance.value.affiliate) return;
     await prefs.setString('affiliate_visitor_v1', visitor);
+    CrossSubdomainState.setFlag('affiliate_visitor_v1', visitor, maxAgeDays: 30);
     final encodedAttribution = jsonEncode({
       'code': code,
       'campaign': campaign,
@@ -81,5 +83,6 @@ class AffiliateAttribution {
     await prefs.remove(_key);
     await prefs.remove('affiliate_visitor_v1');
     CrossSubdomainState.removeFlag(_key);
+    CrossSubdomainState.removeFlag('affiliate_visitor_v1');
   }
 }

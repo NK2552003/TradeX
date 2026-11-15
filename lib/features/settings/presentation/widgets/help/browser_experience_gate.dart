@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/cross_subdomain_storage.dart';
 // Both unified libraries are required by the project UI contract.
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
@@ -44,13 +45,24 @@ class _BrowserExperienceGateState extends State<BrowserExperienceGate> {
   Future<void> _start() async {
     await ConsentController.instance.initialize();
     if (!mounted) return;
+    final noticeAlreadyDismissed =
+        CrossSubdomainState.getFlag(ConsentController.dismissedNoticeKey) ==
+        '1';
     if (ConsentController.instance.needsChoice &&
+        !noticeAlreadyDismissed &&
         !_noticePresented &&
         !_dialogOpen) {
       _noticePresented = true;
       _dialogOpen = true;
       try {
         await CookiePreferencesDialog.show(context, manage: false);
+        if (ConsentController.instance.needsChoice) {
+          CrossSubdomainState.setFlag(
+            ConsentController.dismissedNoticeKey,
+            '1',
+            maxAgeDays: 7,
+          );
+        }
       } finally {
         _dialogOpen = false;
       }
@@ -65,6 +77,7 @@ class _BrowserExperienceGateState extends State<BrowserExperienceGate> {
       );
     }
     _ready = true;
+    BrowserInstall.instance.refresh();
     _suggestInstall();
   }
 
@@ -80,15 +93,23 @@ class _BrowserExperienceGateState extends State<BrowserExperienceGate> {
     }
     _dialogOpen = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      var shown = false;
       try {
-        if (mounted) {
+        BrowserInstall.instance.refresh();
+        if (mounted &&
+            widget.suggestInstall &&
+            !ConsentController.instance.needsChoice &&
+            BrowserInstall.instance.canSuggest) {
+          shown = true;
           await UiDialog.show<void>(
             context,
             child: const InstallAppCard(prompt: true),
           );
         }
       } finally {
-        BrowserInstall.instance.dismiss();
+        if (shown) {
+          BrowserInstall.instance.dismiss();
+        }
         _dialogOpen = false;
       }
     });

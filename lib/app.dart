@@ -293,19 +293,44 @@ class _TradeXAppState extends State<TradeXApp> {
     );
   }
 
-  final AppThemeController _themeController = AppThemeController(
-    ThemeMode.dark,
-    'Comfortable',
-  );
+  late final AppThemeController _themeController = _createThemeController();
+
+  static AppThemeController _createThemeController() {
+    final savedMode = CrossSubdomainState.getFlag('ax_theme_mode');
+    final mode = switch (savedMode) {
+      'light' => ThemeMode.light,
+      'system' => ThemeMode.system,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.dark,
+    };
+    final savedDensity = CrossSubdomainState.getFlag('ax_theme_density');
+    final density = savedDensity == 'Compact' ? 'Compact' : 'Comfortable';
+    return AppThemeController(mode, density);
+  }
+
+  void _syncThemeToSubdomains() {
+    CrossSubdomainState.setFlag(
+      'ax_theme_mode',
+      _themeController.value.name,
+      maxAgeDays: 180,
+    );
+    CrossSubdomainState.setFlag(
+      'ax_theme_density',
+      _themeController.density,
+      maxAgeDays: 180,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     usePathUrlStrategy();
+    _themeController.addListener(_syncThemeToSubdomains);
   }
 
   @override
   void dispose() {
+    _themeController.removeListener(_syncThemeToSubdomains);
     _router.dispose();
     _themeController.dispose();
     super.dispose();

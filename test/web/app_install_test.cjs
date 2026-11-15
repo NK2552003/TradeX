@@ -43,3 +43,79 @@ test('standalone suppresses prompts and failures allow later browser events', as
   offer(b, 'dismissed');
   assert.equal(await b.api.prompt(), 'dismissed');
 });
+
+function createCookieJar() {
+  const cookies = new Map();
+  return {
+    createBrowser({hostname = 'alphajournal.in', installed = false} = {}) {
+      const handlers = {};
+      const storage = new Map();
+      let now = 2000000000000;
+      const doc = {
+        visibilityState: 'visible',
+        addEventListener: () => {},
+        get cookie() {
+          return Array.from(cookies.entries())
+            .map(([k, v]) => `${k}=${encodeURIComponent(v.value)}`)
+            .join('; ');
+        },
+        set cookie(assignment) {
+          const parts = String(assignment).split(';').map(s => s.trim());
+          const eq = parts[0].indexOf('=');
+          const name = parts[0].slice(0, eq);
+          const rawVal = parts[0].slice(eq + 1);
+          const val = decodeURIComponent(rawVal);
+          const domainAttr = parts.find(p => p.toLowerCase().startsWith('domain='));
+          cookies.set(name, {value: val, domain: domainAttr || ''});
+        },
+      };
+      const window = {
+        matchMedia: () => ({matches: installed, addEventListener: (name, fn) => handlers.display = fn}),
+        addEventListener: (name, fn) => handlers[name] = fn,
+      };
+      vm.runInNewContext(source, {
+        window,
+        document: doc,
+        location: {hostname, protocol: 'https:'},
+        navigator: {},
+        Set,
+        Number,
+        Math,
+        JSON,
+        Date: {now: () => now},
+        localStorage: {
+          getItem: k => storage.get(k) ?? null,
+          setItem: (k, v) => storage.set(k, v),
+        },
+      });
+      return {
+        api: window.alphajournalInstall,
+        handlers,
+        cookies,
+        state: () => JSON.parse(window.alphajournalInstall.snapshot()),
+      };
+    },
+  };
+}
+
+test('dismissing or installing on one subdomain unifies across all subdomains via .alphajournal.in cookies', () => {
+  const jar = createCookieJar();
+  const root = jar.createBrowser({hostname: 'alphajournal.in'});
+  offer(root);
+  assert.equal(root.state().canSuggest, true);
+  root.api.dismiss();
+  assert.equal(root.cookies.get('alphajournal_install_dismissed_v1').domain, 'Domain=.alphajournal.in');
+
+  const app = jar.createBrowser({hostname: 'app.alphajournal.in'});
+  offer(app);
+  assert.equal(app.state().canSuggest, false);
+
+  app.handlers.appinstalled();
+  assert.equal(app.cookies.get('alphajournal_install_installed_v1').value, '1');
+  assert.equal(app.cookies.get('alphajournal_install_installed_v1').domain, 'Domain=.alphajournal.in');
+
+  const community = jar.createBrowser({hostname: 'community.alphajournal.in'});
+  offer(community);
+  assert.equal(community.state().installed, true);
+  assert.equal(community.state().canSuggest, false);
+});

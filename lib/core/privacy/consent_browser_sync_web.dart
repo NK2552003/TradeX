@@ -3,6 +3,12 @@ import 'dart:js_interop';
 @JS('globalThis.addEventListener')
 external void _listen(JSString name, JSFunction callback);
 
+@JS('globalThis.document.addEventListener')
+external void _listenDoc(JSString name, JSFunction callback);
+
+@JS('globalThis.document.visibilityState')
+external JSString get _visibilityState;
+
 extension type _StorageChange(JSObject _) implements JSObject {
   external JSString? get key;
 }
@@ -17,4 +23,10 @@ void watchConsentStorage(void Function() refresh) {
     }).toJS,
   );
   _listen('focus'.toJS, ((JSObject _) => refresh()).toJS);
+  _listenDoc(
+    'visibilitychange'.toJS,
+    ((JSObject _) {
+      if (_visibilityState.toDart == 'visible') refresh();
+    }).toJS,
+  );
 }
