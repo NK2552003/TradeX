@@ -1,6 +1,15 @@
+import 'dart:js_interop';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/subdomain_cookie_codec.dart';
 import 'package:web/web.dart' as web;
+
+@JS('alphajournalTransition')
+external _JsNavTransition? get _jsNavTransition;
+
+extension type _JsNavTransition._(JSObject _) implements JSObject {
+  external void startOutgoing(String url);
+}
 
 /// Web Supabase [LocalStorage] that persists the session in chunked cookies on
 /// `.alphajournal.in` (as well as `window.localStorage`) so users signed in on
@@ -212,113 +221,45 @@ void removeSharedFlag(String key) {
   );
 }
 
-String _surfaceLabelForUrl(String url) {
-  final uri = Uri.tryParse(url);
-  if (uri == null) return '';
-  final host = uri.host.toLowerCase();
-  final seg = uri.pathSegments.isEmpty
-      ? ''
-      : uri.pathSegments.first.toLowerCase();
-  if (seg == 'market' || seg.startsWith('market_')) return 'Markets';
-  if (seg == 'journal') return 'Journal';
-  if (seg == 'strategies' || seg == 'strategy') return 'Strategies';
-  if (seg == 'notes' || seg == 'note') return 'Notes';
-  if (seg == 'messages' || seg == 'message' || seg == 'thread') {
-    return 'Messages';
-  }
-  if (seg == 'ai_copilot' || seg == 'ai' || seg == 'copilot') {
-    return 'AI Copilot';
-  }
-  if (seg.startsWith('settings')) return 'Settings';
-  if (host.startsWith('community.') ||
-      seg.startsWith('community') ||
-      seg.startsWith('@') ||
-      seg == 'p' ||
-      seg == 'posts' ||
-      seg == 'post') {
-    return 'Community';
-  }
-  if (host.startsWith('affiliate.') ||
-      seg.startsWith('affiliate') ||
-      seg == 'referrals' ||
-      seg == 'marketing' ||
-      seg == 'payouts') {
-    return 'Partner Hub';
-  }
-  if (host.startsWith('admin.') ||
-      seg.startsWith('admin') ||
-      seg.startsWith('org_')) {
-    return 'Admin Console';
-  }
-  if (host.startsWith('app.') || seg == 'workspace') return 'Workspace';
-  return '';
-}
+void _showOutgoingNavigationVeil(String url) {
+  try {
+    final transition = _jsNavTransition;
+    if (transition != null) {
+      transition.startOutgoing(url);
+      return;
+    }
+  } catch (_) {}
 
-void _showOutgoingNavigationVeil(String label) {
+  // Minimal fallback if nav_transition.js has not been loaded yet.
   try {
     final doc = web.document;
     final body = doc.body;
     if (body == null) return;
     doc.getElementById('aj-nav-veil')?.remove();
-
     final isLight =
         doc.documentElement?.classList.contains('aj-light') ?? false;
-    final bg = isLight ? 'rgba(250, 249, 246, 0.92)' : 'rgba(13, 12, 11, 0.92)';
-    final fg = isLight ? '#0D0C0B' : '#FAF9F6';
-    final border = isLight
-        ? 'rgba(13, 12, 11, 0.10)'
-        : 'rgba(250, 249, 246, 0.12)';
-    final pillBg = isLight
-        ? 'rgba(255, 255, 255, 0.85)'
-        : 'rgba(24, 22, 20, 0.85)';
-
     final veil = doc.createElement('div') as web.HTMLElement;
     veil.id = 'aj-nav-veil';
     veil.style.cssText =
-        'position:fixed;inset:0;z-index:999998;display:flex;align-items:center;'
-        'justify-content:center;background:$bg;backdrop-filter:blur(10px);'
-        '-webkit-backdrop-filter:blur(10px);opacity:0;'
-        'transition:opacity 120ms cubic-bezier(0.22,1,0.36,1);'
+        'position:fixed;inset:0;z-index:2147483647;'
+        'background:${isLight ? '#FAFAF9' : '#0D0C0B'};'
         'pointer-events:auto;';
-
-    final bar = doc.createElement('div') as web.HTMLElement;
-    bar.style.cssText =
-        'position:fixed;top:0;left:0;right:0;height:2px;'
-        'background:linear-gradient(90deg,transparent 0%,#8B9FE8 50%,transparent 100%);';
-    veil.appendChild(bar);
-
-    if (label.isNotEmpty) {
-      final pill = doc.createElement('div') as web.HTMLElement;
-      pill.style.cssText =
-          'display:inline-flex;align-items:center;gap:10px;padding:10px 16px;'
-          'border-radius:999px;background:$pillBg;border:1px solid $border;'
-          'color:$fg;font-family:system-ui,-apple-system,sans-serif;'
-          'font-size:13px;font-weight:500;letter-spacing:0.01em;'
-          'box-shadow:0 8px 24px rgba(0,0,0,0.18);';
-      pill.textContent = 'Opening $label…';
-      veil.appendChild(pill);
-    }
-
     body.appendChild(veil);
-    // Force layout flush so opacity transition runs immediately before navigation.
-    veil.getBoundingClientRect();
-    veil.style.opacity = '1';
   } catch (_) {}
 }
 
 void navigateBrowserUrl(String url) {
-  final label = _surfaceLabelForUrl(url);
+  final silentValue = SubdomainCookieCodec.silentNavValueForUrl(url);
   if (SubdomainCookieCodec.isProductionDomain(web.window.location.hostname)) {
     final secure = web.window.location.protocol == 'https:';
-    final value = label.isEmpty ? '1' : '1|$label';
     web.document.cookie = SubdomainCookieCodec.formatSetCookie(
       'ax_silent_nav',
-      value,
+      silentValue,
       domain: '.${SubdomainCookieCodec.rootDomain}',
       maxAgeSeconds: 20,
       secure: secure,
     );
   }
-  _showOutgoingNavigationVeil(label);
+  _showOutgoingNavigationVeil(url);
   web.window.location.assign(url);
 }

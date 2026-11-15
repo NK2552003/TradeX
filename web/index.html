@@ -131,56 +131,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
   <link rel="preload" as="script" href="flutter_bootstrap.js">
+  <script src="nav_transition.js"></script>
   <script>
-    (function() {
-      var raw = '';
-      try { raw = document.cookie || ''; } catch (_) {}
-      function readCookie(name) {
-        var prefix = name + '=';
-        var parts = raw.split(';');
-        for (var i = 0; i < parts.length; i++) {
-          var part = parts[i].trim();
-          if (part.indexOf(prefix) === 0) {
-            try { return decodeURIComponent(part.slice(prefix.length)); } catch (_) { return part.slice(prefix.length); }
-          }
-        }
-        return '';
-      }
-      var themeMode = readCookie('ax_theme_mode');
-      var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
-      var isLight = themeMode === 'light' || (themeMode === 'system' && prefersLight);
-      var root = document.documentElement;
-      if (isLight) root.classList.add('aj-light');
-      var silentRaw = readCookie('ax_silent_nav');
-      var hasSilentFlag = silentRaw === '1' || silentRaw.indexOf('1|') === 0;
-      var silentLabel = silentRaw.indexOf('1|') === 0 ? silentRaw.slice(2).trim() : '';
-      if (!/^[a-zA-Z0-9 ]{1,24}$/.test(silentLabel)) silentLabel = '';
-      var refHost = '';
-      try { if (document.referrer) refHost = new URL(document.referrer).hostname.toLowerCase(); } catch (_) {}
-      var sameRootRef = refHost === 'alphajournal.in' || refHost.endsWith('.alphajournal.in');
-      var curHost = String(location.hostname || '').toLowerCase();
-      var sameRootCur = curHost === 'alphajournal.in' || curHost.endsWith('.alphajournal.in');
-      var hasSessionOrConsent = Boolean(readCookie('ax_sb_auth.n') || readCookie('ax_onboard'));
-      if (hasSilentFlag || (sameRootRef && sameRootCur && hasSessionOrConsent && refHost && refHost !== curHost)) {
-        root.classList.add('aj-silent-nav');
-        window.__ajSilentNav = true;
-        window.__ajSilentLabel = silentLabel;
-      }
-      if (hasSilentFlag) {
-        try {
-          var secure = location.protocol === 'https:' ? '; Secure' : '';
-          var domain = sameRootCur ? '; Domain=.alphajournal.in' : '';
-          document.cookie = 'ax_silent_nav=; Path=/; Max-Age=0; SameSite=Lax' + domain + secure;
-        } catch (_) {}
-      }
-      window.addEventListener('pageshow', function() {
-        var veil = document.getElementById('aj-nav-veil');
-        if (veil && veil.parentNode) veil.parentNode.removeChild(veil);
-      });
-    })();
+    if (window.alphajournalTransition) {
+      window.alphajournalTransition.initHead();
+    }
   </script>
 </head>
-<body style="background-color: #0D0C0B; margin: 0; padding: 0; overflow: hidden;">
+<body>
   <div id="splash-loader">
     <div class="splash-threads" aria-hidden="true">
       <i class="thread-top"></i><i class="thread-bottom"></i>
@@ -188,40 +146,32 @@
     </div>
     <h1 class="word" id="word" aria-label="AlphaJournal">ALPHAJOURNAL</h1>
     <p class="soon">Intelligent market execution</p>
-    <div class="aj-silent-shell" aria-hidden="true">
-      <div class="aj-silent-bar"></div>
-      <div class="aj-silent-pill" id="aj-silent-pill">
-        <span class="aj-silent-spinner"></span>
-        <span id="aj-silent-text">Loading…</span>
-      </div>
-    </div>
+    <div class="aj-silent-shell" id="aj-silent-shell" aria-hidden="true"></div>
   </div>
   <style>
     :root {
       --bg: #0D0C0B;
-      --fg: #FAF9F6;
+      --fg: #FAFAF9;
       --muted: #8B9FE8;
-      --pill-bg: rgba(24, 22, 20, 0.85);
-      --pill-border: rgba(250, 249, 246, 0.12);
       --h: min(24vh, clamp(28px, 7vw, 92px));
       box-sizing: border-box;
       color-scheme: dark;
     }
     html.aj-light {
-      --bg: #FAF9F6;
-      --fg: #0D0C0B;
-      --pill-bg: rgba(255, 255, 255, 0.88);
-      --pill-border: rgba(13, 12, 11, 0.10);
+      --bg: #FAFAF9;
+      --fg: #151312;
       color-scheme: light;
     }
-    html.aj-light body {
-      background-color: #FAF9F6 !important;
+    body {
+      background-color: var(--aj-bg, var(--bg));
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
     }
     .aj-silent-shell { display: none; }
     html.aj-silent-nav #splash-loader {
-      background: var(--bg);
-      transition: opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1), transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-      transform-origin: center center;
+      background: var(--aj-bg, var(--bg));
+      transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     }
     html.aj-silent-nav .splash-threads,
     html.aj-silent-nav .word,
@@ -229,53 +179,10 @@
       display: none !important;
     }
     html.aj-silent-nav .aj-silent-shell {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: block;
       inset: 0;
       position: fixed;
-      pointer-events: none;
-    }
-    html.aj-silent-nav .aj-silent-bar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent 0%, #8B9FE8 50%, transparent 100%);
-      background-size: 40% 100%;
-      background-repeat: no-repeat;
-      animation: aj-bar 0.9s ease-in-out infinite;
-    }
-    html.aj-silent-nav .aj-silent-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 16px;
-      border-radius: 999px;
-      background: var(--pill-bg);
-      border: 1px solid var(--pill-border);
-      color: var(--fg);
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.01em;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-    }
-    html.aj-silent-nav .aj-silent-spinner {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      border: 2px solid var(--pill-border);
-      border-top-color: #8B9FE8;
-      animation: aj-spin 0.7s linear infinite;
-    }
-    @keyframes aj-bar {
-      0% { background-position: -40% 0; }
-      100% { background-position: 140% 0; }
-    }
-    @keyframes aj-spin {
-      to { transform: rotate(360deg); }
+      pointer-events: auto;
     }
     #splash-loader {
       position: fixed;
@@ -377,6 +284,9 @@
   </style>
   <script>
     (function() {
+      if (window.__ajSilentNav && window.alphajournalTransition) {
+        window.alphajournalTransition.mountIncoming();
+      }
       const TEXT = "ALPHAJOURNAL";
       const word = document.getElementById("word");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -417,21 +327,13 @@
         word.replaceChildren(fragment);
       }
 
-      var silentText = document.getElementById('aj-silent-text');
-      if (silentText && window.__ajSilentLabel) {
-        silentText.textContent = 'Opening ' + window.__ajSilentLabel + '…';
-      }
-
       function hideSplash() {
         var splash = document.getElementById('splash-loader');
         if (splash && splash.style.opacity !== '0') {
-          if (window.__ajSilentNav) {
-            splash.style.transform = 'scale(0.992)';
-          }
           splash.style.opacity = '0';
           setTimeout(function() {
             if (splash.parentNode) splash.parentNode.removeChild(splash);
-          }, window.__ajSilentNav ? 200 : 450);
+          }, window.__ajSilentNav ? 220 : 450);
         }
       }
       // Flutter calls this after authentication AND account access resolve.

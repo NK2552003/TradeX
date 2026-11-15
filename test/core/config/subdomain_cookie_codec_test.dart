@@ -95,4 +95,43 @@ void main() {
     expect(delDirective, contains('Max-Age=0'));
     expect(delDirective, contains('Domain=.alphajournal.in'));
   });
+
+  test('silentNavValueForUrl encodes surface keys and labels across subdomains', () {
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://community.alphajournal.in/community_feed'),
+      '1|community_feed|Community',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://community.alphajournal.in/community_explore'),
+      '1|community_explore|Explore',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://community.alphajournal.in/community_network'),
+      '1|community_network|Network',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://community.alphajournal.in/@trader1'),
+      '1|community_profile|Profile',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://app.alphajournal.in/market'),
+      '1|market|Markets',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://app.alphajournal.in/journal'),
+      '1|journal|Journal',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://affiliate.alphajournal.in/referrals'),
+      '1|referrals|Referrals',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://admin.alphajournal.in/org_team'),
+      '1|org_team|Users',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://app.alphajournal.in/'),
+      '1|workspace|Workspace',
+    );
+  });
 }

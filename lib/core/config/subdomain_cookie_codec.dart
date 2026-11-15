@@ -115,4 +115,100 @@ class SubdomainCookieCodec {
       secure: secure,
     );
   }
+
+  /// Resolves a sanitized `ax_silent_nav` cookie payload (`1|<key>|<label>`)
+  /// for a destination [url] so the incoming document renders the matching
+  /// full-screen skeleton loader and highlighted mobile dock slot immediately.
+  static String silentNavValueForUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return '1';
+    final host = uri.host.toLowerCase();
+    final seg = uri.pathSegments.isEmpty
+        ? ''
+        : uri.pathSegments.first.toLowerCase();
+
+    String key = '';
+    String label = '';
+
+    if (seg == 'community_explore' || seg == 'explore') {
+      key = 'community_explore';
+      label = 'Explore';
+    } else if (seg == 'community_network' ||
+        seg == 'community_follow' ||
+        seg == 'network') {
+      key = 'community_network';
+      label = 'Network';
+    } else if (seg == 'community_profile' ||
+        seg == 'profile' ||
+        seg.startsWith('@')) {
+      key = 'community_profile';
+      label = 'Profile';
+    } else if (seg == 'community_feed') {
+      key = 'community_feed';
+      label = 'Community';
+    } else if (seg == 'market' || seg.startsWith('market_')) {
+      key = 'market';
+      label = 'Markets';
+    } else if (seg == 'journal') {
+      key = 'journal';
+      label = 'Journal';
+    } else if (seg == 'strategies' || seg == 'strategy') {
+      key = 'strategies';
+      label = 'Strategies';
+    } else if (seg == 'notes' || seg == 'note') {
+      key = 'notes';
+      label = 'Notes';
+    } else if (seg == 'calculators' || seg == 'calculator') {
+      key = 'calculators';
+      label = 'Calculators';
+    } else if (seg == 'messages' || seg == 'message' || seg == 'thread') {
+      key = 'messages';
+      label = 'Messages';
+    } else if (seg == 'ai_copilot' || seg == 'ai' || seg == 'copilot') {
+      key = 'ai_copilot';
+      label = 'AI Copilot';
+    } else if (seg.startsWith('settings')) {
+      key = 'settings';
+      label = 'Settings';
+    } else if (seg == 'referrals') {
+      key = 'referrals';
+      label = 'Referrals';
+    } else if (seg == 'marketing') {
+      key = 'marketing';
+      label = 'Media Kit';
+    } else if (seg == 'payouts') {
+      key = 'payouts';
+      label = 'Payouts';
+    } else if (seg == 'org_team') {
+      key = 'org_team';
+      label = 'Users';
+    } else if (seg == 'affiliate_reviews') {
+      key = 'affiliate_reviews';
+      label = 'Affiliates';
+    } else if (seg.startsWith('org_') || seg.startsWith('admin')) {
+      key = 'admin_console';
+      label = 'Admin Console';
+    } else if (host.startsWith('community.') ||
+        seg.startsWith('community') ||
+        seg == 'p' ||
+        seg == 'posts' ||
+        seg == 'post') {
+      key = 'community_feed';
+      label = 'Community';
+    } else if (host.startsWith('affiliate.') || seg.startsWith('affiliate')) {
+      key = 'partner_hub';
+      label = 'Partner Hub';
+    } else if (host.startsWith('admin.')) {
+      key = 'admin_console';
+      label = 'Admin Console';
+    } else if (host.startsWith('app.') ||
+        seg == 'workspace' ||
+        seg == 'overview') {
+      key = 'workspace';
+      label = 'Workspace';
+    }
+
+    if (key.isEmpty || label.isEmpty) return '1';
+    return '1|$key|$label';
+  }
 }
