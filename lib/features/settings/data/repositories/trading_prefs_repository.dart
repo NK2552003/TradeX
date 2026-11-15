@@ -65,7 +65,10 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
 
         final res = await client
             .from('trader_preferences')
-            .select()
+            .select(
+              'user_id, default_position_size_pct, default_r_multiple, '
+              'default_watchlist_symbols, watchlist_refresh_interval_seconds',
+            )
             .eq('user_id', targetUserId)
             .maybeSingle();
 
@@ -93,7 +96,10 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
         final res = await client
             .from('trader_preferences')
             .upsert(payload)
-            .select()
+            .select(
+              'user_id, default_position_size_pct, default_r_multiple, '
+              'default_watchlist_symbols, watchlist_refresh_interval_seconds',
+            )
             .single();
 
         _prefs = TradingPrefsModel.fromJson(res);
@@ -113,9 +119,10 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
 
         final res = await client
             .from('trader_checklists')
-            .select()
+            .select('id, user_id, label, description, done, sort_order')
             .eq('user_id', targetUserId)
-            .order('sort_order', ascending: true);
+            .order('sort_order', ascending: true)
+            .limit(100);
 
         if ((res as List).isNotEmpty) {
           _checklist = (res as List).map((item) {

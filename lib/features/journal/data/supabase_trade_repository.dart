@@ -96,7 +96,9 @@ class SupabaseTradeRepositoryImpl implements SupabaseTradeRepository {
         try {
           final res = await client
               .from('portfolio_stats')
-              .select()
+              .select(
+                'user_id, total_pnl, win_rate, avg_rr, worst_trade_pnl, best_trade_pnl',
+              )
               .eq('user_id', user.id)
               .maybeSingle();
 

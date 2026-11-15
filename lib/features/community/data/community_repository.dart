@@ -3697,7 +3697,9 @@ class CommunityRepository extends ChangeNotifier {
                 try {
                   final p = await client
                       .from('profiles')
-                      .select()
+                      .select(
+                        'id, handle, display_name, avatar_url, role, verified',
+                      )
                       .eq('id', actorId)
                       .maybeSingle();
                   if (p != null) {

@@ -242,14 +242,56 @@ class MessagesRepository extends ChangeNotifier {
               profiles(id, handle, display_name, avatar_url)
             )
           ''')
-          .order('last_message_at', ascending: false);
+          .order('last_message_at', ascending: false)
+          .limit(40);
 
       final List<MessageThread> loadedThreads = [];
       final List<MessageThread> loadedRequests = [];
       final Map<String, List<ChatMessage>> loadedMessages = {};
 
-      for (final trow in threadRows as List<dynamic>) {
-        final tmap = trow as Map<String, dynamic>;
+      final threadIds = (threadRows as List<dynamic>)
+          .map((r) => (r as Map<String, dynamic>)['id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList();
+
+      // Batch all messages for the loaded threads in one query instead of N+1.
+      final Map<String, List<Map<String, dynamic>>> msgRowsByThread = {};
+      if (threadIds.isNotEmpty) {
+        final allMsgRows = await client
+            .from('chat_messages')
+            .select('''
+              id,
+              thread_id,
+              sender_id,
+              body,
+              reply_to_id,
+              system_notice,
+              status,
+              created_at,
+              chat_attachments(id, kind, url, storage_path, title, file_size_bytes, duration_seconds),
+              chat_reactions(id, user_id, emoji),
+              chat_shared_refs(id, ref_id, kind, title, subtitle, ticker, tags)
+            ''')
+            .inFilter('thread_id', threadIds)
+            .order('created_at', ascending: false)
+            .limit(threadIds.length * 30);
+
+        for (final mmap in allMsgRows) {
+          final tid = mmap['thread_id']?.toString() ?? '';
+          if (tid.isNotEmpty) {
+            (msgRowsByThread[tid] ??= <Map<String, dynamic>>[]).add(mmap);
+          }
+        }
+        for (final list in msgRowsByThread.values) {
+          list.sort(
+            (a, b) => (a['created_at']?.toString() ?? '').compareTo(
+              b['created_at']?.toString() ?? '',
+            ),
+          );
+        }
+      }
+
+      for (final tmap in threadRows) {
         final threadId = tmap['id'] as String;
         final isGroup = tmap['type'] == 'group' || tmap['type'] == 'desk';
         final isRequest = tmap['is_request'] as bool? ?? false;
@@ -313,28 +355,10 @@ class MessagesRepository extends ChangeNotifier {
           loadedThreads.add(thread);
         }
 
-        // Fetch messages for this thread
-        final msgRows = await client
-            .from('chat_messages')
-            .select('''
-              id,
-              thread_id,
-              sender_id,
-              body,
-              reply_to_id,
-              system_notice,
-              status,
-              created_at,
-              chat_attachments(id, kind, url, storage_path, title, file_size_bytes, duration_seconds),
-              chat_reactions(id, user_id, emoji),
-              chat_shared_refs(id, ref_id, kind, title, subtitle, ticker, tags)
-            ''')
-            .eq('thread_id', threadId)
-            .order('created_at', ascending: true);
+        final msgRows = msgRowsByThread[threadId] ?? const <Map<String, dynamic>>[];
 
         final threadMsgs = <ChatMessage>[];
-        for (final mrow in msgRows as List<dynamic>) {
-          final mmap = mrow as Map<String, dynamic>;
+        for (final mmap in msgRows) {
           final msgId = mmap['id'] as String;
           final senderId = mmap['sender_id'] as String? ?? '';
           final fromMe = senderId == currentUserId;
@@ -507,13 +531,40 @@ class MessagesRepository extends ChangeNotifier {
             user_b:profiles!conversations_user_b_id_fkey(id, handle, display_name, avatar_url)
           ''')
           .or('user_a_id.eq.$currentUserId,user_b_id.eq.$currentUserId')
-          .order('last_message_at', ascending: false);
+          .order('last_message_at', ascending: false)
+          .limit(40);
 
       final List<MessageThread> loadedThreads = [];
       final Map<String, List<ChatMessage>> loadedMessages = {};
 
-      for (final trow in res as List) {
-        final tmap = trow as Map<String, dynamic>;
+      final convIds = (res as List)
+          .map((r) => (r as Map<String, dynamic>)['id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList();
+      final Map<String, List<Map<String, dynamic>>> msgsByConv = {};
+      if (convIds.isNotEmpty) {
+        final allConvMsgs = await client
+            .from('messages')
+            .select('id, conversation_id, content, sender_id, created_at')
+            .inFilter('conversation_id', convIds)
+            .order('created_at', ascending: false)
+            .limit(convIds.length * 30);
+        for (final m in allConvMsgs) {
+          final cid = m['conversation_id']?.toString() ?? '';
+          if (cid.isNotEmpty) {
+            (msgsByConv[cid] ??= <Map<String, dynamic>>[]).add(m);
+          }
+        }
+        for (final list in msgsByConv.values) {
+          list.sort(
+            (a, b) => (a['created_at']?.toString() ?? '').compareTo(
+              b['created_at']?.toString() ?? '',
+            ),
+          );
+        }
+      }
+
+      for (final tmap in res) {
         final convId = tmap['id']?.toString() ?? '';
         final userAId = tmap['user_a_id']?.toString() ?? '';
         final peerMap =
@@ -533,11 +584,7 @@ class MessagesRepository extends ChangeNotifier {
           avatarUrl: peerAvatar,
         );
 
-        final msgsRes = await client
-            .from('messages')
-            .select('id, content, sender_id, created_at')
-            .eq('conversation_id', convId)
-            .order('created_at', ascending: true);
+        final msgsRes = msgsByConv[convId] ?? const <Map<String, dynamic>>[];
 
         final List<ChatMessage> threadMsgs = [];
         String lastPreview = '';
@@ -545,8 +592,7 @@ class MessagesRepository extends ChangeNotifier {
             DateTime.tryParse(tmap['last_message_at']?.toString() ?? '') ??
             DateTime.now();
 
-        for (final mrow in msgsRes as List) {
-          final m = mrow as Map<String, dynamic>;
+        for (final m in msgsRes) {
           final mId = m['id']?.toString() ?? '';
           final content = m['content'] as String? ?? '';
           final senderId = m['sender_id']?.toString() ?? '';
@@ -592,9 +638,13 @@ class MessagesRepository extends ChangeNotifier {
   void _subscribeRealtime() {
     if (!SupabaseConfig.isConfigured) return;
     final client = SupabaseConfig.client;
-    if (client == null) return;
+    if (client == null || _resolveUserId().isEmpty) return;
 
     try {
+      if (_realtimeChannel != null) {
+        unawaited(client.removeChannel(_realtimeChannel!));
+        _realtimeChannel = null;
+      }
       _realtimeChannel = client.channel('public:messages_channel')
         ..onPostgresChanges(
           event: PostgresChangeEvent.all,

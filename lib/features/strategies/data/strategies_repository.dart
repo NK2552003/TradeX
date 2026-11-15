@@ -177,8 +177,20 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     }
   }
 
+  static const String _selectColumns =
+      'id, user_id, title, name, summary, ai_summary, content, category, '
+      'status, visibility, is_favorite, tags, linked_tickers, linked_note_ids, '
+      'linked_journal_ids, created_at, updated_at, version_count, word_count, '
+      'checklist_done, checklist_total, has_images, has_code';
+
+  static const String _versionSelectColumns =
+      'id, strategy_id, version_number, content, summary, note, is_current, '
+      'word_count, author_id, created_at';
+
   void _initRealtime() {
     if (_subscribedToRealtime || !SupabaseConfig.isConfigured) return;
+    final targetUserId = _resolveUserId();
+    if (!_isUuid(targetUserId)) return;
     _subscribedToRealtime = true;
 
     try {
@@ -190,13 +202,33 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'strategies',
+                filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq,
+                  column: 'user_id',
+                  value: targetUserId,
+                ),
                 callback: (PostgresChangePayload payload) {
                   _handlePostgresChange(payload);
                 },
               )
             ..subscribe();
     } catch (e) {
+      _subscribedToRealtime = false;
       debugPrint('[StrategiesRepository] Realtime subscription error: $e');
+    }
+  }
+
+  /// Releases the Realtime channel subscription when disposing this repository.
+  void dispose() {
+    if (_realtimeChannel != null && SupabaseConfig.isConfigured) {
+      try {
+        SupabaseConfig.client?.removeChannel(_realtimeChannel!);
+      } catch (_) {}
+      _realtimeChannel = null;
+      _subscribedToRealtime = false;
+    }
+    if (!_changes.isClosed) {
+      _changes.close();
     }
   }
 
@@ -269,9 +301,10 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
       final res = await client
           .from('strategies')
-          .select()
+          .select(_selectColumns)
           .eq('user_id', targetUserId)
-          .order('updated_at', ascending: false);
+          .order('updated_at', ascending: false)
+          .limit(100);
 
       final List<AppStrategy> list = (res as List)
           .map((row) => _mapRowToStrategy(row as Map<String, dynamic>))
@@ -286,7 +319,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         final tradesRes = await client
             .from('journal_entries')
             .select('strategy_id, outcome, pnl, r_multiple')
-            .not('strategy_id', 'is', null);
+            .eq('user_id', targetUserId)
+            .not('strategy_id', 'is', null)
+            .limit(500);
 
         final Map<String, List<Map<String, dynamic>>> tradesByStrategy = {};
         for (final t in tradesRes as List) {
@@ -572,7 +607,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       final client = SupabaseConfig.client!;
       final res = await client
           .from('strategies')
-          .select()
+          .select(_selectColumns)
           .eq('visibility', 'public')
           .order('updated_at', ascending: false)
           .limit(50);
@@ -596,7 +631,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         final client = SupabaseConfig.client!;
         final res = await client
             .from('strategies')
-            .select()
+            .select(_selectColumns)
             .eq('id', id)
             .maybeSingle();
         if (res != null) {
@@ -647,7 +682,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         final res = await client
             .from('strategies')
             .insert(row)
-            .select()
+            .select(_selectColumns)
             .single();
         saved = _mapRowToStrategy(res);
 
@@ -730,7 +765,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
             .update(row)
             .eq('id', strategy.id)
             .eq('user_id', targetUserId)
-            .select()
+            .select(_selectColumns)
             .single();
 
         saved = _mapRowToStrategy(res);
@@ -946,9 +981,10 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         final client = SupabaseConfig.client!;
         final res = await client
             .from('strategy_versions')
-            .select()
+            .select(_versionSelectColumns)
             .eq('strategy_id', strategyId)
-            .order('version_number', ascending: false);
+            .order('version_number', ascending: false)
+            .limit(50);
 
         final list = (res as List)
             .map((row) => _mapRowToVersion(row as Map<String, dynamic>))
@@ -1014,7 +1050,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
               'word_count': s.wordCount,
               'author_id': user?.id,
             })
-            .select()
+            .select(_versionSelectColumns)
             .single();
 
         created = _mapRowToVersion(res);

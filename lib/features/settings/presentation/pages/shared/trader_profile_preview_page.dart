@@ -345,18 +345,23 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           ? widget.author!.id
           : (widget.isCurrentUser && currentAuthUser != null ? currentAuthUser.id : '');
 
+      const profileColumns =
+          'id, handle, display_name, bio, avatar_url, location, website, '
+          'avg_hold_duration, primary_market, top_strategy, risk_mantra, '
+          'experience_level, trading_style, verified, subscription_tier, '
+          'notification_settings, public_stats, public_journals, role, created_at';
       Map<String, dynamic>? profileRow;
       if (targetId.isNotEmpty) {
         profileRow = await client
             .from('profiles')
-            .select()
+            .select(profileColumns)
             .eq('id', targetId)
             .maybeSingle();
       }
       if (profileRow == null && cleanH.isNotEmpty) {
         final rows = await client
             .from('profiles')
-            .select()
+            .select(profileColumns)
             .or('handle.eq.$cleanH,handle.eq.@$cleanH')
             .limit(1);
         if (rows.isNotEmpty) {
@@ -439,19 +444,17 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
 
       if (effectiveUserId.isNotEmpty) {
         try {
-          final followerRes = await client
+          _liveFollowers = await client
               .from('community_follows')
-              .select('id')
+              .count()
               .eq('following_id', effectiveUserId);
-          _liveFollowers = (followerRes as List).length;
         } catch (_) {}
 
         try {
-          final followingRes = await client
+          _liveFollowing = await client
               .from('community_follows')
-              .select('id')
+              .count()
               .eq('follower_id', effectiveUserId);
-          _liveFollowing = (followingRes as List).length;
         } catch (_) {}
 
         if (currentAuthUser != null && currentAuthUser.id != effectiveUserId) {
@@ -467,18 +470,18 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         }
 
         try {
-          final postsRes = await client
+          _livePostsCount = await client
               .from('community_posts')
-              .select('id')
+              .count()
               .eq('author_id', effectiveUserId);
-          _livePostsCount = (postsRes as List).length;
         } catch (_) {}
 
         try {
           final journalRows = await client
               .from('journal_entries')
               .select('outcome, pnl, opened_at, closed_at, ticker')
-              .eq('user_id', effectiveUserId);
+              .eq('user_id', effectiveUserId)
+              .limit(500);
 
           final entries = (journalRows as List);
           if (entries.isNotEmpty) {
@@ -545,12 +548,10 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
 
       if (widget.userRole == UserRole.userAdmin || _liveRole == UserRole.userAdmin) {
         try {
-          final pRes = await client.from('profiles').select('id');
-          _liveTotalTraders = (pRes as List).length;
+          _liveTotalTraders = await client.from('profiles').count();
         } catch (_) {}
         try {
-          final jRes = await client.from('journal_entries').select('id');
-          _liveTotalJournals = (jRes as List).length;
+          _liveTotalJournals = await client.from('journal_entries').count();
         } catch (_) {}
       }
     } catch (e) {

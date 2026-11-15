@@ -308,7 +308,7 @@ class UnifiedCommentsRepositoryImpl implements UnifiedCommentsRepository {
       try {
         final existing = await client
             .from('unified_comment_likes')
-            .select()
+            .select('reaction')
             .eq('comment_id', commentId)
             .eq('user_id', currentUserId)
             .maybeSingle();
@@ -344,7 +344,7 @@ class UnifiedCommentsRepositoryImpl implements UnifiedCommentsRepository {
         try {
           final existing = await client
               .from('community_comment_likes')
-              .select()
+              .select('reaction')
               .eq('comment_id', commentId)
               .eq('user_id', currentUserId)
               .maybeSingle();

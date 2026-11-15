@@ -197,7 +197,7 @@ class OrganizationSettingsRepositoryImpl
 
         final data = await client
             .from('organizations')
-            .select('*')
+            .select('id, owner_id, name, slug, settings')
             .eq('owner_id', targetUserId)
             .maybeSingle();
 

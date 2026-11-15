@@ -302,9 +302,17 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
           return cachedProfile;
         }
 
+        const profileCols =
+            'id, handle, email, display_name, role, status, admin_key, '
+            'referral_code, referred_by_code, bio, avatar_url, experience_level, '
+            'trading_style, location, website, avg_hold_duration, primary_market, '
+            'top_strategy, risk_mantra, public_stats, public_journals, '
+            'notification_settings, subscription_tier, followers_count, '
+            'following_count, posts_count, win_rate, verified, created_at, '
+            'updated_at';
         final res = await client
             .from('profiles')
-            .select()
+            .select(profileCols)
             .eq('id', targetUserId)
             .maybeSingle();
 
@@ -450,7 +458,15 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
             .from('profiles')
             .update(updateData)
             .eq('id', targetUserId)
-            .select()
+            .select(
+              'id, handle, email, display_name, role, status, admin_key, '
+              'referral_code, referred_by_code, bio, avatar_url, '
+              'experience_level, trading_style, location, website, '
+              'avg_hold_duration, primary_market, top_strategy, risk_mantra, '
+              'public_stats, public_journals, notification_settings, '
+              'subscription_tier, followers_count, following_count, '
+              'posts_count, win_rate, verified, created_at, updated_at',
+            )
             .single();
 
         final fetchedProfile = UserProfileModel.fromJson(res);

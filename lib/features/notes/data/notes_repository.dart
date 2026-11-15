@@ -142,8 +142,16 @@ class NotesRepositoryImpl implements NotesRepository {
     }
   }
 
+  static const String _selectColumns =
+      'id, user_id, title, content, created_at, updated_at, note_type, tags, '
+      'linked_tickers, strategy_id, linked_journal_ids, is_public, word_count, '
+      'checklist_done, checklist_total, has_images, has_code, view_count, '
+      'like_count, strategies(id, title)';
+
   void _initRealtime() {
     if (_subscribedToRealtime || !SupabaseConfig.isConfigured) return;
+    final targetUserId = _resolveUserId();
+    if (!_isUuid(targetUserId)) return;
     _subscribedToRealtime = true;
 
     try {
@@ -155,13 +163,33 @@ class NotesRepositoryImpl implements NotesRepository {
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'trader_notes',
+                filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq,
+                  column: 'user_id',
+                  value: targetUserId,
+                ),
                 callback: (PostgresChangePayload payload) {
                   _handlePostgresChange(payload);
                 },
               )
             ..subscribe();
     } catch (e) {
+      _subscribedToRealtime = false;
       debugPrint('[NotesRepository] Realtime subscription error: $e');
+    }
+  }
+
+  /// Releases the Realtime channel subscription when disposing this repository.
+  void dispose() {
+    if (_realtimeChannel != null && SupabaseConfig.isConfigured) {
+      try {
+        SupabaseConfig.client?.removeChannel(_realtimeChannel!);
+      } catch (_) {}
+      _realtimeChannel = null;
+      _subscribedToRealtime = false;
+    }
+    if (!_changes.isClosed) {
+      _changes.close();
     }
   }
 
@@ -255,9 +283,10 @@ class NotesRepositoryImpl implements NotesRepository {
       // Fetch personal notes belonging to current user
       final res = await client
           .from('trader_notes')
-          .select('*, strategies(id, title)')
+          .select(_selectColumns)
           .eq('user_id', targetUserId)
-          .order('updated_at', ascending: false);
+          .order('updated_at', ascending: false)
+          .limit(200);
 
       final List<AppNote> list = (res as List)
           .map((row) => _mapRowToNote(row as Map<String, dynamic>))
@@ -278,6 +307,11 @@ class NotesRepositoryImpl implements NotesRepository {
 
   Future<void> _loadCommentsForNotes() async {
     if (!SupabaseConfig.isConfigured) return;
+    final noteIds = _notes.map((n) => n.id).where(_isUuid).toList();
+    if (noteIds.isEmpty) {
+      _commentsByNoteId.clear();
+      return;
+    }
     try {
       final client = SupabaseConfig.client!;
       final commentsRes = await client
@@ -285,7 +319,9 @@ class NotesRepositoryImpl implements NotesRepository {
           .select(
             'id, note_id, user_id, content, created_at, profiles(display_name, handle)',
           )
-          .order('created_at', ascending: true);
+          .inFilter('note_id', noteIds)
+          .order('created_at', ascending: true)
+          .limit(300);
 
       _commentsByNoteId.clear();
       for (final item in commentsRes as List) {
@@ -450,7 +486,7 @@ class NotesRepositoryImpl implements NotesRepository {
       final client = SupabaseConfig.client!;
       final res = await client
           .from('trader_notes')
-          .select('*, strategies(id, title)')
+          .select(_selectColumns)
           .eq('is_public', true)
           .order('updated_at', ascending: false)
           .limit(50);
@@ -474,7 +510,7 @@ class NotesRepositoryImpl implements NotesRepository {
         final client = SupabaseConfig.client!;
         final res = await client
             .from('trader_notes')
-            .select('*, strategies(id, title)')
+            .select(_selectColumns)
             .eq('id', id)
             .maybeSingle();
         if (res != null) {

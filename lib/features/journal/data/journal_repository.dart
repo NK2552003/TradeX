@@ -225,8 +225,19 @@ class JournalRepositoryImpl implements JournalRepository {
     } catch (_) {}
   }
 
+  static const String _selectColumns =
+      'id, user_id, title, ticker, side, outcome, entry_price, exit_price, '
+      'opened_at, created_at, closed_at, updated_at, stop_loss, target, size, '
+      'pnl, pnl_percent, r_multiple, strategy_id, strategy_name, tags, content, '
+      'psychology, mistakes_made, lessons_learned, screenshots, '
+      'linked_note_ids, psychology_score, is_public, word_count, '
+      'checklist_done, checklist_total, has_images, has_code, '
+      'strategies(id, title, name)';
+
   void _initRealtime() {
     if (_subscribedToRealtime || !SupabaseConfig.isConfigured) return;
+    final targetUserId = _resolveUserId();
+    if (!_isUuid(targetUserId)) return;
     _subscribedToRealtime = true;
 
     try {
@@ -238,13 +249,33 @@ class JournalRepositoryImpl implements JournalRepository {
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'journal_entries',
+                filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq,
+                  column: 'user_id',
+                  value: targetUserId,
+                ),
                 callback: (PostgresChangePayload payload) {
                   _handlePostgresChange(payload);
                 },
               )
             ..subscribe();
     } catch (e) {
+      _subscribedToRealtime = false;
       debugPrint('[JournalRepository] Realtime subscription error: $e');
+    }
+  }
+
+  /// Releases the Realtime channel subscription when disposing this repository.
+  void dispose() {
+    if (_realtimeChannel != null && SupabaseConfig.isConfigured) {
+      try {
+        SupabaseConfig.client?.removeChannel(_realtimeChannel!);
+      } catch (_) {}
+      _realtimeChannel = null;
+      _subscribedToRealtime = false;
+    }
+    if (!_changes.isClosed) {
+      _changes.close();
     }
   }
 
@@ -315,9 +346,10 @@ class JournalRepositoryImpl implements JournalRepository {
 
       final res = await client
           .from('journal_entries')
-          .select('*, strategies(id, title, name)')
+          .select(_selectColumns)
           .eq('user_id', targetUserId)
-          .order('opened_at', ascending: false);
+          .order('opened_at', ascending: false)
+          .limit(250);
 
       final List<AppTrade> list = (res as List)
           .map((row) => _mapRowToTrade(row as Map<String, dynamic>))
@@ -583,7 +615,7 @@ class JournalRepositoryImpl implements JournalRepository {
       final client = SupabaseConfig.client!;
       final res = await client
           .from('journal_entries')
-          .select('*, strategies(id, title, name)')
+          .select(_selectColumns)
           .eq('is_public', true)
           .order('opened_at', ascending: false)
           .limit(50);
@@ -607,7 +639,7 @@ class JournalRepositoryImpl implements JournalRepository {
         final client = SupabaseConfig.client!;
         final res = await client
             .from('journal_entries')
-            .select('*, strategies(id, title, name)')
+            .select(_selectColumns)
             .eq('id', id)
             .maybeSingle();
         if (res != null) {
@@ -656,7 +688,7 @@ class JournalRepositoryImpl implements JournalRepository {
         final res = await client
             .from('journal_entries')
             .insert(row)
-            .select('*, strategies(id, title, name)')
+            .select(_selectColumns)
             .single();
 
         saved = _mapRowToTrade(res);
@@ -713,7 +745,7 @@ class JournalRepositoryImpl implements JournalRepository {
             .update(row)
             .eq('id', entry.id)
             .eq('user_id', targetUserId)
-            .select('*, strategies(id, title, name)')
+            .select(_selectColumns)
             .single();
 
         saved = _mapRowToTrade(res);

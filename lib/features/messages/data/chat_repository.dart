@@ -55,11 +55,35 @@ class ChatRepositoryImpl implements ChatRepository {
             user_b:profiles!conversations_user_b_id_fkey(id, handle, display_name, avatar_url)
           ''')
           .or('user_a_id.eq.$userId,user_b_id.eq.$userId')
-          .order('last_message_at', ascending: false);
+          .order('last_message_at', ascending: false)
+          .limit(50);
+
+      final rows = (response as List<dynamic>)
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      final convIds = rows
+          .map((m) => m['id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList();
+
+      final Map<String, Map<String, dynamic>> latestByConv = {};
+      if (convIds.isNotEmpty) {
+        final msgRows = await client
+            .from('messages')
+            .select('conversation_id, content, created_at, read_at')
+            .inFilter('conversation_id', convIds)
+            .order('created_at', ascending: false)
+            .limit(convIds.length * 4);
+        for (final m in (msgRows as List<dynamic>).whereType<Map<String, dynamic>>()) {
+          final cid = m['conversation_id']?.toString() ?? '';
+          if (cid.isNotEmpty && !latestByConv.containsKey(cid)) {
+            latestByConv[cid] = m;
+          }
+        }
+      }
 
       final conversations = <AppConversation>[];
-      for (final row in response as List<dynamic>) {
-        final map = row as Map<String, dynamic>;
+      for (final map in rows) {
         final userAId = map['user_a_id'] as String;
         final peerData =
             (userAId == userId ? map['user_b'] : map['user_a'])
@@ -71,13 +95,7 @@ class ChatRepositoryImpl implements ChatRepository {
         final peerName = peerData['display_name'] as String? ?? peerHandle;
         final avatarUrl = peerData['avatar_url'] as String?;
 
-        final messageResponse = await client
-            .from('messages')
-            .select('content, created_at, read_at')
-            .eq('conversation_id', map['id'])
-            .order('created_at', ascending: false)
-            .limit(1)
-            .maybeSingle();
+        final messageResponse = latestByConv[map['id']?.toString() ?? ''];
 
         final lastMsgContent =
             messageResponse?['content'] as String? ?? 'No messages yet';
@@ -130,7 +148,8 @@ class ChatRepositoryImpl implements ChatRepository {
           .from('messages')
           .select('id, content, sender_id, created_at')
           .eq('conversation_id', conversationId)
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: false)
+          .limit(100);
 
       final messages = (response as List<dynamic>).map((row) {
         final map = row as Map<String, dynamic>;
@@ -141,7 +160,7 @@ class ChatRepositoryImpl implements ChatRepository {
           fromMe: senderId == userId,
           sentAt: DateTime.parse(map['created_at'] as String),
         );
-      }).toList();
+      }).toList().reversed.toList();
 
       return messages.isEmpty
           ? (CustomerDataPolicy.allowDemo

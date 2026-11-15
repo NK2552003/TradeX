@@ -208,8 +208,9 @@ class AdminConsoleRepository {
       try {
         final rows = await SupabaseConfig.client!
             .from('organization_members')
-            .select('*')
-            .order('created_at', ascending: true);
+            .select('user_id, role, status')
+            .order('created_at', ascending: true)
+            .limit(200);
         if ((rows as List).isNotEmpty) {
           // Merge remote roles if present
           for (final item in rows.whereType<Map<String, dynamic>>()) {
@@ -855,7 +856,10 @@ class AdminConsoleRepository {
       try {
         final rows = await SupabaseConfig.client!
             .from('admin_audit_logs')
-            .select('*')
+            .select(
+              'id, actor_handle, actor_role, category, action, target_type, '
+              'target_label, severity, ip_address, sha256_hash, details, created_at',
+            )
             .order('created_at', ascending: false)
             .limit(100);
         if ((rows as List).isNotEmpty) {

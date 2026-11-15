@@ -28,6 +28,12 @@ class AffiliateApplicationRepositoryImpl
   final Map<String, AffiliateApplicationModel> _applications =
       <String, AffiliateApplicationModel>{};
 
+  static const String _selectColumns =
+      'id, user_id, full_name, email, phone, city, state, date_of_birth, '
+      'gender, platforms, primary_platform, channel_handle, audience_reach, '
+      'niches, sample_link, account_holder, bank_name, account_number, ifsc, '
+      'account_type, pan, upi_id, status, review_notes, submitted_at, reviewed_at';
+
   @override
   Future<AffiliateApplicationModel?> getForUser(String userId) async {
     if (SupabaseConfig.isConfigured) {
@@ -35,7 +41,7 @@ class AffiliateApplicationRepositoryImpl
         final client = SupabaseConfig.client!;
         final res = await client
             .from('affiliate_applications')
-            .select()
+            .select(_selectColumns)
             .eq('user_id', userId)
             .order('created_at', ascending: false)
             .limit(1)
@@ -64,8 +70,9 @@ class AffiliateApplicationRepositoryImpl
         final client = SupabaseConfig.client!;
         final res = await client
             .from('affiliate_applications')
-            .select()
-            .order('created_at', ascending: false);
+            .select(_selectColumns)
+            .order('created_at', ascending: false)
+            .limit(100);
 
         if (res.isNotEmpty) {
           final list = res
@@ -159,14 +166,14 @@ class AffiliateApplicationRepositoryImpl
         res = await client
             .from('affiliate_applications')
             .insert(payload)
-            .select()
+            .select(_selectColumns)
             .single();
       } else {
         res = await client
             .from('affiliate_applications')
             .update(payload)
             .eq('id', existing['id'])
-            .select()
+            .select(_selectColumns)
             .single();
       }
       return AffiliateApplicationModel.fromJson(res);
@@ -216,7 +223,7 @@ class AffiliateApplicationRepositoryImpl
         }
         final res = await client
             .from('affiliate_applications')
-            .select()
+            .select(_selectColumns)
             .eq('id', applicationId)
             .maybeSingle();
         if (res != null) {

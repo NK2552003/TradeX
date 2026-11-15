@@ -16,6 +16,19 @@ class SupabaseAuthBackendService implements AuthRepository {
       SupabaseAuthBackendService._internal();
   factory SupabaseAuthBackendService() => instance;
 
+  static const String _profileColumns =
+      'id, handle, email, display_name, role, status, admin_key, '
+      'referral_code, referred_by_code, bio, avatar_url, experience_level, '
+      'trading_style, location, website, avg_hold_duration, primary_market, '
+      'top_strategy, risk_mantra, public_stats, public_journals, '
+      'notification_settings, subscription_tier, followers_count, '
+      'following_count, posts_count, win_rate, verified, created_at, updated_at';
+
+  static const String _affiliateProfileColumns =
+      'id, affiliate_code, tier, commission_rate, total_referrals, '
+      'active_referrals, total_earnings, unpaid_balance, paid_earnings, '
+      'payout_method, payout_details, status, created_at, updated_at';
+
   UserProfileModel? _currentUserProfile;
   AffiliateProfileModel? _currentAffiliateProfile;
 
@@ -161,7 +174,7 @@ class SupabaseAuthBackendService implements AuthRepository {
       // 6. Fetch automatically populated user profile from 'profiles' table
       final profileData = await client
           .from('profiles')
-          .select()
+          .select(_profileColumns)
           .eq('id', user.id)
           .maybeSingle();
 
@@ -322,7 +335,7 @@ class SupabaseAuthBackendService implements AuthRepository {
       // 3. Fetch User Profile from Postgres
       final profileData = await client
           .from('profiles')
-          .select()
+          .select(_profileColumns)
           .eq('id', user.id)
           .maybeSingle();
 
@@ -400,7 +413,7 @@ class SupabaseAuthBackendService implements AuthRepository {
       if (role == UserRole.affiliate) {
         final affData = await client
             .from('affiliate_profiles')
-            .select()
+            .select(_affiliateProfileColumns)
             .eq('id', user.id)
             .maybeSingle();
 
@@ -508,7 +521,7 @@ class SupabaseAuthBackendService implements AuthRepository {
     try {
       final res = await SupabaseConfig.client!
           .from('profiles')
-          .select()
+          .select(_profileColumns)
           .eq('id', userId)
           .maybeSingle();
       if (res != null) {
@@ -530,7 +543,7 @@ class SupabaseAuthBackendService implements AuthRepository {
     try {
       final res = await SupabaseConfig.client!
           .from('affiliate_profiles')
-          .select()
+          .select(_affiliateProfileColumns)
           .eq('id', affiliateId)
           .maybeSingle();
       if (res != null) {

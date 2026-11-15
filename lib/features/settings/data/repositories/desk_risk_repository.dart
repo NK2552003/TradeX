@@ -64,7 +64,13 @@ class DeskRiskRepositoryImpl implements DeskRiskRepository {
         try {
           final configRow = await client
               .from('desk_risk_configs')
-              .select('*')
+              .select(
+                'id, firm_name, base_currency, max_firm_leverage, '
+                'max_daily_loss_percent, max_total_drawdown_percent, '
+                'circuit_breaker_threshold_percent, auto_freeze_on_breach, '
+                'allow_crypto, allow_options, require_manager_order_approval, '
+                'approval_threshold_inr, updated_by, updated_at',
+              )
               .order('updated_at', ascending: false)
               .limit(1)
               .maybeSingle();

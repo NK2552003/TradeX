@@ -76,7 +76,7 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
 
         final res = await client
             .from('profiles')
-            .select()
+            .select('notification_settings')
             .eq('id', targetUserId)
             .maybeSingle();
 
@@ -279,7 +279,9 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
           'status': 'pending',
           'requested_at': DateTime.now().toIso8601String(),
         })
-        .select()
+        .select(
+          'id, user_id, status, requested_at, download_url, completed_at, expires_at',
+        )
         .single();
     _exportRequest = DataExportRequest.fromJson(row);
     return _exportRequest;
@@ -294,7 +296,9 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
     }
     final row = await client
         .from('data_export_requests')
-        .select()
+        .select(
+          'id, user_id, status, requested_at, download_url, completed_at, expires_at',
+        )
         .eq('user_id', user.id)
         .order('created_at', ascending: false)
         .limit(1)

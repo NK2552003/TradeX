@@ -69,13 +69,13 @@ class AffiliateWorkspaceRepository {
         if (userId != null) {
           profileRes = await db
               .from('profiles')
-              .select('*')
+              .select('id, referral_code, handle, display_name')
               .eq('id', userId)
               .maybeSingle();
         } else {
           profileRes = await db
               .from('profiles')
-              .select('*')
+              .select('id, referral_code, handle, display_name')
               .order('created_at', ascending: false)
               .limit(1)
               .maybeSingle();
@@ -85,7 +85,10 @@ class AffiliateWorkspaceRepository {
         if (userId != null) {
           final affProfRes = await db
               .from('affiliate_profiles')
-              .select('*')
+              .select(
+                'id, total_earnings, unpaid_balance, paid_earnings, tier, '
+                'commission_rate, payout_method, payout_details',
+              )
               .eq('id', userId)
               .maybeSingle()
               .catchError((_) => null);
@@ -94,6 +97,7 @@ class AffiliateWorkspaceRepository {
               .from('affiliate_referrals')
               .select('*')
               .eq('affiliate_id', userId)
+              .limit(100)
               .catchError((_) => <dynamic>[]);
 
           final payoutsRes = await db
@@ -101,6 +105,7 @@ class AffiliateWorkspaceRepository {
               .select('*')
               .eq('affiliate_id', userId)
               .order('created_at', ascending: false)
+              .limit(50)
               .catchError((_) => <dynamic>[]);
 
           final userRefCode =

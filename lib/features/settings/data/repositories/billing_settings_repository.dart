@@ -110,7 +110,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
       final counted = await CustomerQuotaUsage.fetch();
       final data = await client
           .from('subscriptions')
-          .select('*')
+          .select('user_id, billing_cycle, status, renewed_at, expires_at')
           .eq('user_id', targetUserId)
           .maybeSingle();
       final tier = counted.tier;
@@ -279,9 +279,12 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
         final res = await client
             .from('invoices')
-            .select('*')
+            .select(
+              'id, user_id, amount, currency, status, issued_at, pdf_url, line_items',
+            )
             .eq('user_id', targetUserId)
-            .order('issued_at', ascending: false);
+            .order('issued_at', ascending: false)
+            .limit(50);
 
         if ((res as List).isNotEmpty) {
           final list = <Invoice>[];
