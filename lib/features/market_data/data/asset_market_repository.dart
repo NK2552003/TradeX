@@ -28,6 +28,9 @@ class AssetMarketRepository {
   final Map<String, List<MarketInstrument>> _screenerCache = {};
   final Map<String, Map<String, dynamic>> _detailCache = {};
   final Map<String, List<double>> _sparkCache = {};
+  final Map<String, Future<List<double>>> _inFlightSparks = {};
+  DateTime? _snapshotExpiresAt;
+  static const Duration _snapshotTtl = Duration(minutes: 2);
 
   /// True when this repository should query live Supabase tables instead of
   /// reading bundled JSON assets.
@@ -99,7 +102,9 @@ class AssetMarketRepository {
     if (path == 'fundamentals') {
       final rows = await client
           .from('stock_fundamentals')
-          .select('*')
+          .select(
+            'ticker, market_cap, pe_ratio, sector, industry, dividend_yield, beta, fifty_two_week_high, fifty_two_week_low',
+          )
           .limit(2000);
       return <String, Map<String, dynamic>>{
         for (final r in (rows as List).whereType<Map>())
@@ -115,13 +120,21 @@ class AssetMarketRepository {
           )
           .order('published_at', ascending: false)
           .limit(250);
+      final articleIds = (rows as List)
+          .whereType<Map>()
+          .map((r) => r['id'])
+          .where((id) => id != null)
+          .toList();
       List<dynamic> tickerLinks = const <dynamic>[];
-      try {
-        tickerLinks = await client
-            .from('news_article_tickers')
-            .select('article_id, ticker')
-            .limit(2000);
-      } catch (_) {}
+      if (articleIds.isNotEmpty) {
+        try {
+          tickerLinks = await client
+              .from('news_article_tickers')
+              .select('article_id, ticker')
+              .inFilter('article_id', articleIds)
+              .limit(1000);
+        } catch (_) {}
+      }
       final tickersByArticle = <String, List<String>>{};
       for (final link in tickerLinks.whereType<Map>()) {
         final aid = '${link['article_id'] ?? ''}';
@@ -210,7 +223,10 @@ class AssetMarketRepository {
 
   Future<MarketSnapshot>? _snapshot;
   Future<MarketSnapshot> snapshot({bool refresh = false}) {
-    if (refresh) {
+    final now = DateTime.now();
+    final expired =
+        _snapshotExpiresAt != null && now.isAfter(_snapshotExpiresAt!);
+    if (refresh || expired) {
       _cache.clear();
       _topicCache.clear();
       _screenerCache.clear();
@@ -218,7 +234,10 @@ class AssetMarketRepository {
       _sparkCache.clear();
       _snapshot = null;
     }
-    return _snapshot ??= _loadSnapshot();
+    _snapshotExpiresAt ??= now.add(_snapshotTtl);
+    return _snapshot ??= _loadSnapshot().whenComplete(() {
+      _snapshotExpiresAt = DateTime.now().add(_snapshotTtl);
+    });
   }
 
   Future<MarketSnapshot> _loadSnapshot() async {
@@ -524,15 +543,7 @@ class AssetMarketRepository {
       for (final q in ranked.reversed.take(12)) q.symbol,
       for (final q in active.take(12)) q.symbol,
     };
-    final sparks = <String, List<double>>{};
-    final symbols = candidateSymbols.toList();
-    for (var offset = 0; offset < symbols.length; offset += 6) {
-      await Future.wait(
-        symbols.skip(offset).take(6).map((symbol) async {
-          sparks[symbol] = await getSpark(symbol);
-        }),
-      );
-    }
+    final sparks = await _loadSparksBatch(candidateSymbols.toList());
 
     final enriched = instruments
         .map(
@@ -644,15 +655,23 @@ class AssetMarketRepository {
   Future<Map<String, dynamic>> _loadDatabaseDetail(String symbol) async {
     final SupabaseClient client = _database;
     final results = await Future.wait<dynamic>([
-      client.from('tickers').select('*').eq('ticker', symbol).maybeSingle(),
+      client
+          .from('tickers')
+          .select('ticker, name, market, exchange, currency, asset_type')
+          .eq('ticker', symbol)
+          .maybeSingle(),
       client
           .from('stock_quotes')
-          .select('*')
+          .select(
+            'ticker, price, previous_close, day_high, day_low, volume, change_pct, updated_at',
+          )
           .eq('ticker', symbol)
           .maybeSingle(),
       client
           .from('stock_fundamentals')
-          .select('*')
+          .select(
+            'ticker, market_cap, pe_ratio, forward_pe, peg_ratio, eps, sector, industry, fifty_two_week_high, fifty_two_week_low, fifty_day_average, two_hundred_day_average, dividend_yield, beta, avg_volume, shares_outstanding, updated_at',
+          )
           .eq('ticker', symbol)
           .maybeSingle(),
       client
@@ -665,21 +684,35 @@ class AssetMarketRepository {
         'analyst_recommendations',
         client
             .from('analyst_recommendations')
-            .select('*')
+            .select('ticker, period, strong_buy, buy, hold, sell, strong_sell')
             .eq('ticker', symbol)
             .limit(20),
       ),
       _optionalDetailQuery(
         'holders',
-        client.from('holders').select('*').eq('ticker', symbol).limit(30),
+        client
+            .from('holders')
+            .select(
+              'ticker, holder_type, holder_name, shares, date_reported, pct_out, value',
+            )
+            .eq('ticker', symbol)
+            .limit(30),
       ),
       _optionalDetailQuery(
         'dividends',
-        client.from('dividends').select('*').eq('ticker', symbol).limit(30),
+        client
+            .from('dividends')
+            .select('ticker, ex_date, amount')
+            .eq('ticker', symbol)
+            .limit(30),
       ),
       _optionalDetailQuery(
         'stock_splits',
-        client.from('stock_splits').select('*').eq('ticker', symbol).limit(20),
+        client
+            .from('stock_splits')
+            .select('ticker, split_date, ratio')
+            .eq('ticker', symbol)
+            .limit(20),
       ),
       _optionalDetailQuery(
         'stock_details',
@@ -910,35 +943,105 @@ class AssetMarketRepository {
     return {'data': []};
   }
 
+  Future<Map<String, List<double>>> _loadSparksBatch(List<String> symbols) async {
+    final out = <String, List<double>>{};
+    final missing = <String>[];
+    for (final sym in symbols) {
+      final cached = _sparkCache[sym];
+      if (cached != null) {
+        out[sym] = cached;
+      } else if (!missing.contains(sym)) {
+        missing.add(sym);
+      }
+    }
+    if (missing.isEmpty) return out;
+    if (!usesDatabase) {
+      for (var offset = 0; offset < missing.length; offset += 6) {
+        await Future.wait(
+          missing.skip(offset).take(6).map((symbol) async {
+            out[symbol] = await getSpark(symbol);
+          }),
+        );
+      }
+      return out;
+    }
+
+    // Batch up to 20 symbols per query so total rows stay well below PostgREST limits.
+    final futures = <Future<void>>[];
+    for (var offset = 0; offset < missing.length; offset += 20) {
+      final chunk = missing.skip(offset).take(20).toList();
+      futures.add(() async {
+        try {
+          final rows = await _database
+              .from('stock_price_history')
+              .select('ticker, date, close')
+              .inFilter('ticker', chunk)
+              .order('date', ascending: false)
+              .limit(chunk.length * 36);
+          final groupedDesc = <String, List<double>>{};
+          for (final r in (rows as List).whereType<Map>()) {
+            final t = '${r['ticker'] ?? ''}';
+            final close = (r['close'] as num?)?.toDouble();
+            if (t.isEmpty || close == null || !close.isFinite) continue;
+            final list = groupedDesc.putIfAbsent(t, () => <double>[]);
+            if (list.length < 36) list.add(close);
+          }
+          for (final sym in chunk) {
+            final chronological =
+                (groupedDesc[sym] ?? const <double>[]).reversed.toList();
+            _sparkCache[sym] = chronological;
+            out[sym] = chronological;
+          }
+        } catch (_) {
+          // Leave missing symbols empty so on-demand getSpark can retry later.
+        }
+      }());
+    }
+    await Future.wait(futures);
+    return out;
+  }
+
   /// Lazy sparkline loader for on-demand chart rendering
   Future<List<double>> getSpark(String symbol) async {
     if (_sparkCache.containsKey(symbol)) {
       return _sparkCache[symbol]!;
     }
-    final List rows;
-    if (usesDatabase) {
-      try {
-        final result = await _database
-            .from('stock_price_history')
-            .select('date, close')
-            .eq('ticker', symbol)
-            .order('date', ascending: false)
-            .limit(36);
-        rows = result.reversed.toList();
-      } catch (_) {
-        return const []; // Allow the next request to retry a temporary outage.
-      }
-    } else {
-      final hist = await history(symbol);
-      rows = hist['data'] as List? ?? [];
+    final existing = _inFlightSparks[symbol];
+    if (existing != null) {
+      return existing;
     }
-    final spark = rows
-        .map((c) => (c['close'] as num?)?.toDouble())
-        .whereType<double>()
-        .where((v) => v.isFinite)
-        .toList();
-    _sparkCache[symbol] = spark;
-    return spark;
+    final future = () async {
+      final List rows;
+      if (usesDatabase) {
+        try {
+          final result = await _database
+              .from('stock_price_history')
+              .select('date, close')
+              .eq('ticker', symbol)
+              .order('date', ascending: false)
+              .limit(36);
+          rows = result.reversed.toList();
+        } catch (_) {
+          return const <double>[]; // Allow the next request to retry a temporary outage.
+        }
+      } else {
+        final hist = await history(symbol);
+        rows = hist['data'] as List? ?? [];
+      }
+      final spark = rows
+          .map((c) => (c['close'] as num?)?.toDouble())
+          .whereType<double>()
+          .where((v) => v.isFinite)
+          .toList();
+      _sparkCache[symbol] = spark;
+      return spark;
+    }();
+    _inFlightSparks[symbol] = future;
+    try {
+      return await future;
+    } finally {
+      _inFlightSparks.remove(symbol);
+    }
   }
 
   Future<Map<String, dynamic>> screeners() async {
