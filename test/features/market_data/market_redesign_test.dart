@@ -113,10 +113,25 @@ void main() {
       await settle(tester);
       expect(find.byType(MarketTwoPanel), findsOneWidget);
       expect(find.byType(UiCandleChart), findsOneWidget);
+      for (final label in ['1D', '1W', '2W', '1M', '2M']) {
+        final rangeBtn = find.text(label);
+        expect(rangeBtn, findsOneWidget);
+        await tester.ensureVisible(rangeBtn);
+        await tester.tap(rangeBtn);
+        await tester.pump();
+        expect(tester.takeException(), isNull, reason: 'Candles $label');
+      }
       await tester.ensureVisible(find.text('Line'));
       await tester.tap(find.text('Line'));
       await tester.pump();
       expect(find.byType(UiAreaChart), findsOneWidget);
+      for (final label in ['1D', '1W', '2W', '1M', '2M']) {
+        final rangeBtn = find.text(label);
+        await tester.ensureVisible(rangeBtn);
+        await tester.tap(rangeBtn);
+        await tester.pump();
+        expect(tester.takeException(), isNull, reason: 'Line $label');
+      }
       expect(tester.takeException(), isNull);
       for (final title in [
         'Company news',
@@ -161,5 +176,40 @@ void main() {
     await settle(tester);
     expect(find.byKey(const ValueKey('market-stacked-panels')), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  test('filterMarketHistoryCandles slices 2M history into 1D, 1W, 2W, 1M, 2M', () {
+    final anchor = DateTime(2026, 11, 15);
+    final all = [
+      for (int daysAgo = 59; daysAgo >= 0; daysAgo--)
+        UiCandle(
+          time: anchor.subtract(Duration(days: daysAgo)),
+          open: 100,
+          high: 105,
+          low: 95,
+          close: 102,
+          volume: 1000,
+        ),
+    ];
+    expect(
+      filterMarketHistoryCandles(all, MarketHistoryRange.day).length,
+      1,
+    );
+    expect(
+      filterMarketHistoryCandles(all, MarketHistoryRange.week).length,
+      7,
+    );
+    expect(
+      filterMarketHistoryCandles(all, MarketHistoryRange.twoWeeks).length,
+      14,
+    );
+    expect(
+      filterMarketHistoryCandles(all, MarketHistoryRange.month).length,
+      30,
+    );
+    expect(
+      filterMarketHistoryCandles(all, MarketHistoryRange.twoMonths).length,
+      60,
+    );
   });
 }

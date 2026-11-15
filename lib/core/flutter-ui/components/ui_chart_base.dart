@@ -736,6 +736,16 @@ class _ChartPainter extends CustomPainter {
           ..strokeCap = StrokeCap.round,
       );
 
+      if (data.length == 1) {
+        final Offset pt = Offset(xOf(0), yOf(topOf(0)));
+        canvas.drawCircle(
+          pt,
+          strokeWidth * 3,
+          Paint()..color = colors[s].withValues(alpha: 0.2),
+        );
+        canvas.drawCircle(pt, strokeWidth * 1.6, Paint()..color = colors[s]);
+      }
+
       if (doStack) {
         for (int i = 0; i < data.length; i++) {
           areaBase[i] += _value(i, s);

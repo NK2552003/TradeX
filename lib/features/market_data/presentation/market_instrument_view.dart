@@ -110,6 +110,41 @@ class MarketDataRecords extends StatelessWidget {
   }
 }
 
+enum MarketHistoryRange { day, week, twoWeeks, month, twoMonths }
+
+String marketHistoryRangeLabel(MarketHistoryRange range) => switch (range) {
+  MarketHistoryRange.day => '1D',
+  MarketHistoryRange.week => '1W',
+  MarketHistoryRange.twoWeeks => '2W',
+  MarketHistoryRange.month => '1M',
+  MarketHistoryRange.twoMonths => '2M',
+};
+
+/// Slices chronologically sorted candles to match the 2-month CI/CD window
+/// (`1D`, `1W`, `2W`, `1M`, `2M`).
+List<UiCandle> filterMarketHistoryCandles(
+  List<UiCandle> candles,
+  MarketHistoryRange range,
+) {
+  if (candles.isEmpty) return const <UiCandle>[];
+  final sorted = List<UiCandle>.from(candles)
+    ..sort((a, b) => a.time.compareTo(b.time));
+  final DateTime latest = sorted.last.time;
+  final DateTime latestDay = DateTime(latest.year, latest.month, latest.day);
+  final DateTime cutoff = switch (range) {
+    MarketHistoryRange.day => latestDay,
+    MarketHistoryRange.week => latestDay.subtract(const Duration(days: 6)),
+    MarketHistoryRange.twoWeeks => latestDay.subtract(const Duration(days: 13)),
+    MarketHistoryRange.month => latestDay.subtract(const Duration(days: 29)),
+    MarketHistoryRange.twoMonths => latestDay.subtract(const Duration(days: 59)),
+  };
+  final filtered = sorted.where((c) {
+    final day = DateTime(c.time.year, c.time.month, c.time.day);
+    return !day.isBefore(cutoff);
+  }).toList();
+  return filtered.isNotEmpty ? filtered : <UiCandle>[sorted.last];
+}
+
 class MarketInstrumentView extends StatefulWidget {
   const MarketInstrumentView({
     super.key,
@@ -129,6 +164,7 @@ class MarketInstrumentView extends StatefulWidget {
 class _MarketInstrumentViewState extends State<MarketInstrumentView> {
   int _section = 0;
   int _chartMode = 0;
+  MarketHistoryRange _historyRange = MarketHistoryRange.twoMonths;
   late final Future<Map<String, dynamic>> _future = widget.repository.detail(
     widget.instrument.symbol,
   );
@@ -393,12 +429,17 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
         ),
       ];
       final MarketInstrument inst = widget.instrument;
-      final List<UiCandle> candles =
+      final List<UiCandle> allCandles =
           (chart['data'] as List? ?? const <dynamic>[]).isNotEmpty
-          ? assetCandles(chart['data'] as List)
+          ? (assetCandles(chart['data'] as List)
+              ..sort((a, b) => a.time.compareTo(b.time)))
           : <UiCandle>[];
-      final bool hasChart = candles.isNotEmpty;
-      final UiCandle? latest = hasChart ? candles.last : null;
+      final List<UiCandle> candles = filterMarketHistoryCandles(
+        allCandles,
+        _historyRange,
+      );
+      final bool hasChart = allCandles.isNotEmpty;
+      final UiCandle? latest = hasChart ? allCandles.last : null;
       final double price = inst.price != 0 ? inst.price : (latest?.close ?? 0);
       final UiIntent plIntent = AppTokens.plIntent(inst.changePercent);
       String px(double? v) => v == null || !v.isFinite
@@ -445,7 +486,7 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                         ),
                         if (hasChart)
                           Text(
-                            '${candles.length} data points',
+                            '${candles.length} ${candles.length == 1 ? 'data point' : 'data points'} · ${marketHistoryRangeLabel(_historyRange)}',
                             style: context.uiText.caption.copyWith(
                               color: context.ui.colors.foregroundMuted,
                             ),
@@ -453,20 +494,44 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                       ],
                     ),
                     if (hasChart)
-                      UiToggleGroup<int>(
-                        value: _chartMode,
-                        onChanged: (value) =>
-                            setState(() => _chartMode = value),
-                        options: const [
-                          UiOption(
-                            label: 'Candles',
-                            value: 0,
-                            icon: Icons.candlestick_chart,
+                      Wrap(
+                        spacing: context.sp(context.ui.spacing.sm),
+                        runSpacing: context.sp(context.ui.spacing.xs),
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          UiToggleGroup<MarketHistoryRange>(
+                            key: const ValueKey<String>(
+                              'market-history-range-toggle',
+                            ),
+                            value: _historyRange,
+                            size: UiSize.sm,
+                            onChanged: (value) =>
+                                setState(() => _historyRange = value),
+                            options: [
+                              for (final range in MarketHistoryRange.values)
+                                UiOption(
+                                  label: marketHistoryRangeLabel(range),
+                                  value: range,
+                                ),
+                            ],
                           ),
-                          UiOption(
-                            label: 'Line',
-                            value: 1,
-                            icon: Icons.show_chart,
+                          UiToggleGroup<int>(
+                            value: _chartMode,
+                            size: UiSize.sm,
+                            onChanged: (value) =>
+                                setState(() => _chartMode = value),
+                            options: const [
+                              UiOption(
+                                label: 'Candles',
+                                value: 0,
+                                icon: Icons.candlestick_chart,
+                              ),
+                              UiOption(
+                                label: 'Line',
+                                value: 1,
+                                icon: Icons.show_chart,
+                              ),
+                            ],
                           ),
                         ],
                       ),

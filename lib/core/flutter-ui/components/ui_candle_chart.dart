@@ -387,7 +387,7 @@ class _UiCandlePainter extends CustomPainter {
 
     double y(double price) => priceH - ((price - lo) / (hi - lo)) * priceH;
     final double step = (size.width - _gutter) / candles.length;
-    final double bodyW = math.max(1.0, step * 0.62);
+    final double bodyW = math.max(1.0, math.min(step * 0.62, 28.0));
 
     // Grid
     if (showGrid) {

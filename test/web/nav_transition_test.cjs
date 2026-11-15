@@ -502,3 +502,33 @@ test('transition chrome mirrors AppTopBar card, swap_vert, desktop/mobile titles
   const profileSvg = commSlots[4].querySelectorAll('.aj-dock-icon')[0].children[0];
   assert.equal(profileSvg.getAttribute('fill'), 'none');
 });
+
+test('transition chrome omits Features pill, omits market skeleton white horizontal dividers, and uses NotoSans with responsive text scaling', () => {
+  const env = createFakeDom({
+    url: 'https://app.alphajournal.in/market',
+    referrer: 'https://community.alphajournal.in/',
+    cookies: 'ax_sb_auth.n=1; ax_theme_mode=dark',
+  });
+  env.api.initHead();
+  env.api.mountIncoming();
+
+  // Global header omits redundant Features pill while keeping topbar actions.
+  assert.equal(env.document.querySelectorAll('.aj-features-pill').length, 0);
+  const styleEl = env.document.getElementById('aj-transition-styles');
+  assert.equal(styleEl.textContent.includes('.aj-features-pill'), false);
+
+  // Market skeleton renders without horizontal row dividers.
+  assert.equal(env.document.querySelectorAll('.aj-hdiv').length, 0);
+  assert.equal(styleEl.textContent.includes('.aj-hdiv'), false);
+
+  // Workspace plan subtitle uses distinct .aj-side-plan class (11 base vs 13 sub-item).
+  assert.equal(env.document.querySelectorAll('.aj-side-plan').length, 1);
+
+  // Typography matches Flutter UiTypography (NotoSans + UiScaleConfig responsive scale & user text scale clamp).
+  assert.ok(styleEl.textContent.includes('@font-face{font-family:"NotoSans"'));
+  assert.ok(styleEl.textContent.includes('font-family:"Noto Sans","NotoSans",system-ui'));
+  assert.ok(styleEl.textContent.includes('--aj-unit:clamp(0.85px,0.0625rem,1.4px)'));
+  assert.ok(styleEl.textContent.includes('@media(min-width:905px){.aj-trans-host{--aj-text-scale:1.1;}}'));
+  assert.ok(styleEl.textContent.includes('.aj-page-title{font-size:calc(24 * var(--aj-text-scale) * var(--aj-unit))'));
+  assert.ok(styleEl.textContent.includes('.aj-page-sub{font-size:calc(14 * var(--aj-text-scale) * var(--aj-unit))'));
+});

@@ -63,4 +63,39 @@ void main() {
       controller.dispose();
     });
   }
+
+  testWidgets(
+    'exhausted AI quota shows a single notice card without duplicate banner',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final controller = CopilotController(autoLoad: false)
+        ..quotaExceeded = true
+        ..quotaUsed = 5
+        ..quotaLimit = 5;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CopilotScreen(
+              repository: controller,
+              embedInScaffold: false,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Monthly AI quota reached'), findsOneWidget);
+      expect(find.textContaining('AI Credits Exhausted'), findsNothing);
+      expect(find.text('Upgrade Plan'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      controller.dispose();
+    },
+  );
 }

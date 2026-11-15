@@ -1922,7 +1922,7 @@ class UiSkeleton extends StatefulWidget {
                                     ],
                                   ),
                                   SizedBox(height: context.sp(theme.spacing.md)),
-                                  for (int i = 0; i < 5; i++) ...<Widget>[
+                                  for (int i = 0; i < 5; i++)
                                     Padding(
                                       padding: const EdgeInsets.symmetric(vertical: 6),
                                       child: Row(
@@ -1937,8 +1937,6 @@ class UiSkeleton extends StatefulWidget {
                                         ],
                                       ),
                                     ),
-                                    if (i < 4) const Divider(height: 1),
-                                  ],
                                 ],
                               ),
                             ),
@@ -2121,7 +2119,7 @@ class UiSkeleton extends StatefulWidget {
                               SizedBox(height: context.sp(theme.spacing.sm)),
                               for (int i = 0; i < 6; i++) ...<Widget>[
                                 UiSkeleton.listItem(showTrailing: true),
-                                if (i < 5) const Divider(height: 1),
+                                if (i < 5) SizedBox(height: context.sp(theme.spacing.xs)),
                               ],
                             ],
                           ),
@@ -2137,7 +2135,7 @@ class UiSkeleton extends StatefulWidget {
                               SizedBox(height: context.sp(theme.spacing.sm)),
                               for (int i = 0; i < 6; i++) ...<Widget>[
                                 UiSkeleton.listItem(showTrailing: true),
-                                if (i < 5) const Divider(height: 1),
+                                if (i < 5) SizedBox(height: context.sp(theme.spacing.xs)),
                               ],
                             ],
                           ),
@@ -2201,7 +2199,7 @@ class UiSkeleton extends StatefulWidget {
                             children: <Widget>[
                               UiSkeleton(width: context.sz(130), height: 18),
                               SizedBox(height: context.sp(theme.spacing.sm)),
-                              for (int i = 0; i < 6; i++) ...<Widget>[
+                              for (int i = 0; i < 6; i++)
                                 Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 6),
                                   child: Row(
@@ -2221,8 +2219,6 @@ class UiSkeleton extends StatefulWidget {
                                     ],
                                   ),
                                 ),
-                                if (i < 5) const Divider(height: 1),
-                              ],
                             ],
                           ),
                         ),

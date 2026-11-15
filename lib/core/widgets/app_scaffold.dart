@@ -721,25 +721,6 @@ class _AppScaffoldState extends State<AppScaffold> {
     });
   }
 
-  Widget _buildHeaderFeatureGuideAction() {
-    if (MediaQuery.sizeOf(context).width < 960) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: EdgeInsets.only(right: context.sp(context.ui.spacing.xs)),
-      child: UiButton(
-        key: const ValueKey<String>('header-feature-guide-btn'),
-        label: 'Features',
-        icon: Icons.explore_outlined,
-        size: UiSize.sm,
-        variant: UiVariant.soft,
-        intent: UiIntent.primary,
-        tooltip: 'Explore every feature with live previews',
-        onPressed: _showActiveWritingGuide,
-      ),
-    );
-  }
-
   /// Sends the reader home and forgets every pending deep link. Written without
   /// [setState] because the only caller is [didUpdateWidget], where a rebuild is
   /// already on the way.
@@ -2108,7 +2089,6 @@ class _AppScaffoldState extends State<AppScaffold> {
                             : (_isAiFeature ? _updateAiQuery : null))),
             searchTargetKey: _isWritingFeature ? _workspaceSearchKey : null,
             headerActions: <Widget>[
-              _buildHeaderFeatureGuideAction(),
               _buildHeaderRoleSwitcherAction(),
             ],
             onSettings: () => _go('settings'),

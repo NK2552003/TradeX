@@ -320,7 +320,8 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (constraints.maxHeight >= 420)
+                      if (constraints.maxHeight >= 420 &&
+                          !controller.isAiQuotaBlocked)
                         _AiQuotaBanner(controller: controller),
                       if (controller.pageContextId != null)
                         Padding(

@@ -507,5 +507,31 @@ BTC: 31.0
       await tester.pumpWidget(const SizedBox());
     },
   );
+
+  testWidgets('UiSkeleton.market renders cleanly without horizontal Divider lines', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    for (final int tab in <int>[0, 2, 3]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: UiTheme.dark().toThemeData(),
+          home: UiThemeScope(
+            theme: UiTheme.dark(),
+            child: Scaffold(
+              body: SingleChildScrollView(
+                child: UiSkeleton.market(tab: tab),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(Divider), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+  });
 }
 

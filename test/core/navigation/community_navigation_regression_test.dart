@@ -140,4 +140,22 @@ void main() {
     expect(find.byType(CommunityFeedView), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('desktop global header omits Features pill while keeping Help button', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(home: AppScaffold(initialDestination: 'workspace')),
+    );
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.byKey(const ValueKey<String>('header-feature-guide-btn')), findsNothing);
+    expect(find.byIcon(Icons.help_outline_rounded), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
