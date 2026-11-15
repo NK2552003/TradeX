@@ -26,6 +26,7 @@ class AppAiChatBlock extends StatefulWidget {
     this.emptyTitle = 'Ask about your trading',
     this.emptyMessage =
         'Summarise this week, review a setup, or stress-test a strategy.',
+    this.header,
     this.emptyState,
     this.composer,
     this.composerController,
@@ -53,6 +54,10 @@ class AppAiChatBlock extends StatefulWidget {
   messageBuilder;
   final String emptyTitle;
   final String emptyMessage;
+
+  /// Optional notice/quota widget rendered inside the scrollable area above
+  /// the empty state or conversation messages so it scrolls with the thread.
+  final Widget? header;
   final Widget? emptyState;
   final Widget? composer;
   final TextEditingController? composerController;
@@ -169,44 +174,75 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
             constraints.maxHeight.isFinite &&
             constraints.maxHeight < scaledTightThreshold;
 
+        final int headerCount = widget.header != null ? 1 : 0;
         return Column(
           children: <Widget>[
             if (!tightHeight)
               Expanded(
                 child: widget.messages.isEmpty
-                    ? widget.emptyState ??
-                          UiEmptyState(
-                            title: widget.emptyTitle,
-                            message: widget.emptyMessage,
-                            icon: Icons.auto_awesome,
-                          )
+                    ? LayoutBuilder(
+                        builder: (BuildContext ctx, BoxConstraints viewport) {
+                          final Widget emptyContent =
+                              widget.emptyState ??
+                              UiEmptyState(
+                                title: widget.emptyTitle,
+                                message: widget.emptyMessage,
+                                icon: Icons.auto_awesome,
+                              );
+                          return SingleChildScrollView(
+                            physics: const ClampingScrollPhysics(),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight: viewport.maxHeight.isFinite
+                                    ? viewport.maxHeight
+                                    : 0.0,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                mainAxisAlignment: widget.header == null
+                                    ? MainAxisAlignment.center
+                                    : MainAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  if (widget.header != null) widget.header!,
+                                  Center(child: emptyContent),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      )
                     : ListView.builder(
                         controller: _scroll,
                         padding: EdgeInsets.symmetric(
                           vertical: context.sp(theme.spacing.md),
                         ),
-                        itemCount: widget.messages.length,
-                        itemBuilder: (BuildContext ctx, int i) => AppFadeIn(
-                          child:
-                              widget.messageBuilder?.call(
-                                ctx,
-                                widget.messages[i],
-                              ) ??
-                              AppAiMessageBubble(
-                                message: widget.messages[i],
-                                onCopy: widget.onCopy == null
-                                    ? null
-                                    : () => widget.onCopy!(widget.messages[i]),
-                                onRetry: widget.onRetry == null
-                                    ? null
-                                    : () => widget.onRetry!(widget.messages[i]),
-                                onShare: widget.onShare == null
-                                    ? null
-                                    : () => widget.onShare!(widget.messages[i]),
-                                onOpenRef: widget.onOpenRef,
-                                actionsBuilder: widget.messageActionsBuilder,
-                              ),
-                        ),
+                        itemCount: widget.messages.length + headerCount,
+                        itemBuilder: (BuildContext ctx, int i) {
+                          if (widget.header != null && i == 0) {
+                            return widget.header!;
+                          }
+                          final AppAiMessage msg =
+                              widget.messages[i - headerCount];
+                          return AppFadeIn(
+                            child:
+                                widget.messageBuilder?.call(ctx, msg) ??
+                                AppAiMessageBubble(
+                                  message: msg,
+                                  onCopy: widget.onCopy == null
+                                      ? null
+                                      : () => widget.onCopy!(msg),
+                                  onRetry: widget.onRetry == null
+                                      ? null
+                                      : () => widget.onRetry!(msg),
+                                  onShare: widget.onShare == null
+                                      ? null
+                                      : () => widget.onShare!(msg),
+                                  onOpenRef: widget.onOpenRef,
+                                  actionsBuilder: widget.messageActionsBuilder,
+                                ),
+                          );
+                        },
                       ),
               ),
             if (widget.prompts.isNotEmpty && !tightHeight) ...<Widget>[
@@ -223,7 +259,17 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
               Expanded(
                 child: SingleChildScrollView(
                   physics: const ClampingScrollPhysics(),
-                  child: composerWidget,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      composerWidget,
+                      if (widget.header != null) ...<Widget>[
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        widget.header!,
+                      ],
+                    ],
+                  ),
                 ),
               )
             else

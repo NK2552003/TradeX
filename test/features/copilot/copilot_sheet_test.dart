@@ -65,9 +65,9 @@ void main() {
   }
 
   testWidgets(
-    'exhausted AI quota shows a single notice card without duplicate banner',
+    'exhausted AI quota shows a single notice card and scrolls with content',
     (tester) async {
-      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.physicalSize = const Size(390, 720);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -89,9 +89,108 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Monthly AI quota reached'), findsOneWidget);
+      final quotaFinder = find.textContaining('Monthly AI quota reached');
+      expect(quotaFinder, findsOneWidget);
       expect(find.textContaining('AI Credits Exhausted'), findsNothing);
       expect(find.text('Upgrade Plan'), findsOneWidget);
+
+      final double initialQuotaTop = tester.getTopLeft(quotaFinder).dy;
+      await tester.drag(
+        find.text('What can I help with?'),
+        const Offset(0, -260),
+      );
+      await tester.pumpAndSettle();
+      final double scrolledQuotaTop = tester.getTopLeft(quotaFinder).dy;
+      expect(scrolledQuotaTop, lessThan(initialQuotaTop - 100));
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
+    'monthly AI credit banner scrolls with welcome content and messages',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 720);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final controller = CopilotController(autoLoad: false)
+        ..quotaUsed = 1
+        ..quotaLimit = 5;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CopilotScreen(
+              repository: controller,
+              embedInScaffold: false,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final creditsFinder = find.textContaining('AI credits remaining');
+      expect(creditsFinder, findsOneWidget);
+      final double beforeBannerTop = tester.getTopLeft(creditsFinder).dy;
+      await tester.drag(
+        find.text('What can I help with?'),
+        const Offset(0, -260),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(creditsFinder).dy,
+        lessThan(beforeBannerTop - 100),
+      );
+
+      // Also verify quota notice scrolls with active conversation messages.
+      controller.quotaExceeded = true;
+      controller.quotaUsed = 5;
+      controller.workspace = CopilotWorkspace.fromJson({
+        ...initialWorkspace(),
+        'threads': [
+          {
+            'id': 't-scroll',
+            'specialistId': 'analyst',
+            'title': 'Scroll check',
+            'messages': [
+              {
+                'id': 'm1',
+                'role': 'user',
+                'body': 'Analyze NVDA earnings.',
+              },
+              {
+                'id': 'm2',
+                'role': 'assistant',
+                'body':
+                    '## Direct Answer\n${List.filled(18, 'Detailed research paragraph line for scrolling verification.').join('\n\n')}',
+              },
+            ],
+          },
+        ],
+      });
+      controller.selectThread('t-scroll');
+      await tester.pumpAndSettle();
+      final listView = find.byType(ListView);
+      expect(listView, findsOneWidget);
+      final listController = tester.widget<ListView>(listView).controller!;
+      listController.jumpTo(0);
+      await tester.pumpAndSettle();
+      final activeQuotaFinder = find.textContaining('Monthly AI quota reached');
+      expect(activeQuotaFinder, findsOneWidget);
+      final double threadQuotaTop = tester.getTopLeft(activeQuotaFinder).dy;
+      await tester.drag(listView, const Offset(0, -80));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(activeQuotaFinder).dy,
+        lessThan(threadQuotaTop - 40),
+      );
+      await tester.drag(listView, const Offset(0, -600));
+      await tester.pumpAndSettle();
+      expect(activeQuotaFinder, findsNothing);
       expect(tester.takeException(), isNull);
 
       await tester.pumpWidget(const SizedBox.shrink());

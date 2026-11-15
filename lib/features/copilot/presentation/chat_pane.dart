@@ -325,97 +325,90 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
     }
     return LayoutBuilder(
       builder: (context, constraints) {
+        final showQuotaBanner =
+            constraints.maxHeight >= 420 && !controller.isAiQuotaBlocked;
         final hasTopNotices =
-            constraints.maxHeight >= 420 ||
+            showQuotaBanner ||
             controller.pageContextId != null ||
             controller.isAiQuotaBlocked ||
             controller.error != null;
-        final maxNoticeHeight = constraints.maxHeight.isFinite
-            ? (constraints.maxHeight * 0.45).clamp(0.0, constraints.maxHeight)
-            : double.infinity;
+        final Widget? topNotice = !hasTopNotices
+            ? null
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showQuotaBanner) _AiQuotaBanner(controller: controller),
+                  if (controller.pageContextId != null)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: context.sp(context.ui.spacing.sm),
+                      ),
+                      child: UiBadge(
+                        label:
+                            'Discussing: ${controller.workspace.pages.where((p) => p.id == controller.pageContextId).firstOrNull?.title ?? 'Page'}',
+                        icon: Icons.article_outlined,
+                        intent: UiIntent.neutral,
+                      ),
+                    ),
+                  if (controller.isAiQuotaBlocked)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: context.sp(context.ui.spacing.sm),
+                      ),
+                      child: UiCallout(
+                        title:
+                            'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
+                        message:
+                            'Your ${CustomerLimitations.currentQuota.planName} plan allows ${controller.effectiveAiQueriesLimit} AI prompts per month. Upgrade your plan to unlock additional capacity.',
+                        intent: UiIntent.warning,
+                        action: UiButton(
+                          label: 'Upgrade Plan',
+                          size: UiSize.xs,
+                          variant: UiVariant.solid,
+                          intent: UiIntent.primary,
+                          onPressed: () =>
+                              CustomerLimitations.showPlanUpgradeDialog(
+                                context,
+                                featureTitle:
+                                    'AI Copilot Quota Reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
+                                reason:
+                                    'Your ${CustomerLimitations.currentQuota.planName} plan includes ${controller.effectiveAiQueriesLimit} AI queries per month.',
+                              ),
+                        ),
+                      ),
+                    )
+                  else if (controller.error != null)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: context.sp(context.ui.spacing.sm),
+                      ),
+                      child: UiCallout(
+                        title: 'Could not finish',
+                        message: controller.error!,
+                        intent: UiIntent.warning,
+                        onClose: () =>
+                            setState(() => controller.error = null),
+                        action: UiButton(
+                          label: 'Reconnect',
+                          size: UiSize.xs,
+                          variant: UiVariant.outline,
+                          onPressed: () => controller.reload(),
+                        ),
+                      ),
+                    ),
+                ],
+              );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (hasTopNotices)
-              ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: maxNoticeHeight),
-                child: SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (constraints.maxHeight >= 420 &&
-                          !controller.isAiQuotaBlocked)
-                        _AiQuotaBanner(controller: controller),
-                      if (controller.pageContextId != null)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            bottom: context.sp(context.ui.spacing.sm),
-                          ),
-                          child: UiBadge(
-                            label:
-                                'Discussing: ${controller.workspace.pages.where((p) => p.id == controller.pageContextId).firstOrNull?.title ?? 'Page'}',
-                            icon: Icons.article_outlined,
-                            intent: UiIntent.neutral,
-                          ),
-                        ),
-                      if (controller.isAiQuotaBlocked)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            bottom: context.sp(context.ui.spacing.sm),
-                          ),
-                          child: UiCallout(
-                            title:
-                                'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
-                            message:
-                                'Your ${CustomerLimitations.currentQuota.planName} plan allows ${controller.effectiveAiQueriesLimit} AI prompts per month. Upgrade your plan to unlock additional capacity.',
-                            intent: UiIntent.warning,
-                            action: UiButton(
-                              label: 'Upgrade Plan',
-                              size: UiSize.xs,
-                              variant: UiVariant.solid,
-                              intent: UiIntent.primary,
-                              onPressed: () =>
-                                  CustomerLimitations.showPlanUpgradeDialog(
-                                    context,
-                                    featureTitle:
-                                        'AI Copilot Quota Reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
-                                    reason:
-                                        'Your ${CustomerLimitations.currentQuota.planName} plan includes ${controller.effectiveAiQueriesLimit} AI queries per month.',
-                                  ),
-                            ),
-                          ),
-                        )
-                      else if (controller.error != null)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            bottom: context.sp(context.ui.spacing.sm),
-                          ),
-                          child: UiCallout(
-                            title: 'Could not finish',
-                            message: controller.error!,
-                            intent: UiIntent.warning,
-                            onClose: () =>
-                                setState(() => controller.error = null),
-                            action: UiButton(
-                              label: 'Reconnect',
-                              size: UiSize.xs,
-                              variant: UiVariant.outline,
-                              onPressed: () => controller.reload(),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
             Expanded(
-            child: AppAiChatBlock(
-              key: ValueKey(
-                controller.activeThreadId ?? 'new-${controller.specialist?.id}',
-              ),
-              messages: displayed,
+              child: AppAiChatBlock(
+                key: ValueKey(
+                  controller.activeThreadId ?? 'new-${controller.specialist?.id}',
+                ),
+                header: topNotice,
+                messages: displayed,
               onSend: _send,
               onAttach:
                   controller.isAiQuotaBlocked ||
@@ -890,17 +883,16 @@ class _Welcome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    return Center(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.sm),
-          vertical: context.sp(theme.spacing.lg),
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: context.sz(820)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.sm),
+        vertical: context.sp(theme.spacing.lg),
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.sz(820)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
               UiBadge(
                 label: 'Perplexity Research Mode',
                 icon: Icons.travel_explore_rounded,
@@ -1033,8 +1025,7 @@ class _Welcome extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
