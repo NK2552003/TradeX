@@ -219,29 +219,36 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
   Future<void> _fetchLiveYahooData() async {
     if (!mounted) return;
 
-    Future<void> updateGroup(List<MarketIndexItem> list) async {
-      for (var i = 0; i < list.length; i++) {
-        final item = list[i];
-        try {
-          final live = await YahooFinanceService.instance.fetchIndexItem(
-            item.symbol,
-            item.name,
-          );
-          if (live != null && mounted) {
-            setState(() {
-              list[i] = live;
-            });
-          }
-        } catch (_) {}
-      }
-    }
+    final groups = <List<MarketIndexItem>>[
+      _americas,
+      _europe,
+      _asia,
+      _commodities,
+      _currencies,
+      _bonds,
+    ];
+    final requested = <({String symbol, String name})>[
+      for (final group in groups)
+        for (final item in group) (symbol: item.symbol, name: item.name),
+    ];
+    if (requested.isEmpty) return;
 
-    updateGroup(_americas);
-    updateGroup(_europe);
-    updateGroup(_asia);
-    updateGroup(_commodities);
-    updateGroup(_currencies);
-    updateGroup(_bonds);
+    try {
+      final liveMap = await YahooFinanceService.instance.fetchIndexItems(
+        requested,
+      );
+      if (!mounted || liveMap.isEmpty) return;
+      setState(() {
+        for (final list in groups) {
+          for (var i = 0; i < list.length; i++) {
+            final live = liveMap[list[i].symbol];
+            if (live != null) {
+              list[i] = live;
+            }
+          }
+        }
+      });
+    } catch (_) {}
   }
 
   Widget _buildTable(

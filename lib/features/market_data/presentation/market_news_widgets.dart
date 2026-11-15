@@ -1049,28 +1049,33 @@ class _MarketArticleViewState extends State<MarketArticleView> {
   }
 
   Future<void> _fetchLiveQuotes() async {
-    final tickers = widget.article.tickers;
-    if (tickers.isEmpty) return;
-    for (final sym in tickers.take(6)) {
-      try {
-        final q = await YahooFinanceService.instance.fetchQuote(sym);
-        if (q != null && mounted) {
-          setState(() {
-            _liveQuotes[sym] = MarketInstrument.fromJson(
-              {
-                'ticker': q.symbol,
-                'name': q.name,
-                'price': q.price,
-                'change_pct': q.changePercent,
-                'currency': 'USD',
-              },
-              {},
-              history: q.spark,
-            );
-          });
+    final missingTickers = widget.article.tickers
+        .take(6)
+        .where((sym) => !_liveQuotes.containsKey(sym))
+        .toList();
+    if (missingTickers.isEmpty) return;
+    try {
+      final quotes = await YahooFinanceService.instance.fetchQuotes(
+        missingTickers,
+      );
+      if (!mounted || quotes.isEmpty) return;
+      setState(() {
+        for (final entry in quotes.entries) {
+          final q = entry.value;
+          _liveQuotes[entry.key] = MarketInstrument.fromJson(
+            {
+              'ticker': q.symbol,
+              'name': q.name,
+              'price': q.price,
+              'change_pct': q.changePercent,
+              'currency': 'USD',
+            },
+            {},
+            history: q.spark,
+          );
         }
-      } catch (_) {}
-    }
+      });
+    } catch (_) {}
   }
 
   Future<void> _source(BuildContext context) async {

@@ -259,8 +259,33 @@ class MarketDataService {
   final Map<String, Future<MarketQuote>> _inFlight = <String, Future<MarketQuote>>{};
   MacroBenchmarks _macroBenchmarks = MacroBenchmarks.fallback;
 
+  // Proxy circuit breaker with exponential backoff so failed requests do not loop
+  int _proxyFailures = 0;
+  DateTime? _proxyBlockedUntil;
+  static const List<int> _proxyBackoffSeconds = <int>[30, 60, 120, 300];
+  static const int _maxProxyConsecutiveFailures = 5;
+
   static const Duration _quoteTtl = Duration(minutes: 2);
   static const Duration _requestTimeout = Duration(seconds: 4);
+
+  bool get _canCallProxy {
+    final DateTime? blockedUntil = _proxyBlockedUntil;
+    return blockedUntil == null || DateTime.now().isAfter(blockedUntil);
+  }
+
+  void _recordProxySuccess() {
+    _proxyFailures = 0;
+    _proxyBlockedUntil = null;
+  }
+
+  void _recordProxyFailure() {
+    _proxyFailures += 1;
+    final int idx = (_proxyFailures - 1).clamp(0, _proxyBackoffSeconds.length - 1);
+    final int secs = _proxyFailures >= _maxProxyConsecutiveFailures
+        ? _proxyBackoffSeconds.last
+        : _proxyBackoffSeconds[idx];
+    _proxyBlockedUntil = DateTime.now().add(Duration(seconds: secs));
+  }
 
   static const Map<String, String> _tickerMapping = <String, String>{
     'NIFTY': '^NSEI',
@@ -303,9 +328,46 @@ class MarketDataService {
     }
   }
 
+  MarketQuote? _parseProxyQuote(String key, Map q) {
+    final double price = (q['price'] as num?)?.toDouble() ?? 0.0;
+    final double prevClose = (q['previousClose'] as num?)?.toDouble() ?? price;
+    final double open = (q['open'] as num?)?.toDouble() ?? prevClose;
+    final double high = (q['high'] as num?)?.toDouble() ?? price;
+    final double low = (q['low'] as num?)?.toDouble() ?? price;
+    final double h52 = (q['fiftyTwoWeekHigh'] as num?)?.toDouble() ?? price;
+    final double l52 = (q['fiftyTwoWeekLow'] as num?)?.toDouble() ?? price;
+    final double pct = (q['changePercent'] as num?)?.toDouble() ??
+        (prevClose == 0 ? 0.0 : (price - prevClose) / prevClose * 100);
+    final String name = (q['name'] as String?) ?? key;
+    final bool isLive = q['isLive'] as bool? ?? false;
+    final DateTime timestamp = q['timestamp'] != null
+        ? DateTime.tryParse(q['timestamp'].toString()) ?? DateTime.now()
+        : DateTime.now();
+    final String source = (q['source'] as String?) ?? 'Market Quote Proxy';
+    final String freshness =
+        (q['freshness'] as String?) ?? (isLive ? 'live' : 'snapshot');
+
+    return MarketQuote(
+      symbol: key,
+      name: name,
+      price: price,
+      previousClose: prevClose,
+      open: open,
+      high: high,
+      low: low,
+      fiftyTwoWeekHigh: h52,
+      fiftyTwoWeekLow: l52,
+      changePercent: pct,
+      isLive: isLive,
+      timestamp: timestamp,
+      source: source,
+      freshness: freshness,
+    );
+  }
+
   Future<MarketQuote> _fetchQuoteInternal(String key, String ticker) async {
-    // 1. Try Supabase Edge Function Backend Proxy if configured
-    if (SupabaseConfig.isConfigured) {
+    // 1. Try Supabase Edge Function Backend Proxy if configured and not backed off
+    if (SupabaseConfig.isConfigured && _canCallProxy) {
       try {
         final client = SupabaseConfig.client!;
         final res = await client.functions.invoke(
@@ -317,45 +379,16 @@ class MarketDataService {
         ).timeout(_requestTimeout);
 
         if (res.status == 200 && res.data is Map) {
+          _recordProxySuccess();
           final quotesMap = res.data['quotes'];
           if (quotesMap is Map && quotesMap[ticker] is Map) {
-            final q = quotesMap[ticker] as Map;
-            final double price = (q['price'] as num?)?.toDouble() ?? 0.0;
-            final double prevClose = (q['previousClose'] as num?)?.toDouble() ?? price;
-            final double open = (q['open'] as num?)?.toDouble() ?? prevClose;
-            final double high = (q['high'] as num?)?.toDouble() ?? price;
-            final double low = (q['low'] as num?)?.toDouble() ?? price;
-            final double h52 = (q['fiftyTwoWeekHigh'] as num?)?.toDouble() ?? price;
-            final double l52 = (q['fiftyTwoWeekLow'] as num?)?.toDouble() ?? price;
-            final double pct = (q['changePercent'] as num?)?.toDouble() ??
-                (prevClose == 0 ? 0.0 : (price - prevClose) / prevClose * 100);
-            final String name = (q['name'] as String?) ?? key;
-            final bool isLive = q['isLive'] as bool? ?? false;
-            final DateTime timestamp = q['timestamp'] != null
-                ? DateTime.tryParse(q['timestamp'].toString()) ?? DateTime.now()
-                : DateTime.now();
-            final String source = (q['source'] as String?) ?? 'Market Quote Proxy';
-            final String freshness = (q['freshness'] as String?) ?? (isLive ? 'live' : 'snapshot');
-
-            return MarketQuote(
-              symbol: key,
-              name: name,
-              price: price,
-              previousClose: prevClose,
-              open: open,
-              high: high,
-              low: low,
-              fiftyTwoWeekHigh: h52,
-              fiftyTwoWeekLow: l52,
-              changePercent: pct,
-              isLive: isLive,
-              timestamp: timestamp,
-              source: source,
-              freshness: freshness,
-            );
+            return _parseProxyQuote(key, quotesMap[ticker] as Map)!;
           }
+        } else {
+          _recordProxyFailure();
         }
       } catch (e) {
+        _recordProxyFailure();
         debugPrint('[MarketDataService] Proxy invoke error: $e');
       }
     }
@@ -455,20 +488,89 @@ class MarketDataService {
     return _quoteCache[key] ?? MarketQuote.fallback(key);
   }
 
-  /// Fetch quotes for multiple symbols.
+  /// Fetch quotes for multiple symbols in batched requests.
   Future<Map<String, MarketQuote>> getQuotes(
     List<String> symbols, {
     bool forceRefresh = false,
   }) async {
     final Map<String, MarketQuote> results = <String, MarketQuote>{};
-    await Future.wait(
-      symbols.map((String s) async {
-        results[s.toUpperCase()] = await getQuote(
-          s,
-          forceRefresh: forceRefresh,
-        );
-      }),
-    );
+    final List<({String key, String ticker})> missing =
+        <({String key, String ticker})>[];
+
+    for (final String s in symbols) {
+      final String key = s.toUpperCase().replaceAll('/', '');
+      if (!forceRefresh && _quoteCache.containsKey(key)) {
+        final MarketQuote cached = _quoteCache[key]!;
+        if (DateTime.now().difference(cached.timestamp) < _quoteTtl) {
+          results[s.toUpperCase()] = cached;
+          continue;
+        }
+      }
+      missing.add((key: key, ticker: _tickerMapping[key] ?? '$key.NS'));
+    }
+
+    if (missing.isNotEmpty && SupabaseConfig.isConfigured && _canCallProxy) {
+      final client = SupabaseConfig.client!;
+      final List<({String key, String ticker})> remaining =
+          <({String key, String ticker})>[];
+      for (int offset = 0; offset < missing.length; offset += 30) {
+        final int end = (offset + 30).clamp(0, missing.length);
+        final chunk = missing.sublist(offset, end);
+        if (!_canCallProxy) {
+          remaining.addAll(chunk);
+          continue;
+        }
+        try {
+          final res = await client.functions.invoke(
+            'market-quote-proxy',
+            body: {
+              'action': 'quotes',
+              'symbols': chunk.map((e) => e.ticker).toList(),
+            },
+          ).timeout(_requestTimeout);
+          if (res.status == 200 && res.data is Map) {
+            _recordProxySuccess();
+            final quotesMap = res.data['quotes'];
+            for (final item in chunk) {
+              if (quotesMap is Map && quotesMap[item.ticker] is Map) {
+                final quote = _parseProxyQuote(
+                  item.key,
+                  quotesMap[item.ticker] as Map,
+                );
+                if (quote != null) {
+                  _quoteCache[item.key] = quote;
+                  results[item.key] = quote;
+                  continue;
+                }
+              }
+              remaining.add(item);
+            }
+          } else {
+            _recordProxyFailure();
+            remaining.addAll(chunk);
+          }
+        } catch (e) {
+          _recordProxyFailure();
+          debugPrint('[MarketDataService] Batch proxy error: $e');
+          remaining.addAll(chunk);
+        }
+      }
+      missing
+        ..clear()
+        ..addAll(remaining);
+    }
+
+    if (missing.isNotEmpty) {
+      await Future.wait(
+        missing.map((item) async {
+          results[item.key] = await getQuote(
+            item.key,
+            forceRefresh: forceRefresh,
+          );
+        }),
+      );
+    }
+
     return results;
   }
 

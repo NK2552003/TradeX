@@ -202,22 +202,27 @@ class _YahooMarketRibbonState extends State<YahooMarketRibbon> {
 
   Future<void> _fetchLiveYahooQuotes() async {
     if (!mounted) return;
-    final items = _marketData[_selectedCategory] ?? [];
-    for (var i = 0; i < items.length; i++) {
-      final item = items[i];
-      try {
-        final quote = await YahooFinanceService.instance.fetchQuote(
-          item.symbol,
-          displayName: item.name,
-          category: _selectedCategory,
-        );
-        if (quote != null && mounted) {
-          setState(() {
-            _marketData[_selectedCategory]![i] = quote;
-          });
+    final category = _selectedCategory;
+    final items = _marketData[category] ?? [];
+    if (items.isEmpty) return;
+    try {
+      final quotes = await YahooFinanceService.instance.fetchQuotes(
+        items.map((e) => e.symbol).toList(),
+        displayNames: {for (final e in items) e.symbol: e.name},
+        category: category,
+      );
+      if (!mounted || quotes.isEmpty) return;
+      setState(() {
+        final list = _marketData[category];
+        if (list == null) return;
+        for (var i = 0; i < list.length; i++) {
+          final q = quotes[list[i].symbol];
+          if (q != null) {
+            list[i] = q;
+          }
         }
-      } catch (_) {}
-    }
+      });
+    } catch (_) {}
   }
 
   void _scrollLeft() {

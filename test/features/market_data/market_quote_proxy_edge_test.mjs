@@ -6,10 +6,12 @@ console.log('--- Testing market-quote-proxy Edge Function Contract & Logic ---')
 // 1. Static file check for Edge Function implementation
 const edgeFileContent = readFileSync('supabase/functions/market-quote-proxy/index.ts', 'utf-8');
 
-// Verify CORS headers are defined
+// Verify CORS headers and origin allowlist are defined
 assert.ok(
-  edgeFileContent.includes("'Access-Control-Allow-Origin': '*'"),
-  'Must include Access-Control-Allow-Origin: * for browser support'
+  edgeFileContent.includes("'Access-Control-Allow-Origin': resolveAllowedOrigin(request)") &&
+    edgeFileContent.includes('https://alphajournal.in') &&
+    edgeFileContent.includes('authorization, x-client-info, apikey, content-type'),
+  'Must include restricted origin Access-Control-Allow-Origin and Supabase CORS headers'
 );
 
 // Verify request limits

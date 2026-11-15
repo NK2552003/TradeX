@@ -1,11 +1,39 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-export const corsHeaders = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-};
+const ALLOWED_ORIGINS = new Set([
+  'https://alphajournal.in',
+  'https://www.alphajournal.in',
+  'https://app.alphajournal.in',
+  'https://community.alphajournal.in',
+  'https://admin.alphajournal.in',
+  'https://affiliate.alphajournal.in',
+]);
+
+function resolveAllowedOrigin(request: Request): string {
+  const origin = request.headers.get('origin')?.trim() ?? '';
+  if (ALLOWED_ORIGINS.has(origin)) {
+    return origin;
+  }
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
+    return origin;
+  }
+  return 'https://alphajournal.in';
+}
+
+export function buildCorsHeaders(
+  request: Request,
+  cacheControl?: string,
+): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': resolveAllowedOrigin(request),
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin',
+    ...(cacheControl ? { 'Cache-Control': cacheControl } : {}),
+  };
+}
 
 export const MAX_BODY_BYTES = 32_000;
 export const MAX_SYMBOLS = 30;
@@ -196,14 +224,16 @@ export async function fetchServerQuote(symbol: string): Promise<QuotePayload | n
 }
 
 export async function handleRequest(request: Request): Promise<Response> {
+  const headers = buildCorsHeaders(request);
+
   if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers });
   }
 
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed. Use POST.' }), {
       status: 405,
-      headers: corsHeaders,
+      headers,
     });
   }
 
@@ -214,12 +244,12 @@ export async function handleRequest(request: Request): Promise<Response> {
     if (err instanceof PayloadTooLargeError) {
       return new Response(JSON.stringify({ error: err.message }), {
         status: 413,
-        headers: corsHeaders,
+        headers,
       });
     }
     return new Response(JSON.stringify({ error: 'Unable to read request body.' }), {
       status: 400,
-      headers: corsHeaders,
+      headers,
     });
   }
 
@@ -232,7 +262,7 @@ export async function handleRequest(request: Request): Promise<Response> {
   } catch {
     return new Response(JSON.stringify({ error: 'Malformed JSON payload.' }), {
       status: 400,
-      headers: corsHeaders,
+      headers,
     });
   }
 
@@ -244,14 +274,14 @@ export async function handleRequest(request: Request): Promise<Response> {
     if (!Array.isArray(rawSymbols) || rawSymbols.length === 0) {
       return new Response(
         JSON.stringify({ error: 'Invalid input: "symbols" must be a non-empty array of strings.' }),
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers }
       );
     }
 
     if (rawSymbols.length > MAX_SYMBOLS) {
       return new Response(
         JSON.stringify({ error: `Too many symbols: maximum allowed is ${MAX_SYMBOLS}.` }),
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers }
       );
     }
 
@@ -260,14 +290,14 @@ export async function handleRequest(request: Request): Promise<Response> {
       if (typeof s !== 'string') {
         return new Response(
           JSON.stringify({ error: 'Invalid symbol type: each symbol must be a string.' }),
-          { status: 400, headers: corsHeaders }
+          { status: 400, headers }
         );
       }
       const trimmed = s.trim();
       if (!SYMBOL_REGEX.test(trimmed)) {
         return new Response(
           JSON.stringify({ error: `Invalid symbol format: "${trimmed}". Must match ${SYMBOL_REGEX.source}` }),
-          { status: 400, headers: corsHeaders }
+          { status: 400, headers }
         );
       }
       sanitizedSymbols.push(trimmed);
@@ -295,7 +325,7 @@ export async function handleRequest(request: Request): Promise<Response> {
         freshness: missing.length === 0 ? 'live' : 'partial',
         deliveredAt: new Date().toISOString(),
       }),
-      { status: 200, headers: corsHeaders }
+      { status: 200, headers: buildCorsHeaders(request, 'public, max-age=30') }
     );
   }
 
@@ -310,7 +340,7 @@ export async function handleRequest(request: Request): Promise<Response> {
           freshness: 'cached',
           deliveredAt: new Date().toISOString(),
         }),
-        { status: 200, headers: corsHeaders }
+        { status: 200, headers: buildCorsHeaders(request, 'public, max-age=60') }
       );
     }
 
@@ -339,7 +369,7 @@ export async function handleRequest(request: Request): Promise<Response> {
         freshness: 'live',
         deliveredAt: new Date().toISOString(),
       }),
-      { status: 200, headers: corsHeaders }
+      { status: 200, headers: buildCorsHeaders(request, 'public, max-age=60') }
     );
   }
 
@@ -357,7 +387,7 @@ export async function handleRequest(request: Request): Promise<Response> {
           freshness: 'cached',
           deliveredAt: new Date().toISOString(),
         }),
-        { status: 200, headers: corsHeaders }
+        { status: 200, headers: buildCorsHeaders(request, 'public, max-age=60') }
       );
     }
 
@@ -420,7 +450,7 @@ export async function handleRequest(request: Request): Promise<Response> {
             freshness: 'live',
             deliveredAt: new Date().toISOString(),
           }),
-          { status: 200, headers: corsHeaders }
+          { status: 200, headers: buildCorsHeaders(request, 'public, max-age=60') }
         );
       }
     } catch (_e) {
@@ -433,13 +463,13 @@ export async function handleRequest(request: Request): Promise<Response> {
         freshness: 'empty',
         deliveredAt: new Date().toISOString(),
       }),
-      { status: 200, headers: corsHeaders }
+      { status: 200, headers }
     );
   }
 
   return new Response(
     JSON.stringify({ error: `Unknown action: "${action}". Supported actions: "quotes", "sectors", "news".` }),
-    { status: 400, headers: corsHeaders }
+    { status: 400, headers }
   );
 }
 

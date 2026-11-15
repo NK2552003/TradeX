@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -26,10 +27,41 @@ class YahooFinanceService {
   ({List<SectorPerformanceItem> items, DateTime expires})? _sectorCache;
   final Map<String, ({List<MarketArticle> items, DateTime expires})> _newsCache = {};
 
+  // In-flight request deduplication
+  final Map<String, Future<YahooMarketItem?>> _inFlightQuotes = {};
+  Future<List<SectorPerformanceItem>>? _inFlightSectors;
+  final Map<String, Future<List<MarketArticle>>> _inFlightNews = {};
+
+  // Proxy circuit breaker with exponential backoff so 404/CORS failures never loop
+  int _proxyFailures = 0;
+  DateTime? _proxyBlockedUntil;
+  static const List<int> _proxyBackoffSeconds = [30, 60, 120, 300];
+  static const int _maxProxyConsecutiveFailures = 5;
+  static const int _maxProxyBatch = 30;
+
   static const Duration _quoteTtl = Duration(minutes: 1);
   static const Duration _sectorTtl = Duration(minutes: 5);
   static const Duration _newsTtl = Duration(minutes: 5);
   static const Duration _requestTimeout = Duration(seconds: 5);
+
+  bool get _canCallProxy {
+    final blockedUntil = _proxyBlockedUntil;
+    return blockedUntil == null || DateTime.now().isAfter(blockedUntil);
+  }
+
+  void _recordProxySuccess() {
+    _proxyFailures = 0;
+    _proxyBlockedUntil = null;
+  }
+
+  void _recordProxyFailure() {
+    _proxyFailures += 1;
+    final idx = (_proxyFailures - 1).clamp(0, _proxyBackoffSeconds.length - 1);
+    final secs = _proxyFailures >= _maxProxyConsecutiveFailures
+        ? _proxyBackoffSeconds.last
+        : _proxyBackoffSeconds[idx];
+    _proxyBlockedUntil = DateTime.now().add(Duration(seconds: secs));
+  }
 
   /// S&P 500 Sector ETF definitions mapping to Image 3 sectors.
   static const List<(String, String, String, double)> kSectorMapping = [
@@ -46,82 +78,176 @@ class YahooFinanceService {
     ('Utilities', 'XLU', 'utilities', 1.90),
   ];
 
-  /// Fetches market quote & sparkline via backend proxy or clean platform channel.
-  Future<YahooMarketItem?> fetchQuote(
-    String symbol, {
-    String? displayName,
+  /// Fetches a batch of market quotes in minimal requests with deduplication,
+  /// circuit-breaker backoff on proxy errors, and batched Supabase fallback.
+  Future<Map<String, YahooMarketItem>> fetchQuotes(
+    List<String> symbols, {
+    Map<String, String>? displayNames,
     String category = 'US Markets',
     bool forceRefresh = false,
   }) async {
-    final cacheKey = '${category}_$symbol';
-    final cached = _quoteCache[cacheKey];
-    if (!forceRefresh && cached != null && cached.expires.isAfter(DateTime.now())) {
-      return cached.item;
+    final results = <String, YahooMarketItem>{};
+    if (symbols.isEmpty) return results;
+
+    final now = DateTime.now();
+    final uniqueSymbols = symbols.toSet().toList();
+    final waitFutures = <String, Future<YahooMarketItem?>>{};
+    final completers = <String, Completer<YahooMarketItem?>>{};
+    final missingSymbols = <String>[];
+
+    for (final sym in uniqueSymbols) {
+      final cacheKey = '${category}_$sym';
+      final cached = _quoteCache[cacheKey];
+      if (!forceRefresh && cached != null && cached.expires.isAfter(now)) {
+        results[sym] = cached.item;
+        continue;
+      }
+      final existing = _inFlightQuotes[cacheKey];
+      if (existing != null) {
+        waitFutures[sym] = existing;
+        continue;
+      }
+      final completer = Completer<YahooMarketItem?>();
+      _inFlightQuotes[cacheKey] = completer.future;
+      completers[sym] = completer;
+      missingSymbols.add(sym);
     }
 
-    // 1. Try Supabase Edge Function Backend Proxy
+    if (missingSymbols.isNotEmpty) {
+      try {
+        await _resolveQuotesBatch(
+          missingSymbols,
+          displayNames: displayNames,
+          category: category,
+          results: results,
+        );
+      } finally {
+        for (final sym in missingSymbols) {
+          final cacheKey = '${category}_$sym';
+          final resolved = results[sym] ?? _quoteCache[cacheKey]?.item;
+          if (resolved != null) {
+            results[sym] = resolved;
+          }
+          completers[sym]?.complete(resolved);
+          _inFlightQuotes.remove(cacheKey);
+        }
+      }
+    }
+
+    if (waitFutures.isNotEmpty) {
+      final entries = await Future.wait(
+        waitFutures.entries.map((e) async => MapEntry(e.key, await e.value)),
+      );
+      for (final entry in entries) {
+        if (entry.value != null) {
+          results[entry.key] = entry.value!;
+        }
+      }
+    }
+
+    return results;
+  }
+
+  Future<void> _resolveQuotesBatch(
+    List<String> symbols, {
+    Map<String, String>? displayNames,
+    required String category,
+    required Map<String, YahooMarketItem> results,
+  }) async {
+    final remaining = List<String>.from(symbols);
+
+    // 1. Try Supabase Edge Function Backend Proxy in batches of up to 30
+    if (SupabaseConfig.isConfigured && _canCallProxy) {
+      final client = SupabaseConfig.client!;
+      final unresolved = <String>[];
+      for (var offset = 0; offset < remaining.length; offset += _maxProxyBatch) {
+        final end = (offset + _maxProxyBatch).clamp(0, remaining.length);
+        final chunk = remaining.sublist(offset, end);
+        if (!_canCallProxy) {
+          unresolved.addAll(chunk);
+          continue;
+        }
+        try {
+          final res = await client.functions.invoke(
+            'market-quote-proxy',
+            body: {
+              'action': 'quotes',
+              'symbols': chunk,
+            },
+          ).timeout(_requestTimeout);
+
+          if (res.status == 200 && res.data is Map) {
+            _recordProxySuccess();
+            final quotesMap = res.data['quotes'];
+            for (final sym in chunk) {
+              if (quotesMap is Map && quotesMap[sym] is Map) {
+                final q = quotesMap[sym] as Map;
+                final double price = (q['price'] as num?)?.toDouble() ?? 0.0;
+                final double prevClose =
+                    (q['previousClose'] as num?)?.toDouble() ?? price;
+                final double change =
+                    (q['change'] as num?)?.toDouble() ?? (price - prevClose);
+                final double changePct =
+                    (q['changePercent'] as num?)?.toDouble() ??
+                    (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
+                final List<double> spark = (q['spark'] as List?)
+                        ?.whereType<num>()
+                        .map((n) => n.toDouble())
+                        .toList() ??
+                    [prevClose, price];
+                final item = YahooMarketItem(
+                  symbol: sym,
+                  name: displayNames?[sym] ?? (q['name'] as String?) ?? sym,
+                  price: price,
+                  change: change,
+                  changePercent: changePct,
+                  spark: spark,
+                  category: category,
+                  isLive: q['isLive'] as bool? ?? true,
+                  timestamp: q['timestamp'] != null
+                      ? DateTime.tryParse(q['timestamp'].toString()) ??
+                          DateTime.now()
+                      : DateTime.now(),
+                  source: (q['source'] as String?) ?? 'Market Quote Proxy',
+                );
+                _quoteCache['${category}_$sym'] = (
+                  item: item,
+                  expires: DateTime.now().add(_quoteTtl),
+                );
+                results[sym] = item;
+              } else {
+                unresolved.add(sym);
+              }
+            }
+          } else {
+            _recordProxyFailure();
+            unresolved.addAll(chunk);
+          }
+        } catch (e) {
+          _recordProxyFailure();
+          debugPrint('[YahooFinanceService] Proxy fetchQuotes error: $e');
+          unresolved.addAll(chunk);
+        }
+      }
+      remaining
+        ..clear()
+        ..addAll(unresolved);
+    }
+
+    if (remaining.isEmpty) return;
+
+    // 1b. Single batched fallback query against Supabase stock_quotes
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final res = await client.functions.invoke(
-          'market-quote-proxy',
-          body: {
-            'action': 'quotes',
-            'symbols': [symbol],
-          },
-        ).timeout(_requestTimeout);
-
-        if (res.status == 200 && res.data is Map) {
-          final quotesMap = res.data['quotes'];
-          if (quotesMap is Map && quotesMap[symbol] is Map) {
-            final q = quotesMap[symbol] as Map;
-            final double price = (q['price'] as num?)?.toDouble() ?? 0.0;
-            final double prevClose = (q['previousClose'] as num?)?.toDouble() ?? price;
-            final double change = (q['change'] as num?)?.toDouble() ?? (price - prevClose);
-            final double changePct = (q['changePercent'] as num?)?.toDouble() ??
-                (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
-            final List<double> spark = (q['spark'] as List?)
-                    ?.whereType<num>()
-                    .map((n) => n.toDouble())
-                    .toList() ??
-                [prevClose, price];
-            final String name = displayName ?? (q['name'] as String?) ?? symbol;
-            final bool isLive = q['isLive'] as bool? ?? true;
-            final DateTime timestamp = q['timestamp'] != null
-                ? DateTime.tryParse(q['timestamp'].toString()) ?? DateTime.now()
-                : DateTime.now();
-            final String source = (q['source'] as String?) ?? 'Market Quote Proxy';
-
-            final item = YahooMarketItem(
-              symbol: symbol,
-              name: name,
-              price: price,
-              change: change,
-              changePercent: changePct,
-              spark: spark,
-              category: category,
-              isLive: isLive,
-              timestamp: timestamp,
-              source: source,
-            );
-
-            _quoteCache[cacheKey] = (item: item, expires: DateTime.now().add(_quoteTtl));
-            return item;
-          }
-        }
-      } catch (e) {
-        debugPrint('[YahooFinanceService] Proxy fetchQuote error: $e');
-      }
-
-      // 1b. Fallback to live Supabase stock_quotes & stock_price_history tables
-      try {
-        final client = SupabaseConfig.client!;
-        final row = await client
+        final rows = await client
             .from('stock_quotes')
             .select('ticker, price, previous_close, change_pct, updated_at')
-            .eq('ticker', symbol)
-            .maybeSingle();
-        if (row != null && row['price'] is num) {
+            .inFilter('ticker', remaining);
+        final resolvedFromDb = <String>{};
+        for (final row in (rows as List).whereType<Map>()) {
+          final sym = row['ticker']?.toString();
+          if (sym == null || sym.isEmpty || row['price'] is! num) continue;
           final double price = (row['price'] as num).toDouble();
           final double prevClose =
               (row['previous_close'] as num?)?.toDouble() ?? price;
@@ -129,96 +255,171 @@ class YahooFinanceService {
           final double changePct =
               (row['change_pct'] as num?)?.toDouble() ??
               (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
-          final histRows = await client
-              .from('stock_price_history')
-              .select('close')
-              .eq('ticker', symbol)
-              .order('date', ascending: true)
-              .limit(30);
-          final spark = (histRows as List)
-              .whereType<Map>()
-              .map((r) => (r['close'] as num?)?.toDouble())
-              .whereType<double>()
-              .where((v) => v.isFinite)
-              .toList();
           final item = YahooMarketItem(
-            symbol: symbol,
-            name: displayName ?? symbol,
+            symbol: sym,
+            name: displayNames?[sym] ?? sym,
             price: price,
             change: change,
             changePercent: changePct,
-            spark: spark.isNotEmpty ? spark : <double>[prevClose, price],
+            spark: <double>[prevClose, price],
             category: category,
             isLive: true,
             timestamp:
                 DateTime.tryParse('${row['updated_at']}') ?? DateTime.now(),
             source: 'Supabase Live DB',
           );
-          _quoteCache[cacheKey] = (
+          _quoteCache['${category}_$sym'] = (
             item: item,
             expires: DateTime.now().add(_quoteTtl),
           );
-          return item;
+          results[sym] = item;
+          resolvedFromDb.add(sym);
         }
+        remaining.removeWhere(resolvedFromDb.contains);
       } catch (_) {}
     }
+
+    if (remaining.isEmpty || kIsWeb) return;
 
     // 2. Direct HTTP call on non-web native platforms only
-    if (!kIsWeb) {
-      try {
-        final uri = Uri.https(
-          'query1.finance.yahoo.com',
-          '/v8/finance/chart/$symbol',
-          {'interval': '1d', 'range': '5d'},
-        );
-        final res = await _client.get(
-          uri,
-          headers: const {
-            'Accept': 'application/json',
-            'User-Agent': 'TradeX/1.0',
-          },
-        ).timeout(_requestTimeout);
+    await Future.wait(
+      remaining.map((symbol) async {
+        try {
+          final uri = Uri.https(
+            'query1.finance.yahoo.com',
+            '/v8/finance/chart/$symbol',
+            {'interval': '1d', 'range': '5d'},
+          );
+          final res = await _client.get(
+            uri,
+            headers: const {
+              'Accept': 'application/json',
+              'User-Agent': 'TradeX/1.0',
+            },
+          ).timeout(_requestTimeout);
 
-        if (res.statusCode == 200) {
-          final dynamic decoded = jsonDecode(res.body);
-          final dynamic result = decoded?['chart']?['result']?[0];
-          if (result is Map) {
-            final meta = result['meta'] as Map?;
-            final indicators = result['indicators']?['quote']?[0] as Map?;
-            final price = (meta?['regularMarketPrice'] as num?)?.toDouble() ?? 0.0;
-            final prevClose = (meta?['chartPreviousClose'] as num?)?.toDouble() ?? price;
-            final change = price - prevClose;
-            final changePct = (meta?['regularMarketChangePercent'] as num?)?.toDouble() ??
-                (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
-            final closes = (indicators?['close'] as List?)
-                    ?.whereType<num>()
-                    .map((n) => n.toDouble())
-                    .where((v) => v.isFinite)
-                    .toList() ??
-                [];
+          if (res.statusCode == 200) {
+            final dynamic decoded = jsonDecode(res.body);
+            final dynamic result = decoded?['chart']?['result']?[0];
+            if (result is Map) {
+              final meta = result['meta'] as Map?;
+              final indicators = result['indicators']?['quote']?[0] as Map?;
+              final price =
+                  (meta?['regularMarketPrice'] as num?)?.toDouble() ?? 0.0;
+              final prevClose =
+                  (meta?['chartPreviousClose'] as num?)?.toDouble() ?? price;
+              final change = price - prevClose;
+              final changePct =
+                  (meta?['regularMarketChangePercent'] as num?)?.toDouble() ??
+                  (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
+              final closes = (indicators?['close'] as List?)
+                      ?.whereType<num>()
+                      .map((n) => n.toDouble())
+                      .where((v) => v.isFinite)
+                      .toList() ??
+                  [];
 
-            final item = YahooMarketItem(
-              symbol: symbol,
-              name: displayName ?? (meta?['shortName'] as String?) ?? symbol,
-              price: price,
-              change: change,
-              changePercent: changePct,
-              spark: closes.isNotEmpty ? closes : [prevClose, price],
-              category: category,
-              isLive: true,
-              timestamp: DateTime.now(),
-              source: 'Direct Market Feed',
-            );
+              final item = YahooMarketItem(
+                symbol: symbol,
+                name:
+                    displayNames?[symbol] ??
+                    (meta?['shortName'] as String?) ??
+                    symbol,
+                price: price,
+                change: change,
+                changePercent: changePct,
+                spark: closes.isNotEmpty ? closes : [prevClose, price],
+                category: category,
+                isLive: true,
+                timestamp: DateTime.now(),
+                source: 'Direct Market Feed',
+              );
 
-            _quoteCache[cacheKey] = (item: item, expires: DateTime.now().add(_quoteTtl));
-            return item;
+              _quoteCache['${category}_$symbol'] = (
+                item: item,
+                expires: DateTime.now().add(_quoteTtl),
+              );
+              results[symbol] = item;
+            }
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
+      }),
+    );
+  }
+
+  /// Fetches market quote & sparkline via backend proxy or clean platform channel.
+  Future<YahooMarketItem?> fetchQuote(
+    String symbol, {
+    String? displayName,
+    String category = 'US Markets',
+    bool forceRefresh = false,
+  }) async {
+    final map = await fetchQuotes(
+      [symbol],
+      displayNames: displayName != null ? {symbol: displayName} : null,
+      category: category,
+      forceRefresh: forceRefresh,
+    );
+    return map[symbol];
+  }
+
+  /// Fetches multiple index items in batched requests via [fetchQuotes].
+  Future<Map<String, MarketIndexItem>> fetchIndexItems(
+    List<({String symbol, String name})> items, {
+    bool forceRefresh = false,
+  }) async {
+    final results = <String, MarketIndexItem>{};
+    if (items.isEmpty) return results;
+
+    final now = DateTime.now();
+    final toFetch = <String>[];
+    final namesBySymbol = <String, String>{};
+
+    for (final entry in items) {
+      namesBySymbol[entry.symbol] = entry.name;
+      final cached = _indexCache[entry.symbol];
+      if (!forceRefresh && cached != null && cached.expires.isAfter(now)) {
+        results[entry.symbol] = cached.item;
+      } else {
+        toFetch.add(entry.symbol);
+      }
     }
 
-    // 3. Fallback to cached item if available
-    return cached?.item;
+    if (toFetch.isNotEmpty) {
+      final quotes = await fetchQuotes(
+        toFetch,
+        displayNames: namesBySymbol,
+        category: 'Indices',
+        forceRefresh: forceRefresh,
+      );
+      for (final sym in toFetch) {
+        final q = quotes[sym];
+        if (q != null) {
+          final indexItem = MarketIndexItem(
+            symbol: sym,
+            name: namesBySymbol[sym] ?? q.name,
+            price: q.price,
+            changePercent: q.changePercent,
+            spark: q.spark,
+            isLive: q.isLive,
+            timestamp: q.timestamp,
+            source: q.source,
+          );
+          _indexCache[sym] = (
+            item: indexItem,
+            expires: DateTime.now().add(_quoteTtl),
+          );
+          results[sym] = indexItem;
+        } else {
+          final stale = _indexCache[sym]?.item;
+          if (stale != null) {
+            results[sym] = stale;
+          }
+        }
+      }
+    }
+
+    return results;
   }
 
   /// Fetches index item for World Indices and Assets tables via backend proxy.
@@ -227,150 +428,11 @@ class YahooFinanceService {
     String name, {
     bool forceRefresh = false,
   }) async {
-    final cached = _indexCache[symbol];
-    if (!forceRefresh && cached != null && cached.expires.isAfter(DateTime.now())) {
-      return cached.item;
-    }
-
-    // 1. Try Supabase Edge Function Backend Proxy
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final res = await client.functions.invoke(
-          'market-quote-proxy',
-          body: {
-            'action': 'quotes',
-            'symbols': [symbol],
-          },
-        ).timeout(_requestTimeout);
-
-        if (res.status == 200 && res.data is Map) {
-          final quotesMap = res.data['quotes'];
-          if (quotesMap is Map && quotesMap[symbol] is Map) {
-            final q = quotesMap[symbol] as Map;
-            final double price = (q['price'] as num?)?.toDouble() ?? 0.0;
-            final double prevClose = (q['previousClose'] as num?)?.toDouble() ?? price;
-            final double change = (q['change'] as num?)?.toDouble() ?? (price - prevClose);
-            final double changePct = (q['changePercent'] as num?)?.toDouble() ??
-                (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
-            final List<double> spark = (q['spark'] as List?)
-                    ?.whereType<num>()
-                    .map((n) => n.toDouble())
-                    .toList() ??
-                [prevClose, price];
-            final bool isLive = q['isLive'] as bool? ?? true;
-            final DateTime timestamp = q['timestamp'] != null
-                ? DateTime.tryParse(q['timestamp'].toString()) ?? DateTime.now()
-                : DateTime.now();
-            final String source = (q['source'] as String?) ?? 'Market Quote Proxy';
-
-            final item = MarketIndexItem(
-              symbol: symbol,
-              name: name,
-              price: price,
-              changePercent: changePct,
-              spark: spark,
-              isLive: isLive,
-              timestamp: timestamp,
-              source: source,
-            );
-
-            _indexCache[symbol] = (item: item, expires: DateTime.now().add(_quoteTtl));
-            return item;
-          }
-        }
-      } catch (e) {
-        debugPrint('[YahooFinanceService] Proxy fetchIndexItem error: $e');
-      }
-
-      // 1b. Fallback to live Supabase stock_quotes table
-      try {
-        final client = SupabaseConfig.client!;
-        final row = await client
-            .from('stock_quotes')
-            .select('ticker, price, previous_close, change_pct, updated_at')
-            .eq('ticker', symbol)
-            .maybeSingle();
-        if (row != null && row['price'] is num) {
-          final double price = (row['price'] as num).toDouble();
-          final double prevClose =
-              (row['previous_close'] as num?)?.toDouble() ?? price;
-          final double changePct =
-              (row['change_pct'] as num?)?.toDouble() ??
-              (prevClose == 0 ? 0.0 : ((price - prevClose) / prevClose) * 100);
-          final item = MarketIndexItem(
-            symbol: symbol,
-            name: name,
-            price: price,
-            changePercent: changePct,
-            spark: <double>[prevClose, price],
-            isLive: true,
-            timestamp:
-                DateTime.tryParse('${row['updated_at']}') ?? DateTime.now(),
-            source: 'Supabase Live DB',
-          );
-          _indexCache[symbol] = (
-            item: item,
-            expires: DateTime.now().add(_quoteTtl),
-          );
-          return item;
-        }
-      } catch (_) {}
-    }
-
-    // 2. Direct HTTP call on non-web native platforms only
-    if (!kIsWeb) {
-      try {
-        final uri = Uri.https(
-          'query1.finance.yahoo.com',
-          '/v8/finance/chart/$symbol',
-          {'interval': '1d', 'range': '5d'},
-        );
-        final res = await _client.get(
-          uri,
-          headers: const {
-            'Accept': 'application/json',
-            'User-Agent': 'TradeX/1.0',
-          },
-        ).timeout(_requestTimeout);
-
-        if (res.statusCode == 200) {
-          final dynamic decoded = jsonDecode(res.body);
-          final dynamic result = decoded?['chart']?['result']?[0];
-          if (result is Map) {
-            final meta = result['meta'] as Map?;
-            final indicators = result['indicators']?['quote']?[0] as Map?;
-            final price = (meta?['regularMarketPrice'] as num?)?.toDouble() ?? 0.0;
-            final prevClose = (meta?['chartPreviousClose'] as num?)?.toDouble() ?? price;
-            final change = price - prevClose;
-            final changePct = (meta?['regularMarketChangePercent'] as num?)?.toDouble() ??
-                (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
-            final closes = (indicators?['close'] as List?)
-                    ?.whereType<num>()
-                    .map((n) => n.toDouble())
-                    .where((v) => v.isFinite)
-                    .toList() ??
-                [];
-
-            final item = MarketIndexItem(
-              symbol: symbol,
-              name: name,
-              price: price,
-              changePercent: changePct,
-              spark: closes.isNotEmpty ? closes : [prevClose, price],
-              isLive: true,
-              timestamp: DateTime.now(),
-              source: 'Direct Market Feed',
-            );
-
-            _indexCache[symbol] = (item: item, expires: DateTime.now().add(_quoteTtl));
-            return item;
-          }
-        }
-      } catch (_) {}
-    }
-
-    return cached?.item;
+    final map = await fetchIndexItems(
+      [(symbol: symbol, name: name)],
+      forceRefresh: forceRefresh,
+    );
+    return map[symbol];
   }
 
   /// Fetches sector performances via backend proxy or baseline calculation.
@@ -380,8 +442,24 @@ class YahooFinanceService {
       return cached.items;
     }
 
+    if (_inFlightSectors != null) {
+      return await _inFlightSectors!;
+    }
+
+    final future = _fetchSectorsInternal(cached);
+    _inFlightSectors = future;
+    try {
+      return await future;
+    } finally {
+      _inFlightSectors = null;
+    }
+  }
+
+  Future<List<SectorPerformanceItem>> _fetchSectorsInternal(
+    ({List<SectorPerformanceItem> items, DateTime expires})? cached,
+  ) async {
     // 1. Try Supabase Edge Function Backend Proxy
-    if (SupabaseConfig.isConfigured) {
+    if (SupabaseConfig.isConfigured && _canCallProxy) {
       try {
         final client = SupabaseConfig.client!;
         final res = await client.functions.invoke(
@@ -390,6 +468,7 @@ class YahooFinanceService {
         ).timeout(_requestTimeout);
 
         if (res.status == 200 && res.data is Map) {
+          _recordProxySuccess();
           final sectorsList = res.data['sectors'];
           if (sectorsList is List && sectorsList.isNotEmpty) {
             final items = sectorsList.map((raw) {
@@ -409,8 +488,11 @@ class YahooFinanceService {
             _sectorCache = (items: items, expires: DateTime.now().add(_sectorTtl));
             return items;
           }
+        } else {
+          _recordProxyFailure();
         }
       } catch (e) {
+        _recordProxyFailure();
         debugPrint('[YahooFinanceService] Proxy fetchSectors error: $e');
       }
     }
@@ -509,8 +591,28 @@ class YahooFinanceService {
       return cached.items;
     }
 
+    final existing = _inFlightNews[cacheKey];
+    if (existing != null) {
+      return await existing;
+    }
+
+    final future = _fetchLiveNewsInternal(query, count, cacheKey, cached);
+    _inFlightNews[cacheKey] = future;
+    try {
+      return await future;
+    } finally {
+      _inFlightNews.remove(cacheKey);
+    }
+  }
+
+  Future<List<MarketArticle>> _fetchLiveNewsInternal(
+    String query,
+    int count,
+    String cacheKey,
+    ({List<MarketArticle> items, DateTime expires})? cached,
+  ) async {
     // 1. Try Supabase Edge Function Backend Proxy
-    if (SupabaseConfig.isConfigured) {
+    if (SupabaseConfig.isConfigured && _canCallProxy) {
       try {
         final client = SupabaseConfig.client!;
         final res = await client.functions.invoke(
@@ -523,6 +625,7 @@ class YahooFinanceService {
         ).timeout(_requestTimeout);
 
         if (res.status == 200 && res.data is Map) {
+          _recordProxySuccess();
           final newsList = res.data['news'];
           if (newsList is List && newsList.isNotEmpty) {
             final articles = newsList
@@ -532,12 +635,17 @@ class YahooFinanceService {
             _newsCache[cacheKey] = (items: articles, expires: DateTime.now().add(_newsTtl));
             return articles;
           }
+        } else {
+          _recordProxyFailure();
         }
       } catch (e) {
+        _recordProxyFailure();
         debugPrint('[YahooFinanceService] Proxy fetchLiveNews error: $e');
       }
+    }
 
-      // 1b. Fallback to live Supabase news_articles table
+    // 1b. Fallback to live Supabase news_articles table
+    if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
         final rows = await client
@@ -673,5 +781,7 @@ class YahooFinanceService {
     _indexCache.clear();
     _sectorCache = null;
     _newsCache.clear();
+    _proxyFailures = 0;
+    _proxyBlockedUntil = null;
   }
 }
