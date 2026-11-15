@@ -24,32 +24,38 @@ class PrivateMessageService {
     return X25519().newKeyPairFromSeed(base64Decode(encoded));
   }
 
-  Future<bool> hasIdentity() async =>
-      await client
-          .from('message_identities')
-          .select('user_id')
-          .eq('user_id', owner)
-          .maybeSingle() !=
-      null;
-
-  Future<bool> isUnlocked() async {
+  /// Checks identity existence and local key unlock state in a single query.
+  Future<({bool unlocked, bool hasIdentity})> checkStatus() async {
     final user = owner;
     final row = await client
         .from('message_identities')
         .select('public_key,signing_key')
         .eq('user_id', user)
         .maybeSingle();
-    if (row == null || await storage.read(key: _key(user)) == null) {
-      return false;
+    if (row == null) {
+      return (unlocked: false, hasIdentity: false);
     }
-    final public = await (await _identity(user)).extractPublicKey();
-    if (base64Encode(public.bytes) != row['public_key']) {
-      throw StateError(
-        'Encryption identity changed. Restore the original recovery passphrase.',
-      );
+    final stored = await storage.read(key: _key(user));
+    if (stored == null) {
+      return (unlocked: false, hasIdentity: true);
     }
-    return true;
+    try {
+      final public = await (await _identity(user)).extractPublicKey();
+      if (base64Encode(public.bytes) != row['public_key']) {
+        // Clear mismatched local cache so the user can re-unlock cleanly.
+        await storage.delete(key: _key(user));
+        return (unlocked: false, hasIdentity: true);
+      }
+      return (unlocked: true, hasIdentity: true);
+    } on FormatException {
+      await storage.delete(key: _key(user));
+      return (unlocked: false, hasIdentity: true);
+    }
   }
+
+  Future<bool> hasIdentity() async => (await checkStatus()).hasIdentity;
+
+  Future<bool> isUnlocked() async => (await checkStatus()).unlocked;
 
   Future<void> unlock(String passphrase) async {
     final user = owner;

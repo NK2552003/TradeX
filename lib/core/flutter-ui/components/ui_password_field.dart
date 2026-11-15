@@ -32,6 +32,8 @@ class UiPasswordField extends StatefulWidget {
     this.label,
     this.hintText = 'Password',
     this.onChanged,
+    this.onSubmitted,
+    this.textInputAction,
     this.showStrength = true,
     this.error,
     this.size = UiSize.md,
@@ -42,6 +44,8 @@ class UiPasswordField extends StatefulWidget {
   final String? label;
   final String hintText;
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
+  final TextInputAction? textInputAction;
   final bool showStrength;
   final String? error;
   final UiSize size;
@@ -118,6 +122,8 @@ class _UiPasswordFieldState extends State<UiPasswordField> {
           obscure: _obscure,
           error: widget.error != null,
           size: widget.size,
+          textInputAction: widget.textInputAction,
+          onSubmitted: widget.onSubmitted,
           onChanged: (String v) {
             setState(() => _value = v);
             widget.onChanged?.call(v);

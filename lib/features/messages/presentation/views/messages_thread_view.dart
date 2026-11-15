@@ -1102,29 +1102,6 @@ class _ProfileHeroCard extends StatelessWidget {
                 ],
               ],
               SizedBox(height: context.sp(theme.spacing.md)),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(
-                    Icons.lock_outline_rounded,
-                    size: context.sz(12),
-                    color: colors.foregroundSubtle,
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xxs)),
-                  Flexible(
-                    child: Text(
-                      'Direct messages are stored by alphajournal. Do not share sensitive credentials.',
-                      textAlign: TextAlign.center,
-                      style: context.uiText.caption.copyWith(
-                        color: colors.foregroundSubtle,
-                        fontSize: context.fs(11),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: context.sp(theme.spacing.md)),
               const UiDivider(label: 'Conversation started'),
             ],
           ),

@@ -152,6 +152,10 @@ void main() {
 
       // Thread should now be accepted and regular composer shown
       expect(find.byType(MessageComposer), findsOneWidget);
+      expect(
+        find.textContaining('Direct messages are stored by alphajournal'),
+        findsNothing,
+      );
     });
 
     testWidgets('renders balanced 1:1:1 buttons in MessagesRequestsView and deletes request',
