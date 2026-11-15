@@ -123,8 +123,12 @@ end $$;
 revoke all on function private.require_encrypted_message() from public;
 create trigger encrypted_chat_write before insert or update of body on public.chat_messages
 for each row execute function private.require_encrypted_message();
-create trigger encrypted_legacy_write before insert or update of content on public.messages
-for each row execute function private.require_encrypted_message();
+do $$
+begin
+  if to_regclass('public.messages') is not null then
+    execute 'create trigger encrypted_legacy_write before insert or update of content on public.messages for each row execute function private.require_encrypted_message()';
+  end if;
+end $$;
 
 create function private.require_encrypted_workspace() returns trigger
 language plpgsql set search_path = '' as $$
