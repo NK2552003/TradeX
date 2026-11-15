@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
+import worker, {
+  buildDynamicSitemapXml,
   canonicalSubdomainHost,
   isAlphajournalHost,
+  resolvePageSeo,
   resolveRedirectUrl,
 } from '../worker/index.js';
 
@@ -88,4 +90,105 @@ test('preserves static assets, auth callbacks, referral links, root, and preview
     assert.equal(resolveRedirectUrl(url), null, url);
   }
   assert.equal(canonicalSubdomainHost(new URL('https://alphajournal.in/journal')), 'app.alphajournal.in');
+});
+
+test('resolves per-subdomain canonical, robots, and social metadata', () => {
+  const communitySeo = resolvePageSeo(
+    new URL('https://community.alphajournal.in/community_feed'),
+  );
+  assert.equal(communitySeo.canonical, 'https://community.alphajournal.in/community_feed');
+  assert.equal(communitySeo.noindex, false);
+
+  const marketSeo = resolvePageSeo(new URL('https://app.alphajournal.in/market'));
+  assert.equal(marketSeo.canonical, 'https://app.alphajournal.in/market');
+  assert.equal(marketSeo.noindex, false);
+
+  const affiliateSeo = resolvePageSeo(new URL('https://affiliate.alphajournal.in/'));
+  assert.equal(affiliateSeo.canonical, 'https://affiliate.alphajournal.in/affiliate_application');
+  assert.equal(affiliateSeo.noindex, false);
+
+  const adminSeo = resolvePageSeo(new URL('https://admin.alphajournal.in/overview'));
+  assert.equal(adminSeo.noindex, true);
+  assert.equal(adminSeo.robots, 'noindex, nofollow');
+
+  const messagesSeo = resolvePageSeo(new URL('https://app.alphajournal.in/messages'));
+  assert.equal(messagesSeo.noindex, true);
+
+  const profileSeo = resolvePageSeo(
+    new URL('https://community.alphajournal.in/@nitish'),
+    {
+      profile: {
+        display_name: 'Nitish',
+        handle: '@nitish',
+        bio: 'Systematic index trader',
+        avatar_url: 'https://cdn.alphajournal.in/a.png',
+      },
+    },
+  );
+  assert.equal(profileSeo.ogType, 'profile');
+  assert.equal(profileSeo.canonical, 'https://community.alphajournal.in/@nitish');
+  assert.match(profileSeo.title, /Nitish \(@nitish\)/);
+  assert.equal(profileSeo.image, 'https://cdn.alphajournal.in/a.png');
+});
+
+test('serves host-aware robots.txt, noindex header on admin, and dynamic sitemap.xml', async () => {
+  const adminRobots = await worker.fetch(
+    new Request('https://admin.alphajournal.in/robots.txt'),
+    { ASSETS: { fetch: async () => new Response('unused') } },
+  );
+  assert.equal(adminRobots.status, 200);
+  assert.match(await adminRobots.text(), /Disallow: \//);
+
+  const adminHtml = await worker.fetch(
+    new Request('https://admin.alphajournal.in/overview'),
+    {
+      ASSETS: {
+        fetch: async () =>
+          new Response('<html></html>', {
+            headers: { 'content-type': 'text/html' },
+          }),
+      },
+    },
+  );
+  assert.equal(adminHtml.headers.get('X-Robots-Tag'), 'noindex, nofollow');
+
+  const adminSitemap = await worker.fetch(
+    new Request('https://admin.alphajournal.in/sitemap.xml'),
+    { ASSETS: { fetch: async () => new Response('unused') } },
+  );
+  assert.equal(adminSitemap.status, 404);
+
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/community_posts')) {
+      return new Response(
+        JSON.stringify([
+          {
+            id: '12345678-1234-1234-1234-1234567890ab',
+            created_at: '2026-11-15T10:00:00Z',
+          },
+        ]),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }
+    return new Response(
+      JSON.stringify([{ handle: '@alpha_trader', created_at: '2026-11-10T10:00:00Z' }]),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  };
+  try {
+    const xml = await buildDynamicSitemapXml({
+      SUPABASE_URL: 'https://example.supabase.co',
+      SUPABASE_ANON_KEY: 'anon-key',
+    });
+    assert.match(xml, /<loc>https:\/\/alphajournal\.in\/<\/loc>/);
+    assert.match(xml, /<loc>https:\/\/community\.alphajournal\.in\/community_feed<\/loc>/);
+    assert.match(
+      xml,
+      /<loc>https:\/\/community\.alphajournal\.in\/community\/post\/12345678-1234-1234-1234-1234567890ab\?public=true<\/loc>/,
+    );
+    assert.match(xml, /<loc>https:\/\/community\.alphajournal\.in\/@alpha_trader<\/loc>/);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
 });

@@ -2,16 +2,37 @@
 User-agent: *
 Allow: /
 Allow: /community_feed
+Allow: /community/
 Allow: /market
 Allow: /affiliate_application
-Allow: /auth/login
-Allow: /auth/signup
+Allow: /help
 
-# Disallow private authenticated & administrative routes from search indexing
-Disallow: /admin_console
+# Exclude private authenticated, administrative, and auth/referral utility paths
+Disallow: /admin_
+Disallow: /org_
 Disallow: /settings
 Disallow: /messages
+Disallow: /workspace
+Disallow: /journal
+Disallow: /strategies
+Disallow: /notes
+Disallow: /ai_copilot
 Disallow: /billing_subscription
+Disallow: /auth/
+Disallow: /r/
+Disallow: /join/
+
+# Explicitly welcome AI & search crawlers for public pages
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
 
 Sitemap: https://alphajournal.in/sitemap.xml
-Sitemap: https://alphagournal.in/sitemap.xml

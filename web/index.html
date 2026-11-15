@@ -34,6 +34,7 @@
   <meta name="twitter:title" content="alphajournal — Institutional Trading Journal &amp; AI Workspace">
   <meta name="twitter:description" content="Compound your trading edge with linked notes, structured execution journals, AI-assisted reviews, and a verified trader community.">
   <meta name="twitter:image" content="https://alphajournal.in/icons/Icon-512.png">
+  <meta property="og:image:alt" content="alphajournal — Institutional Trading Journal &amp; AI Workspace">
 
   <!-- iOS & PWA Meta Tags -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -56,14 +57,27 @@
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "Organization",
+        "@id": "https://alphajournal.in/#organization",
+        "name": "alphajournal",
+        "url": "https://alphajournal.in/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://alphajournal.in/icons/Icon-512.png"
+        }
+      },
+      {
         "@type": "WebSite",
         "@id": "https://alphajournal.in/#website",
         "url": "https://alphajournal.in/",
         "name": "alphajournal",
+        "publisher": {
+          "@id": "https://alphajournal.in/#organization"
+        },
         "description": "Institutional trading journal, linked research notes, strategy playbooks, and verified trader community.",
         "potentialAction": {
           "@type": "SearchAction",
-          "target": "https://alphajournal.in/market/{search_term_string}",
+          "target": "https://app.alphajournal.in/market/{search_term_string}",
           "query-input": "required name=search_term_string"
         }
       },
@@ -75,6 +89,9 @@
         "operatingSystem": "Web, iOS, Android, macOS, Windows",
         "url": "https://app.alphajournal.in/",
         "image": "https://alphajournal.in/icons/Icon-512.png",
+        "publisher": {
+          "@id": "https://alphajournal.in/#organization"
+        },
         "offers": [
           {
             "@type": "Offer",
@@ -88,14 +105,14 @@
             "name": "Basic",
             "price": "299",
             "priceCurrency": "INR",
-            "availability": "https://schema.org/PreOrder"
+            "availability": "https://schema.org/InStock"
           },
           {
             "@type": "Offer",
             "name": "Pro",
             "price": "499",
             "priceCurrency": "INR",
-            "availability": "https://schema.org/PreOrder"
+            "availability": "https://schema.org/InStock"
           }
         ]
       }
@@ -283,5 +300,20 @@
   <script src="keyboard_viewport.js"></script>
   <script src="push_notifications.js"></script>
   <script src="flutter_bootstrap.js" async></script>
+  <noscript>
+    <main style="max-width:760px;margin:40px auto;padding:24px;color:#F5F2EE;font-family:system-ui,-apple-system,sans-serif;line-height:1.6;">
+      <h1>alphajournal — Institutional Trading Journal, AI Playbooks &amp; Market Community</h1>
+      <p>Log trades, write linked research notes, track strategy playbooks, analyze market screeners, and connect with verified traders across web and mobile.</p>
+      <nav aria-label="Primary links">
+        <ul>
+          <li><a href="https://app.alphajournal.in/" style="color:#F5F2EE;">Open Trader Workspace</a></li>
+          <li><a href="https://app.alphajournal.in/market" style="color:#F5F2EE;">Explore Live Markets &amp; Screeners</a></li>
+          <li><a href="https://community.alphajournal.in/community_feed" style="color:#F5F2EE;">Browse Trader Community</a></li>
+          <li><a href="https://affiliate.alphajournal.in/affiliate_application" style="color:#F5F2EE;">Affiliate Partner Program</a></li>
+          <li><a href="https://alphajournal.in/help" style="color:#F5F2EE;">Help, Security &amp; Policies</a></li>
+        </ul>
+      </nav>
+    </main>
+  </noscript>
 </body>
 </html>
