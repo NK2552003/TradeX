@@ -1,3 +1,4 @@
+import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/settings/data/repositories/notification_prefs_repository.dart';
@@ -101,6 +102,8 @@ class _NotificationsSettingsPageState extends State<NotificationsSettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              CommunityPushNotificationsCard(onDismiss: () {}),
+              UiGap.v(theme.spacing.md),
               // Push notifications section
               AppSettingsSectionBlock(
                 title: 'Push Notifications',

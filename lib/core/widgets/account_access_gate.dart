@@ -1,3 +1,5 @@
+import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/security/private_messaging_gate.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -141,7 +143,13 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
       if (mounted) finishWebStartup();
     });
     if (_error == null && _access?.isActive == true) {
-      return widget.builder(context);
+      return PrivateMessagingGate(
+        key: ValueKey(
+          SupabaseConfig.client?.auth.currentUser?.id ?? widget.repository,
+        ),
+        builder: widget.builder,
+        onLogout: widget.onLogout,
+      );
     }
 
     final bool isSuspended = _access?.status == 'suspended';
@@ -229,9 +237,7 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
             isSuspended
                 ? 'Your TraderHub terminal credentials have been suspended by the compliance desk. Contact support for investigation or remediation.'
                 : 'Your trader profile is currently pending approval by an administrator before access to private workspace tools is granted.',
-            style: context.uiText.body.copyWith(
-              color: colors.foregroundMuted,
-            ),
+            style: context.uiText.body.copyWith(color: colors.foregroundMuted),
             textAlign: TextAlign.center,
           ),
           UiGap.v(theme.spacing.lg),
@@ -340,18 +346,14 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
 
           Text(
             'Verification Interrupted',
-            style: context.uiText.heading.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: context.uiText.heading.copyWith(fontWeight: FontWeight.w700),
             textAlign: TextAlign.center,
           ),
           UiGap.v(theme.spacing.xs),
           Text(
             _error ??
                 'Unable to verify account access. Check your connection and retry.',
-            style: context.uiText.body.copyWith(
-              color: colors.foregroundMuted,
-            ),
+            style: context.uiText.body.copyWith(color: colors.foregroundMuted),
             textAlign: TextAlign.center,
           ),
           UiGap.v(theme.spacing.xl),
@@ -394,9 +396,7 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
       children: <Widget>[
         Text(
           label,
-          style: context.uiText.caption.copyWith(
-            color: colors.foregroundMuted,
-          ),
+          style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
         ),
         const SizedBox(width: 12),
         Flexible(

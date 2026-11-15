@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
@@ -86,8 +87,12 @@ class _UiLightboxState extends State<UiLightbox> {
                 minScale: 1,
                 maxScale: 4,
                 child: Center(
-                  child: Image.network(
-                    widget.imageUrls[i],
+                  child: Image(
+                    image: widget.imageUrls[i].startsWith('data:')
+                        ? MemoryImage(
+                            base64Decode(widget.imageUrls[i].split(',').last),
+                          )
+                        : NetworkImage(widget.imageUrls[i]) as ImageProvider,
                     fit: BoxFit.contain,
                     errorBuilder: (_, _, _) => Icon(
                       Icons.broken_image_outlined,
@@ -169,9 +174,7 @@ class _UiLightboxState extends State<UiLightbox> {
                               shape: BoxShape.circle,
                               color: i == _index
                                   ? Colors.white
-                                  : Colors.white.withValues(
-                                      alpha: 0.4,
-                                    ),
+                                  : Colors.white.withValues(alpha: 0.4),
                             ),
                           ),
                       ],

@@ -1,3 +1,4 @@
+import 'package:tradex/core/notifications/push_service.dart';
 import 'package:tradex/features/settings/presentation/widgets/help/publication_reader.dart';
 import 'package:tradex/features/settings/presentation/widgets/help/cookie_preferences_dialog.dart';
 import 'package:flutter/material.dart';
@@ -87,6 +88,13 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
           ),
           UiGap.v(gap),
         ],
+        if (widget.repository.pushNotificationsPromptVisible)
+          deferred(
+            (_) => CommunityPushNotificationsCard(
+              onDismiss: widget.repository.dismissPushNotificationsPrompt,
+            ),
+            200,
+          ),
         deferred((_) => const CommunityPremiumCard(), 200),
         deferred((_) => const MarketMoversPanel(), 650),
         deferred(
@@ -117,13 +125,6 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
               onShowMore: widget.onShowMore,
             ),
             300,
-          ),
-        if (widget.repository.pushNotificationsPromptVisible)
-          deferred(
-            (_) => CommunityPushNotificationsCard(
-              onDismiss: widget.repository.dismissPushNotificationsPrompt,
-            ),
-            200,
           ),
         deferred((_) => const CommunityDisclaimerCard(), 200),
         deferred((_) => const CommunityFooterLinks(), 80),
@@ -641,10 +642,53 @@ class CommunityWhoToFollowCard extends StatelessWidget {
 // 6. Push Notifications Card (Matches Screenshot 2)
 // ---------------------------------------------------------------------------
 
-class CommunityPushNotificationsCard extends StatelessWidget {
+class CommunityPushNotificationsCard extends StatefulWidget {
   const CommunityPushNotificationsCard({super.key, required this.onDismiss});
 
   final VoidCallback onDismiss;
+  @override
+  State<CommunityPushNotificationsCard> createState() =>
+      _CommunityPushNotificationsCardState();
+}
+
+class _CommunityPushNotificationsCardState
+    extends State<CommunityPushNotificationsCard> {
+  final _push = PushService.instance;
+  @override
+  void initState() {
+    super.initState();
+    _push.addListener(_changed);
+    _push.refresh().catchError((Object _) {});
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _push.removeListener(_changed);
+    super.dispose();
+  }
+
+  Future<void> _enable() async {
+    try {
+      if (_push.status == 'subscribed') {
+        await _push.disable();
+      } else {
+        await _push.enable();
+      }
+    } catch (error) {
+      if (mounted) {
+        UiToast.show(
+          context,
+          title: 'Notifications not enabled',
+          message: error.toString(),
+          intent: UiIntent.danger,
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -660,7 +704,7 @@ class CommunityPushNotificationsCard extends StatelessWidget {
               icon: Icons.close_rounded,
               size: UiSize.xs,
               tooltip: 'Dismiss',
-              onPressed: onDismiss,
+              onPressed: widget.onDismiss,
             ),
           ),
           SizedBox(height: context.sp(theme.spacing.xs)),
@@ -673,7 +717,11 @@ class CommunityPushNotificationsCard extends StatelessWidget {
           ),
           SizedBox(height: context.sp(theme.spacing.md)),
           UiButton(
-            label: 'Turn on notifications',
+            label: _push.busy
+                ? 'Enabling…'
+                : _push.status == 'subscribed'
+                ? 'Turn off notifications'
+                : 'Turn on notifications',
             variant: UiVariant.outline,
             size: UiSize.sm,
             expand: true,
@@ -681,15 +729,7 @@ class CommunityPushNotificationsCard extends StatelessWidget {
               borderColor: theme.colors.border.withValues(alpha: 0.35),
               foreground: theme.colors.foregroundMuted,
             ),
-            onPressed: () {
-              UiToast.show(
-                context,
-                title: 'Notifications Enabled',
-                message: 'You will receive breakout alerts and replies.',
-                intent: UiIntent.success,
-              );
-              onDismiss();
-            },
+            onPressed: _push.busy ? null : _enable,
           ),
         ],
       ),

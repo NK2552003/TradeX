@@ -185,7 +185,7 @@ Deno.serve(async (request) => {
       kind: 'copilot_chat',
     });
   } catch (err) {
-    console.error('Quota recording error:', err);
+    console.error('Quota recording failed');
     return jsonReply(429, { error: 'Monthly AI quota reached or request rate limit exceeded.' });
   }
 
@@ -195,22 +195,14 @@ Deno.serve(async (request) => {
     await adminClient.from('ai_threads').insert({
       id: threadId,
       user_id: user.id,
-      title: message.slice(0, 50),
+      title: 'Private AI conversation',
       persona,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
   }
 
-  // Persist user turn
-  const userMessageId = crypto.randomUUID();
-  await adminClient.from('ai_messages').insert({
-    id: userMessageId,
-    thread_id: threadId,
-    role: 'user',
-    body: message,
-    created_at: new Date().toISOString(),
-  });
+  // Conversation content is retained only by the encrypted client workspace.
 
   // 5. Select provider and model (OpenAI preferred: gpt-4.1-mini)
   const openAiApiKey = Deno.env.get('OPEN_AI_KEY') ?? Deno.env.get('OPENAI_API_KEY');
@@ -302,7 +294,7 @@ Directives:
               }
             }
           } catch (e) {
-            console.error(`OpenAI ${model} streaming error:`, e);
+            console.error('OpenAI streaming failed');
           }
         }
       }
@@ -333,7 +325,7 @@ Directives:
             }
           }
         } catch (e) {
-          console.error('Gemini fallback error:', e);
+          console.error('Gemini fallback failed');
         }
       }
 
@@ -365,21 +357,11 @@ Directives:
             }
           }
         } catch (e) {
-          console.error('OpenRouter fallback error:', e);
+          console.error('OpenRouter fallback failed');
         }
       }
 
       if (completeText.trim().length > 0) {
-        // Atomically save assistant turn
-        await adminClient.from('ai_messages').insert({
-          id: assistantMessageId,
-          thread_id: threadId,
-          role: 'assistant',
-          body: completeText.trim(),
-          sources: sources.map((s) => `${s.kind}:${s.id}:${s.title}`),
-          created_at: new Date().toISOString(),
-        });
-
         await adminClient
           .from('ai_threads')
           .update({ updated_at: new Date().toISOString() })

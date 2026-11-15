@@ -53,6 +53,7 @@ export async function generateResponses(
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
       body: JSON.stringify({
         model,
+        store: false,
         instructions: system + (fileId ? '\nThe bundled trader-skills.zip is in /mnt/data. Extract it with Python and read the selected SKILL.md. Run the supplied scripts, passing their trader/ files between steps. Retrieve external data via permitted web search or ask for dated inputs. Report the actual results in the reply. Preview tickets only.' : ''),
         input,
         tools: [...tools, ...(fileId

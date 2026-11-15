@@ -51,12 +51,13 @@ class NotificationPrefsRepositoryImpl implements NotificationPrefsRepository {
   Future<NotificationPrefsModel> updatePreferences(
     NotificationPrefsModel prefs,
   ) async {
-    _prefs = prefs;
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
         final targetUserId = _targetUserId;
-        if (targetUserId.isEmpty) return _prefs;
+        if (targetUserId.isEmpty) {
+          throw StateError('Sign in to save preferences.');
+        }
 
         await client.from('trader_preferences').upsert({
           'user_id': targetUserId,
@@ -64,11 +65,11 @@ class NotificationPrefsRepositoryImpl implements NotificationPrefsRepository {
           'updated_at': DateTime.now().toIso8601String(),
         });
       } catch (e) {
-        debugPrint(
-          'NotificationPrefsRepositoryImpl.updatePreferences error: $e',
-        );
+        debugPrint('Notification preferences could not be saved.');
+        rethrow;
       }
     }
+    _prefs = prefs;
     return _prefs;
   }
 }

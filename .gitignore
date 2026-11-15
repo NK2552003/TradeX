@@ -128,3 +128,6 @@ app.*.symbols
 
 # Local copilot workspace and integration credentials
 .copilot-data/
+
+# Keep dependency resolution reproducible for encryption and push delivery.
+!pubspec.lock

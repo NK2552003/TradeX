@@ -1,3 +1,5 @@
+import 'package:tradex/core/security/private_message_service.dart';
+import 'package:uuid/uuid.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -70,7 +72,7 @@ class ChatRepositoryImpl implements ChatRepository {
       if (convIds.isNotEmpty) {
         final msgRows = await client
             .from('messages')
-            .select('conversation_id, content, created_at, read_at')
+            .select('id, conversation_id, content, sender_id, created_at, read_at')
             .inFilter('conversation_id', convIds)
             .order('created_at', ascending: false)
             .limit(convIds.length * 4);
@@ -97,8 +99,13 @@ class ChatRepositoryImpl implements ChatRepository {
 
         final messageResponse = latestByConv[map['id']?.toString() ?? ''];
 
-        final lastMsgContent =
-            messageResponse?['content'] as String? ?? 'No messages yet';
+        final lastMsgContent = messageResponse == null
+            ? 'No messages yet'
+            : await PrivateMessageService.instance.decrypt(
+                messageResponse['content'] as String,
+                'legacy/${map['id']}/${messageResponse['id']}',
+                messageResponse['sender_id'] as String,
+              );
         final lastMsgTime = messageResponse != null
             ? DateTime.parse(messageResponse['created_at'] as String)
             : (map['last_message_at'] != null
@@ -151,16 +158,22 @@ class ChatRepositoryImpl implements ChatRepository {
           .order('created_at', ascending: false)
           .limit(100);
 
-      final messages = (response as List<dynamic>).map((row) {
-        final map = row as Map<String, dynamic>;
-        final senderId = map['sender_id'] as String;
-        return AppChatMessage(
-          id: map['id'] as String,
-          body: map['content'] as String,
-          fromMe: senderId == userId,
-          sentAt: DateTime.parse(map['created_at'] as String),
-        );
-      }).toList().reversed.toList();
+      final messages = (await Future.wait(
+        (response as List<dynamic>).map((row) async {
+          final map = row as Map<String, dynamic>;
+          final senderId = map['sender_id'] as String;
+          return AppChatMessage(
+            id: map['id'] as String,
+            body: await PrivateMessageService.instance.decrypt(
+              map['content'] as String,
+              'legacy/$conversationId/${map['id']}',
+              senderId,
+            ),
+            fromMe: senderId == userId,
+            sentAt: DateTime.parse(map['created_at'] as String),
+          );
+        }),
+      )).reversed.toList();
 
       return messages.isEmpty
           ? (CustomerDataPolicy.allowDemo
@@ -185,6 +198,9 @@ class ChatRepositoryImpl implements ChatRepository {
     final sentAt = DateTime.now();
 
     if (client == null) {
+      if (!CustomerDataPolicy.allowDemo) {
+        throw StateError('Connect and sign in before sending messages.');
+      }
       return AppChatMessage(
         id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
         body: content,
@@ -194,12 +210,27 @@ class ChatRepositoryImpl implements ChatRepository {
     }
 
     try {
+      final id = const Uuid().v4();
+      final conversation = await client
+          .from('conversations')
+          .select('user_a_id,user_b_id')
+          .eq('id', conversationId)
+          .single();
+      final encrypted = await PrivateMessageService.instance.encrypt(
+        content,
+        'legacy/$conversationId/$id',
+        [
+          conversation['user_a_id'] as String,
+          conversation['user_b_id'] as String,
+        ],
+      );
       final response = await client
           .from('messages')
           .insert({
+            'id': id,
             'conversation_id': conversationId,
             'sender_id': userId,
-            'content': content,
+            'content': encrypted,
           })
           .select('id, content, sender_id, created_at')
           .single();
@@ -211,18 +242,13 @@ class ChatRepositoryImpl implements ChatRepository {
 
       return AppChatMessage(
         id: response['id'] as String,
-        body: response['content'] as String,
+        body: content,
         fromMe: true,
         sentAt: DateTime.parse(response['created_at'] as String),
       );
     } catch (e) {
-      debugPrint('ChatRepositoryImpl.sendMessage error: $e');
-      return AppChatMessage(
-        id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
-        body: content,
-        fromMe: true,
-        sentAt: sentAt,
-      );
+      // Never report a failed encrypted send as a successfully sent local message.
+      rethrow;
     }
   }
 
@@ -247,19 +273,33 @@ class ChatRepositoryImpl implements ChatRepository {
             column: 'conversation_id',
             value: conversationId,
           ),
-          callback: (payload) {
-            final newRecord = payload.newRecord;
-            if (newRecord.isNotEmpty) {
-              final senderId = newRecord['sender_id'] as String?;
-              final msg = AppChatMessage(
-                id: newRecord['id'] as String? ?? 'msg_realtime',
-                body: newRecord['content'] as String? ?? '',
-                fromMe: senderId == userId,
-                sentAt: newRecord['created_at'] != null
-                    ? DateTime.parse(newRecord['created_at'] as String)
-                    : DateTime.now(),
-              );
-              controller.add(msg);
+          callback: (payload) async {
+            try {
+              final newRecord = payload.newRecord;
+              if (newRecord.isNotEmpty) {
+                final senderId = newRecord['sender_id'] as String?;
+                final msg = AppChatMessage(
+                  id: newRecord['id'] as String? ?? 'msg_realtime',
+                  body: await PrivateMessageService.instance.decrypt(
+                    newRecord['content'] as String? ?? '',
+                    'legacy/$conversationId/${newRecord['id']}',
+                    senderId!,
+                  ),
+                  fromMe: senderId == userId,
+                  sentAt: newRecord['created_at'] != null
+                      ? DateTime.parse(newRecord['created_at'] as String)
+                      : DateTime.now(),
+                );
+                if (!controller.isClosed && _targetUserId == userId) {
+                  controller.add(msg);
+                }
+              }
+            } catch (_) {
+              if (!controller.isClosed) {
+                controller.addError(
+                  StateError('Encrypted message could not be opened.'),
+                );
+              }
             }
           },
         )

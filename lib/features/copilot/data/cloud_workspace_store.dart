@@ -1,3 +1,4 @@
+import 'package:tradex/core/security/private_message_service.dart';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -8,16 +9,21 @@ import '../models/workspace_errors.dart';
 /// A session snapshot keeps in-flight writes tied to the account that started
 /// them. Postgres RLS independently enforces ownership on every request.
 class CloudWorkspaceStore {
-  static String _bearer(String value) => "${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value";
+  static String _bearer(String value) =>
+      "${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value";
   CloudWorkspaceStore({
     required this.url,
     required this.key,
     required this.token,
     required this.owner,
     required this.client,
+    this.encryptState,
+    this.decryptState,
   });
   final String url, key, token, owner;
   final http.Client client;
+  final Future<String> Function(String value)? encryptState;
+  final Future<String> Function(String value)? decryptState;
 
   Map<String, String> get headers => {
     'apikey': key,
@@ -57,11 +63,36 @@ class CloudWorkspaceStore {
     return response.body.isEmpty ? null : jsonDecode(response.body);
   }
 
+  void _checkOwner() {
+    if (encryptState == null && PrivateMessageService.instance.owner != owner) {
+      throw const CopilotFailure(
+        'Account changed. Reopen your workspace.',
+        401,
+      );
+    }
+  }
+
   Future<Json> readRow() async {
+    _checkOwner();
     final rows =
         await request(http.Request('GET', uri({'select': 'state,revision'})))
             as List;
-    if (rows.isNotEmpty) return Map<String, dynamic>.from(rows.first as Map);
+    if (rows.isNotEmpty) {
+      final row = Map<String, dynamic>.from(rows.first as Map);
+      final stored = Map<String, dynamic>.from(row['state'] as Map);
+      if (stored['encrypted'] is String) {
+        final encrypted = stored['encrypted'] as String;
+        final plain = decryptState != null
+            ? await decryptState!(encrypted)
+            : await PrivateMessageService.instance.decrypt(
+                encrypted,
+                'workspace/$owner',
+                owner,
+              );
+        row['state'] = jsonDecode(plain);
+      }
+      return row;
+    }
     return {'revision': 0, 'state': initialWorkspace()};
   }
 
@@ -82,10 +113,19 @@ class CloudWorkspaceStore {
       );
       write.body = jsonEncode({
         if (revision == 0) 'user_id': owner,
-        'state': state,
+        'state': {
+          'encrypted': encryptState != null
+              ? await encryptState!(jsonEncode(state))
+              : await PrivateMessageService.instance.encrypt(
+                  jsonEncode(state),
+                  'workspace/$owner',
+                  [owner],
+                ),
+        },
         'revision': revision + 1,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       });
+      _checkOwner();
       final saved = await request(write);
       if (saved is List && saved.length == 1) return result;
       // Another tab won the compare-and-swap. Reapply against the latest state;

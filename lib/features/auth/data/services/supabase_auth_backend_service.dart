@@ -1,3 +1,4 @@
+import 'package:tradex/core/notifications/push_service.dart';
 import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/foundation.dart';
@@ -62,7 +63,9 @@ class SupabaseAuthBackendService implements AuthRepository {
           .limit(AuthRepository.maxRegisteredUsersCap + 5);
       return (rows as List).length;
     } catch (e) {
-      debugPrint('[SupabaseAuthBackendService] getRegisteredUserCount error: $e');
+      debugPrint(
+        '[SupabaseAuthBackendService] getRegisteredUserCount error: $e',
+      );
       return 0;
     }
   }
@@ -436,13 +439,11 @@ class SupabaseAuthBackendService implements AuthRepository {
     } on AuthException catch (e) {
       final String msg = e.message.toLowerCase();
       final bool isUnconfirmed =
-          msg.contains('email not confirmed') || e.code == 'email_not_confirmed';
+          msg.contains('email not confirmed') ||
+          e.code == 'email_not_confirmed';
       if (isUnconfirmed) {
         try {
-          await client.auth.resend(
-            type: OtpType.signup,
-            email: targetEmail,
-          );
+          await client.auth.resend(type: OtpType.signup, email: targetEmail);
         } catch (_) {}
         return AuthResult.failure(
           'Email not confirmed. A new verification code has been dispatched to your email.',
@@ -557,6 +558,9 @@ class SupabaseAuthBackendService implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    try {
+      await PushService.instance.disable();
+    } catch (_) {}
     _currentUserProfile = null;
     _currentAffiliateProfile = null;
 

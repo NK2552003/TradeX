@@ -53,9 +53,19 @@ class HostedFixture {
       if (conflicts > 0) {
         conflicts--;
         row!['revision'] = (row!['revision'] as int) + 1;
-        (row!['state'] as Json)['memories'] = [
+        final state =
+            jsonDecode(
+                  utf8.decode(
+                    base64Decode(row!['state']['encrypted'] as String),
+                  ),
+                )
+                as Json;
+        state['memories'] = [
           {'id': 'other-tab', 'text': 'Keep this edit'},
         ];
+        row!['state'] = {
+          'encrypted': base64Encode(utf8.encode(jsonEncode(state))),
+        };
         return http.Response('[]', 200);
       }
       if (request.url.queryParameters['revision'] != 'eq.${row!['revision']}') {
@@ -72,6 +82,8 @@ class HostedFixture {
       key: 'public-key',
       token: 'account-token',
       owner: 'owner',
+      encryptState: (value) async => base64Encode(utf8.encode(value)),
+      decryptState: (value) async => utf8.decode(base64Decode(value)),
       client: client,
     ),
   );

@@ -41,7 +41,7 @@ void main() {
         matching: find.byType(TextField),
       );
       final initialBottom = tester.getBottomLeft(composer).dy;
-      expect(initialBottom, 844);
+      expect(initialBottom, lessThanOrEqualTo(844 - 56 - 16 - 24));
       await tester.enterText(field, 'Unsent draft');
       await tester.pumpAndSettle();
       final initialField = tester.getRect(field);
@@ -51,7 +51,10 @@ void main() {
         tester.view.viewInsets = FakeViewPadding(bottom: inset);
         tester.view.padding = FakeViewPadding(bottom: inset == 0 ? 24 : 0);
         await tester.pump();
-        expect(tester.getBottomLeft(composer).dy, initialBottom - inset);
+        expect(
+          tester.getBottomLeft(composer).dy,
+          inset > 0 ? 844 - inset : initialBottom,
+        );
         final fieldContext = tester.element(field);
         expect(MediaQuery.viewInsetsOf(fieldContext).bottom, 0);
         if (inset > 0) {

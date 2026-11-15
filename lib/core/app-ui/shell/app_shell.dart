@@ -435,9 +435,9 @@ class _AppShellState extends State<AppShell> {
                 dockMargin +
                 mediaQuery.padding.bottom +
                 context.sp(theme.spacing.xs);
-      // Publish the clearance as a safe inset instead of shrinking the whole
-      // workspace. SafeArea-aware pages keep their controls above the dock,
-      // while their background still paints beneath the floating glass bar.
+      // Consume the dock inset at the shell boundary. This also protects pages
+      // with fixed bottom controls or scroll views that ignore MediaQuery.
+      // SafeArea removes the consumed inset for descendants to avoid double padding.
       final MediaQueryData dockSafeMedia = mediaQuery
           .removeViewInsets(removeBottom: true)
           .copyWith(
@@ -445,7 +445,12 @@ class _AppShellState extends State<AppShell> {
           );
       final Widget dockSafeContent = MediaQuery(
         data: dockSafeMedia,
-        child: contentSurface,
+        child: SafeArea(
+          top: false,
+          left: false,
+          right: false,
+          child: contentSurface,
+        ),
       );
       final List<AppNavItem> destinations = _dockItems;
       final int selectedIndex = _dockIndexFor(widget.selectedId);
@@ -557,9 +562,7 @@ class _AppShellState extends State<AppShell> {
           );
         },
         theme: QuietDockTheme(
-          background: keyboardVisible
-              ? Colors.transparent
-              : theme.colors.surface.withValues(alpha: 0.9),
+          background: Colors.transparent,
           borderColor: keyboardVisible
               ? Colors.transparent
               : theme.colors.border,
@@ -571,9 +574,7 @@ class _AppShellState extends State<AppShell> {
           indicatorBorderColor: keyboardVisible
               ? Colors.transparent
               : theme.colors.primary.withValues(alpha: 0.3),
-          shadowColor: keyboardVisible
-              ? Colors.transparent
-              : Colors.black.withValues(alpha: 0.24),
+          shadowColor: Colors.transparent,
           height: keyboardVisible ? 0 : dockHeight,
           margin: keyboardVisible ? 0 : dockMargin,
           iconSize: keyboardVisible ? 0 : 22,

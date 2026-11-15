@@ -9,3 +9,7 @@ verify_jwt = true
 # Public/authenticated market quote proxy with server-side cache and strict CORS.
 [functions.market-quote-proxy]
 verify_jwt = false
+
+# A scheduler-only secret is independently checked by the handler.
+[functions.push-dispatch]
+verify_jwt = false

@@ -90,7 +90,9 @@ void main() {
       expect(find.text('Followers Only'), findsOneWidget);
       expect(find.text('Only Invited'), findsOneWidget);
 
-      // Tap 'Only Invited'
+      // Scroll the control into the test viewport before tapping it.
+      await tester.ensureVisible(find.text('Only Invited'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Only Invited'));
       await tester.pumpAndSettle();
 

@@ -457,7 +457,9 @@ class MessageBubble extends StatelessWidget {
 
     final double lastClose = a.candles.isNotEmpty ? a.candles.last.close : 0.0;
     final double firstOpen = a.candles.isNotEmpty ? a.candles.first.open : 0.0;
-    final double changePct = firstOpen > 0 ? ((lastClose - firstOpen) / firstOpen) * 100 : 0.0;
+    final double changePct = firstOpen > 0
+        ? ((lastClose - firstOpen) / firstOpen) * 100
+        : 0.0;
     final bool isBullish = changePct >= 0;
 
     return ConstrainedBox(
@@ -492,7 +494,9 @@ class MessageBubble extends StatelessWidget {
                     a.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: context.uiText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+                    style: context.uiText.bodyStrong.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 if (a.timeframe != null) ...<Widget>[
@@ -510,7 +514,9 @@ class MessageBubble extends StatelessWidget {
               SizedBox(height: context.sp(theme.spacing.xxs)),
               Text(
                 a.subtitle!,
-                style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: colors.foregroundMuted,
+                ),
               ),
             ],
             SizedBox(height: context.sp(theme.spacing.xs)),
@@ -576,43 +582,54 @@ class MessageBubble extends StatelessWidget {
                 height: context.sz(140),
                 child: Builder(
                   builder: (BuildContext imgCtx) {
+                    final thumbUrl = attachment.thumbnailUrl!;
                     final int? cacheW = UiRemoteImage.resolveCacheWidth(
                       imgCtx,
                       logicalWidth: imgCtx.sz(260),
                     );
+                    final ImageProvider provider = thumbUrl.startsWith('data:')
+                        ? ResizeImage.resizeIfNeeded(
+                            cacheW,
+                            null,
+                            MemoryImage(
+                              base64Decode(thumbUrl.split(',').last),
+                            ),
+                          )
+                        : ResizeImage.resizeIfNeeded(
+                            cacheW,
+                            null,
+                            NetworkImage(
+                              UiRemoteImage.resizeImageUrl(
+                                thumbUrl,
+                                targetWidthPx: cacheW,
+                              ),
+                            ),
+                          );
                     return Image(
-                      image: ResizeImage.resizeIfNeeded(
-                        cacheW,
-                        null,
-                        NetworkImage(
-                          UiRemoteImage.resizeImageUrl(
-                            attachment.thumbnailUrl!,
-                            targetWidthPx: cacheW,
-                          ),
-                        ),
-                      ),
+                      image: provider,
                       fit: BoxFit.cover,
-                  loadingBuilder:
-                      (
-                        BuildContext ctx,
-                        Widget child,
-                        ImageChunkEvent? progress,
-                      ) {
-                        if (progress == null) return child;
-                        return _mediaFallback(context, loading: true);
+                      loadingBuilder:
+                          (
+                            BuildContext ctx,
+                            Widget child,
+                            ImageChunkEvent? progress,
+                          ) {
+                            if (progress == null) return child;
+                            return _mediaFallback(context, loading: true);
+                          },
+                      errorBuilder: (BuildContext ctx, Object e, StackTrace? s) {
+                        if (attachment.storagePath != null) {
+                          unawaited(
+                            MessagesRepositoryScope.repository
+                                .resolveAttachmentUrl(
+                                  attachment,
+                                  threadId: message.threadId,
+                                  forceRefresh: true,
+                                ),
+                          );
+                        }
+                        return _mediaFallback(context);
                       },
-                  errorBuilder: (BuildContext ctx, Object e, StackTrace? s) {
-                    if (attachment.storagePath != null) {
-                      unawaited(
-                        MessagesRepositoryScope.repository.resolveAttachmentUrl(
-                          attachment,
-                          threadId: message.threadId,
-                          forceRefresh: true,
-                        ),
-                      );
-                    }
-                    return _mediaFallback(context);
-                  },
                     );
                   },
                 ),
@@ -978,7 +995,10 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
         setState(() {
           _position = pos;
           if (_duration.inMilliseconds > 0) {
-            _progress = (pos.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0);
+            _progress = (pos.inMilliseconds / _duration.inMilliseconds).clamp(
+              0.0,
+              1.0,
+            );
           }
         });
       });
@@ -1060,7 +1080,9 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
             }
           } catch (_) {}
         }
-        debugPrint('[VoiceAttachmentPlayer] Real audio playback error: $e. Falling back to timer.');
+        debugPrint(
+          '[VoiceAttachmentPlayer] Real audio playback error: $e. Falling back to timer.',
+        );
       }
     }
 

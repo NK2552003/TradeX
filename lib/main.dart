@@ -1,3 +1,4 @@
+import 'package:tradex/core/notifications/push_service.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -93,6 +94,7 @@ Future<void> main() async {
         );
       };
 
+      PushService.instance.initialize();
       runApp(const TradeXApp());
     },
     (error, stackTrace) {
