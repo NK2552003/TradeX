@@ -4,6 +4,7 @@ import worker, {
   buildDynamicSitemapXml,
   canonicalSubdomainHost,
   isAlphajournalHost,
+  logWorkerEvent,
   resolvePageSeo,
   resolvePublicStorageUrl,
   resolveRedirectUrl,
@@ -240,4 +241,38 @@ test('normalizes public community and avatar URLs to Smart CDN Cached Egress pat
     resolvePublicStorageUrl(env, 'avatars', 'https://cdn.example.com/avatar.png'),
     'https://cdn.example.com/avatar.png',
   );
+});
+
+test('emits single-line structured JSON logs from Worker without leaking PII', () => {
+  const logs = [];
+  const errors = [];
+  const origLog = console.log;
+  const origError = console.error;
+  console.log = (msg) => logs.push(msg);
+  console.error = (msg) => errors.push(msg);
+  try {
+    logWorkerEvent('info', 'worker_seo_served', {
+      host: 'community.alphajournal.in',
+      path: '/@alpha_trader',
+      status: 200,
+    });
+    logWorkerEvent('error', 'worker_upstream_error', {
+      host: 'community.alphajournal.in',
+      status: 502,
+    });
+  } finally {
+    console.log = origLog;
+    console.error = origError;
+  }
+
+  assert.equal(logs.length, 1);
+  assert.equal(errors.length, 1);
+  const infoPayload = JSON.parse(logs[0]);
+  assert.equal(infoPayload.source, 'cloudflare_worker');
+  assert.equal(infoPayload.level, 'info');
+  assert.equal(infoPayload.event, 'worker_seo_served');
+  assert.equal(infoPayload.host, 'community.alphajournal.in');
+  const errPayload = JSON.parse(errors[0]);
+  assert.equal(errPayload.level, 'error');
+  assert.equal(errPayload.status, 502);
 });

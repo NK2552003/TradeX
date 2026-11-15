@@ -1,23 +1,31 @@
 import { sendFcm } from './fcm.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.8';
 import webpush from 'npm:web-push@3.6.7';
+import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 import { allowedEndpoint, shouldSend } from './policy.ts';
 
 Deno.serve(async (request) => {
+  const logger = createEdgeRequestLogger('push-dispatch', request);
   const secret = Deno.env.get('PUSH_DISPATCH_SECRET');
   if (request.method !== 'POST' || !secret || request.headers.get('x-push-secret') !== secret) {
-    return new Response('Unauthorized', {status: 401});
+    return logger.finish(new Response('Unauthorized', {status: 401}));
   }
   const publicKey = Deno.env.get('WEB_PUSH_PUBLIC_KEY');
   const privateKey = Deno.env.get('WEB_PUSH_PRIVATE_KEY');
   const subject = Deno.env.get('WEB_PUSH_SUBJECT');
   const webConfigured = !!publicKey && !!privateKey && !!subject;
-  if (!webConfigured && !Deno.env.get('FIREBASE_SERVICE_ACCOUNT')) return new Response('Push is not configured', {status: 503});
+  if (!webConfigured && !Deno.env.get('FIREBASE_SERVICE_ACCOUNT')) {
+    return logger.finish(new Response('Push is not configured', {status: 503}));
+  }
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   if (webConfigured) webpush.setVapidDetails(subject!, publicKey!, privateKey!);
   const {data: jobs, error} = await db.rpc('claim_push_deliveries');
-  if (error) return new Response('Queue unavailable', {status: 503});
+  if (error) {
+    logger.log('error', 'claim_push_deliveries_failed', describeError(error));
+    return logger.finish(new Response('Queue unavailable', {status: 503}));
+  }
   let delivered = 0;
+  let failed = 0;
   for (const job of jobs ?? []) {
     const {data: sub, error: subError} = await db.from('push_subscriptions').select().eq('id', job.subscription_id).maybeSingle();
     const {data: notification, error: notificationError} = await db.from('notifications').select('user_id,type,category,read_at').eq('id', job.notification_id).maybeSingle();
@@ -43,10 +51,21 @@ Deno.serve(async (request) => {
       await db.from('push_deliveries').update({completed_at: new Date().toISOString()}).eq('id', job.id);
       delivered++;
     } catch (error) {
+      failed++;
       const status = (error as {statusCode?: number}).statusCode;
+      logger.log('warn', 'push_delivery_failed', {
+        notification_id: job.notification_id,
+        channel: sub.endpoint.startsWith('fcm:') ? 'fcm' : 'webpush',
+        upstream_status: status,
+        ...describeError(error),
+      });
       if (status === 404 || status === 410) await db.from('push_subscriptions').delete().eq('id', sub.id);
       // Transient failures retain their lease and retry, up to six attempts.
     }
   }
-  return Response.json({delivered});
+  return logger.finish(Response.json({delivered}), {
+    claimed: (jobs ?? []).length,
+    delivered,
+    failed,
+  });
 });

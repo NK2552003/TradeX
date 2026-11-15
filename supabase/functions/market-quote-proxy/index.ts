@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 
 const ALLOWED_ORIGINS = new Set([
   'https://alphajournal.in',
@@ -230,6 +231,26 @@ export async function handleRequest(request: Request): Promise<Response> {
     return new Response(null, { status: 204, headers });
   }
 
+  const logger = createEdgeRequestLogger('market-quote-proxy', request);
+  try {
+    const response = await executeMarketQuoteRequest(request, headers, logger);
+    return logger.finish(response);
+  } catch (error) {
+    logger.log('error', 'unhandled_exception', describeError(error));
+    return logger.finish(
+      new Response(JSON.stringify({ error: 'Market data request failed.' }), {
+        status: 500,
+        headers,
+      }),
+    );
+  }
+}
+
+async function executeMarketQuoteRequest(
+  request: Request,
+  headers: Record<string, string>,
+  logger: ReturnType<typeof createEdgeRequestLogger>,
+): Promise<Response> {
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed. Use POST.' }), {
       status: 405,
@@ -267,6 +288,10 @@ export async function handleRequest(request: Request): Promise<Response> {
   }
 
   const action = typeof body.action === 'string' ? body.action.toLowerCase() : 'quotes';
+  logger.log('info', 'market_action_received', {
+    action,
+    symbol_count: Array.isArray(body.symbols) ? body.symbols.length : undefined,
+  });
 
   // 1. Quotes Action
   if (action === 'quotes') {

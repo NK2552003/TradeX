@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 
 type ReconcileRpcParams = {
   p_user_id: string;
@@ -64,6 +65,19 @@ function equalHex(expected: string, received: string): boolean {
 }
 
 export async function handleRazorpayWebhook(request: Request): Promise<Response> {
+  const logger = createEdgeRequestLogger('razorpay-webhook', request);
+  try {
+    return logger.finish(await executeRazorpayWebhook(request, logger));
+  } catch (error) {
+    logger.log('error', 'unhandled_exception', describeError(error));
+    return logger.finish(new Response('Webhook processing failed', { status: 500 }));
+  }
+}
+
+async function executeRazorpayWebhook(
+  request: Request,
+  logger: ReturnType<typeof createEdgeRequestLogger>,
+): Promise<Response> {
   if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
   const secret = Deno.env.get('RAZORPAY_WEBHOOK_SECRET');
   const keyId = Deno.env.get('RAZORPAY_KEY_ID');
@@ -190,6 +204,11 @@ export async function handleRazorpayWebhook(request: Request): Promise<Response>
   });
 
   if (reconcileError) {
+    logger.log('error', 'razorpay_reconcile_failed', {
+      event_id: eventId,
+      event_type: String(event.event ?? 'UNKNOWN'),
+      ...describeError(reconcileError),
+    });
     if (
       reconcileError.code === 'P0002' ||
       String(reconcileError.message ?? '').includes('Account not found')
@@ -201,6 +220,12 @@ export async function handleRazorpayWebhook(request: Request): Promise<Response>
     });
   }
 
+  logger.log('info', 'razorpay_reconcile_succeeded', {
+    event_id: eventId,
+    event_type: String(event.event ?? 'UNKNOWN'),
+    provider_status: String(provider.status ?? 'unknown'),
+    business_access: businessAccess,
+  });
   return new Response('OK', { status: 200 });
 }
 

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,6 +65,19 @@ Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+  const logger = createEdgeRequestLogger('ai-chat', request);
+  try {
+    return logger.finish(await handleAiChatRequest(request, logger));
+  } catch (error) {
+    logger.log('error', 'unhandled_exception', describeError(error));
+    return logger.finish(jsonReply(500, { error: 'AI assistant request failed.' }));
+  }
+});
+
+async function handleAiChatRequest(
+  request: Request,
+  logger: ReturnType<typeof createEdgeRequestLogger>,
+): Promise<Response> {
   if (request.method !== 'POST') {
     return jsonReply(405, { error: 'Method not allowed' });
   }
@@ -367,11 +381,18 @@ Directives:
           .update({ updated_at: new Date().toISOString() })
           .eq('id', threadId);
 
+        logger.log('info', 'ai_chat_stream_completed', {
+          persona,
+          thread_id: threadId,
+          input_chars: fullPrompt.length,
+          output_chars: completeText.length,
+        });
         sendEvent('complete', {
           messageId: assistantMessageId,
           usage: { inputTokens: fullPrompt.length, outputTokens: completeText.length },
         });
       } else {
+        logger.log('error', 'ai_chat_providers_unavailable', { persona, thread_id: threadId });
         sendEvent('error', {
           code: 'service_unavailable',
           message: 'AI assistant is currently unavailable. Please try again.',
@@ -390,5 +411,5 @@ Directives:
       Connection: 'keep-alive',
     },
   });
-});
+}
 

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -13,6 +14,19 @@ function reply(status: number, body: Record<string, unknown>): Response {
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { headers });
+  const logger = createEdgeRequestLogger('create-business-checkout', request);
+  try {
+    return logger.finish(await handleCheckoutRequest(request, logger));
+  } catch (error) {
+    logger.log('error', 'unhandled_exception', describeError(error));
+    return logger.finish(reply(500, { error: 'Checkout could not be created.' }));
+  }
+});
+
+async function handleCheckoutRequest(
+  request: Request,
+  logger: ReturnType<typeof createEdgeRequestLogger>,
+): Promise<Response> {
   if (request.method !== 'POST') return reply(405, { error: 'Method not allowed' });
 
   const url = Deno.env.get('SUPABASE_URL');
@@ -115,6 +129,10 @@ Deno.serve(async (request) => {
     expected_amount_paise: expectedPaise,
     checkout_url: checkout.toString(),
   });
-  if (saveError) return reply(500, { error: 'Checkout could not be saved.' });
+  if (saveError) {
+    logger.log('error', 'checkout_intent_save_failed', describeError(saveError));
+    return reply(500, { error: 'Checkout could not be saved.' });
+  }
+  logger.log('info', 'checkout_created', { billing_cycle: cycle });
   return reply(200, { subscription_id: subscription.id, checkout_url: checkout.toString() });
-});
+}

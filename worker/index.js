@@ -565,14 +565,39 @@ function applySeoRewriter(response, seo) {
   return rewriter.transform(response);
 }
 
+export function logWorkerEvent(level, event, details = {}) {
+  const payload = {
+    ts: new Date().toISOString(),
+    source: 'cloudflare_worker',
+    level,
+    event,
+    ...details,
+  };
+  const line = JSON.stringify(payload);
+  if (level === 'error') {
+    console.error(line);
+  } else {
+    console.log(line);
+  }
+}
+
 export default {
   async fetch(request, env) {
+    const startedAt = Date.now();
+    const requestUrl = new URL(request.url);
     const redirectTo = resolveRedirectUrl(request.url, request.method);
     if (redirectTo) {
+      logWorkerEvent('info', 'worker_redirect', {
+        host: requestUrl.hostname.toLowerCase(),
+        path: requestUrl.pathname,
+        target_host: new URL(redirectTo).hostname.toLowerCase(),
+        status: 308,
+        duration_ms: Date.now() - startedAt,
+      });
       return Response.redirect(redirectTo, 308);
     }
 
-    const url = new URL(request.url);
+    const url = requestUrl;
     const host = url.hostname.toLowerCase();
 
     if (url.pathname === '/robots.txt' && host === `admin.${ROOT_DOMAIN}`) {
@@ -587,12 +612,24 @@ export default {
 
     if (url.pathname === '/sitemap.xml' && (request.method === 'GET' || request.method === 'HEAD')) {
       if (host === `admin.${ROOT_DOMAIN}`) {
+        logWorkerEvent('info', 'worker_sitemap_blocked', {
+          host,
+          status: 404,
+          duration_ms: Date.now() - startedAt,
+        });
         return new Response('Not Found', {
           status: 404,
           headers: { 'X-Robots-Tag': NOINDEX_ROBOTS },
         });
       }
       const xml = await buildDynamicSitemapXml(env);
+      const urlCount = (xml.match(/<url>/g) || []).length;
+      logWorkerEvent('info', 'worker_sitemap_served', {
+        host,
+        status: 200,
+        url_count: urlCount,
+        duration_ms: Date.now() - startedAt,
+      });
       return new Response(request.method === 'HEAD' ? null : xml, {
         status: 200,
         headers: {
@@ -634,6 +671,16 @@ export default {
     if (seo.noindex) {
       headers.set('X-Robots-Tag', NOINDEX_ROBOTS);
     }
+
+    logWorkerEvent('info', 'worker_seo_served', {
+      host,
+      path: url.pathname,
+      status: page.status,
+      seo_kind: post ? 'post' : profile ? 'profile' : 'static',
+      entity_found: post ? true : profile ? true : undefined,
+      noindex: Boolean(seo.noindex),
+      duration_ms: Date.now() - startedAt,
+    });
 
     const baseResponse = new Response(page.body, {
       status: page.status,

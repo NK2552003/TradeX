@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
+import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -14,6 +15,21 @@ type Dependencies = { fetch?: typeof fetch; env?: (name: string) => string | und
  * claims the reviewed request and prevents concurrent or cross-user jobs. */
 export async function handleRequest(request: Request, dependencies: Dependencies = {}): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response(null, { headers });
+  const logger = createEdgeRequestLogger('admin-delete-user', request);
+  try {
+    const response = await executeDeletionRequest(request, dependencies, logger);
+    return logger.finish(response);
+  } catch (error) {
+    logger.log('error', 'unhandled_exception', describeError(error));
+    return logger.finish(reply(500, { error: 'Account deletion could not be completed.' }));
+  }
+}
+
+async function executeDeletionRequest(
+  request: Request,
+  dependencies: Dependencies,
+  logger: ReturnType<typeof createEdgeRequestLogger>,
+): Promise<Response> {
   if (request.method !== 'POST') return reply(405, { error: 'Method not allowed.' });
   const authorization = request.headers.get('authorization');
   if (!authorization?.startsWith('Bearer ')) return reply(401, { error: 'Sign in required.' });
@@ -99,9 +115,18 @@ export async function handleRequest(request: Request, dependencies: Dependencies
       p_request: requestId, p_actor: auth.user.id, p_files: filesRemoved,
     });
     if (finishError) throw finishError;
+    logger.log('info', 'deletion_completed', {
+      deletion_request_id: requestId,
+      files_removed: filesRemoved,
+    });
     return reply(200, { deleted: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Account deletion could not be completed.';
+    logger.log('error', 'deletion_failed', {
+      deletion_request_id: requestId,
+      files_removed: filesRemoved,
+      ...describeError(error),
+    });
     const { error: receiptError } = await service.rpc('admin_finish_deletion', {
       p_request: requestId, p_actor: auth.user.id, p_error: message, p_files: filesRemoved,
     });

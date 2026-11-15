@@ -1,3 +1,8 @@
+# Enable Supabase Logflare analytics so Postgres, Edge Functions, Auth, Storage,
+# and API gateway logs are ingested and queryable in Logs Explorer & CLI.
+[analytics]
+enabled = true
+
 # Require a user JWT at the gateway and independently validate it with Auth
 # before checking the caller's current account role and permissions.
 [functions.admin-delete-user]
@@ -9,10 +14,27 @@ verify_jwt = true
 [functions.ai-voice]
 verify_jwt = true
 
+[functions.ai-chat]
+verify_jwt = true
+
+[functions.note-ai-refactor]
+verify_jwt = true
+
+[functions.create-business-checkout]
+verify_jwt = true
+
 # Public/authenticated market quote proxy with server-side cache and strict CORS.
 [functions.market-quote-proxy]
 verify_jwt = false
 
 # A scheduler-only secret is independently checked by the handler.
 [functions.push-dispatch]
+verify_jwt = false
+
+# Razorpay authenticates requests using HMAC-SHA256 signatures.
+[functions.razorpay-webhook]
+verify_jwt = false
+
+# RevenueCat authenticates requests using the configured webhook bearer token.
+[functions.revenuecat-webhook]
 verify_jwt = false

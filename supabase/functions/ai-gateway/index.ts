@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
+import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 import { generateResponses } from './responses.ts';
 
 const cors = {
@@ -93,6 +94,21 @@ async function generate(
 
 export async function handleRequest(request: Request, dependencies: Dependencies = {}): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
+  const logger = createEdgeRequestLogger('ai-gateway', request);
+  try {
+    const response = await executeAiGatewayRequest(request, dependencies, logger);
+    return logger.finish(response);
+  } catch (error) {
+    logger.log('error', 'unhandled_exception', describeError(error));
+    return logger.finish(reply(500, { error: 'Unexpected gateway failure.' }));
+  }
+}
+
+async function executeAiGatewayRequest(
+  request: Request,
+  dependencies: Dependencies,
+  logger: ReturnType<typeof createEdgeRequestLogger>,
+): Promise<Response> {
   if (request.method !== 'POST') return reply(405, { error: 'Method not allowed.' });
   const authorization = request.headers.get('authorization');
   if (!authorization?.startsWith('Bearer ')) return reply(401, { error: 'Sign in required.' });
@@ -173,9 +189,18 @@ export async function handleRequest(request: Request, dependencies: Dependencies
       p_model: result.model, p_input_tokens: result.input ?? null, p_output_tokens: result.output ?? null,
     });
     if (finishError) throw new Error('The AI response could not be saved. Please retry.');
+    logger.log('info', 'ai_generation_succeeded', {
+      provider: result.provider,
+      model: result.model,
+      kind,
+      mode,
+      input_tokens: result.input,
+      output_tokens: result.output,
+    });
     return reply(200, { text: result.text, request_id: reservation.request_id, provider: result.provider, model: result.model, usage: reservation.usage });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'AI request failed.';
+    logger.log('error', 'ai_generation_failed', { kind, mode, ...describeError(error) });
     await service.rpc('finish_ai_request', { p_request: reservation.request_id, p_error: message });
     return reply(503, { error: message });
   }

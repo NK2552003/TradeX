@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
+import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 import { AuthCheck, handleVoiceRequest, voiceCorsHeaders } from './voice.ts';
 
 const reply = (status: number, body: Record<string, unknown>) =>
@@ -11,10 +12,11 @@ export async function handleRequest(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: voiceCorsHeaders });
   }
+  const logger = createEdgeRequestLogger('ai-voice', request);
   const url = Deno.env.get('SUPABASE_URL');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   if (!url || !anonKey) {
-    return reply(503, { error: 'Voice AI service is not configured.' });
+    return logger.finish(reply(503, { error: 'Voice AI service is not configured.' }));
   }
 
   const authenticate: AuthCheck = async (authorization) => {
@@ -34,11 +36,17 @@ export async function handleRequest(request: Request): Promise<Response> {
     return { ok: true, userId: userData.user.id };
   };
 
-  return handleVoiceRequest(request, {
-    env: (name) => Deno.env.get(name),
-    fetch,
-    authenticate,
-  });
+  try {
+    const response = await handleVoiceRequest(request, {
+      env: (name) => Deno.env.get(name),
+      fetch,
+      authenticate,
+    });
+    return logger.finish(response);
+  } catch (error) {
+    logger.log('error', 'unhandled_exception', describeError(error));
+    return logger.finish(reply(500, { error: 'Voice request failed.' }));
+  }
 }
 
 if (import.meta.main) {

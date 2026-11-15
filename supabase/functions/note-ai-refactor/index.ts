@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -74,6 +75,19 @@ function reply(status: number, body: Record<string, unknown>): Response {
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { headers });
+  const logger = createEdgeRequestLogger('note-ai-refactor', request);
+  try {
+    return logger.finish(await handleNoteRefactorRequest(request, logger));
+  } catch (error) {
+    logger.log('error', 'unhandled_exception', describeError(error));
+    return logger.finish(reply(500, { error: 'Note refactoring request failed.' }));
+  }
+});
+
+async function handleNoteRefactorRequest(
+  request: Request,
+  logger: ReturnType<typeof createEdgeRequestLogger>,
+): Promise<Response> {
   if (request.method !== 'POST') return reply(405, { error: 'Method not allowed' });
 
   const url = Deno.env.get('SUPABASE_URL');
@@ -347,6 +361,7 @@ ${cleanSelectedText}
   }
 
   if (!enhancedText) {
+    logger.log('error', 'note_refactor_providers_unavailable', { note_type: noteType });
     return reply(503, { error: 'AI refactoring service is currently unavailable.' });
   }
 
@@ -357,5 +372,10 @@ ${cleanSelectedText}
     enhancedText = enhancedText.slice(3, -3).trim();
   }
 
+  logger.log('info', 'note_refactor_succeeded', {
+    note_type: noteType,
+    input_chars: cleanSelectedText.length,
+    output_chars: enhancedText.length,
+  });
   return reply(200, { enhanced: enhancedText });
-});
+}

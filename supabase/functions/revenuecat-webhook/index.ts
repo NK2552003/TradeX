@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 
 type ReconcileRpcParams = {
   p_user_id: string;
@@ -52,6 +53,19 @@ async function callReconcileWithRetry(
 // Deploy without JWT verification; RevenueCat authenticates with the shared
 // Authorization header configured in its webhook integration.
 export async function handleRevenueCatWebhook(request: Request): Promise<Response> {
+  const logger = createEdgeRequestLogger('revenuecat-webhook', request);
+  try {
+    return logger.finish(await executeRevenueCatWebhook(request, logger));
+  } catch (error) {
+    logger.log('error', 'unhandled_exception', describeError(error));
+    return logger.finish(new Response('Webhook processing failed', { status: 500 }));
+  }
+}
+
+async function executeRevenueCatWebhook(
+  request: Request,
+  logger: ReturnType<typeof createEdgeRequestLogger>,
+): Promise<Response> {
   if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
   const webhookToken = Deno.env.get('REVENUECAT_WEBHOOK_TOKEN');
   const rcSecret = Deno.env.get('REVENUECAT_SECRET_API_KEY');
@@ -159,6 +173,11 @@ export async function handleRevenueCatWebhook(request: Request): Promise<Respons
   });
 
   if (reconcileError) {
+    logger.log('error', 'revenuecat_reconcile_failed', {
+      event_id: eventId,
+      event_type: String(event?.type ?? 'UNKNOWN'),
+      ...describeError(reconcileError),
+    });
     if (
       reconcileError.code === 'P0002' ||
       String(reconcileError.message ?? '').includes('Account not found')
@@ -170,6 +189,12 @@ export async function handleRevenueCatWebhook(request: Request): Promise<Respons
     });
   }
 
+  logger.log('info', 'revenuecat_reconcile_succeeded', {
+    event_id: eventId,
+    event_type: String(event?.type ?? 'UNKNOWN'),
+    active,
+    cycle: active ? cycle : null,
+  });
   return new Response('OK', { status: 200 });
 }
 
