@@ -77,17 +77,19 @@ class CrossSubdomainLocalStorage extends LocalStorage {
   }
 
   void _writeCookieChunks(String value) {
-    final chunks = SubdomainCookieCodec.splitForCookies(value);
-    if (chunks.isEmpty || chunks.length > SubdomainCookieCodec.maxChunks) {
-      return;
-    }
     const domain = '.${SubdomainCookieCodec.rootDomain}';
     final secure = _isSecureContext;
+    // Always clear any prior signed-out marker before storing chunks so large
+    // OAuth sessions are never invalidated on the next read by a stale marker.
     web.document.cookie = SubdomainCookieCodec.formatDeleteCookie(
       _signedOutCookie,
       domain: domain,
       secure: secure,
     );
+    final chunks = SubdomainCookieCodec.splitForCookies(value);
+    if (chunks.isEmpty || chunks.length > SubdomainCookieCodec.maxChunks) {
+      return;
+    }
     for (var i = 0; i < chunks.length; i++) {
       web.document.cookie = SubdomainCookieCodec.formatSetCookie(
         '$_cookieBase.$i',
@@ -250,16 +252,31 @@ void _showOutgoingNavigationVeil(String url) {
 
 void navigateBrowserUrl(String url) {
   final silentValue = SubdomainCookieCodec.silentNavValueForUrl(url);
+  final cookies = SubdomainCookieCodec.parseCookieString(web.document.cookie);
+  final bool hasActiveSession =
+      (cookies['ax_sb_auth.n']?.isNotEmpty ?? false) &&
+      cookies['ax_sb_auth_off'] != '1';
+  final bool useSilentUiLoader = hasActiveSession && silentValue != '0';
   if (SubdomainCookieCodec.isProductionDomain(web.window.location.hostname)) {
     final secure = web.window.location.protocol == 'https:';
-    web.document.cookie = SubdomainCookieCodec.formatSetCookie(
-      'ax_silent_nav',
-      silentValue,
-      domain: '.${SubdomainCookieCodec.rootDomain}',
-      maxAgeSeconds: 20,
-      secure: secure,
-    );
+    if (useSilentUiLoader) {
+      web.document.cookie = SubdomainCookieCodec.formatSetCookie(
+        'ax_silent_nav',
+        silentValue,
+        domain: '.${SubdomainCookieCodec.rootDomain}',
+        maxAgeSeconds: 20,
+        secure: secure,
+      );
+    } else {
+      web.document.cookie = SubdomainCookieCodec.formatDeleteCookie(
+        'ax_silent_nav',
+        domain: '.${SubdomainCookieCodec.rootDomain}',
+        secure: secure,
+      );
+    }
   }
-  _showOutgoingNavigationVeil(url);
+  if (useSilentUiLoader) {
+    _showOutgoingNavigationVeil(url);
+  }
   web.window.location.assign(url);
 }

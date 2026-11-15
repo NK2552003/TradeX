@@ -17,12 +17,14 @@ class PrivateMessagingGate extends StatefulWidget {
     super.key,
     required this.builder,
     this.onLogout,
+    this.onUnlocked,
     this.checkStatus,
     this.unlockWithPassphrase,
   });
 
   final WidgetBuilder builder;
   final VoidCallback? onLogout;
+  final VoidCallback? onUnlocked;
   final PrivateMessagingStatusCheck? checkStatus;
   final PrivateMessagingUnlockAction? unlockWithPassphrase;
 
@@ -136,12 +138,16 @@ class _PrivateMessagingGateState extends State<PrivateMessagingGate> {
           : PrivateMessageService.instance.checkStatus());
 
       if (mounted) {
+        final bool becameReady = !_ready && status.unlocked;
         setState(() {
           _ready = status.unlocked;
           _exists = status.hasIdentity;
           _checkFailed = false;
           _initializing = false;
         });
+        if (becameReady) {
+          widget.onUnlocked?.call();
+        }
       }
     } catch (error, stackTrace) {
       debugPrint('[PrivateMessagingGate] Status check failed: $error\n$stackTrace');
@@ -198,6 +204,7 @@ class _PrivateMessagingGateState extends State<PrivateMessagingGate> {
         setState(() {
           _ready = true;
         });
+        widget.onUnlocked?.call();
       }
     } catch (error, stackTrace) {
       debugPrint('[PrivateMessagingGate] Unlock failed: $error\n$stackTrace');

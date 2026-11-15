@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/cross_subdomain_storage.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/core/navigation/customer_routes.dart';
@@ -78,6 +79,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
   AffiliateProfileModel? _authenticatedAffProfile;
   UserRole? _authenticatedRole;
   String _initialAppDestination = 'workspace';
+  String? _oauthErrorNotice;
+  int _restoreGeneration = 0;
   StreamSubscription<AuthState>? _authSubscription;
 
   @override
@@ -165,9 +168,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
             }
           }
           if (event == AuthChangeEvent.signedIn &&
-              (_sessionState.stage == AuthStage.login ||
-                  _sessionState.stage == AuthStage.signup ||
-                  _sessionState.stage == AuthStage.onboarding)) {
+              (_sessionState.stage != AuthStage.authenticated ||
+                  data.session?.user.id != _sessionState.userId)) {
             unawaited(
               _restoreActiveSession().then((_) {
                 if (mounted && _sessionState.stage == AuthStage.authenticated) {
@@ -182,11 +184,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           }
           if (event == AuthChangeEvent.signedOut &&
               _sessionState.stage != AuthStage.forgotPassword) {
-            if (mounted) {
-              setState(() {
-                _sessionState = _sessionState.copyWith(stage: AuthStage.login);
-              });
-            }
+            _resetToLoggedOutState();
           }
         });
       }
@@ -234,14 +232,115 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
   }
 
+  String _sanitizeOAuthHandle(User user, {bool withSuffix = false}) {
+    final userMeta = user.userMetadata ?? <String, dynamic>{};
+    final email = user.email ?? '';
+    final rawCandidate =
+        (userMeta['user_name'] as String?) ??
+        (userMeta['preferred_username'] as String?) ??
+        (email.isNotEmpty ? email.split('@').first : null) ??
+        (userMeta['full_name'] as String?) ??
+        (userMeta['name'] as String?) ??
+        '';
+    var normalized = rawCandidate
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'^@+'), '')
+        .replaceAll(RegExp(r'[^a-z0-9_]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+    final suffix = user.id.replaceAll('-', '').substring(0, 6).toLowerCase();
+    if (normalized.length < 3) {
+      normalized = 'trader_$suffix';
+    } else if (withSuffix) {
+      final prefix = normalized.length > 20
+          ? normalized.substring(0, 20)
+          : normalized;
+      normalized = '${prefix}_$suffix';
+    }
+    return '@$normalized';
+  }
+
+  Future<UserProfileModel> _ensureOAuthUserProfile(
+    SupabaseClient client,
+    User user,
+  ) async {
+    try {
+      await client.rpc('ensure_own_profile');
+    } catch (e) {
+      debugPrint('[AuthWrapper] ensure_own_profile rpc skipped: $e');
+    }
+
+    final existing = await _authRepository.getProfile(user.id);
+    if (existing != null) return existing;
+
+    final userMeta = user.userMetadata ?? <String, dynamic>{};
+    final email = user.email ?? '';
+    final fullName =
+        (userMeta['full_name'] as String?) ??
+        (userMeta['name'] as String?) ??
+        (email.isNotEmpty ? email.split('@').first : 'Trader');
+    final avatar =
+        (userMeta['avatar_url'] as String?) ??
+        (userMeta['picture'] as String?);
+    final referralSuffix = user.id.replaceAll('-', '').substring(0, 6).toUpperCase();
+    var handle = _sanitizeOAuthHandle(user);
+
+    for (final useUniqueSuffix in const <bool>[false, true]) {
+      handle = _sanitizeOAuthHandle(user, withSuffix: useUniqueSuffix);
+      try {
+        await client.from('profiles').upsert({
+          'id': user.id,
+          'email': email,
+          'display_name': fullName,
+          'handle': handle,
+          'role': 'customer',
+          'status': 'active',
+          'referral_code': 'REF-TRADEX-$referralSuffix',
+          'avatar_url': avatar,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+        break;
+      } catch (e) {
+        debugPrint(
+          '[AuthWrapper] Auto-upsert profile warning (suffix=$useUniqueSuffix): $e',
+        );
+      }
+    }
+
+    final verified = await _authRepository.getProfile(user.id);
+    if (verified != null) return verified;
+
+    return UserProfileModel(
+      id: user.id,
+      email: email,
+      displayName: fullName,
+      handle: handle,
+      role: UserRole.customer,
+      status: ProfileStatus.active,
+      referralCode: 'REF-TRADEX-$referralSuffix',
+      avatarUrl: avatar,
+      createdAt: DateTime.now(),
+    );
+  }
+
   Future<void> _restoreActiveSession() async {
+    final int gen = ++_restoreGeneration;
     try {
       // 0. On Web, if URL contains OAuth callback code or access token, exchange it first:
       if (kIsWeb && SupabaseConfig.isConfigured) {
         final uri = Uri.base;
-        if (uri.queryParameters.containsKey('code') ||
-            (uri.fragment.isNotEmpty &&
-                uri.fragment.contains('access_token='))) {
+        final oauthError =
+            uri.queryParameters['error_description'] ??
+            uri.queryParameters['error'];
+        if (oauthError != null &&
+            oauthError.isNotEmpty &&
+            SupabaseConfig.client?.auth.currentSession == null) {
+          _oauthErrorNotice = oauthError;
+        }
+        if ((uri.queryParameters.containsKey('code') ||
+                (uri.fragment.isNotEmpty &&
+                    uri.fragment.contains('access_token='))) &&
+            SupabaseConfig.client?.auth.currentSession == null) {
           try {
             await SupabaseConfig.client?.auth.getSessionFromUrl(uri);
           } catch (e) {
@@ -249,6 +348,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           }
         }
       }
+      if (!mounted || gen != _restoreGeneration) return;
 
       // 1. Live Supabase Session Check
       if (SupabaseConfig.isConfigured) {
@@ -262,6 +362,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
             if (session.isExpired) {
               try {
                 final refreshRes = await client.auth.refreshSession();
+                if (!mounted || gen != _restoreGeneration) return;
                 if (refreshRes.session == null) {
                   // Expired token could not be refreshed -> redirect to login
                   await AuthSessionStorage.clearSession();
@@ -270,6 +371,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 }
               } catch (e) {
                 debugPrint('[AuthWrapper] Token refresh failed: $e');
+                if (!mounted || gen != _restoreGeneration) return;
                 await AuthSessionStorage.clearSession();
                 _resolveTo(AuthStage.login);
                 return;
@@ -277,63 +379,34 @@ class _AuthWrapperState extends State<AuthWrapper> {
             }
 
             final signedInId = user.id;
+            _oauthErrorNotice = null;
             unawaited(RevenueCatBilling.identify(signedInId));
             unawaited(PrivateMessageService.instance.warmFromCache());
 
-            // Valid active Supabase session confirmed: fetch profile
+            // Valid active Supabase session confirmed: fetch profile, or ignore
+            // stale cached profile if a different account just signed in.
             UserProfileModel? profile = await _authRepository.getProfile(
               user.id,
             );
-            profile ??= await AuthSessionStorage.getStoredProfile();
-
-            // Auto-synthesize fallback profile if needed so user is NEVER logged out on reload:
+            if (!mounted || gen != _restoreGeneration) return;
             if (profile == null) {
-              final userMeta = user.userMetadata ?? <String, dynamic>{};
-              final fullName =
-                  (userMeta['full_name'] as String?) ??
-                  (userMeta['name'] as String?) ??
-                  (user.email?.split('@').first ?? 'Trader');
-              final avatar =
-                  (userMeta['avatar_url'] as String?) ??
-                  (userMeta['picture'] as String?);
-              final email = user.email ?? '';
-              final rawHandle =
-                  (userMeta['user_name'] as String?) ??
-                  (email.isNotEmpty
-                      ? email.split('@').first
-                      : 'trader_${user.id.substring(0, 6)}');
-              final handle = rawHandle.startsWith('@')
-                  ? rawHandle
-                  : '@$rawHandle';
-
-              profile = UserProfileModel(
-                id: user.id,
-                email: email,
-                displayName: fullName,
-                handle: handle,
-                role: UserRole.customer,
-                avatarUrl: avatar,
-                createdAt: DateTime.now(),
-              );
-
-              try {
-                await client.from('profiles').upsert({
-                  'id': user.id,
-                  'email': email,
-                  'display_name': fullName,
-                  'handle': handle,
-                  'role': 'customer',
-                  'avatar_url': avatar,
-                  'updated_at': DateTime.now().toIso8601String(),
-                });
-              } catch (e) {
-                debugPrint('[AuthWrapper] Auto-upsert profile warning: $e');
+              final storedProfile = await AuthSessionStorage.getStoredProfile();
+              if (storedProfile?.id == user.id) {
+                profile = storedProfile;
               }
             }
 
+            // Provision DB profile cleanly for brand-new Google OAuth users
+            // (handling handle collisions so FK/RLS checks never block them).
+            profile ??= await _ensureOAuthUserProfile(client, user);
+            if (!mounted || gen != _restoreGeneration) return;
+
             final affProfile = profile.role == UserRole.affiliate
                 ? await _authRepository.getAffiliateProfile(user.id)
-                : await AuthSessionStorage.getStoredAffiliateProfile();
+                : await AuthSessionStorage.getStoredAffiliateProfile().then(
+                    (stored) => stored?.id == user.id ? stored : null,
+                  );
+            if (!mounted || gen != _restoreGeneration) return;
 
             // Synchronize process-wide services
             SupabaseAuthBackendService.instance.setCurrentProfile(
@@ -466,20 +539,52 @@ class _AuthWrapperState extends State<AuthWrapper> {
     widget.onStageChanged?.call(stage);
   }
 
-  void _handleLogout() async {
+  void _resetToLoggedOutState({UserRole? preservedRole}) {
+    _restoreGeneration++;
+    _authenticatedProfile = null;
+    _authenticatedAffProfile = null;
+    _authenticatedRole = null;
+    _pendingResolvedStage = AuthStage.login;
+    _initialAppDestination = 'workspace';
+    SupabaseAuthBackendService.instance.setCurrentProfile(
+      null,
+      affiliateProfile: null,
+    );
+    AuthBackendService.instance.setCurrentProfile(
+      null,
+      affiliateProfile: null,
+    );
+    CrossSubdomainState.removeFlag('ax_silent_nav');
+    final nextRole =
+        preservedRole ??
+        (_sessionState.role == UserRole.userAdmin
+            ? UserRole.userAdmin
+            : UserRole.customer);
+    if (!mounted) return;
+    setState(() {
+      _isAuthLoading = false;
+      _splashCompleted = true;
+      _sessionState = AuthSessionState(stage: AuthStage.login, role: nextRole);
+    });
+    widget.onRoleChanged?.call(nextRole);
+    widget.onStageChanged?.call(AuthStage.login);
+  }
+
+  Future<void> _handleLogout() async {
+    _restoreGeneration++;
     SupabaseAuthBackendService.instance.clearPendingSignupEncryption();
-    await _authRepository.signOut();
+    try {
+      await _authRepository.signOut();
+    } catch (e) {
+      debugPrint('[AuthWrapper] signOut error: $e');
+    }
     try {
       await RevenueCatBilling.clearIdentity();
     } catch (e) {
       debugPrint('[AuthWrapper] RevenueCat logout unavailable: $e');
     }
     await AuthSessionStorage.clearSession();
-    if (mounted) {
-      setState(() {
-        _sessionState = _sessionState.copyWith(stage: AuthStage.login);
-      });
-    }
+    _resetToLoggedOutState();
   }
 
   void _handleSwitchRole(UserRole newRole) {
@@ -563,7 +668,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
             case AuthStage.login:
               return LoginPage(
-                notice: widget.loginNotice,
+                notice: _oauthErrorNotice ?? widget.loginNotice,
                 initialRole: _sessionState.role,
                 authRepository: _authRepository,
                 onLoginSuccess: (role, email) async {

@@ -187,6 +187,8 @@ function createFakeDom({
     location: {
       hostname: parsedUrl.hostname,
       pathname: parsedUrl.pathname,
+      search: parsedUrl.search,
+      hash: parsedUrl.hash,
       protocol: parsedUrl.protocol,
       origin: parsedUrl.origin,
     },
@@ -247,7 +249,7 @@ test('resolveTheme aligns Light, Dark, and System modes with UiColors hex tokens
   assert.equal(sysDark.isLight, false);
 });
 
-test('resolveSurface maps subdomain destinations to distinct skeletons, animations, and mobile dock active slots', () => {
+test('resolveSurface maps subdomain destinations to exact UiSkeleton presets and QuietDock slots', () => {
   const { api } = createFakeDom();
 
   const commFeed = api.resolveSurface({
@@ -256,39 +258,36 @@ test('resolveSurface maps subdomain destinations to distinct skeletons, animatio
   assert.equal(commFeed.dockVariant, 'community');
   assert.equal(commFeed.activeSlot, 0);
   assert.equal(commFeed.centerActive, false);
-  assert.equal(commFeed.layoutKind, 'feed');
-  assert.equal(commFeed.animClass, 'aj-anim-cascade');
+  assert.equal(commFeed.layoutKind, 'community');
 
   const commExplore = api.resolveSurface({
     url: 'https://community.alphajournal.in/community_explore',
   });
   assert.equal(commExplore.dockVariant, 'community');
   assert.equal(commExplore.activeSlot, 1);
-  assert.equal(commExplore.layoutKind, 'explore');
+  assert.equal(commExplore.layoutKind, 'community_explore');
 
   const commNetwork = api.resolveSurface({
     url: 'https://community.alphajournal.in/community_network',
   });
   assert.equal(commNetwork.dockVariant, 'community');
   assert.equal(commNetwork.activeSlot, 2);
-  assert.equal(commNetwork.layoutKind, 'people');
-  assert.equal(commNetwork.animClass, 'aj-anim-pulse');
+  assert.equal(commNetwork.layoutKind, 'network');
 
   const commProfile = api.resolveSurface({
     url: 'https://community.alphajournal.in/@nitish',
   });
   assert.equal(commProfile.dockVariant, 'community');
   assert.equal(commProfile.activeSlot, 3);
-  assert.equal(commProfile.layoutKind, 'profile');
-  assert.equal(commProfile.animClass, 'aj-anim-breath');
+  assert.equal(commProfile.layoutKind, 'profile_preview');
 
   const market = api.resolveSurface({
     url: 'https://app.alphajournal.in/market',
   });
   assert.equal(market.dockVariant, 'trader');
   assert.equal(market.centerActive, true);
+  assert.equal(market.centerRouteIcon, 'globe');
   assert.equal(market.layoutKind, 'market');
-  assert.equal(market.animClass, 'aj-anim-scan');
 
   const desk = api.resolveSurface({
     url: 'https://app.alphajournal.in/',
@@ -296,27 +295,28 @@ test('resolveSurface maps subdomain destinations to distinct skeletons, animatio
   assert.equal(desk.dockVariant, 'trader');
   assert.equal(desk.activeSlot, 0);
   assert.equal(desk.centerActive, false);
-  assert.equal(desk.layoutKind, 'dashboard');
-  assert.equal(desk.animClass, 'aj-anim-wave');
+  assert.equal(desk.layoutKind, 'journal');
 
   const partnerRefs = api.resolveSurface({
     url: 'https://affiliate.alphajournal.in/referrals',
   });
   assert.equal(partnerRefs.dockVariant, 'affiliate');
   assert.equal(partnerRefs.activeSlot, 1);
-  assert.equal(partnerRefs.layoutKind, 'people');
+  assert.equal(partnerRefs.layoutKind, 'dashboard');
 
   const adminUsers = api.resolveSurface({
     url: 'https://admin.alphajournal.in/org_team',
   });
   assert.equal(adminUsers.dockVariant, 'admin');
   assert.equal(adminUsers.activeSlot, 1);
+  assert.equal(adminUsers.layoutKind, 'page');
 });
 
-test('initHead and mountIncoming apply light theme, clear one-shot cookie, and render full-screen skeleton with selected mobile dock item', () => {
+test('initHead and mountIncoming apply light theme, clear one-shot cookie, and render full-screen skeleton with selected QuietDock pill', () => {
   const env = createFakeDom({
     url: 'https://community.alphajournal.in/community_explore',
-    cookies: 'ax_theme_mode=light; ax_silent_nav=1%7Ccommunity_explore%7CExplore',
+    cookies:
+      'ax_sb_auth.n=1; ax_theme_mode=light; ax_silent_nav=1%7Ccommunity_explore%7CExplore',
   });
 
   const result = env.api.initHead();
@@ -331,17 +331,18 @@ test('initHead and mountIncoming apply light theme, clear one-shot cookie, and r
   assert.equal(host.getAttribute('data-dock-variant'), 'community');
   assert.equal(host.getAttribute('data-active-slot'), '1');
 
-  const activeDockItems = host.querySelectorAll('.aj-dock-item');
-  assert.equal(activeDockItems.length, 4);
-  assert.equal(activeDockItems[1].classList.contains('is-active'), true);
-  assert.equal(activeDockItems[1].getAttribute('aria-current'), 'page');
-  assert.equal(activeDockItems[0].classList.contains('is-active'), false);
+  const dockItems = host.querySelectorAll('.aj-dock-item');
+  assert.equal(dockItems.length, 4);
+  assert.equal(dockItems[1].classList.contains('is-active'), true);
+  assert.equal(dockItems[1].getAttribute('aria-current'), 'page');
+  assert.equal(dockItems[1].querySelectorAll('.aj-dock-pill').length, 1);
+  assert.equal(dockItems[0].classList.contains('is-active'), false);
 });
 
-test('startOutgoing renders persistent dock and surface skeleton in #aj-nav-veil and cleans up on pageshow', () => {
+test('startOutgoing renders QuietDock center-active pill, AppTopBar, and UiSkeleton.market mosaic in #aj-nav-veil and cleans up on pageshow', () => {
   const env = createFakeDom({
     url: 'https://app.alphajournal.in/',
-    cookies: 'ax_theme_mode=dark',
+    cookies: 'ax_sb_auth.n=1; ax_theme_mode=dark',
   });
   env.api.initHead();
 
@@ -350,11 +351,89 @@ test('startOutgoing renders persistent dock and surface skeleton in #aj-nav-veil
   assert.ok(env.document.getElementById('aj-nav-veil'));
   const centerBtn = veil.querySelectorAll('.aj-dock-center')[0];
   assert.equal(centerBtn.classList.contains('is-active'), true);
-  assert.ok(veil.querySelectorAll('.aj-candle-bar').length > 0);
+  assert.equal(centerBtn.querySelectorAll('.aj-dock-pill').length, 1);
+  assert.equal(centerBtn.querySelectorAll('.aj-dock-back').length, 1);
+  assert.ok(veil.querySelectorAll('.aj-mosaic').length > 0);
+  assert.ok(veil.querySelectorAll('.aj-content-frame').length > 0);
 
   // Back/forward cache restore removes the outgoing veil.
   const onPageShow = env.listeners.get('pageshow');
   assert.equal(typeof onPageShow, 'function');
   onPageShow();
   assert.equal(env.document.getElementById('aj-nav-veil'), null);
+});
+
+test('default loader is preserved when logged out, signed out marker is set, or route is auth/onboarding/OAuth/public', () => {
+  const loggedOutOnboard = createFakeDom({
+    url: 'https://app.alphajournal.in/messages',
+    cookies: 'ax_onboard=1; ax_theme_mode=dark',
+  });
+  assert.equal(loggedOutOnboard.api.initHead().isSilent, false);
+  assert.equal(
+    loggedOutOnboard.document.documentElement.classList.contains('aj-silent-nav'),
+    false,
+  );
+  assert.equal(
+    loggedOutOnboard.api.startOutgoing('https://community.alphajournal.in/community_feed'),
+    null,
+  );
+
+  const signedOutMarker = createFakeDom({
+    url: 'https://app.alphajournal.in/messages',
+    cookies: 'ax_sb_auth.n=1; ax_sb_auth_off=1',
+  });
+  assert.equal(signedOutMarker.api.initHead().isSilent, false);
+  assert.equal(
+    signedOutMarker.api.startOutgoing('https://app.alphajournal.in/market'),
+    null,
+  );
+
+  for (const routeUrl of [
+    'https://app.alphajournal.in/auth/login',
+    'https://app.alphajournal.in/auth/signup',
+    'https://app.alphajournal.in/auth/forgot-password',
+    'https://app.alphajournal.in/?code=oauth_code_123',
+    'https://alphajournal.in/',
+  ]) {
+    const authEnv = createFakeDom({
+      url: routeUrl,
+      cookies: 'ax_sb_auth.n=1; ax_silent_nav=1%7Cworkspace%7CWorkspace',
+    });
+    assert.equal(
+      authEnv.api.initHead().isSilent,
+      false,
+      `Expected initHead().isSilent === false for ${routeUrl}`,
+    );
+
+    const originEnv = createFakeDom({
+      url: 'https://app.alphajournal.in/messages',
+      cookies: 'ax_sb_auth.n=1',
+    });
+    originEnv.api.initHead();
+    assert.equal(
+      originEnv.api.startOutgoing(routeUrl),
+      null,
+      `Expected startOutgoing() === null for ${routeUrl}`,
+    );
+  }
+});
+
+test('authenticated app and community cross-subdomain routes activate silent nav', () => {
+  const incomingEnv = createFakeDom({
+    url: 'https://app.alphajournal.in/messages',
+    referrer: 'https://community.alphajournal.in/',
+    cookies: 'ax_sb_auth.n=1; ax_theme_mode=dark',
+  });
+  assert.equal(incomingEnv.api.initHead().isSilent, true);
+
+  const outgoingEnv = createFakeDom({
+    url: 'https://app.alphajournal.in/messages',
+    cookies: 'ax_sb_auth.n=1; ax_theme_mode=dark',
+  });
+  assert.equal(outgoingEnv.api.initHead().isSilent, false);
+  const veil = outgoingEnv.api.startOutgoing(
+    'https://community.alphajournal.in/community_feed',
+  );
+  assert.ok(veil);
+  assert.equal(veil.children[0].getAttribute('data-dock-variant'), 'community');
 });

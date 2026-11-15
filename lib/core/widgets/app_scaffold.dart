@@ -1394,6 +1394,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     return PrivateMessagingGate(
       key: ValueKey('e2ee-messages-${widget.userId}'),
       onLogout: widget.onLogout,
+      onUnlocked: () => _messagesRepo.redecryptLockedMessages(),
       builder: (BuildContext _) => MessagesRootScreen(
         communityRepository: _communityRepo,
         key: _messagesKey,

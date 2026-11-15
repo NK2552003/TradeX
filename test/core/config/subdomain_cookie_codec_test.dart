@@ -133,5 +133,25 @@ void main() {
       SubdomainCookieCodec.silentNavValueForUrl('https://app.alphajournal.in/'),
       '1|workspace|Workspace',
     );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://app.alphajournal.in/auth/login'),
+      '0',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://app.alphajournal.in/auth/signup'),
+      '0',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://app.alphajournal.in/auth/forgot-password'),
+      '0',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://app.alphajournal.in/?code=abc'),
+      '0',
+    );
+    expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://alphajournal.in/'),
+      '0',
+    );
   });
 }

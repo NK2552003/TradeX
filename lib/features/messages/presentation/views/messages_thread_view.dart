@@ -58,9 +58,10 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
   void initState() {
     super.initState();
     widget.repository.addListener(_onRepo);
-    // Opening a thread clears its unread badge.
+    widget.repository.setActiveThread(widget.threadId, notify: false);
+    // Opening a thread clears its unread badge and binds live thread updates.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.repository.markThreadRead(widget.threadId);
+      if (mounted) widget.repository.markThreadRead(widget.threadId);
     });
   }
 
@@ -68,18 +69,36 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
   void didUpdateWidget(covariant MessagesThreadView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.repository != oldWidget.repository) {
+      oldWidget.repository.clearActiveThread(oldWidget.threadId);
       oldWidget.repository.removeListener(_onRepo);
       widget.repository.addListener(_onRepo);
-    }
-    if (widget.threadId != oldWidget.threadId) {
+      widget.repository.setActiveThread(widget.threadId, notify: false);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        widget.repository.markThreadRead(widget.threadId);
+        if (mounted) widget.repository.markThreadRead(widget.threadId);
+      });
+    } else if (widget.threadId != oldWidget.threadId) {
+      widget.repository.setActiveThread(widget.threadId, notify: false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.repository.markThreadRead(widget.threadId);
       });
     }
   }
 
   void _onRepo() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+      if (_scroll.hasClients && _scroll.offset < 160) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _scroll.hasClients) {
+            _scroll.animateTo(
+              0.0,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        });
+      }
+    }
   }
 
   bool _isSearching = false;
@@ -89,6 +108,7 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
 
   @override
   void dispose() {
+    widget.repository.clearActiveThread(widget.threadId);
     widget.repository.removeListener(_onRepo);
     _scroll.dispose();
     _searchController.dispose();

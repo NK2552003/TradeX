@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
-import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
+import 'package:flutter/foundation.dart' show ValueNotifier, debugPrint, kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/cross_subdomain_storage.dart';
@@ -14,6 +14,7 @@ class PrivateMessageService {
 
   final cipher = MessageCipher();
   final storage = const FlutterSecureStorage();
+  final ValueNotifier<int> unlockRevision = ValueNotifier<int>(0);
 
   String? _cachedUserId;
   List<int>? _cachedSeed;
@@ -106,6 +107,7 @@ class PrivateMessageService {
         debugPrint('[PrivateMessageService] Cross-subdomain handoff write skipped: $e');
       }
     }
+    unlockRevision.value++;
   }
 
   /// Attempts to populate memory and local origin storage from either local
@@ -130,6 +132,7 @@ class PrivateMessageService {
         if (decoded.length == 32) {
           _cachedUserId = user;
           _cachedSeed = List<int>.unmodifiable(decoded);
+          unlockRevision.value++;
           return true;
         }
       }
@@ -154,6 +157,7 @@ class PrivateMessageService {
             _cachedUserId = user;
             _cachedSeed = List<int>.unmodifiable(seed);
             await storage.write(key: _key(user), value: base64Encode(seed));
+            unlockRevision.value++;
             return true;
           }
         } catch (_) {}
@@ -177,6 +181,7 @@ class PrivateMessageService {
         await instance.storage.delete(key: instance._key(targetUser));
       } catch (_) {}
     }
+    instance.unlockRevision.value++;
   }
 
   Future<SimpleKeyPair> _identity(String user) async {

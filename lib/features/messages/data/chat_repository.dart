@@ -37,6 +37,27 @@ class ChatRepositoryImpl implements ChatRepository {
       SupabaseAuthBackendService.instance.currentUserProfile?.id ??
       '';
 
+  Future<String> _safeDecrypt(
+    String value,
+    String context,
+    String sender,
+  ) async {
+    try {
+      if (!PrivateMessageService.instance.isLocallyUnlockedFast) {
+        await PrivateMessageService.instance.warmFromCache();
+      }
+      return await PrivateMessageService.instance.decrypt(
+        value,
+        context,
+        sender,
+      );
+    } catch (_) {
+      return PrivateMessageService.instance.isLocallyUnlockedFast
+          ? 'Encrypted message unavailable on this device.'
+          : 'Encrypted message — unlock history to view.';
+    }
+  }
+
   @override
   Future<List<AppConversation>> getConversations() async {
     final client = _client;
@@ -101,7 +122,7 @@ class ChatRepositoryImpl implements ChatRepository {
 
         final lastMsgContent = messageResponse == null
             ? 'No messages yet'
-            : await PrivateMessageService.instance.decrypt(
+            : await _safeDecrypt(
                 messageResponse['content'] as String,
                 'legacy/${map['id']}/${messageResponse['id']}',
                 messageResponse['sender_id'] as String,
@@ -164,7 +185,7 @@ class ChatRepositoryImpl implements ChatRepository {
           final senderId = map['sender_id'] as String;
           return AppChatMessage(
             id: map['id'] as String,
-            body: await PrivateMessageService.instance.decrypt(
+            body: await _safeDecrypt(
               map['content'] as String,
               'legacy/$conversationId/${map['id']}',
               senderId,
@@ -280,7 +301,7 @@ class ChatRepositoryImpl implements ChatRepository {
                 final senderId = newRecord['sender_id'] as String?;
                 final msg = AppChatMessage(
                   id: newRecord['id'] as String? ?? 'msg_realtime',
-                  body: await PrivateMessageService.instance.decrypt(
+                  body: await _safeDecrypt(
                     newRecord['content'] as String? ?? '',
                     'legacy/$conversationId/${newRecord['id']}',
                     senderId!,

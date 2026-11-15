@@ -44,20 +44,41 @@ class MessagesRepository extends ChangeNotifier {
         final next = event.session?.user.id ?? '';
         if (next == account) return;
         account = next;
-        _threads.clear();
-        _requests.clear();
-        _messages.clear();
-        _lastUploadedPathByUrl.clear();
-        _decryptedAttachmentDataByKey.clear();
-        _pinnedMessages.clear();
-        _typing.clear();
-        for (final timer in _pending) {
-          timer.cancel();
+        _resetOnAccountSwitch();
+        if (next.isNotEmpty) {
+          unawaited(_initSupabase());
         }
-        _pending.clear();
-        notifyListeners();
-        if (next.isNotEmpty) unawaited(fetchFromSupabase());
       });
+    }
+    _unlockListener = _onEncryptionUnlockChanged;
+    PrivateMessageService.instance.unlockRevision.addListener(_unlockListener!);
+  }
+
+  void _resetOnAccountSwitch() {
+    _threads.clear();
+    _requests.clear();
+    _messages.clear();
+    _lockedRawPayloads.clear();
+    _lastUploadedPathByUrl.clear();
+    _decryptedAttachmentDataByKey.clear();
+    _pinnedMessages.clear();
+    _typing.clear();
+    _activeThreadId = null;
+    for (final timer in _pending) {
+      timer.cancel();
+    }
+    _pending.clear();
+    _realtimeRetryTimer?.cancel();
+    _realtimeRetryTimer = null;
+    _realtimeRetryAttempt = 0;
+    _isRealtimeSubscribed = false;
+    _tearDownRealtimeChannels();
+    notifyListeners();
+  }
+
+  void _onEncryptionUnlockChanged() {
+    if (PrivateMessageService.instance.isLocallyUnlockedFast) {
+      unawaited(redecryptLockedMessages());
     }
   }
 
@@ -65,13 +86,27 @@ class MessagesRepository extends ChangeNotifier {
     ChatMessage message,
     String sender,
   ) async {
-    if (!message.body.startsWith(MessageCipher.prefix)) return message;
+    if (!message.body.startsWith(MessageCipher.prefix)) {
+      _lockedRawPayloads.remove(message.id);
+      return message;
+    }
     try {
-      final plain = await PrivateMessageService.instance.decrypt(
-        message.body,
-        'chat/${message.threadId}/${message.id}',
-        sender,
-      );
+      if (decryptOverride == null &&
+          !PrivateMessageService.instance.isLocallyUnlockedFast) {
+        await PrivateMessageService.instance.warmFromCache();
+      }
+      final plain = decryptOverride != null
+          ? await decryptOverride!(
+              message.body,
+              'chat/${message.threadId}/${message.id}',
+              sender,
+            )
+          : await PrivateMessageService.instance.decrypt(
+              message.body,
+              'chat/${message.threadId}/${message.id}',
+              sender,
+            );
+      _lockedRawPayloads.remove(message.id);
       final payload = decodePrivateChat(plain);
       var attachment = payload.attachment;
       if (attachment?.storagePath != null) {
@@ -83,9 +118,19 @@ class MessagesRepository extends ChangeNotifier {
         attachment: attachment,
         sharedRef: payload.ref,
       );
-    } catch (_) {
+    } catch (e) {
+      _lockedRawPayloads[message.id] = (
+        rawBody: message.body,
+        senderId: sender,
+      );
+      debugPrint('[MessagesRepository] decrypt deferred for ${message.id}: $e');
+      final isUnlockedNow =
+          decryptOverride != null ||
+          PrivateMessageService.instance.isLocallyUnlockedFast;
       return message.copyWith(
-        body: 'Encrypted message unavailable on this device.',
+        body: isUnlockedNow
+            ? 'Encrypted message unavailable on this device.'
+            : 'Encrypted message — unlock history to view.',
       );
     }
   }
@@ -106,8 +151,24 @@ class MessagesRepository extends ChangeNotifier {
       <String, Future<void>>{};
   final Map<String, String> _lastUploadedPathByUrl = <String, String>{};
   final Map<String, String> _decryptedAttachmentDataByKey = <String, String>{};
+  final Map<String, ({String rawBody, String senderId})> _lockedRawPayloads =
+      <String, ({String rawBody, String senderId})>{};
+  String? _activeThreadId;
   RealtimeChannel? _realtimeChannel;
+  RealtimeChannel? _activeThreadChannel;
+  String? _activeThreadChannelId;
+  bool _isRealtimeSubscribed = false;
+  Timer? _realtimeRetryTimer;
+  int _realtimeRetryAttempt = 0;
   StreamSubscription<AuthState>? _authSubscription;
+  VoidCallback? _unlockListener;
+
+  Future<String> Function(
+    String ciphertext,
+    String context,
+    String sender,
+  )?
+  decryptOverride;
 
   /// Optional overrides for unit testing private chat storage without live Supabase.
   Future<void> Function({
@@ -268,8 +329,33 @@ class MessagesRepository extends ChangeNotifier {
   }
 
   Future<void> _initSupabase() async {
-    await fetchFromSupabase();
+    if (!PrivateMessageService.instance.isLocallyUnlockedFast) {
+      try {
+        await PrivateMessageService.instance.warmFromCache();
+      } catch (_) {}
+    }
     _subscribeRealtime();
+    await fetchFromSupabase();
+  }
+
+  /// Tracks the currently focused thread so incoming realtime messages keep its
+  /// unread counter clear and attach a dedicated per-thread low-latency channel.
+  /// Pass [notify] = false when invoking from [State.initState] or
+  /// [State.didUpdateWidget] to avoid calling [notifyListeners] during build.
+  void setActiveThread(String? threadId, {bool notify = true}) {
+    if (_activeThreadId == threadId) return;
+    _activeThreadId = threadId;
+    if (threadId != null && notify) {
+      markThreadRead(threadId);
+    }
+    _subscribeActiveThreadChannel(threadId);
+  }
+
+  /// Clears active-thread tracking when [threadId] is closed.
+  void clearActiveThread(String threadId) {
+    if (_activeThreadId == threadId) {
+      setActiveThread(null);
+    }
   }
 
   Future<void> fetchFromSupabase() async {
@@ -277,6 +363,13 @@ class MessagesRepository extends ChangeNotifier {
     final client = SupabaseConfig.client;
     if (client == null) return;
     final currentUserId = _resolveUserId();
+    if (currentUserId.isEmpty) return;
+
+    if (!PrivateMessageService.instance.isLocallyUnlockedFast) {
+      try {
+        await PrivateMessageService.instance.warmFromCache();
+      } catch (_) {}
+    }
 
     try {
       final threadRows = await client
@@ -391,26 +484,6 @@ class MessagesRepository extends ChangeNotifier {
               handle: 'trader',
               displayName: tmap['title'] as String? ?? 'Trader',
             );
-
-        final thread = MessageThread(
-          id: threadId,
-          peer: peer,
-          participants: traders,
-          isGroup: isGroup,
-          groupTitle: isGroup ? (tmap['title'] as String?) : null,
-          lastMessagePreview: lastPreview,
-          lastMessageAt: lastAt,
-          unread: 0,
-          pinned: isPinned,
-          archived: isArchived,
-          isRequest: isRequest,
-        );
-
-        if (isRequest) {
-          loadedRequests.add(thread);
-        } else {
-          loadedThreads.add(thread);
-        }
 
         final msgRows = msgRowsByThread[threadId] ?? const <Map<String, dynamic>>[];
 
@@ -554,6 +627,60 @@ class MessagesRepository extends ChangeNotifier {
           );
         }
 
+        // Preserve any newer realtime/optimistic messages received while this fetch ran.
+        final existingThreadMsgs = _messages[threadId];
+        if (existingThreadMsgs != null) {
+          for (final em in existingThreadMsgs) {
+            if (!threadMsgs.any((m) => m.id == em.id)) {
+              threadMsgs.add(em);
+            }
+          }
+          threadMsgs.sort((a, b) => a.sentAt.compareTo(b.sentAt));
+        }
+
+        String effectivePreview = lastPreview;
+        bool lastFromMe = false;
+        MessageStatus lastStatus = MessageStatus.sent;
+        DateTime effectiveLastAt = lastAt;
+        if (threadMsgs.isNotEmpty) {
+          final latest = threadMsgs.last;
+          lastFromMe = latest.fromMe;
+          lastStatus = latest.status;
+          if (latest.sentAt.isAfter(effectiveLastAt)) {
+            effectiveLastAt = latest.sentAt;
+          }
+          if (!_lockedRawPayloads.containsKey(latest.id)) {
+            if (effectivePreview.isEmpty ||
+                effectivePreview == 'Encrypted message' ||
+                effectivePreview.startsWith(MessageCipher.prefix)) {
+              effectivePreview = _previewFor(latest);
+            }
+          }
+        }
+
+        final existingThread = threadById(threadId);
+        final thread = MessageThread(
+          id: threadId,
+          peer: peer,
+          participants: traders,
+          isGroup: isGroup,
+          groupTitle: isGroup ? (tmap['title'] as String?) : null,
+          lastMessagePreview: effectivePreview,
+          lastMessageAt: effectiveLastAt,
+          lastFromMe: lastFromMe,
+          lastStatus: lastStatus,
+          unread: _activeThreadId == threadId ? 0 : (existingThread?.unread ?? 0),
+          pinned: isPinned,
+          archived: isArchived,
+          isRequest: isRequest,
+        );
+
+        if (isRequest) {
+          loadedRequests.add(thread);
+        } else {
+          loadedThreads.add(thread);
+        }
+
         loadedMessages[threadId] = threadMsgs;
       }
 
@@ -656,15 +783,23 @@ class MessagesRepository extends ChangeNotifier {
 
         for (final m in msgsRes) {
           final mId = m['id']?.toString() ?? '';
-          final content = await PrivateMessageService.instance.decrypt(
-            m['content'] as String? ?? '',
-            'legacy/$convId/$mId',
-            m['sender_id'] as String,
-          );
+          final rawBody = m['content'] as String? ?? '';
           final senderId = m['sender_id']?.toString() ?? '';
           final sentAt =
               DateTime.tryParse(m['created_at']?.toString() ?? '') ??
               DateTime.now();
+          String content;
+          try {
+            content = await PrivateMessageService.instance.decrypt(
+              rawBody,
+              'legacy/$convId/$mId',
+              senderId,
+            );
+          } catch (_) {
+            content = PrivateMessageService.instance.isLocallyUnlockedFast
+                ? 'Encrypted message unavailable on this device.'
+                : 'Encrypted message — unlock history to view.';
+          }
           lastPreview = content;
           lastAt = sentAt;
 
@@ -702,6 +837,134 @@ class MessagesRepository extends ChangeNotifier {
     }
   }
 
+  /// Re-decrypts any cached locked messages in-memory immediately upon E2EE
+  /// unlock and triggers a background sync + realtime reconnect.
+  Future<void> redecryptLockedMessages() async {
+    if (_lockedRawPayloads.isNotEmpty) {
+      var changed = false;
+      final snapshot = Map<String, ({String rawBody, String senderId})>.from(
+        _lockedRawPayloads,
+      );
+      for (final entry in _messages.entries) {
+        final threadId = entry.key;
+        final list = entry.value;
+        for (var i = 0; i < list.length; i++) {
+          final current = list[i];
+          final locked = snapshot[current.id];
+          if (locked == null) continue;
+          final decrypted = await _decryptMessage(
+            current.copyWith(body: locked.rawBody),
+            locked.senderId,
+          );
+          if (!_lockedRawPayloads.containsKey(decrypted.id)) {
+            list[i] = decrypted;
+            changed = true;
+          }
+        }
+        if (list.isNotEmpty && !_lockedRawPayloads.containsKey(list.last.id)) {
+          final latest = list.last;
+          _touchThread(
+            threadId,
+            preview: _previewFor(latest),
+            fromMe: latest.fromMe,
+            status: latest.status,
+            at: latest.sentAt,
+          );
+        }
+      }
+      if (changed) {
+        notifyListeners();
+      }
+    }
+    if (SupabaseConfig.isConfigured && _resolveUserId().isNotEmpty) {
+      ensureRealtimeSubscribed();
+      await fetchFromSupabase();
+    }
+  }
+
+  /// Ensures Supabase Realtime listeners are connected for the current account.
+  void ensureRealtimeSubscribed() {
+    if (!SupabaseConfig.isConfigured || _resolveUserId().isEmpty) return;
+    if (_realtimeChannel == null || !_isRealtimeSubscribed) {
+      _subscribeRealtime();
+    }
+    if (_activeThreadId != null && _activeThreadChannelId != _activeThreadId) {
+      _subscribeActiveThreadChannel(_activeThreadId);
+    }
+  }
+
+  void _tearDownRealtimeChannels() {
+    if (!SupabaseConfig.isConfigured) {
+      _realtimeChannel = null;
+      _activeThreadChannel = null;
+      _activeThreadChannelId = null;
+      return;
+    }
+    final client = SupabaseConfig.client;
+    if (client == null) return;
+    if (_realtimeChannel != null) {
+      unawaited(client.removeChannel(_realtimeChannel!));
+      _realtimeChannel = null;
+    }
+    if (_activeThreadChannel != null) {
+      unawaited(client.removeChannel(_activeThreadChannel!));
+      _activeThreadChannel = null;
+      _activeThreadChannelId = null;
+    }
+  }
+
+  void _scheduleRealtimeReconnect() {
+    if (_realtimeRetryTimer != null) return;
+    if (!SupabaseConfig.isConfigured || _resolveUserId().isEmpty) return;
+    final delaySec = min(15, 1 << min(_realtimeRetryAttempt, 4));
+    _realtimeRetryAttempt++;
+    _realtimeRetryTimer = Timer(Duration(seconds: delaySec), () {
+      _realtimeRetryTimer = null;
+      if (_resolveUserId().isNotEmpty) {
+        _subscribeRealtime();
+        unawaited(fetchFromSupabase());
+      }
+    });
+  }
+
+  void _subscribeActiveThreadChannel(String? threadId) {
+    if (!SupabaseConfig.isConfigured) return;
+    final client = SupabaseConfig.client;
+    if (client == null) return;
+    if (_activeThreadChannel != null) {
+      unawaited(client.removeChannel(_activeThreadChannel!));
+      _activeThreadChannel = null;
+      _activeThreadChannelId = null;
+    }
+    if (threadId == null || !_isUuid(threadId) || _resolveUserId().isEmpty) {
+      return;
+    }
+    _activeThreadChannelId = threadId;
+    try {
+      _activeThreadChannel = client.channel('rt:thread:$threadId')
+        ..onBroadcast(
+          event: 'chat_msg',
+          callback: (payload) => unawaited(ingestRealtimeMessageRow(payload)),
+        )
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'chat_messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'thread_id',
+            value: threadId,
+          ),
+          callback: (payload) => _handleRealtimeMessageChange(payload),
+        )
+        ..subscribe();
+    } catch (e) {
+      debugPrint(
+        '[MessagesRepository] _subscribeActiveThreadChannel error: $e',
+      );
+    }
+  }
+
   void _subscribeRealtime() {
     if (!SupabaseConfig.isConfigured) return;
     final client = SupabaseConfig.client;
@@ -712,7 +975,9 @@ class MessagesRepository extends ChangeNotifier {
         unawaited(client.removeChannel(_realtimeChannel!));
         _realtimeChannel = null;
       }
-      _realtimeChannel = client.channel('public:messages_channel')
+      _isRealtimeSubscribed = false;
+      final topic = 'public:messages_rt_${identityHashCode(this)}';
+      _realtimeChannel = client.channel(topic)
         ..onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
@@ -728,12 +993,93 @@ class MessagesRepository extends ChangeNotifier {
         ..onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
+          table: 'chat_participants',
+          callback: (payload) => _handleRealtimeParticipantChange(payload),
+        )
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
           table: 'chat_reactions',
           callback: (payload) => _handleRealtimeReactionChange(payload),
         )
-        ..subscribe();
+        ..subscribe((status, [error]) {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            final wasReconnect = _realtimeRetryAttempt > 0;
+            _isRealtimeSubscribed = true;
+            _realtimeRetryAttempt = 0;
+            _realtimeRetryTimer?.cancel();
+            _realtimeRetryTimer = null;
+            if (wasReconnect) {
+              unawaited(fetchFromSupabase());
+            }
+          } else if (status == RealtimeSubscribeStatus.channelError ||
+              status == RealtimeSubscribeStatus.timedOut ||
+              status == RealtimeSubscribeStatus.closed) {
+            _isRealtimeSubscribed = false;
+            debugPrint(
+              '[MessagesRepository] realtime status=$status error=$error',
+            );
+            _scheduleRealtimeReconnect();
+          }
+        });
     } catch (e) {
       debugPrint('[MessagesRepository] subscribeRealtime error: $e');
+      _scheduleRealtimeReconnect();
+    }
+  }
+
+  /// Processes an incoming realtime or broadcast chat_messages record,
+  /// decrypting and updating both thread messages and inbox previews.
+  Future<void> ingestRealtimeMessageRow(
+    Map<String, dynamic> row, {
+    String? currentUserIdOverride,
+  }) async {
+    final currentUserId = currentUserIdOverride ?? _resolveUserId();
+    final threadId = row['thread_id']?.toString();
+    if (threadId == null || threadId.isEmpty) return;
+    final senderId = row['sender_id']?.toString() ?? '';
+    final fromMe = senderId == currentUserId;
+    final msgId = row['id']?.toString() ?? const Uuid().v4();
+
+    final existingList = _messages[threadId] ?? <ChatMessage>[];
+    if (existingList.any((m) => m.id == msgId)) return;
+
+    final newMsg = await _decryptMessage(
+      ChatMessage(
+        id: msgId,
+        threadId: threadId,
+        body: row['body']?.toString() ?? '',
+        fromMe: fromMe,
+        sentAt:
+            DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+            DateTime.now(),
+        status: MessageStatus.sent,
+        systemNotice: row['system_notice'] as bool? ?? false,
+        replyToId: row['reply_to_id']?.toString(),
+      ),
+      senderId,
+    );
+
+    if ((currentUserIdOverride ?? _resolveUserId()) != currentUserId) return;
+    final currentList = _messages.putIfAbsent(threadId, () => <ChatMessage>[]);
+    if (currentList.any((m) => m.id == msgId)) return;
+    currentList.add(newMsg);
+    currentList.sort((a, b) => a.sentAt.compareTo(b.sentAt));
+
+    final bool threadExists = threadById(threadId) != null;
+    if (threadExists) {
+      _touchThread(
+        threadId,
+        preview: _previewFor(newMsg),
+        fromMe: fromMe,
+        status: MessageStatus.sent,
+        at: newMsg.sentAt,
+        incrementUnread: !fromMe && _activeThreadId != threadId,
+      );
+      notifyListeners();
+    } else {
+      notifyListeners();
+      unawaited(fetchFromSupabase());
     }
   }
 
@@ -741,45 +1087,8 @@ class MessagesRepository extends ChangeNotifier {
     PostgresChangePayload payload,
   ) async {
     try {
-      final currentUserId = _resolveUserId();
       if (payload.eventType == PostgresChangeEvent.insert) {
-        final row = payload.newRecord;
-        final threadId = row['thread_id']?.toString();
-        if (threadId == null) return;
-        final senderId = row['sender_id']?.toString() ?? '';
-        final fromMe = senderId == currentUserId;
-        final msgId = row['id']?.toString() ?? const Uuid().v4();
-
-        // Check if message is already in list (e.g. optimistic insert)
-        final existingList = _messages[threadId] ?? <ChatMessage>[];
-        if (existingList.any((m) => m.id == msgId)) return;
-
-        final newMsg = await _decryptMessage(
-          ChatMessage(
-            id: msgId,
-            threadId: threadId,
-            body: row['body']?.toString() ?? '',
-            fromMe: fromMe,
-            sentAt:
-                DateTime.tryParse(row['created_at']?.toString() ?? '') ??
-                DateTime.now(),
-            status: MessageStatus.sent,
-            systemNotice: row['system_notice'] as bool? ?? false,
-            replyToId: row['reply_to_id']?.toString(),
-          ),
-          senderId,
-        );
-
-        if (_resolveUserId() != currentUserId) return;
-        if ((_messages[threadId] ?? []).any((m) => m.id == msgId)) return;
-        _messages.putIfAbsent(threadId, () => <ChatMessage>[]).add(newMsg);
-        _touchThread(
-          threadId,
-          preview: _previewFor(newMsg),
-          fromMe: fromMe,
-          status: MessageStatus.sent,
-        );
-        notifyListeners();
+        await ingestRealtimeMessageRow(payload.newRecord);
       } else if (payload.eventType == PostgresChangeEvent.update) {
         final row = payload.newRecord;
         final threadId = row['thread_id']?.toString();
@@ -790,16 +1099,28 @@ class MessagesRepository extends ChangeNotifier {
         final idx = list.indexWhere((m) => m.id == msgId);
         if (idx != -1) {
           final m = list[idx];
-          list[idx] = await _decryptMessage(
+          final senderId = row['sender_id']?.toString() ?? '';
+          final updated = await _decryptMessage(
             m.copyWith(body: row['body']?.toString() ?? m.body, edited: true),
-            row['sender_id'] as String,
+            senderId,
           );
+          list[idx] = updated;
+          if (idx == list.length - 1 && !_lockedRawPayloads.containsKey(updated.id)) {
+            _touchThread(
+              threadId,
+              preview: _previewFor(updated),
+              fromMe: updated.fromMe,
+              status: updated.status,
+              at: updated.sentAt,
+            );
+          }
           notifyListeners();
         }
       } else if (payload.eventType == PostgresChangeEvent.delete) {
         final oldRow = payload.oldRecord;
         final msgId = oldRow['id']?.toString();
         if (msgId == null) return;
+        _lockedRawPayloads.remove(msgId);
         for (final entry in _messages.entries) {
           final beforeLen = entry.value.length;
           entry.value.removeWhere((m) => m.id == msgId);
@@ -816,6 +1137,10 @@ class MessagesRepository extends ChangeNotifier {
 
   void _handleRealtimeThreadChange(PostgresChangePayload payload) {
     try {
+      if (payload.eventType == PostgresChangeEvent.insert) {
+        unawaited(fetchFromSupabase());
+        return;
+      }
       if (payload.eventType == PostgresChangeEvent.update) {
         final row = payload.newRecord;
         final threadId = row['id']?.toString();
@@ -828,10 +1153,41 @@ class MessagesRepository extends ChangeNotifier {
             isRequest: row['is_request'] as bool? ?? _threads[idx].isRequest,
           );
           notifyListeners();
+        } else {
+          final rIdx = _requests.indexWhere((t) => t.id == threadId);
+          if (rIdx == -1) {
+            unawaited(fetchFromSupabase());
+          } else {
+            _requests[rIdx] = _requests[rIdx].copyWith(
+              pinned: row['is_pinned'] as bool? ?? _requests[rIdx].pinned,
+              archived: row['is_archived'] as bool? ?? _requests[rIdx].archived,
+              isRequest: row['is_request'] as bool? ?? _requests[rIdx].isRequest,
+            );
+            notifyListeners();
+          }
+        }
+      } else if (payload.eventType == PostgresChangeEvent.delete) {
+        final oldId = payload.oldRecord['id']?.toString();
+        if (oldId != null) {
+          _threads.removeWhere((t) => t.id == oldId);
+          _requests.removeWhere((t) => t.id == oldId);
+          _messages.remove(oldId);
+          notifyListeners();
         }
       }
     } catch (e) {
       debugPrint('[MessagesRepository] realtime thread error: $e');
+    }
+  }
+
+  void _handleRealtimeParticipantChange(PostgresChangePayload payload) {
+    final row = payload.eventType == PostgresChangeEvent.delete
+        ? payload.oldRecord
+        : payload.newRecord;
+    final uid = row['user_id']?.toString();
+    final tid = row['thread_id']?.toString();
+    if (uid == _resolveUserId() || (tid != null && threadById(tid) != null)) {
+      unawaited(fetchFromSupabase());
     }
   }
 
@@ -1215,6 +1571,27 @@ class MessagesRepository extends ChangeNotifier {
                 })
                 .eq('id', threadId);
           } catch (_) {}
+          // Also push low-latency broadcast payload over the thread channel so
+          // open peers receive the new ciphertext instantaneously.
+          if (_activeThreadChannel != null &&
+              _activeThreadChannelId == threadId) {
+            unawaited(
+              _activeThreadChannel!
+                  .sendBroadcastMessage(
+                    event: 'chat_msg',
+                    payload: <String, dynamic>{
+                      'id': message.id,
+                      'thread_id': threadId,
+                      'sender_id': currentUserId,
+                      'body': encrypted,
+                      'reply_to_id': message.replyToId,
+                      'system_notice': false,
+                      'created_at': message.sentAt.toIso8601String(),
+                    },
+                  )
+                  .then<void>((_) {}, onError: (_) {}),
+            );
+          }
         }
         _setStatus(threadId, message.id, MessageStatus.sent);
       } catch (e) {
@@ -2235,16 +2612,31 @@ class MessagesRepository extends ChangeNotifier {
     MessageStatus status = MessageStatus.read,
     DateTime? at,
     bool clearDraft = false,
+    bool incrementUnread = false,
   }) {
     final int idx = _threads.indexWhere((MessageThread t) => t.id == threadId);
-    if (idx == -1) return;
-    _threads[idx] = _threads[idx].copyWith(
-      lastMessagePreview: preview,
-      lastMessageAt: at ?? DateTime.now(),
-      lastFromMe: fromMe,
-      lastStatus: status,
-      draft: clearDraft ? '' : null,
-    );
+    if (idx != -1) {
+      _threads[idx] = _threads[idx].copyWith(
+        lastMessagePreview: preview,
+        lastMessageAt: at ?? DateTime.now(),
+        lastFromMe: fromMe,
+        lastStatus: status,
+        unread: incrementUnread ? _threads[idx].unread + 1 : null,
+        draft: clearDraft ? '' : null,
+      );
+      return;
+    }
+    final int rIdx = _requests.indexWhere((MessageThread t) => t.id == threadId);
+    if (rIdx != -1) {
+      _requests[rIdx] = _requests[rIdx].copyWith(
+        lastMessagePreview: preview,
+        lastMessageAt: at ?? DateTime.now(),
+        lastFromMe: fromMe,
+        lastStatus: status,
+        unread: incrementUnread ? _requests[rIdx].unread + 1 : null,
+        draft: clearDraft ? '' : null,
+      );
+    }
   }
 
   void _mutateThread(
@@ -2278,15 +2670,19 @@ class MessagesRepository extends ChangeNotifier {
   @override
   void dispose() {
     _authSubscription?.cancel();
+    if (_unlockListener != null) {
+      PrivateMessageService.instance.unlockRevision.removeListener(
+        _unlockListener!,
+      );
+      _unlockListener = null;
+    }
+    _realtimeRetryTimer?.cancel();
+    _realtimeRetryTimer = null;
     for (final Timer t in _pending) {
       t.cancel();
     }
     _pending.clear();
-    if (_realtimeChannel != null && SupabaseConfig.isConfigured) {
-      try {
-        SupabaseConfig.client?.removeChannel(_realtimeChannel!);
-      } catch (_) {}
-    }
+    _tearDownRealtimeChannels();
     super.dispose();
   }
 }

@@ -116,12 +116,69 @@ class SubdomainCookieCodec {
     );
   }
 
+  /// Returns `true` when [uri] points to an authentication, onboarding,
+  /// public referral/help, or OAuth callback route where the workspace UI
+  /// skeleton loader should NOT be shown (use the default brand splash).
+  static bool isAuthOrPublicNavigationUri(Uri uri) {
+    final host = uri.host.trim().toLowerCase();
+    final path = uri.path.trim().toLowerCase();
+    final seg = uri.pathSegments.isEmpty
+        ? ''
+        : uri.pathSegments.first.trim().toLowerCase();
+
+    if (uri.queryParameters.containsKey('code') ||
+        uri.queryParameters.containsKey('error') ||
+        uri.queryParameters.containsKey('error_code') ||
+        uri.queryParameters.containsKey('token_hash') ||
+        uri.queryParameters.containsKey('access_token') ||
+        uri.queryParameters.containsKey('refresh_token')) {
+      return true;
+    }
+    if (uri.fragment.isNotEmpty) {
+      final frag = uri.fragment.toLowerCase();
+      if (frag.contains('access_token=') ||
+          frag.contains('refresh_token=') ||
+          frag.contains('error=')) {
+        return true;
+      }
+    }
+
+    if (path.startsWith('/auth') ||
+        seg == 'auth' ||
+        seg == 'login' ||
+        seg == 'signup' ||
+        seg == 'register' ||
+        seg == 'onboarding' ||
+        seg == 'get_started' ||
+        seg == 'forgot-password' ||
+        seg == 'forgot_password' ||
+        seg == 'reset-password' ||
+        seg == 'reset_password' ||
+        seg == 'verify' ||
+        seg == 'r' ||
+        seg == 'join' ||
+        seg == 'help') {
+      return true;
+    }
+
+    if ((path.isEmpty || path == '/') &&
+        (host == rootDomain || host == 'www.$rootDomain')) {
+      return true;
+    }
+
+    return false;
+  }
+
   /// Resolves a sanitized `ax_silent_nav` cookie payload (`1|<key>|<label>`)
   /// for a destination [url] so the incoming document renders the matching
   /// full-screen skeleton loader and highlighted mobile dock slot immediately.
+  ///
+  /// Returns `'0'` when [url] is an auth, onboarding, OAuth callback, or public
+  /// landing route so the default brand splash loader renders instead.
   static String silentNavValueForUrl(String url) {
     final uri = Uri.tryParse(url);
-    if (uri == null) return '1';
+    if (uri == null) return '0';
+    if (isAuthOrPublicNavigationUri(uri)) return '0';
     final host = uri.host.toLowerCase();
     final seg = uri.pathSegments.isEmpty
         ? ''
