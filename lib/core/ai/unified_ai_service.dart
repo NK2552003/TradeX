@@ -57,12 +57,16 @@ class UnifiedAiService {
     double temperature = 0.3,
     int maxTokens = 2048,
     bool allowLocalFallback = true,
+    String mode = 'auto',
+    bool? allowWebSearch,
   }) async {
     if (SupabaseConfig.isConfigured) {
       try {
         return await _completeOnServer({
           'prompt': prompt,
           'kind': 'completion',
+          'mode': mode,
+          'allow_web_search': ?allowWebSearch,
           'system_prompt': ?systemPrompt,
           'temperature': temperature,
           'max_tokens': maxTokens,

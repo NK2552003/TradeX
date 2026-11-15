@@ -91,8 +91,27 @@ class _CopilotComposerState extends State<CopilotComposer> {
             setState(() => _dictating = false);
           }
         },
-        onError: (_) {
-          if (mounted) setState(() => _dictating = false);
+        onError: (err) {
+          if (!mounted) return;
+          setState(() => _dictating = false);
+          final lower = err.errorMsg.toLowerCase();
+          if (lower.contains('not-allowed') || lower.contains('permission')) {
+            UiToast.warning(
+              context,
+              title: 'Microphone permission denied',
+              message:
+                  'Allow microphone access in your browser settings to dictate.',
+            );
+          } else if (lower.contains('audio-capture') ||
+              lower.contains('no_microphone')) {
+            UiToast.warning(
+              context,
+              title: 'No microphone detected',
+              message: 'Connect a microphone and retry.',
+            );
+          } else {
+            widget.onVoice?.call();
+          }
         },
       );
       if (!available) {

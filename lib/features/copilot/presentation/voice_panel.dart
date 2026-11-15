@@ -321,45 +321,76 @@ class _CopilotVoicePanelState extends State<CopilotVoicePanel>
                       ),
                       SizedBox(height: context.sp(theme.spacing.xs)),
 
-                      // Bottom Control Actions Toolbar (Mic, Speaker, Hands-Free, End Call)
+                      // Bottom Control Actions Toolbar (Mic, Speaker, Hands-Free / Push-to-talk, End Call)
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: <Widget>[
-                          UiIconButton(
-                            icon: voice.microphoneMuted
-                                ? Icons.mic_off_outlined
-                                : Icons.mic_none,
-                            tooltip: voice.microphoneMuted
-                                ? 'Unmute microphone'
-                                : 'Mute microphone',
-                            size: UiSize.xs,
-                            variant: UiVariant.outline,
-                            intent: voice.microphoneMuted
-                                ? UiIntent.warning
-                                : UiIntent.primary,
-                            onPressed: voice.toggleMicrophone,
+                          Expanded(
+                            child: Wrap(
+                              spacing: context.sp(theme.spacing.xs),
+                              runSpacing: context.sp(theme.spacing.xs),
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: <Widget>[
+                                UiIconButton(
+                                  icon: voice.microphoneMuted
+                                      ? Icons.mic_off_outlined
+                                      : Icons.mic_none,
+                                  tooltip: voice.microphoneMuted
+                                      ? 'Unmute microphone'
+                                      : 'Mute microphone',
+                                  size: UiSize.xs,
+                                  variant: UiVariant.outline,
+                                  intent: voice.microphoneMuted
+                                      ? UiIntent.warning
+                                      : UiIntent.primary,
+                                  onPressed: voice.toggleMicrophone,
+                                ),
+                                UiIconButton(
+                                  icon: voice.speakerMuted
+                                      ? Icons.volume_off_outlined
+                                      : Icons.volume_up_outlined,
+                                  tooltip: voice.speakerMuted
+                                      ? 'Unmute speaker'
+                                      : 'Mute speaker',
+                                  size: UiSize.xs,
+                                  variant: UiVariant.outline,
+                                  onPressed: voice.toggleSpeaker,
+                                ),
+                                UiButton(
+                                  label: voice.handsFree
+                                      ? 'Hands-free'
+                                      : 'Push-to-talk',
+                                  icon: voice.handsFree
+                                      ? Icons.hearing_rounded
+                                      : Icons.touch_app_outlined,
+                                  size: UiSize.xs,
+                                  variant: voice.handsFree
+                                      ? UiVariant.soft
+                                      : UiVariant.outline,
+                                  onPressed: voice.toggleHandsFree,
+                                ),
+                                if (!voice.microphoneMuted &&
+                                    (voice.cloudTranscriptionActive ||
+                                        !voice.handsFree ||
+                                        voice.recordingTurn))
+                                  UiButton(
+                                    label: voice.recordingTurn
+                                        ? 'Send voice'
+                                        : 'Tap to speak',
+                                    icon: voice.recordingTurn
+                                        ? Icons.stop_circle_outlined
+                                        : Icons.mic_rounded,
+                                    size: UiSize.xs,
+                                    intent: voice.recordingTurn
+                                        ? UiIntent.danger
+                                        : UiIntent.primary,
+                                    variant: UiVariant.solid,
+                                    onPressed: voice.toggleRecordedTurn,
+                                  ),
+                              ],
+                            ),
                           ),
                           SizedBox(width: context.sp(theme.spacing.xs)),
-                          UiIconButton(
-                            icon: voice.speakerMuted
-                                ? Icons.volume_off_outlined
-                                : Icons.volume_up_outlined,
-                            tooltip:
-                                voice.speakerMuted ? 'Unmute speaker' : 'Mute speaker',
-                            size: UiSize.xs,
-                            variant: UiVariant.outline,
-                            onPressed: voice.toggleSpeaker,
-                          ),
-                          SizedBox(width: context.sp(theme.spacing.xs)),
-                          UiButton(
-                            label: voice.handsFree ? 'Hands-free' : 'Push-to-talk',
-                            icon: voice.handsFree
-                                ? Icons.hearing_rounded
-                                : Icons.touch_app_outlined,
-                            size: UiSize.xs,
-                            variant: voice.handsFree ? UiVariant.soft : UiVariant.outline,
-                            onPressed: voice.toggleHandsFree,
-                          ),
-                          const Spacer(),
                           UiButton(
                             label: 'End call',
                             icon: Icons.call_end,

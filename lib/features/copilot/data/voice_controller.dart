@@ -5,11 +5,11 @@ import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:record/record.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:tradex/core/ai/unified_ai_service.dart';
+import 'package:tradex/core/ai/voice_gateway_service.dart';
 import 'package:tradex/core/config/env_config.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -45,20 +45,33 @@ enum CopilotVoiceStage {
 }
 
 class CopilotVoiceController extends ChangeNotifier {
-  CopilotVoiceController(this.controller) {
+  CopilotVoiceController(
+    this.controller, {
+    VoiceGatewayService? voiceGateway,
+    SpeechToText? speech,
+    AudioRecorder Function()? recorderFactory,
+    AudioPlayer Function()? playerFactory,
+  }) : _voiceGateway = voiceGateway ?? VoiceGatewayService.instance,
+       _speech = speech ?? SpeechToText(),
+       _recorderFactory = recorderFactory ?? AudioRecorder.new,
+       _playerFactory = playerFactory ?? AudioPlayer.new {
     _epoch = controller.accountEpoch;
     controller.addListener(_accountChanged);
   }
 
   final CopilotController controller;
+  final VoiceGatewayService _voiceGateway;
+  final SpeechToText _speech;
+  final AudioRecorder Function() _recorderFactory;
+  final AudioPlayer Function() _playerFactory;
   AudioRecorder? _recorder;
   AudioPlayer? _player;
-  final SpeechToText _speech = SpeechToText();
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _events;
   StreamSubscription<Uint8List>? _microphone;
   Timer? _timer;
   Timer? _speakTimer;
+  Timer? _retrySpeechTimer;
   final _audio = BytesBuilder();
 
   bool active = false;
@@ -67,10 +80,20 @@ class CopilotVoiceController extends ChangeNotifier {
   bool speakerMuted = false;
   bool minimized = false;
   bool handsFree = true;
+  bool recordingTurn = false;
+  bool cloudTranscriptionActive = false;
   bool _recording = false;
   bool _speechAvailable = false;
   bool _localNaturalMode = false;
   bool _disposed = false;
+  String _turnMimeType = 'audio/webm';
+  String _turnFilename = 'speech.webm';
+
+  /// Whether live OpenAI `web_search` is permitted for the active workspace and specialist.
+  bool get canWebSearch =>
+      controller.workspace.setup['research'] != false &&
+      controller.workspace.settings['research'] == true &&
+      controller.specialist?.research == true;
 
   CopilotVoiceModel voiceModel = CopilotVoiceModel.nova;
   CopilotVoiceStage stage = CopilotVoiceStage.idle;
@@ -136,6 +159,16 @@ class CopilotVoiceController extends ChangeNotifier {
 
   void toggleHandsFree() {
     handsFree = !handsFree;
+    if (!handsFree) {
+      if (_speechAvailable) {
+        unawaited(_speech.stop());
+      }
+    } else if (_localNaturalMode &&
+        active &&
+        !microphoneMuted &&
+        !recordingTurn) {
+      unawaited(_startSpeechRecognition(_session));
+    }
     _notify();
   }
 
@@ -159,7 +192,7 @@ class CopilotVoiceController extends ChangeNotifier {
     final bool hasCustomWsEndpoint = EnvConfig.copilotApiUrl.trim().isNotEmpty;
     if (hasCustomWsEndpoint) {
       try {
-        _recorder ??= AudioRecorder();
+        _recorder ??= _recorderFactory();
         final bool hasPerm = await _recorder!.hasPermission();
         final String? id = await controller.ensureThread();
         if (hasPerm && id != null && !_disposed && session == _session) {
@@ -201,6 +234,8 @@ class CopilotVoiceController extends ChangeNotifier {
     connecting = false;
     active = true;
     error = null;
+    recordingTurn = false;
+    cloudTranscriptionActive = false;
     stage = microphoneMuted
         ? CopilotVoiceStage.muted
         : CopilotVoiceStage.listening;
@@ -245,6 +280,11 @@ class CopilotVoiceController extends ChangeNotifier {
 
   Future<void> _startSpeechRecognition(int session) async {
     if (_disposed || session != _session || microphoneMuted) return;
+    _retrySpeechTimer?.cancel();
+    if (!handsFree) {
+      await _ensureRecorderPermission();
+      return;
+    }
     try {
       _speechAvailable = await _speech.initialize(
         onStatus: (String status) {
@@ -252,18 +292,28 @@ class CopilotVoiceController extends ChangeNotifier {
           if (status == 'done' &&
               handsFree &&
               userCaption.trim().isNotEmpty &&
-              stage == CopilotVoiceStage.listening) {
+              stage == CopilotVoiceStage.listening &&
+              !recordingTurn) {
             unawaited(submitVoiceTurn(userCaption.trim()));
           }
         },
-        onError: (_) {},
+        onError: (dynamic err) {
+          final raw = err is String ? err : '${err.errorMsg ?? err}';
+          _handleSpeechError(raw, session);
+        },
       );
-      if (_speechAvailable && !_disposed && active && !microphoneMuted) {
+      if (!_speechAvailable) {
+        await _enableCloudTranscriptionFallback(session);
+        return;
+      }
+      cloudTranscriptionActive = false;
+      if (!_disposed && active && !microphoneMuted) {
         await _speech.listen(
           onResult: (SpeechRecognitionResult result) {
             if (_disposed || !active || microphoneMuted) return;
             final String spoken = result.recognizedWords.trim();
             if (spoken.isEmpty) return;
+            error = null;
             userCaption = spoken;
             stage = CopilotVoiceStage.listening;
             _updateWaveform();
@@ -278,8 +328,220 @@ class CopilotVoiceController extends ChangeNotifier {
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
       _speechAvailable = false;
+      await _enableCloudTranscriptionFallback(session, cause: e);
+    }
+  }
+
+  void _handleSpeechError(String rawError, int session) {
+    if (_disposed || session != _session || !active) return;
+    final lower = rawError.toLowerCase().trim();
+    if (lower.contains('not-allowed') ||
+        lower.contains('permission') ||
+        lower.contains('denied')) {
+      _speechAvailable = false;
+      microphoneMuted = true;
+      stage = CopilotVoiceStage.muted;
+      error =
+          'Microphone permission was denied. Allow microphone access in your browser or system settings and unmute to speak.';
+      _updateWaveform();
+      _notify();
+      return;
+    }
+    if (lower.contains('audio-capture') ||
+        lower.contains('no_microphone') ||
+        lower.contains('error_audio')) {
+      _speechAvailable = false;
+      error = 'No microphone detected. Check your input device and try again.';
+      _notify();
+      return;
+    }
+    if (lower.contains('no-speech') ||
+        lower.contains('speech_timeout') ||
+        lower.contains('no_match')) {
+      if (handsFree &&
+          !microphoneMuted &&
+          stage == CopilotVoiceStage.listening &&
+          !recordingTurn) {
+        _retrySpeechTimer?.cancel();
+        _retrySpeechTimer = Timer(const Duration(milliseconds: 350), () {
+          unawaited(_startSpeechRecognition(session));
+        });
+      }
+      return;
+    }
+    _speechAvailable = false;
+    unawaited(_enableCloudTranscriptionFallback(session, cause: rawError));
+  }
+
+  Future<bool> _ensureRecorderPermission() async {
+    try {
+      _recorder ??= _recorderFactory();
+      final bool hasPerm = await _recorder!.hasPermission();
+      if (!hasPerm) {
+        microphoneMuted = true;
+        stage = CopilotVoiceStage.muted;
+        error =
+            'Microphone permission is required for voice calls. Allow microphone access in your browser settings.';
+        _updateWaveform();
+        _notify();
+        return false;
+      }
+      return true;
+    } catch (e) {
+      error = 'Microphone check failed: $e';
+      _notify();
+      return false;
+    }
+  }
+
+  Future<void> _enableCloudTranscriptionFallback(
+    int session, {
+    Object? cause,
+  }) async {
+    if (_disposed || session != _session || !active) return;
+    final bool hasPerm = await _ensureRecorderPermission();
+    if (!hasPerm || _disposed || session != _session) return;
+    if (_voiceGateway.hasProxy) {
+      cloudTranscriptionActive = true;
+      error = null;
+      _notify();
+    } else {
+      cloudTranscriptionActive = false;
+      error = cause == null
+          ? 'Browser speech recognition is unavailable. Sign in to use cloud voice transcription.'
+          : 'Speech recognition unavailable ($cause).';
+      _notify();
+    }
+  }
+
+  /// Records a spoken turn using OpenAI cloud transcription (`ai-voice`) when
+  /// push-to-talk is active or browser speech recognition is unavailable.
+  Future<void> toggleRecordedTurn() async {
+    if (_disposed || stage == CopilotVoiceStage.thinking) return;
+    if (!active && !connecting) {
+      await start();
+    }
+    if (_disposed || !active) return;
+    final int session = _session;
+
+    if (recordingTurn) {
+      await _finishAndTranscribeRecordedTurn(session);
+      return;
+    }
+
+    if (microphoneMuted) {
+      microphoneMuted = false;
+      error = null;
+    }
+    try {
+      if (_speechAvailable) await _speech.stop();
+    } catch (_) {}
+    try {
+      await _player?.stop();
+    } catch (_) {}
+
+    final bool hasPerm = await _ensureRecorderPermission();
+    if (!hasPerm || _disposed || session != _session) return;
+
+    try {
+      AudioEncoder encoder = AudioEncoder.opus;
+      String path = '';
+      if (kIsWeb) {
+        final bool supportsOpus = await _recorder!.isEncoderSupported(
+          AudioEncoder.opus,
+        );
+        if (supportsOpus) {
+          encoder = AudioEncoder.opus;
+          _turnMimeType = 'audio/webm';
+          _turnFilename = 'voice_turn.webm';
+        } else {
+          final bool supportsAac = await _recorder!.isEncoderSupported(
+            AudioEncoder.aacLc,
+          );
+          if (supportsAac) {
+            encoder = AudioEncoder.aacLc;
+            _turnMimeType = 'audio/mp4';
+            _turnFilename = 'voice_turn.mp4';
+          } else {
+            encoder = AudioEncoder.wav;
+            _turnMimeType = 'audio/wav';
+            _turnFilename = 'voice_turn.wav';
+          }
+        }
+      } else {
+        encoder = AudioEncoder.aacLc;
+        _turnMimeType = 'audio/m4a';
+        _turnFilename = 'voice_turn.m4a';
+        path = await VoiceGatewayService.createTempRecordingPath();
+      }
+      await _recorder!.start(RecordConfig(encoder: encoder), path: path);
+      if (_disposed || session != _session) {
+        await _recorder?.stop();
+        return;
+      }
+      recordingTurn = true;
+      error = null;
+      stage = CopilotVoiceStage.listening;
+      userCaption = 'Listening…';
+      _updateWaveform();
+      _notify();
+    } catch (e) {
+      recordingTurn = false;
+      error = 'Could not start microphone recording: $e';
+      _notify();
+    }
+  }
+
+  Future<void> _finishAndTranscribeRecordedTurn(int session) async {
+    recordingTurn = false;
+    stage = CopilotVoiceStage.thinking;
+    userCaption = 'Transcribing…';
+    _updateWaveform();
+    _notify();
+    try {
+      final String? path = await _recorder?.stop();
+      if (_disposed || session != _session) return;
+      final Uint8List? bytes = path == null
+          ? null
+          : await VoiceGatewayService.readRecordedBytes(path);
+      if (bytes == null || bytes.length < 200) {
+        userCaption = '';
+        stage = microphoneMuted
+            ? CopilotVoiceStage.muted
+            : CopilotVoiceStage.listening;
+        error = 'No speech detected. Tap "Tap to speak" and speak clearly.';
+        _updateWaveform();
+        _notify();
+        return;
+      }
+      final String spoken = await _voiceGateway.transcribeAudio(
+        bytes: bytes,
+        mimeType: _turnMimeType,
+        filename: _turnFilename,
+        prompt: 'Trading desk analyst voice call, stocks, crypto, options.',
+      );
+      if (_disposed || session != _session || !active) return;
+      if (spoken.trim().isEmpty) {
+        userCaption = '';
+        stage = CopilotVoiceStage.listening;
+        error = 'Could not transcribe speech. Please try again.';
+        _updateWaveform();
+        _notify();
+        return;
+      }
+      error = null;
+      await submitVoiceTurn(spoken);
+    } catch (e) {
+      if (_disposed || session != _session) return;
+      userCaption = '';
+      stage = microphoneMuted
+          ? CopilotVoiceStage.muted
+          : CopilotVoiceStage.listening;
+      error = e is StateError ? e.message : 'Transcription failed: $e';
+      _updateWaveform();
+      _notify();
     }
   }
 
@@ -312,13 +574,14 @@ class CopilotVoiceController extends ChangeNotifier {
     _notify();
 
     String reply = '';
+    final String voiceMode = canWebSearch ? 'search' : 'auto';
     try {
       // Also send to the active thread if connected and not currently generating
       final bool wasLocked = controller.voiceBusy;
       if (wasLocked) controller.voiceBusy = false;
       final bool sentToThread =
           controller.connected && !controller.generating
-          ? await controller.sendPrompt(trimmed)
+          ? await controller.sendPrompt(trimmed, mode: voiceMode)
           : false;
       if (_ownsCall) controller.voiceBusy = true;
 
@@ -355,6 +618,8 @@ class CopilotVoiceController extends ChangeNotifier {
                 'You are ${controller.specialist?.name ?? "Atlas"} ($specialistRole) speaking in a live natural-language voice call (${voiceModel.label} voice). '
                 '$specialistInstructions Keep your spoken response conversational, insightful, and clear.',
             maxTokens: 600,
+            mode: voiceMode,
+            allowWebSearch: canWebSearch,
           );
           if (!aiReply.toLowerCase().contains('ai_queries_per_month') &&
               !aiReply.toLowerCase().contains('limit reached')) {
@@ -414,8 +679,8 @@ class CopilotVoiceController extends ChangeNotifier {
     _updateWaveform();
     _notify();
 
-    // Priority 1: Synthesize and play audible speech via OpenAI TTS if OPEN_AI_KEY is available and speaker isn't muted
-    if (!speakerMuted && EnvConfig.openaiApiKey.isNotEmpty) {
+    // Synthesize and stream audible speech via authenticated ai-voice Edge proxy.
+    if (!speakerMuted && _voiceGateway.hasProxy) {
       unawaited(_synthesizeAndPlayOpenAiSpeech(cleanText, session));
     }
 
@@ -449,49 +714,28 @@ class CopilotVoiceController extends ChangeNotifier {
     return done.future;
   }
 
-  /// Synthesizes spoken audio from OpenAI TTS API and plays it through AudioPlayer.
+  /// Synthesizes spoken audio via `ai-voice` Edge Function proxy and plays it through AudioPlayer.
   Future<void> _synthesizeAndPlayOpenAiSpeech(String text, int session) async {
     if (speakerMuted || _disposed || session != _session) return;
     try {
-      final String openAiKey = EnvConfig.openaiApiKey.trim();
-      if (openAiKey.isEmpty) return;
-
-      // Map persona to OpenAI TTS voice
-      final String voiceName = switch (voiceModel) {
-        CopilotVoiceModel.nova => 'nova',
-        CopilotVoiceModel.alloy => 'alloy',
-        CopilotVoiceModel.echo => 'echo',
-        CopilotVoiceModel.onyx => 'onyx',
-        CopilotVoiceModel.shimmer => 'shimmer',
-      };
-
-      // Cap text to first 4000 characters for snappy TTS generation
-      final String input = text.length > 4000 ? text.substring(0, 4000) : text;
-
-      final http.Response response = await http.post(
-        Uri.parse('https://api.openai.com/v1/audio/speech'),
-        headers: <String, String>{
-          'Authorization': 'Bearer $openAiKey',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(<String, dynamic>{
-          'model': 'tts-1',
-          'input': input,
-          'voice': voiceName,
-          'response_format': 'mp3',
-        }),
-      ).timeout(const Duration(seconds: 12));
-
-      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+      final Uint8List audioBytes = await _voiceGateway.synthesizeSpeech(
+        text: text,
+        voice: voiceModel.id,
+      );
+      if (audioBytes.isNotEmpty) {
         if (_disposed || session != _session || speakerMuted) return;
-        _player ??= AudioPlayer();
+        _player ??= _playerFactory();
         await _player!.stop();
         await _player!.play(
-          BytesSource(response.bodyBytes, mimeType: 'audio/mp3'),
+          BytesSource(audioBytes, mimeType: 'audio/mp3'),
         );
       }
+    } on StateError catch (e) {
+      if (_disposed || session != _session || speakerMuted) return;
+      error = e.message;
+      _notify();
     } catch (_) {
-      // Audio playback fails gracefully without breaking the interactive voice session
+      // Audio playback fails gracefully without breaking interactive captions
     }
   }
 
@@ -663,7 +907,7 @@ class CopilotVoiceController extends ChangeNotifier {
 
   Future<void> _play(Uint8List pcm) async {
     try {
-      _player ??= AudioPlayer();
+      _player ??= _playerFactory();
       await _player!.play(BytesSource(pcmWave(pcm), mimeType: 'audio/wav'));
     } catch (_) {
       error = 'Audio playback failed. Captions are still available.';
@@ -674,12 +918,15 @@ class CopilotVoiceController extends ChangeNotifier {
   void toggleMicrophone() {
     microphoneMuted = !microphoneMuted;
     if (microphoneMuted) {
+      recordingTurn = false;
       stage = CopilotVoiceStage.muted;
       _channel?.sink.add(jsonEncode({'type': 'input_audio_buffer.clear'}));
       if (_speechAvailable) {
         unawaited(_speech.stop());
       }
+      unawaited(_recorder?.stop().catchError((_) => null));
     } else {
+      error = null;
       stage = CopilotVoiceStage.listening;
       if (_localNaturalMode && active) {
         unawaited(_startSpeechRecognition(_session));
@@ -719,8 +966,11 @@ class CopilotVoiceController extends ChangeNotifier {
     if (_ownsCall) controller.voiceBusy = false;
     _ownsCall = false;
     _recording = false;
+    recordingTurn = false;
+    cloudTranscriptionActive = false;
     _timer?.cancel();
     _speakTimer?.cancel();
+    _retrySpeechTimer?.cancel();
     await _events?.cancel();
     _events = null;
     await _microphone?.cancel();
