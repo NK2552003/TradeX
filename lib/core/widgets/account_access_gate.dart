@@ -5,6 +5,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/data/account_access_repository.dart';
 import 'package:tradex/core/config/startup_ready.dart';
+import 'package:tradex/core/utils/app_visibility.dart';
 import 'package:tradex/features/auth/presentation/pages/splash_screen.dart';
 
 /// Suspended accounts never render cached private screens. Access is refreshed
@@ -28,27 +29,31 @@ class AccountAccessGate extends StatefulWidget {
   State<AccountAccessGate> createState() => _AccountAccessGateState();
 }
 
-class _AccountAccessGateState extends State<AccountAccessGate>
-    with WidgetsBindingObserver {
+class _AccountAccessGateState extends State<AccountAccessGate> {
+  static const Duration _basePollInterval = Duration(seconds: 60);
+  static const int _maxPollFailures = 4;
+
   AccountAccess? _access;
   String? _error;
   Timer? _timer;
   bool _loading = false;
   int _generation = 0;
+  int _consecutiveFailures = 0;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    AppVisibility.instance.addListener(_onVisibilityChanged);
     _refresh();
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) => _refresh());
   }
 
   @override
   void didUpdateWidget(covariant AccountAccessGate oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository) {
+      _timer?.cancel();
       _generation++;
+      _consecutiveFailures = 0;
       _access = null;
       _loading = false;
       _refresh();
@@ -57,18 +62,37 @@ class _AccountAccessGateState extends State<AccountAccessGate>
     }
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refresh();
+  void _onVisibilityChanged(bool isVisible) {
+    if (!mounted) return;
+    if (!isVisible) {
+      _timer?.cancel();
+      _timer = null;
+    } else {
+      _consecutiveFailures = 0;
+      _refresh();
+    }
+  }
+
+  void _scheduleNextPoll() {
+    _timer?.cancel();
+    _timer = null;
+    if (!mounted || !AppVisibility.instance.isVisible) return;
+    if (_consecutiveFailures >= _maxPollFailures) return;
+    final int multiplier = _consecutiveFailures == 0
+        ? 1
+        : (1 << (_consecutiveFailures - 1));
+    _timer = Timer(_basePollInterval * multiplier, _refresh);
   }
 
   Future<void> _refresh() async {
     if (_loading) return;
+    _timer?.cancel();
     final generation = ++_generation;
     setState(() => _loading = true);
     try {
       final access = await widget.repository.load();
       if (!mounted || generation != _generation) return;
+      _consecutiveFailures = 0;
       widget.onAccess(access);
       setState(() {
         _access = access;
@@ -77,6 +101,7 @@ class _AccountAccessGateState extends State<AccountAccessGate>
       _recordDestination();
     } catch (_) {
       if (mounted && generation == _generation) {
+        _consecutiveFailures++;
         setState(
           () => _error =
               'Unable to verify account access. Check your connection and retry.',
@@ -85,6 +110,7 @@ class _AccountAccessGateState extends State<AccountAccessGate>
     } finally {
       if (mounted && generation == _generation) {
         setState(() => _loading = false);
+        _scheduleNextPoll();
       }
     }
   }
@@ -102,7 +128,7 @@ class _AccountAccessGateState extends State<AccountAccessGate>
   @override
   void dispose() {
     _timer?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
+    AppVisibility.instance.removeListener(_onVisibilityChanged);
     super.dispose();
   }
 

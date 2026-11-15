@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/utils/app_visibility.dart';
 
 import '../models/workspace.dart';
 import 'copilot_api.dart';
@@ -9,26 +10,27 @@ import 'copilot_feature_connector.dart';
 import 'supabase_copilot_api.dart';
 
 class CopilotController extends ChangeNotifier {
+  static const Duration _basePollInterval = Duration(seconds: 60);
+  static const int _maxPollFailures = 3;
+
   CopilotController({
     CopilotApi? api,
     CopilotWorkspace? initialState,
     bool autoLoad = true,
-  }) : api = api ?? createCopilotApi(),
+  }) : _autoLoad = autoLoad,
+       api = api ?? createCopilotApi(),
        workspace =
            initialState ?? CopilotWorkspace.fromJson(initialWorkspace()) {
     _actor = SupabaseConfig.client?.auth.currentUser?.id;
     _auth = SupabaseConfig.client?.auth.onAuthStateChange.listen(
       (_) => _accountChanged(),
     );
-    if (autoLoad) unawaited(reload());
     if (autoLoad) {
-      _poll = Timer.periodic(const Duration(seconds: 15), (_) {
-        if (!loading && !generating && connected) {
-          unawaited(reload(quiet: true));
-        }
-      });
+      AppVisibility.instance.addListener(_onVisibilityChanged);
+      unawaited(reload());
     }
   }
+  final bool _autoLoad;
   final CopilotApi api;
   CopilotWorkspace workspace;
   bool loading = false;
@@ -47,6 +49,7 @@ class CopilotController extends ChangeNotifier {
   String? _actor;
   int _epoch = 0;
   int _loadSequence = 0;
+  int _pollFailures = 0;
   Future<String?>? _creatingThread;
   bool _disposed = false;
 
@@ -87,6 +90,41 @@ class CopilotController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
+  void _onVisibilityChanged(bool isVisible) {
+    if (_disposed || !_autoLoad) return;
+    if (!isVisible) {
+      _poll?.cancel();
+      _poll = null;
+    } else {
+      _pollFailures = 0;
+      if (connected && !loading && !generating) {
+        unawaited(reload(quiet: true));
+      } else {
+        _schedulePoll();
+      }
+    }
+  }
+
+  void _schedulePoll() {
+    _poll?.cancel();
+    _poll = null;
+    if (_disposed || !_autoLoad || !AppVisibility.instance.isVisible) return;
+    if (!connected || _pollFailures >= _maxPollFailures) return;
+    final multiplier = _pollFailures == 0 ? 1 : (1 << _pollFailures);
+    final delaySeconds = (_basePollInterval.inSeconds * multiplier).clamp(
+      60,
+      300,
+    );
+    _poll = Timer(Duration(seconds: delaySeconds), () {
+      if (_disposed || !AppVisibility.instance.isVisible) return;
+      if (!loading && !generating && connected) {
+        unawaited(reload(quiet: true));
+      } else {
+        _schedulePoll();
+      }
+    });
+  }
+
   Future<void> reload({bool quiet = false}) async {
     final epoch = _epoch;
     final sequence = ++_loadSequence;
@@ -99,10 +137,12 @@ class CopilotController extends ChangeNotifier {
       if (_disposed || epoch != _epoch || sequence != _loadSequence) return;
       workspace = CopilotWorkspace.fromJson(state);
       connected = true;
+      _pollFailures = 0;
       if (!quiet) error = null;
       if (activeThreadId != null && activeThread == null) activeThreadId = null;
     } catch (failure) {
       if (_disposed || epoch != _epoch || sequence != _loadSequence) return;
+      _pollFailures++;
       if (!quiet) {
         error = '$failure';
         connected = false;
@@ -111,6 +151,7 @@ class CopilotController extends ChangeNotifier {
       if (epoch == _epoch && sequence == _loadSequence) {
         loading = false;
         _notify();
+        _schedulePoll();
       }
     }
   }
@@ -310,6 +351,9 @@ class CopilotController extends ChangeNotifier {
     _epoch++;
     _poll?.cancel();
     _auth?.cancel();
+    if (_autoLoad) {
+      AppVisibility.instance.removeListener(_onVisibilityChanged);
+    }
     api.dispose();
     super.dispose();
   }

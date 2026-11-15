@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/utils/app_visibility.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
@@ -148,6 +149,10 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   bool _recapLoading = false;
   List<String> _recapPoints = <String>[];
   final TextEditingController _clipNameController = TextEditingController();
+  int _syncFailures = 0;
+  bool _syncInFlight = false;
+  static const Duration _baseSyncInterval = Duration(seconds: 10);
+  static const int _maxSyncFailures = 4;
 
   List<LiveRoomParticipant> get _speakers =>
       _participants.where((p) => p.isStage).toList();
@@ -184,11 +189,12 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     )..repeat(reverse: true);
 
     _initializeFallbackParticipants();
+    AppVisibility.instance.addListener(_onVisibilityChanged);
     _loadRoomData();
 
     // Stage simulation timer
     _stageTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
+      if (!mounted || !AppVisibility.instance.isVisible) return;
       setState(() {
         final speakers = _speakers;
         if (speakers.isNotEmpty) {
@@ -206,10 +212,29 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
       });
     });
 
-    // Realtime polling sync timer
-    _syncTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (mounted) _syncDataSilently();
-    });
+    // Visibility-aware polling sync timer with exponential backoff
+    _scheduleSync();
+  }
+
+  void _onVisibilityChanged(bool isVisible) {
+    if (!mounted) return;
+    if (!isVisible) {
+      _syncTimer?.cancel();
+      _syncTimer = null;
+    } else {
+      _syncFailures = 0;
+      _syncDataSilently();
+    }
+  }
+
+  void _scheduleSync() {
+    _syncTimer?.cancel();
+    _syncTimer = null;
+    if (!mounted || !AppVisibility.instance.isVisible) return;
+    if (_syncFailures >= _maxSyncFailures) return;
+    final multiplier = _syncFailures == 0 ? 1 : (1 << _syncFailures);
+    final delaySecs = (_baseSyncInterval.inSeconds * multiplier).clamp(10, 60);
+    _syncTimer = Timer(Duration(seconds: delaySecs), _syncDataSilently);
   }
 
   void _initializeFallbackParticipants() {
@@ -275,13 +300,19 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   Future<void> _syncDataSilently() async {
     final roomId = widget.roomId;
     final repo = widget.repository;
-    if (repo == null || roomId == null || !mounted) return;
-
+    if (repo == null || roomId == null || !mounted || _syncInFlight) {
+      _scheduleSync();
+      return;
+    }
+    _syncInFlight = true;
     try {
-      final participants = await repo.fetchRoomParticipants(roomId);
-      final messages = await repo.fetchRoomMessages(roomId);
-      final questions = await repo.fetchRoomQuestions(roomId);
+      final (participants, messages, questions) = await (
+        repo.fetchRoomParticipants(roomId),
+        repo.fetchRoomMessages(roomId),
+        repo.fetchRoomQuestions(roomId),
+      ).wait;
 
+      _syncFailures = 0;
       if (!mounted) return;
       setState(() {
         if (participants.isNotEmpty) {
@@ -290,11 +321,17 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
         _chatMessages = messages;
         _questions = questions;
       });
-    } catch (_) {}
+    } catch (_) {
+      _syncFailures++;
+    } finally {
+      _syncInFlight = false;
+      if (mounted) _scheduleSync();
+    }
   }
 
   @override
   void dispose() {
+    AppVisibility.instance.removeListener(_onVisibilityChanged);
     _soundwaveController.dispose();
     _pulseController.dispose();
     _stageTimer?.cancel();
