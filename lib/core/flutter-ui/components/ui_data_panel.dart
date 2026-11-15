@@ -145,12 +145,24 @@ class UiDataPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    if (leadingIcon != null) iconWidget,
-                    Expanded(child: labelWidget!),
-                    ?trailingWidget,
-                  ],
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: context.sp(theme.spacing.xs),
+                    runSpacing: context.sp(theme.spacing.xxs),
+                    children: <Widget>[
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          if (leadingIcon != null) iconWidget,
+                          Flexible(child: labelWidget!),
+                        ],
+                      ),
+                      ?trailing,
+                    ],
+                  ),
                 ),
                 SizedBox(height: context.sp(theme.spacing.xxs)),
                 Text(
@@ -164,27 +176,36 @@ class UiDataPanel extends StatelessWidget {
               ],
             );
           } else {
-            content = Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                if (leadingIcon != null) iconWidget,
-                if (labelWidget != null)
-                  Expanded(child: labelWidget)
-                else if (hint != null)
-                  Expanded(
-                    child: Text(
-                      hint!,
-                      style: context.uiText.caption.copyWith(
-                        color: c.foregroundSubtle,
-                        height: 1.3,
-                      ),
-                      softWrap: true,
-                    ),
-                  )
-                else
-                  const Spacer(),
-                ?trailingWidget,
-              ],
+            content = SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: context.sp(theme.spacing.xs),
+                runSpacing: context.sp(theme.spacing.xxs),
+                children: <Widget>[
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (leadingIcon != null) iconWidget,
+                      if (labelWidget != null)
+                        Flexible(child: labelWidget)
+                      else if (hint != null)
+                        Flexible(
+                          child: Text(
+                            hint!,
+                            style: context.uiText.caption.copyWith(
+                              color: c.foregroundSubtle,
+                              height: 1.3,
+                            ),
+                            softWrap: true,
+                          ),
+                        ),
+                    ],
+                  ),
+                  ?trailing,
+                ],
+              ),
             );
           }
         } else {
@@ -193,10 +214,15 @@ class UiDataPanel extends StatelessWidget {
             children: <Widget>[
               if (leadingIcon != null) iconWidget,
               if (labelWidget != null)
-                Text(label!.toUpperCase(), style: uiOverline(context)),
+                Flexible(
+                  flex: 3,
+                  fit: FlexFit.loose,
+                  child: labelWidget,
+                ),
               if (hint != null) ...<Widget>[
                 SizedBox(width: context.sp(theme.spacing.sm)),
                 Expanded(
+                  flex: 2,
                   child: Text(
                     hint!,
                     textAlign: label != null ? TextAlign.end : TextAlign.start,

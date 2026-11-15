@@ -299,67 +299,92 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
       );
     }
     return LayoutBuilder(
-      builder: (context, constraints) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _AiQuotaBanner(controller: controller),
-          if (controller.pageContextId != null)
-            Padding(
-              padding: EdgeInsets.only(
-                bottom: context.sp(context.ui.spacing.sm),
-              ),
-              child: UiBadge(
-                label:
-                    'Discussing: ${controller.workspace.pages.where((p) => p.id == controller.pageContextId).firstOrNull?.title ?? 'Page'}',
-                icon: Icons.article_outlined,
-                intent: UiIntent.neutral,
-              ),
-            ),
-          if (controller.isAiQuotaBlocked)
-            Padding(
-              padding: EdgeInsets.only(
-                bottom: context.sp(context.ui.spacing.sm),
-              ),
-              child: UiCallout(
-                title:
-                    'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
-                message:
-                    'Your ${CustomerLimitations.currentQuota.planName} plan allows ${controller.effectiveAiQueriesLimit} AI prompts per month. Upgrade your plan to unlock additional capacity.',
-                intent: UiIntent.warning,
-                action: UiButton(
-                  label: 'Upgrade Plan',
-                  size: UiSize.xs,
-                  variant: UiVariant.solid,
-                  intent: UiIntent.primary,
-                  onPressed: () => CustomerLimitations.showPlanUpgradeDialog(
-                    context,
-                    featureTitle:
-                        'AI Copilot Quota Reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
-                    reason:
-                        'Your ${CustomerLimitations.currentQuota.planName} plan includes ${controller.effectiveAiQueriesLimit} AI queries per month.',
+      builder: (context, constraints) {
+        final hasTopNotices =
+            constraints.maxHeight >= 420 ||
+            controller.pageContextId != null ||
+            controller.isAiQuotaBlocked ||
+            controller.error != null;
+        final maxNoticeHeight = constraints.maxHeight.isFinite
+            ? (constraints.maxHeight * 0.45).clamp(0.0, constraints.maxHeight)
+            : double.infinity;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (hasTopNotices)
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxNoticeHeight),
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (constraints.maxHeight >= 420)
+                        _AiQuotaBanner(controller: controller),
+                      if (controller.pageContextId != null)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom: context.sp(context.ui.spacing.sm),
+                          ),
+                          child: UiBadge(
+                            label:
+                                'Discussing: ${controller.workspace.pages.where((p) => p.id == controller.pageContextId).firstOrNull?.title ?? 'Page'}',
+                            icon: Icons.article_outlined,
+                            intent: UiIntent.neutral,
+                          ),
+                        ),
+                      if (controller.isAiQuotaBlocked)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom: context.sp(context.ui.spacing.sm),
+                          ),
+                          child: UiCallout(
+                            title:
+                                'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
+                            message:
+                                'Your ${CustomerLimitations.currentQuota.planName} plan allows ${controller.effectiveAiQueriesLimit} AI prompts per month. Upgrade your plan to unlock additional capacity.',
+                            intent: UiIntent.warning,
+                            action: UiButton(
+                              label: 'Upgrade Plan',
+                              size: UiSize.xs,
+                              variant: UiVariant.solid,
+                              intent: UiIntent.primary,
+                              onPressed: () =>
+                                  CustomerLimitations.showPlanUpgradeDialog(
+                                    context,
+                                    featureTitle:
+                                        'AI Copilot Quota Reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
+                                    reason:
+                                        'Your ${CustomerLimitations.currentQuota.planName} plan includes ${controller.effectiveAiQueriesLimit} AI queries per month.',
+                                  ),
+                            ),
+                          ),
+                        )
+                      else if (controller.error != null)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom: context.sp(context.ui.spacing.sm),
+                          ),
+                          child: UiCallout(
+                            title: 'Could not finish',
+                            message: controller.error!,
+                            intent: UiIntent.warning,
+                            onClose: () =>
+                                setState(() => controller.error = null),
+                            action: UiButton(
+                              label: 'Reconnect',
+                              size: UiSize.xs,
+                              variant: UiVariant.outline,
+                              onPressed: () => controller.reload(),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
-            )
-          else if (controller.error != null)
-            Padding(
-              padding: EdgeInsets.only(
-                bottom: context.sp(context.ui.spacing.sm),
-              ),
-              child: UiCallout(
-                title: 'Could not finish',
-                message: controller.error!,
-                intent: UiIntent.warning,
-                onClose: () => setState(() => controller.error = null),
-                action: UiButton(
-                  label: 'Reconnect',
-                  size: UiSize.xs,
-                  variant: UiVariant.outline,
-                  onPressed: () => controller.reload(),
-                ),
-              ),
-            ),
-          Expanded(
+            Expanded(
             child: AppAiChatBlock(
               key: ValueKey(
                 controller.activeThreadId ?? 'new-${controller.specialist?.id}',
@@ -709,7 +734,8 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
               ),
             ),
         ],
-      ),
+      );
+      },
     );
   }
 }
@@ -812,8 +838,10 @@ class _AiQuotaBanner extends StatelessWidget {
                   spacing: context.sp(theme.spacing.xs),
                   runSpacing: context.sp(theme.spacing.xs),
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: context.sp(theme.spacing.xs),
+                      runSpacing: context.sp(theme.spacing.xs),
                       children: [
                         UiBadge(
                           label: quota.planName,
@@ -821,7 +849,6 @@ class _AiQuotaBanner extends StatelessWidget {
                           variant: UiBadgeVariant.soft,
                           size: UiSize.xs,
                         ),
-                        UiGap.h(theme.spacing.xs),
                         Text(
                           isBlocked
                               ? 'AI Credits Exhausted ($used / $limit)'

@@ -162,8 +162,12 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
               ],
             );
 
+        final double scaledTightThreshold = MediaQuery.textScalerOf(
+          context,
+        ).scale(280);
         final bool tightHeight =
-            constraints.maxHeight.isFinite && constraints.maxHeight < 280;
+            constraints.maxHeight.isFinite &&
+            constraints.maxHeight < scaledTightThreshold;
 
         return Column(
           children: <Widget>[
