@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
+import 'package:tradex/features/messages/models/messages_models.dart';
 import 'package:tradex/features/messages/presentation/overlays/new_message_dialog.dart';
 import 'package:tradex/features/messages/presentation/views/messages_requests_view.dart';
 import 'package:tradex/features/messages/presentation/views/messages_thread_view.dart';
@@ -13,9 +14,11 @@ import 'package:tradex/features/settings/presentation/pages/shared/privacy_setti
 
 Widget _wrap(Widget child, {Size size = const Size(1280, 800)}) {
   return MaterialApp(
-    home: MediaQuery(
-      data: MediaQueryData(size: size),
-      child: Scaffold(body: child),
+    home: UiToastScope(
+      child: MediaQuery(
+        data: MediaQueryData(size: size),
+        child: Scaffold(body: child),
+      ),
     ),
   );
 }
@@ -227,5 +230,58 @@ void main() {
 
       expect(find.text('Cannot message @private_whale'), findsNothing);
     });
+
+    testWidgets('shows toast error when sending a DM fails encryption check', (
+      tester,
+    ) async {
+      final failingRepo = _FailingSendMessagesRepository();
+      final threadId = failingRepo.startConversation(
+        const AppTrader(
+          id: 'peer_unready',
+          handle: 'unready_peer',
+          displayName: 'Unready Peer',
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          MessagesThreadView(
+            repository: failingRepo,
+            threadId: threadId,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).last, 'hello sir');
+      await tester.pump();
+      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Message not sent'), findsOneWidget);
+      expect(
+        find.text(
+          'A recipient must set up encrypted messaging before you can send.',
+        ),
+        findsOneWidget,
+      );
+    });
   });
+}
+
+class _FailingSendMessagesRepository extends MessagesRepository {
+  @override
+  Future<ChatMessage> sendMessageAsync(
+    String threadId, {
+    String body = '',
+    MessageAttachment? attachment,
+    AppLinkRef? sharedRef,
+    String? replyToId,
+    String? senderIdOverride,
+  }) async {
+    throw StateError(
+      'A recipient must set up encrypted messaging before you can send.',
+    );
+  }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/security/message_cipher.dart';
+import 'package:tradex/core/security/private_message_service.dart';
 
 void main() {
   final cipher = MessageCipher();
@@ -120,4 +121,84 @@ void main() {
       throwsA(anything),
     );
   });
+
+  test('newIdentity yields clamped bytes so signing keys survive seed reload', () async {
+    final identity = await cipher.newIdentity();
+    final seed = await identity.extractPrivateKeyBytes();
+    final reloaded = await X25519().newKeyPairFromSeed(seed);
+    expect(
+      (await cipher.signingPublicKey(reloaded)).bytes,
+      (await cipher.signingPublicKey(identity)).bytes,
+    );
+  });
+
+  test(
+    'identityFromSeedBytes preserves unclamped WebCrypto seeds and decryptWithKeys recovers self rows',
+    () async {
+      // Unclamped scalar bits mimic BrowserX25519 jwk.d bytes saved prior to clamping fix.
+      final unclampedSeed = List<int>.generate(32, (i) => i + 1);
+      final clamped = await X25519().newKeyPairFromSeed(unclampedSeed);
+      final rawRestored = await cipher.identityFromSeedBytes(unclampedSeed);
+      final publishedPublic = await rawRestored.extractPublicKey();
+      final publishedSigning = await cipher.signingPublicKey(rawRestored);
+      expect(
+        (await cipher.signingPublicKey(clamped)).bytes,
+        isNot(publishedSigning.bytes),
+      );
+
+      final normalSelfCiphertext = await cipher.encrypt(
+        'hello from raw seed',
+        context: 'workspace/alice',
+        sender: 'alice',
+        identity: rawRestored,
+        recipients: {'alice': publishedPublic},
+      );
+      expect(
+        await PrivateMessageService().decryptWithKeys(
+          normalSelfCiphertext,
+          context: 'workspace/alice',
+          user: 'alice',
+          sender: 'alice',
+          identity: rawRestored,
+          senderPublicKey: publishedPublic,
+          senderSigningKey: publishedSigning,
+        ),
+        'hello from raw seed',
+      );
+
+      final skewedSelfCiphertext = await cipher.encrypt(
+        'written before fix',
+        context: 'workspace/alice',
+        sender: 'alice',
+        identity: clamped,
+        recipients: {'alice': publishedPublic},
+      );
+      expect(
+        await PrivateMessageService().decryptWithKeys(
+          skewedSelfCiphertext,
+          context: 'workspace/alice',
+          user: 'alice',
+          sender: 'alice',
+          identity: rawRestored,
+          senderPublicKey: publishedPublic,
+          senderSigningKey: publishedSigning,
+        ),
+        'written before fix',
+      );
+
+      // Never allow mismatched peer signatures even if clamped differs from raw.
+      await expectLater(
+        PrivateMessageService().decryptWithKeys(
+          skewedSelfCiphertext,
+          context: 'workspace/alice',
+          user: 'alice',
+          sender: 'bob',
+          identity: rawRestored,
+          senderPublicKey: publishedPublic,
+          senderSigningKey: publishedSigning,
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    },
+  );
 }

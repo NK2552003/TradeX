@@ -1190,13 +1190,18 @@ class MessagesRepository extends ChangeNotifier {
           'created_at': message.sentAt.toIso8601String(),
         });
         if (_isUuid(threadId)) {
-          await client
-              .from('chat_threads')
-              .update({
-                'last_message_preview': 'Encrypted message',
-                'last_message_at': message.sentAt.toIso8601String(),
-              })
-              .eq('id', threadId);
+          // Trigger update_chat_thread_last_message already updates chat_threads
+          // on insert; keep this best-effort so secondary metadata errors do not
+          // mark an already-persisted message as failed.
+          try {
+            await client
+                .from('chat_threads')
+                .update({
+                  'last_message_preview': 'Encrypted message',
+                  'last_message_at': message.sentAt.toIso8601String(),
+                })
+                .eq('id', threadId);
+          } catch (_) {}
         }
         _setStatus(threadId, message.id, MessageStatus.sent);
       } catch (e) {

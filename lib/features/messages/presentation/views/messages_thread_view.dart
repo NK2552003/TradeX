@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -94,15 +95,42 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
     super.dispose();
   }
 
+  String _friendlySendError(Object error) {
+    if (error is StateError) return error.message;
+    if (error is FormatException) return error.message;
+    return '$error';
+  }
+
+  Future<void> _sendWithFeedback({
+    String body = '',
+    MessageAttachment? attachment,
+    String? replyToId,
+  }) async {
+    try {
+      await widget.repository.sendMessageAsync(
+        widget.threadId,
+        body: body,
+        attachment: attachment,
+        replyToId: replyToId,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      UiToastScope.maybeOf(context)?.show(
+        UiToastData(
+          title: 'Message not sent',
+          message: _friendlySendError(e),
+          intent: UiIntent.danger,
+        ),
+      );
+    }
+  }
+
   void _sendText(String body) {
-    widget.repository.sendMessage(
-      widget.threadId,
-      body: body,
-      replyToId: _replyingTo?.id,
-    );
+    final replyToId = _replyingTo?.id;
     if (_replyingTo != null) {
       setState(() => _replyingTo = null);
     }
+    unawaited(_sendWithFeedback(body: body, replyToId: replyToId));
   }
 
   Future<void> _sendAttachment(MessageAttachmentKind kind) async {
@@ -110,18 +138,12 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
       if (kind == MessageAttachmentKind.chart) {
         final MessageAttachment? att = await MessageShareChartDialog.show(context);
         if (att == null || !mounted) return;
-        widget.repository.sendMessage(
-          widget.threadId,
-          attachment: att,
-        );
+        await _sendWithFeedback(attachment: att);
         return;
       } else if (kind == MessageAttachmentKind.tradeSetup) {
         final MessageAttachment? att = await MessageTradeSetupDialog.show(context);
         if (att == null || !mounted) return;
-        widget.repository.sendMessage(
-          widget.threadId,
-          attachment: att,
-        );
+        await _sendWithFeedback(attachment: att);
         return;
       } else if (kind == MessageAttachmentKind.image) {
         final ImagePicker picker = ImagePicker();

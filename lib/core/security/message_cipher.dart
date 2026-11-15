@@ -8,7 +8,22 @@ class MessageCipher {
   final _aes = AesGcm.with256bits();
   final _dh = X25519();
 
-  Future<SimpleKeyPair> newIdentity() => _dh.newKeyPair();
+  Future<SimpleKeyPair> newIdentity() async {
+    final raw = await _dh.newKeyPair();
+    return _dh.newKeyPairFromSeed(await raw.extractPrivateKeyBytes());
+  }
+
+  /// Restores an identity preserving the exact seed bytes that were stored at
+  /// creation time so legacy unclamped WebCrypto keys match their published
+  /// Ed25519 signing key.
+  Future<SimpleKeyPair> identityFromSeedBytes(List<int> seed) async {
+    final clamped = await _dh.newKeyPairFromSeed(seed);
+    return SimpleKeyPairData(
+      seed,
+      publicKey: await clamped.extractPublicKey(),
+      type: KeyPairType.x25519,
+    );
+  }
 
   Future<SimpleKeyPair> _signingIdentity(SimpleKeyPair identity) async {
     final seed = await Hkdf(hmac: Hmac.sha256(), outputLength: 32).deriveKey(

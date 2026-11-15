@@ -21,7 +21,7 @@ class PrivateMessageService {
         'Unlock encrypted messaging with your recovery passphrase.',
       );
     }
-    return X25519().newKeyPairFromSeed(base64Decode(encoded));
+    return cipher.identityFromSeedBytes(base64Decode(encoded));
   }
 
   /// Checks identity existence and local key unlock state in a single query.
@@ -176,17 +176,75 @@ class PrivateMessageService {
     // Historic plaintext remains readable; only new writes are encrypted.
     if (!value.startsWith(MessageCipher.prefix)) return value;
     final user = owner;
-    final plain = await cipher.decrypt(
+    final identity = await _identity(user);
+    final senderPublicKey = await publicKey(sender);
+    final senderSigningKey = await signingPublicKey(sender);
+    final plain = await decryptWithKeys(
       value,
       context: context,
-      recipient: user,
+      user: user,
       sender: sender,
-      identity: await _identity(user),
-      senderKey: await publicKey(sender),
-      signingKey: await signingPublicKey(sender),
+      identity: identity,
+      senderPublicKey: senderPublicKey,
+      senderSigningKey: senderSigningKey,
     );
     if (owner != user) throw StateError('Account changed. Please try again.');
     return plain;
+  }
+
+  /// Opens an encrypted payload using already-resolved keys, with single-user
+  /// recovery for self-encrypted rows signed during WebCrypto clamping skew.
+  Future<String> decryptWithKeys(
+    String value, {
+    required String context,
+    required String user,
+    required String sender,
+    required SimpleKeyPair identity,
+    required SimplePublicKey senderPublicKey,
+    required SimplePublicKey senderSigningKey,
+  }) async {
+    try {
+      return await cipher.decrypt(
+        value,
+        context: context,
+        recipient: user,
+        sender: sender,
+        identity: identity,
+        senderKey: senderPublicKey,
+        signingKey: senderSigningKey,
+      );
+    } on FormatException catch (error) {
+      if (sender != user ||
+          !error.message.contains('Message signature is invalid')) {
+        rethrow;
+      }
+      // Recover self-encrypted rows written while _identity clamped WebCrypto
+      // seeds during signing against an unclamped published signing key.
+      final clamped = await X25519().newKeyPairFromSeed(
+        await identity.extractPrivateKeyBytes(),
+      );
+      final clampedSigningKey = await cipher.signingPublicKey(clamped);
+      if (_bytesEqual(clampedSigningKey.bytes, senderSigningKey.bytes)) {
+        rethrow;
+      }
+      return cipher.decrypt(
+        value,
+        context: context,
+        recipient: user,
+        sender: sender,
+        identity: identity,
+        senderKey: senderPublicKey,
+        signingKey: clampedSigningKey,
+      );
+    }
+  }
+
+  bool _bytesEqual(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   Future<List<String>> participants(String thread) async {
