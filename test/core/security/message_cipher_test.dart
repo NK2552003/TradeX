@@ -201,4 +201,40 @@ void main() {
       );
     },
   );
+
+  test(
+    'cross-subdomain handoff seals seed cleanly and rejects wrong account AAD or corruption',
+    () async {
+      final pair = await cipher.newIdentity();
+      final seed = await pair.extractPrivateKeyBytes();
+      final wrappingKey =
+          await (await AesGcm.with256bits().newSecretKey()).extractBytes();
+
+      final envelope = await PrivateMessageService.sealHandoffSeed(
+        seed: seed,
+        wrappingKey: wrappingKey,
+        userId: 'user-alice',
+      );
+      final restored = await PrivateMessageService.openHandoffSeed(
+        encodedEnvelope: envelope,
+        wrappingKey: wrappingKey,
+        userId: 'user-alice',
+      );
+      expect(restored, equals(seed));
+
+      final wrongUser = await PrivateMessageService.openHandoffSeed(
+        encodedEnvelope: envelope,
+        wrappingKey: wrappingKey,
+        userId: 'user-bob',
+      );
+      expect(wrongUser, isNull);
+
+      final malformed = await PrivateMessageService.openHandoffSeed(
+        encodedEnvelope: 'not-base64!',
+        wrappingKey: wrappingKey,
+        userId: 'user-alice',
+      );
+      expect(malformed, isNull);
+    },
+  );
 }

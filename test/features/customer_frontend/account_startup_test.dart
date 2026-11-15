@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/account_access_repository.dart';
+import 'package:tradex/core/security/private_messaging_gate.dart';
 import 'package:tradex/core/widgets/account_access_gate.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/presentation/pages/splash_screen.dart';
@@ -66,4 +67,35 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'AccountAccessGate does not wrap global non-E2EE screens in PrivateMessagingGate',
+    (tester) async {
+      final repository = _Access();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AccountAccessGate(
+            repository: repository,
+            destination: 'workspace',
+            onAccess: (_) {},
+            builder: (_) => const Text('TRADER_WORKSPACE'),
+          ),
+        ),
+      );
+      repository.ready.complete(
+        AccountAccess(
+          userId: 'u1',
+          status: 'active',
+          role: UserRole.customer,
+          tier: AppTier.free,
+          features: const {'workspace': true},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PrivateMessagingGate), findsNothing);
+      expect(find.text('TRADER_WORKSPACE'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }

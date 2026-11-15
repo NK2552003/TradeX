@@ -1,5 +1,6 @@
 import 'package:tradex/features/market_data/presentation/market_root_screen.dart'
     deferred as deferred_market_root;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
@@ -13,7 +14,9 @@ import 'package:tradex/core/data/session_trader.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/linking/link_graph.dart';
+import 'package:tradex/core/navigation/customer_routes.dart';
 import 'package:tradex/core/navigation/role_navigation_config.dart';
+import 'package:tradex/core/security/private_messaging_gate.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_analytics_page.dart'
     deferred as deferred_admin_analytics;
 import 'package:tradex/features/admin_console/presentation/pages/admin_audit_log_page.dart'
@@ -783,6 +786,24 @@ class _AppScaffoldState extends State<AppScaffold> {
         return false;
       }
     }
+    final UserRole targetRole = role;
+    final String nextDest = targetRole == UserRole.customer
+        ? 'workspace'
+        : 'overview';
+    if (kIsWeb &&
+        widget.onDestinationChanged != null &&
+        CustomerRoute.crossOriginRedirectUri(
+              Uri(path: '/$nextDest'),
+              currentHost: Uri.base.host,
+              activeRole: targetRole,
+            ) !=
+            null) {
+      _session.activeRole.value = role;
+      widget.onRoleChanged?.call(role);
+      AuthSessionStorage.saveLastDestination(nextDest);
+      widget.onDestinationChanged?.call(nextDest);
+      return true;
+    }
     _session.activeRole.value = role;
     setState(() {
       _previewRoleOverride = role;
@@ -886,6 +907,18 @@ class _AppScaffoldState extends State<AppScaffold> {
     if (_selectedId == id &&
         !_showAffiliateApplication &&
         !id.startsWith('community')) {
+      return;
+    }
+    if (kIsWeb &&
+        widget.onDestinationChanged != null &&
+        CustomerRoute.crossOriginRedirectUri(
+              Uri(path: '/$id'),
+              currentHost: Uri.base.host,
+              activeRole: _effectiveRole,
+            ) !=
+            null) {
+      AuthSessionStorage.saveLastDestination(id);
+      widget.onDestinationChanged?.call(id);
       return;
     }
     _linkedOrigins.clear();
@@ -1066,6 +1099,21 @@ class _AppScaffoldState extends State<AppScaffold> {
                         AppLinkKind.note => 'notes',
                       }));
     if (!_canReach(destination)) return;
+    final linkedRef = ref.copyWith(
+      kind: resolvedKind,
+      isPublicContext: isPublic,
+    );
+    if (kIsWeb &&
+        widget.onOpenRecord != null &&
+        CustomerRoute.crossOriginRedirectUri(
+              CustomerRoute.forRecord(linkedRef),
+              currentHost: Uri.base.host,
+              activeRole: _effectiveRole,
+            ) !=
+            null) {
+      widget.onOpenRecord?.call(linkedRef);
+      return;
+    }
     _linkedOrigins.add((destination: _selectedId, request: _linkRequest));
     setState(() {
       if (_selectedId != destination) _rememberDestination(destination);
@@ -1343,30 +1391,38 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   Widget _messagesPage() {
-    return MessagesRootScreen(
-      communityRepository: _communityRepo,
-      key: _messagesKey,
-      userRole: _effectiveRole,
-      currentUser: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      repository: _messagesRepo,
-      searchQuery: _messagesQuery,
-      openRequest: _linkRequest,
+    return PrivateMessagingGate(
+      key: ValueKey('e2ee-messages-${widget.userId}'),
+      onLogout: widget.onLogout,
+      builder: (BuildContext _) => MessagesRootScreen(
+        communityRepository: _communityRepo,
+        key: _messagesKey,
+        userRole: _effectiveRole,
+        currentUser: _chromeIdentity,
+        onSubpageChanged: _onSubpageChanged,
+        onOpenRef: _openLinkRef,
+        repository: _messagesRepo,
+        searchQuery: _messagesQuery,
+        openRequest: _linkRequest,
+      ),
     );
   }
 
   Widget _aiAssistantPage() {
-    return CopilotScreen(
-      key: _aiKey,
-      userRole: _effectiveRole,
-      currentUser: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      repository: _aiRepo,
-      initialPrompt: _aiInitialPrompt,
-      searchQuery: _aiQuery,
-      openRequest: _linkRequest,
+    return PrivateMessagingGate(
+      key: ValueKey('e2ee-ai-${widget.userId}'),
+      onLogout: widget.onLogout,
+      builder: (BuildContext _) => CopilotScreen(
+        key: _aiKey,
+        userRole: _effectiveRole,
+        currentUser: _chromeIdentity,
+        onSubpageChanged: _onSubpageChanged,
+        onOpenRef: _openLinkRef,
+        repository: _aiRepo,
+        initialPrompt: _aiInitialPrompt,
+        searchQuery: _aiQuery,
+        openRequest: _linkRequest,
+      ),
     );
   }
 

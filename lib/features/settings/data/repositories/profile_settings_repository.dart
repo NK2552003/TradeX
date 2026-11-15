@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/config/supabase_storage_egress.dart';
+import 'package:tradex/core/security/private_message_service.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/data/session_trader.dart';
@@ -707,6 +708,18 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
           password: currentPassword,
         );
         await client.auth.updateUser(UserAttributes(password: newPassword));
+        try {
+          if (!PrivateMessageService.instance.isLocallyUnlockedFast) {
+            await PrivateMessageService.instance.trySilentUnlockWithPassword(
+              currentPassword,
+            );
+          }
+          if (PrivateMessageService.instance.isLocallyUnlockedFast) {
+            await PrivateMessageService.instance.rekeyBackup(newPassword);
+          }
+        } catch (e) {
+          debugPrint('[ProfileSettingsRepository] E2EE rekey skipped: $e');
+        }
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] changePassword error: $e');
         rethrow;

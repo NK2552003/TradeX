@@ -44,7 +44,37 @@ class _PrivateMessagingGateState extends State<PrivateMessagingGate> {
   @override
   void initState() {
     super.initState();
-    _check(initial: true);
+    final fastUnlocked =
+        widget.checkStatus == null &&
+        PrivateMessageService.instance.isLocallyUnlockedFast;
+    if (fastUnlocked) {
+      _ready = true;
+      _exists = true;
+      _initializing = false;
+      _loading = false;
+      _verifySilentlyInBackground();
+    } else {
+      _check(initial: true);
+    }
+  }
+
+  Future<void> _verifySilentlyInBackground() async {
+    try {
+      if (!SupabaseConfig.isConfigured) return;
+      final status = await PrivateMessageService.instance.checkStatus();
+      if (!mounted) return;
+      if (!status.unlocked) {
+        setState(() {
+          _ready = false;
+          _exists = status.hasIdentity;
+          _checkFailed = false;
+          _initializing = false;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      // Keep already-unlocked local identity active on transient network blips.
+    }
   }
 
   @override
@@ -401,7 +431,7 @@ class _PrivateMessagingGateState extends State<PrivateMessagingGate> {
     final String subtitle = _checkFailed
         ? 'We could not check your encryption identity right now.'
         : _exists
-        ? 'Enter your recovery passphrase to restore your messaging key on this device.'
+        ? 'Enter your account password (or legacy recovery passphrase) to unlock private messages and encrypted AI workspace history on this device.'
         : 'Set a recovery passphrase to protect your direct messages and AI workspace.';
 
     return Column(
@@ -477,7 +507,7 @@ class _PrivateMessagingGateState extends State<PrivateMessagingGate> {
           UiCallout(
             title: _exists ? 'Restore on this device' : 'Your recovery passphrase',
             message: _exists
-                ? 'Enter the same recovery passphrase you created on your first device. Your unlocked key stays encrypted locally.'
+                ? 'Signed-in password accounts unlock automatically. If you signed in with Google or changed devices, enter your TradeX password (or legacy recovery passphrase) once.'
                 : 'Choose a unique passphrase of at least 16 characters and save it in a password manager. We cannot reset or recover it for you. New messages and AI workspace saves are encrypted before upload; AI replies still read prompts server-side.',
             intent: UiIntent.info,
             icon: Icons.lock_outline_rounded,

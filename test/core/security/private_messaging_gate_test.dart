@@ -161,5 +161,32 @@ void main() {
         expect(find.text('UNLOCKED_HOME'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'accepts shorter account login password when unlocking an existing identity',
+      (tester) async {
+        String? unlockedWith;
+        await tester.pumpWidget(
+          _wrapGate(
+            PrivateMessagingGate(
+              checkStatus: () async => (unlocked: false, hasIdentity: true),
+              unlockWithPassphrase: (secret) async {
+                unlockedWith = secret;
+              },
+              builder: (_) => const Text('UNLOCKED_HOME'),
+            ),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+
+        await tester.enterText(find.byType(TextField).first, 'pass1234');
+        await tester.ensureVisible(find.text('Unlock history'));
+        await tester.tap(find.text('Unlock history'));
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(unlockedWith, 'pass1234');
+        expect(find.text('UNLOCKED_HOME'), findsOneWidget);
+      },
+    );
   });
 }

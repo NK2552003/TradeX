@@ -4,6 +4,7 @@ import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/security/private_message_service.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
 import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
@@ -32,6 +33,33 @@ class SupabaseAuthBackendService implements AuthRepository {
 
   UserProfileModel? _currentUserProfile;
   AffiliateProfileModel? _currentAffiliateProfile;
+  String? _pendingSignupEmail;
+  String? _pendingSignupPassword;
+
+  /// Clears any ephemeral signup password cached in memory while awaiting OTP
+  /// confirmation.
+  void clearPendingSignupEncryption() {
+    _pendingSignupEmail = null;
+    _pendingSignupPassword = null;
+  }
+
+  /// Completes automatic E2EE identity setup immediately after signup OTP
+  /// confirmation using the password the user just registered with.
+  Future<void> completePendingSignupEncryption([String? email]) async {
+    final pendingPassword = _pendingSignupPassword;
+    final pendingEmail = _pendingSignupEmail;
+    _pendingSignupEmail = null;
+    _pendingSignupPassword = null;
+    if (pendingPassword == null || pendingPassword.isEmpty) return;
+    if (email != null &&
+        pendingEmail != null &&
+        email.trim().toLowerCase() != pendingEmail.trim().toLowerCase()) {
+      return;
+    }
+    await PrivateMessageService.instance.trySilentUnlockWithPassword(
+      pendingPassword,
+    );
+  }
 
   UserProfileModel? get currentUserProfile =>
       _currentUserProfile ?? AuthBackendService.instance.currentUserProfile;
@@ -217,6 +245,16 @@ class SupabaseAuthBackendService implements AuthRepository {
 
       final bool requiresVerification =
           authResponse.session == null && user.emailConfirmedAt == null;
+
+      if (requiresVerification) {
+        _pendingSignupEmail = cleanEmail;
+        _pendingSignupPassword = password;
+      } else {
+        clearPendingSignupEncryption();
+        await PrivateMessageService.instance.trySilentUnlockWithPassword(
+          password,
+        );
+      }
 
       return AuthResult.success(
         profile: userProfile,
@@ -429,6 +467,11 @@ class SupabaseAuthBackendService implements AuthRepository {
         profile: userProfile,
         affiliateProfile: _currentAffiliateProfile,
         token: authResponse.session?.accessToken,
+      );
+
+      clearPendingSignupEncryption();
+      await PrivateMessageService.instance.trySilentUnlockWithPassword(
+        password,
       );
 
       return AuthResult.success(

@@ -128,11 +128,11 @@ limit 50;
 ## 4. Deployment Commands
 
 ```bash
-# 1. Push the persistent runtime log migration (+ storage egress migration)
-supabase db push
+# 1. Push the persistent runtime log migration (+ storage egress migration) to the linked remote DB
+npx supabase db push --remote
 
-# 2. Deploy all instrumented Edge Functions
-supabase functions deploy --use-api
+# 2. Deploy all instrumented Edge Functions without local Docker
+npx supabase functions deploy --use-api
 
 # 3. Redeploy Cloudflare Worker with Observability logs/traces enabled
 npx wrangler deploy

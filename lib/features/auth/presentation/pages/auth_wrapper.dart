@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/config/startup_ready.dart';
+import 'package:tradex/core/security/private_message_service.dart';
 import 'package:tradex/core/billing/revenuecat_billing.dart';
 import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
@@ -277,6 +278,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
             final signedInId = user.id;
             unawaited(RevenueCatBilling.identify(signedInId));
+            unawaited(PrivateMessageService.instance.warmFromCache());
 
             // Valid active Supabase session confirmed: fetch profile
             UserProfileModel? profile = await _authRepository.getProfile(
@@ -465,6 +467,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   void _handleLogout() async {
+    SupabaseAuthBackendService.instance.clearPendingSignupEncryption();
     await _authRepository.signOut();
     try {
       await RevenueCatBilling.clearIdentity();
@@ -631,7 +634,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 identifier: _sessionState.email,
                 purpose: OtpPurpose.signupVerification,
                 repository: SupabaseAuthOtpRepository(),
-                onVerified: (token) {
+                onVerified: (token) async {
+                  await SupabaseAuthBackendService.instance
+                      .completePendingSignupEncryption(_sessionState.email);
                   _navigateToStage(
                     _sessionState.role == UserRole.affiliate
                         ? AuthStage.affiliateApplication

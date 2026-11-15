@@ -1,5 +1,3 @@
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/security/private_messaging_gate.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -46,6 +44,7 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
   void initState() {
     super.initState();
     AppVisibility.instance.addListener(_onVisibilityChanged);
+    _access = AccountAccessRepository.cachedForCurrentUser();
     _refresh();
   }
 
@@ -143,13 +142,7 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
       if (mounted) finishWebStartup();
     });
     if (_error == null && _access?.isActive == true) {
-      return PrivateMessagingGate(
-        key: ValueKey(
-          SupabaseConfig.client?.auth.currentUser?.id ?? widget.repository,
-        ),
-        builder: widget.builder,
-        onLogout: widget.onLogout,
-      );
+      return widget.builder(context);
     }
 
     final bool isSuspended = _access?.status == 'suspended';

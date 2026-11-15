@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/config/cross_subdomain_storage.dart';
+import 'package:tradex/core/security/private_message_service.dart';
 import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
@@ -78,6 +79,8 @@ class AuthSessionStorage {
       }
       CrossSubdomainState.removeFlag('ax_role');
       CrossSubdomainState.removeFlag('ax_post_auth_next');
+      CrossSubdomainState.removeFlag('ax_access_v1');
+      await PrivateMessageService.clearLocalUnlockCache(userId: userId);
     } catch (e) {
       debugPrint('[AuthSessionStorage] Failed to clear session: $e');
     }
