@@ -8,6 +8,7 @@ import 'core/navigation/feature_location_scope.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradex/core/navigation/customer_routes.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -116,7 +117,10 @@ class _TradeXAppState extends State<TradeXApp> {
   }
 
   Page<void> _routePage(BuildContext context, GoRouterState state) {
-    final route = CustomerRoute.parse(state.uri);
+    final route = CustomerRoute.parse(
+      state.uri,
+      host: kIsWeb ? Uri.base.host : null,
+    );
     if (!route.valid) {
       WidgetsBinding.instance.addPostFrameCallback((_) => finishWebStartup());
       return NoTransitionPage(

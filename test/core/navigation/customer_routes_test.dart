@@ -118,4 +118,35 @@ void main() {
       isTrue,
     );
   });
+
+  test('app and sibling subdomains resolve when GoRouter passes relative root URI', () {
+    final appRoute = CustomerRoute.parse(
+      Uri(path: '/'),
+      host: 'app.alphajournal.in',
+    );
+    expect(appRoute.destination, 'workspace');
+    expect(appRoute.stage, AuthStage.login);
+    expect(CustomerRoute.requiredRoleForSubdomain('app.alphajournal.in'), isNull);
+    expect(
+      CustomerRoute.canAccessDestination(
+        destination: 'workspace',
+        role: UserRole.customer,
+        host: 'app.alphajournal.in',
+      ),
+      isTrue,
+    );
+
+    expect(
+      CustomerRoute.parse(Uri(path: '/'), host: 'community.alphajournal.in').destination,
+      'community_feed',
+    );
+    expect(
+      CustomerRoute.parse(Uri(path: '/'), host: 'admin.alphajournal.in').destination,
+      'admin_console',
+    );
+    expect(
+      CustomerRoute.parse(Uri(path: '/'), host: 'affiliate.alphajournal.in').destination,
+      'affiliate_application',
+    );
+  });
 }

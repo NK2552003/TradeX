@@ -61,7 +61,7 @@ class CustomerRoute {
     return true;
   }
 
-  static CustomerRoute parse(Uri uri) {
+  static CustomerRoute parse(Uri uri, {String? host}) {
     if (uri.scheme == 'tradex' &&
         uri.host == 'auth' &&
         uri.path == '/callback') {
@@ -91,24 +91,29 @@ class CustomerRoute {
     }
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
     if (segments.isEmpty) {
-      final host = uri.host.toLowerCase();
-      if (host.startsWith('community.')) {
+      final effectiveHost = (uri.host.isNotEmpty ? uri.host : (host ?? ''))
+          .trim()
+          .toLowerCase();
+      if (effectiveHost.startsWith('community.')) {
         return const CustomerRoute(destination: 'community_feed');
       }
-      if (host.startsWith('admin.')) {
+      if (effectiveHost.startsWith('admin.')) {
         return const CustomerRoute(
           destination: 'admin_console',
           stage: AuthStage.login,
         );
       }
-      if (host.startsWith('affiliate.')) {
+      if (effectiveHost.startsWith('affiliate.')) {
         return const CustomerRoute(
           destination: 'affiliate_application',
           stage: AuthStage.login,
         );
       }
-      if (host.startsWith('app.')) {
-        return const CustomerRoute(destination: 'workspace');
+      if (effectiveHost.startsWith('app.')) {
+        return const CustomerRoute(
+          destination: 'workspace',
+          stage: AuthStage.login,
+        );
       }
       return const CustomerRoute();
     }
