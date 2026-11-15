@@ -743,15 +743,17 @@ class _AppNotificationsOverlayState extends State<AppNotificationsOverlay> {
   }
 
   Widget _buildPostThumbnail(String imageUrl, UiTheme theme) {
+    final double thumbSize = context.sz(42);
     return ClipRRect(
       borderRadius: context.radius(theme.radii.sm),
       child: SizedBox(
-        width: context.sz(42),
-        height: context.sz(42),
-        child: Image.network(
-          imageUrl,
+        width: thumbSize,
+        height: thumbSize,
+        child: UiRemoteImage(
+          url: imageUrl,
+          width: thumbSize,
+          height: thumbSize,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _buildSnippetThumbnail(theme),
         ),
       ),
     );

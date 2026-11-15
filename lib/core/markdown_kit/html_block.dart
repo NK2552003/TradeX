@@ -724,10 +724,11 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
     if (resolveImage != null) {
       child = resolveImage!(uri);
     } else if (uri.scheme == 'http' || uri.scheme == 'https') {
-      child = Image.network(
-        src,
+      child = UiRemoteImage(
+        url: src,
         width: width,
         height: height,
+        fit: BoxFit.contain,
         semanticLabel: alt.isEmpty ? null : alt,
       );
     } else {

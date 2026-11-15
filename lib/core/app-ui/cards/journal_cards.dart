@@ -393,16 +393,18 @@ class AppScreenshotImportCard extends StatelessWidget {
                   color: theme.colors.border,
                   width: theme.borders.hairline,
                 ),
-                image: imageUrl == null
-                    ? null
-                    : DecorationImage(
-                        image: NetworkImage(imageUrl!),
-                        fit: BoxFit.cover,
-                      ),
               ),
               alignment: Alignment.center,
               child: imageUrl != null
-                  ? null
+                  ? ClipRRect(
+                      borderRadius: context.radius(theme.radii.lg),
+                      child: SizedBox.expand(
+                        child: UiRemoteImage(
+                          url: imageUrl!,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    )
                   : Column(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[

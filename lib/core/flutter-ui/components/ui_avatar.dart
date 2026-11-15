@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
 import 'ui_common.dart';
+import 'ui_remote_image.dart';
 
 /// Avatar with initials fallback, presence dot and stacked group variant.
 class UiAvatar extends StatelessWidget {
@@ -57,6 +58,10 @@ class UiAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final double dim = _dim(context);
+    final int? targetWidthPx = UiRemoteImage.resolveCacheWidth(
+      context,
+      logicalWidth: dim,
+    );
     Widget avatar = Container(
       width: dim,
       height: dim,
@@ -79,7 +84,10 @@ class UiAvatar extends StatelessWidget {
             : (imageUrl == null || imageUrl!.isEmpty)
             ? null
             : DecorationImage(
-                image: _resolveImageProvider(imageUrl!),
+                image: _resolveImageProvider(
+                  imageUrl!,
+                  targetWidthPx: targetWidthPx,
+                ),
                 fit: BoxFit.cover,
                 onError: (Object error, StackTrace? stackTrace) {},
               ),
@@ -220,17 +228,26 @@ class UiAvatarGroup extends StatelessWidget {
   }
 }
 
-ImageProvider _resolveImageProvider(String url) {
+ImageProvider _resolveImageProvider(String url, {int? targetWidthPx}) {
   if (url.startsWith('data:image')) {
     final int commaIndex = url.indexOf(',');
     if (commaIndex != -1) {
       try {
         final String base64Str = url.substring(commaIndex + 1);
-        return MemoryImage(base64Decode(base64Str));
+        final provider = MemoryImage(base64Decode(base64Str));
+        return ResizeImage.resizeIfNeeded(targetWidthPx, null, provider);
       } catch (e) {
         // Fall back to NetworkImage on parse failure
       }
     }
   }
-  return NetworkImage(url);
+  final resizedUrl = UiRemoteImage.resizeImageUrl(
+    url,
+    targetWidthPx: targetWidthPx,
+  );
+  return ResizeImage.resizeIfNeeded(
+    targetWidthPx,
+    null,
+    NetworkImage(resizedUrl),
+  );
 }

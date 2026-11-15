@@ -574,9 +574,24 @@ class MessageBubble extends StatelessWidget {
               child: SizedBox(
                 width: context.sz(260),
                 height: context.sz(140),
-                child: Image.network(
-                  attachment.thumbnailUrl!,
-                  fit: BoxFit.cover,
+                child: Builder(
+                  builder: (BuildContext imgCtx) {
+                    final int? cacheW = UiRemoteImage.resolveCacheWidth(
+                      imgCtx,
+                      logicalWidth: imgCtx.sz(260),
+                    );
+                    return Image(
+                      image: ResizeImage.resizeIfNeeded(
+                        cacheW,
+                        null,
+                        NetworkImage(
+                          UiRemoteImage.resizeImageUrl(
+                            attachment.thumbnailUrl!,
+                            targetWidthPx: cacheW,
+                          ),
+                        ),
+                      ),
+                      fit: BoxFit.cover,
                   loadingBuilder:
                       (
                         BuildContext ctx,
@@ -597,6 +612,8 @@ class MessageBubble extends StatelessWidget {
                       );
                     }
                     return _mediaFallback(context);
+                  },
+                    );
                   },
                 ),
               ),

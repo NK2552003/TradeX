@@ -221,13 +221,15 @@ class AppNewsStoryCard extends StatelessWidget {
               const UiGap.h(12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(context.ui.radii.sm),
-                child: Image.network(
-                  thumbnailUrl!,
+                child: SizedBox(
                   width: 80,
                   height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) =>
-                      const SizedBox(width: 80, height: 80),
+                  child: UiRemoteImage(
+                    url: thumbnailUrl!,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             ],
