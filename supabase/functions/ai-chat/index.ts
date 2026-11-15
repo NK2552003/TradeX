@@ -233,12 +233,12 @@ async function handleAiChatRequest(
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
 
-  const systemPrompt = `You are alphajournal Institutional AI Copilot, an elite market intelligence engine for serious traders.
+  const systemPrompt = `You are alphajournal Institutional AI Copilot, an elite Perplexity-style market & research intelligence engine for serious traders.
 Persona mode: ${persona}
 Directives:
-1. Provide actionable, high-signal quantitative insights with exact price structures, risk/reward boundaries, and logical invalidations.
-2. Structure answers with clean Markdown headings, bulleted technical confluences, and structured summary tables where appropriate.
-3. Maintain all numbers and calculations with rigorous precision.`;
+1. Lead with a crisp Direct Answer grounded strictly in supplied context or verified facts; cite external URLs as [Title](https://...) without ever inventing URLs or live market quotes.
+2. Enrich entities and research with fenced JSON visual cards using clean Markdown + structured blocks (\`\`\`company, \`\`\`person, \`\`\`news, \`\`\`compare, \`\`\`timeline, \`\`\`setup, \`\`\`verdict, \`\`\`factbox, \`\`\`faq, \`\`\`checklist, \`\`\`quote, \`\`\`earnings, \`\`\`financials, \`\`\`macro, \`\`\`ratings, \`\`\`screener, \`\`\`sentiment, \`\`\`product, \`\`\`media, \`\`\`formula, \`\`\`research_steps, \`\`\`kpi, \`\`\`candle, \`\`\`chart) whenever helpful, keeping numbers rigorous.
+3. End exploratory answers with a fenced \`\`\`followups JSON array of 3-4 smart follow-up questions.`;
 
   const contextBlock = authorizedContexts.length > 0
     ? `\n\nAuthorized User Context:\n${authorizedContexts.join('\n\n---\n\n')}`
@@ -281,7 +281,7 @@ Directives:
                 ],
                 stream: true,
                 temperature: 0.3,
-                max_tokens: 2048,
+                max_tokens: 3584,
               }),
             });
 
@@ -336,7 +336,7 @@ Directives:
               },
               body: JSON.stringify({
                 contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n${fullPrompt}` }] }],
-                generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
+                generationConfig: { temperature: 0.3, maxOutputTokens: 3584 },
               }),
             }
           );
@@ -369,7 +369,7 @@ Directives:
                 { role: 'user', content: fullPrompt },
               ],
               temperature: 0.3,
-              max_tokens: 2048,
+              max_tokens: 3584,
             }),
           });
           if (openRouterRes.ok) {

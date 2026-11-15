@@ -160,9 +160,25 @@ class UiRangeMeter extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.xxs)),
           Row(
             children: <Widget>[
-              Text(minLabel ?? fmt(min), style: uiOverline(context)),
+              Flexible(
+                child: Text(
+                  minLabel ?? fmt(min),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: uiOverline(context),
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
               const Spacer(),
-              Text(maxLabel ?? fmt(max), style: uiOverline(context)),
+              Flexible(
+                child: Text(
+                  maxLabel ?? fmt(max),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: uiOverline(context),
+                ),
+              ),
             ],
           ),
         ],

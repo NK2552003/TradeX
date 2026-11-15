@@ -16,17 +16,28 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/markdown_kit/chart_block.dart';
 import 'package:tradex/core/markdown_kit/flowchart/flowchart_view.dart';
+import 'package:tradex/core/markdown_kit/perplexity_card_block.dart';
+import 'package:tradex/core/markdown_kit/perplexity_domain_cards.dart';
+import 'package:tradex/core/markdown_kit/perplexity_parser.dart';
 import 'package:tradex/core/utils/image_export.dart';
 
 /// Registers with [MarkdownBody]/[Markdown] via the `builders: {'pre': ...}`
 /// hook. Routes fenced code blocks to the right renderer by language tag:
 /// ```mermaid``` → an interactive flowchart/diagram, ```chart``` → a native
-/// chart, everything else → a syntax-highlighted code block with a copy
-/// button.
+/// chart, Perplexity entity/research blocks → [PerplexityCardBlock],
+/// everything else → a syntax-highlighted code block with a copy button.
 class RichCodeBlockBuilder extends MarkdownElementBuilder {
-  RichCodeBlockBuilder({required this.dark});
+  RichCodeBlockBuilder({
+    required this.dark,
+    this.onOpenRef,
+    this.onTapUrl,
+    this.onPromptTap,
+  });
 
   final bool dark;
+  final PerplexityOpenRefCallback? onOpenRef;
+  final PerplexityOpenUrlCallback? onTapUrl;
+  final PerplexityPromptCallback? onPromptTap;
 
   // `pre` is a block-level tag. Without this override some flutter_markdown
   // versions never hand the element to a custom builder at all and silently
@@ -49,6 +60,15 @@ class RichCodeBlockBuilder extends MarkdownElementBuilder {
 
     if (langKey == 'mermaid' || langKey == 'flowchart') {
       return _MermaidBlock(source: source.trim(), dark: dark);
+    }
+    if (PerplexityBlockTags.perplexityCards.contains(langKey)) {
+      return PerplexityCardBlock(
+        tag: langKey,
+        spec: source.trim(),
+        onOpenRef: onOpenRef,
+        onTapUrl: onTapUrl,
+        onPromptTap: onPromptTap,
+      );
     }
     const Set<String> chartFenceTags = <String>{
       'chart',

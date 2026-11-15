@@ -14,6 +14,20 @@ part 'copilot_composer_actions.dart';
 
 enum CopilotPromptMode { auto, search, research }
 
+enum CopilotSearchFocus {
+  all('All sources', Icons.public_rounded),
+  finance('Finance', Icons.show_chart_rounded),
+  news('News', Icons.newspaper_outlined),
+  filings('Filings', Icons.description_outlined),
+  macro('Macro', Icons.account_balance_outlined),
+  academic('Academic', Icons.school_outlined),
+  workspace('Workspace', Icons.folder_copy_outlined);
+
+  const CopilotSearchFocus(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
 class CopilotComposer extends StatefulWidget {
   const CopilotComposer({
     super.key,
@@ -26,6 +40,8 @@ class CopilotComposer extends StatefulWidget {
     required this.onNewConversation,
     required this.profiles,
     required this.mode,
+    this.focus = CopilotSearchFocus.all,
+    this.onFocusChanged,
     this.profileId,
     this.attachments = const [],
     this.enabled = true,
@@ -43,6 +59,8 @@ class CopilotComposer extends StatefulWidget {
   final VoidCallback? onAttach;
   final ValueChanged<int> onRemoveAttachment;
   final ValueChanged<CopilotPromptMode> onModeChanged;
+  final CopilotSearchFocus focus;
+  final ValueChanged<CopilotSearchFocus>? onFocusChanged;
   final ValueChanged<String> onSelectProfile;
   final VoidCallback onNewConversation;
   final List<Specialist> profiles;

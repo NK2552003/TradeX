@@ -51,6 +51,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
   bool _attaching = false;
   String? _optimisticPrompt;
   CopilotPromptMode _mode = CopilotPromptMode.auto;
+  CopilotSearchFocus _focus = CopilotSearchFocus.all;
   CopilotController get controller => widget.controller;
 
   @override
@@ -194,6 +195,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
               controller.workspace.settings['research'] == true
           ? _mode.name
           : 'auto',
+      focus: _focus.name,
     );
     if (!mounted) return;
     if (accepted) {
@@ -267,6 +269,29 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                     message.id == controller.streamingMessageId) &&
                 controller.generating,
             sources: message.sources.map((s) => textOf(s, 'url')).toList(),
+            structuredSources: message.sources
+                .where((s) => textOf(s, 'url').isNotEmpty)
+                .map(
+                  (s) => AppAiSource(
+                    url: textOf(s, 'url'),
+                    title: textOf(s, 'title'),
+                    domain: textOf(s, 'domain'),
+                    snippet: textOf(s, 'snippet'),
+                  ),
+                )
+                .toList(),
+            mode: textOf(message.json, 'mode').isEmpty
+                ? null
+                : textOf(message.json, 'mode'),
+            steps:
+                (message.json['steps'] as List?)
+                    ?.map((e) => '$e'.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList() ??
+                const <String>[],
+            focus: textOf(message.json, 'focus').isEmpty
+                ? null
+                : textOf(message.json, 'focus'),
           ),
         )
         .toList();
@@ -420,14 +445,19 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                 profiles: controller.workspace.specialists,
                 profileId: controller.specialist?.id,
                 mode: _mode,
+                focus: _focus,
                 canResearch:
                     controller.workspace.setup['research'] != false &&
                     controller.workspace.settings['research'] == true &&
                     controller.specialist?.research == true,
                 onModeChanged: (mode) => setState(() => _mode = mode),
+                onFocusChanged: (focus) => setState(() => _focus = focus),
                 onSelectProfile: (id) {
                   controller.newConversation(specialist: id);
-                  setState(() => _mode = CopilotPromptMode.auto);
+                  setState(() {
+                    _mode = CopilotPromptMode.auto;
+                    _focus = CopilotSearchFocus.all;
+                  });
                 },
                 onNewConversation: () => controller.newConversation(),
                 onSend: () => _send(
@@ -501,6 +531,9 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                       message: message,
                       minimal: true,
                       onOpenRef: widget.onOpenRef,
+                      onFollowUpTap: controller.generating
+                          ? null
+                          : (prompt) => _send(prompt),
                       onCopy: message.body.isEmpty
                           ? null
                           : () => Clipboard.setData(
@@ -745,61 +778,264 @@ class _Welcome extends StatelessWidget {
   const _Welcome({required this.onSkills, required this.onPrompt});
   final VoidCallback onSkills;
   final ValueChanged<String> onPrompt;
+
+  static const List<
+    ({
+      String tag,
+      String title,
+      String subtitle,
+      IconData icon,
+      String prompt,
+    })
+  >
+  _discoverCards = [
+    (
+      tag: 'Company',
+      title: 'Company Dossier',
+      subtitle: 'Fundamentals, 52W range, analyst ratings & key catalysts',
+      icon: Icons.business_outlined,
+      prompt:
+          'Give me a full Perplexity-style company research dossier on NVIDIA (\$NVDA) with fundamentals, 52-week range, analyst consensus, catalysts, and bull vs bear case.',
+    ),
+    (
+      tag: 'Person',
+      title: 'Person & Exec Profile',
+      subtitle: 'Executives, fund managers, bios, career timelines & holdings',
+      icon: Icons.person_search_outlined,
+      prompt:
+          'Create an executive dossier on Jensen Huang including career timeline, leadership track record, key metrics, and linked companies like \$NVDA.',
+    ),
+    (
+      tag: 'News',
+      title: 'Breaking News',
+      subtitle: 'Live headlines, sentiment tags, cited sources & ticker impact',
+      icon: Icons.newspaper_outlined,
+      prompt:
+          'Summarize today\'s biggest market-moving AI, semiconductor, and central bank news with cited sources and affected stocks.',
+    ),
+    (
+      tag: 'Compare',
+      title: 'Compare & SWOT',
+      subtitle: 'Side-by-side metrics matrix, bull vs bear & SWOT quadrant',
+      icon: Icons.compare_arrows_rounded,
+      prompt:
+          'Compare \$NVDA vs \$AMD vs \$AVGO in a structured comparison matrix and SWOT breakdown for the next 12 months.',
+    ),
+    (
+      tag: 'Trade Setup',
+      title: 'Trade Setup & Risk',
+      subtitle: 'Entry zone, invalidation stop, R:R targets & execution checklist',
+      icon: Icons.candlestick_chart_outlined,
+      prompt:
+          'Analyze \$AAPL technical structure and build a structured trade setup card with entry zone, stop loss, targets, and execution checklist.',
+    ),
+    (
+      tag: 'Deep Answer',
+      title: 'Macro & Concepts',
+      subtitle: 'Fact sheets, historical timelines, verdicts & interactive FAQs',
+      icon: Icons.school_outlined,
+      prompt:
+          'Explain gamma squeeze mechanics and options dealer hedging with a structured fact sheet, historical timeline, and FAQs.',
+    ),
+    (
+      tag: 'Earnings',
+      title: 'Earnings & Beats',
+      subtitle: 'EPS & revenue surprise history, guidance & whisper numbers',
+      icon: Icons.assessment_outlined,
+      prompt:
+          'Analyze \$AAPL latest quarterly earnings with an earnings surprise card, EPS & revenue history table, guidance revision, and outlook.',
+    ),
+    (
+      tag: 'Financials',
+      title: 'Statements & Valuation',
+      subtitle: 'Income statement, cash flow, margins & valuation multiples',
+      icon: Icons.account_balance_wallet_outlined,
+      prompt:
+          'Break down \$MSFT financial statements, revenue & FCF margins, balance sheet health, and valuation multiples in a financials card.',
+    ),
+    (
+      tag: 'Macro',
+      title: 'Macro & Fed Calendar',
+      subtitle: 'CPI, payrolls, central bank rates, yields & macro releases',
+      icon: Icons.account_balance_outlined,
+      prompt:
+          'Give me a Perplexity Macro briefing on US CPI, FOMC policy path, Treasury yields, and upcoming releases using a macro card.',
+    ),
+    (
+      tag: 'Ratings',
+      title: 'Wall St Consensus',
+      subtitle: 'Buy/Hold/Sell split, price targets & recent bank upgrades',
+      icon: Icons.grade_outlined,
+      prompt:
+          'Show Wall Street consensus ratings, low/median/high price targets, and recent bank upgrades/downgrades for \$NVDA in a ratings card.',
+    ),
+    (
+      tag: 'Screener',
+      title: 'Market Screener',
+      subtitle: 'Ranked multi-factor screener tables with scores & signals',
+      icon: Icons.filter_alt_outlined,
+      prompt:
+          'Run a quality + momentum stock screener of top AI semiconductor leaders with valuation, growth, signals, and a screener card.',
+    ),
+    (
+      tag: 'Sentiment',
+      title: 'Sentiment & Quant Math',
+      subtitle: 'Bull/bear flow gauge, put-call skew & executable math formulas',
+      icon: Icons.psychology_outlined,
+      prompt:
+          'Measure market sentiment, options put/call flow, institutional positioning, and Kelly position sizing formula for \$SPY using sentiment and formula cards.',
+    ),
+  ];
+
   @override
-  Widget build(BuildContext context) => Center(
-    child: SingleChildScrollView(
-      padding: EdgeInsets.symmetric(
-        vertical: context.sp(context.ui.spacing.lg),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'What can I help with?',
-            textAlign: TextAlign.center,
-            style: context.uiText.display.copyWith(
-              fontSize: context.fs(context.uiRes.isMobile ? 28 : 36),
-              height: 1.15,
-              letterSpacing: -.8,
-            ),
-          ),
-          UiGap.v(context.ui.spacing.sm),
-          Text(
-            'Ask a trading question and Copilot will choose a skill, or type / to pick one.',
-            textAlign: TextAlign.center,
-            style: context.uiText.body.copyWith(
-              color: context.ui.colors.foregroundMuted,
-            ),
-          ),
-          UiGap.v(context.ui.spacing.lg),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: context.sp(context.ui.spacing.xs),
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    return Center(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.sp(theme.spacing.sm),
+          vertical: context.sp(theme.spacing.lg),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.sz(820)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              UiButton(
-                label: 'Trader skills',
-                icon: Icons.bolt_outlined,
-                variant: UiVariant.soft,
+              UiBadge(
+                label: 'Perplexity Research Mode',
+                icon: Icons.travel_explore_rounded,
                 size: UiSize.sm,
-                onPressed: onSkills,
+                variant: UiBadgeVariant.soft,
+                intent: UiIntent.primary,
               ),
-              for (final prompt in const [
-                'Review a setup',
-                'Research the market',
-                'Work with my notes',
-              ])
-                UiButton(
-                  label: prompt,
-                  variant: UiVariant.ghost,
-                  size: UiSize.sm,
-                  onPressed: () => onPrompt(prompt),
+              UiGap.v(theme.spacing.sm),
+              Text(
+                'What can I help with?',
+                textAlign: TextAlign.center,
+                style: context.uiText.display.copyWith(
+                  fontSize: context.fs(context.uiRes.isMobile ? 28 : 36),
+                  height: 1.15,
+                  letterSpacing: -.8,
                 ),
+              ),
+              UiGap.v(theme.spacing.sm),
+              Text(
+                'Ask anything across companies, people, breaking news, comparisons, trade setups, and macro — delivered in cited visual research cards.',
+                textAlign: TextAlign.center,
+                style: context.uiText.body.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
+              ),
+              UiGap.v(theme.spacing.md),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: context.sp(theme.spacing.xs),
+                runSpacing: context.sp(theme.spacing.xs),
+                children: [
+                  UiButton(
+                    label: 'Trader skills',
+                    icon: Icons.bolt_outlined,
+                    variant: UiVariant.soft,
+                    size: UiSize.sm,
+                    onPressed: onSkills,
+                  ),
+                  for (final prompt in const [
+                    'Review a setup',
+                    'Research the market',
+                    'Work with my notes',
+                  ])
+                    UiButton(
+                      label: prompt,
+                      variant: UiVariant.ghost,
+                      size: UiSize.sm,
+                      onPressed: () => onPrompt(prompt),
+                    ),
+                ],
+              ),
+              UiGap.v(theme.spacing.lg),
+              LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final double gap = context.sp(theme.spacing.sm);
+                  final double maxW = constraints.maxWidth.isFinite
+                      ? constraints.maxWidth
+                      : context.sz(760);
+                  final int cols = maxW >= context.sz(620)
+                      ? 3
+                      : (maxW >= context.sz(410) ? 2 : 1);
+                  final double cardW = (maxW - gap * (cols - 1)) / cols;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (final item in _discoverCards)
+                        SizedBox(
+                          width: cardW,
+                          child: UiCard(
+                            variant: UiCardVariant.outlined,
+                            density: UiDensity.compact,
+                            onTap: () => onPrompt(item.prompt),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      item.icon,
+                                      size: context.sz(16),
+                                      color: theme.colors.primary,
+                                    ),
+                                    UiGap.h(theme.spacing.xs),
+                                    Expanded(
+                                      child: Text(
+                                        item.tag,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: context.uiText.caption.copyWith(
+                                          color: theme.colors.primary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: context.sz(14),
+                                      color: theme.colors.foregroundSubtle,
+                                    ),
+                                  ],
+                                ),
+                                UiGap.v(theme.spacing.xxs),
+                                Text(
+                                  item.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.uiText.label.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                UiGap.v(theme.spacing.xxs),
+                                Text(
+                                  item.subtitle,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.uiText.caption.copyWith(
+                                    color: theme.colors.foregroundMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _AiQuotaBanner extends StatelessWidget {

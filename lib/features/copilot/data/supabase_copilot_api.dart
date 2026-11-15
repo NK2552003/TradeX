@@ -8,6 +8,7 @@ import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/env_config.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/app_session.dart';
+import 'package:tradex/core/markdown_kit/perplexity_parser.dart';
 
 import '../models/trader_skill.dart';
 import '../models/workspace.dart';
@@ -169,7 +170,7 @@ class SupabaseCopilotApi extends CopilotApi {
           .toList();
       final instructions = StringBuffer(textOf(specialist, 'instructions'))
         ..write(
-          '\nAnswer using supplied context. Use web search when available for current information and cite sources. Never claim to have searched without tool results. Report code execution only when the Python tool returns results. Do not claim to schedule work or save documents. Offer document drafts in your reply.',
+          '\nAnswer using supplied context. Use web search when available for current information and cite sources. Never claim to have searched without tool results. Report code execution only when the Python tool returns results. Do not claim to schedule work or save documents. Offer document drafts in your reply.\nPresent rich Perplexity-style structured research using cited [Source](url) links, fenced visual cards (company, person, news, compare, timeline, setup, verdict, factbox, faq, checklist, quote, earnings, financials, macro, ratings, screener, sentiment, product, media, formula, research_steps, chart, kpi), and a trailing followups JSON array.',
         );
       if (specialist['memory'] == true &&
           (state['settings'] as Json)['memory'] == true) {
@@ -220,7 +221,11 @@ class SupabaseCopilotApi extends CopilotApi {
               ? 'auto'
               : 'selected',
         'mode': mode,
+        if (textOf(body, 'focus', 'all') != 'all' &&
+            textOf(body, 'focus').isNotEmpty)
+          'focus': textOf(body, 'focus'),
         'allow_web_search': allowWebSearch,
+        'max_tokens': 4096,
         'attachments': records(body['attachments']),
         'messages': messages
             .skip(messages.length > 40 ? messages.length - 40 : 0)
@@ -276,12 +281,54 @@ class SupabaseCopilotApi extends CopilotApi {
           502,
         );
       }
+      final serverSources = records(result['sources']);
+      final serverSteps =
+          (result['steps'] as List?)
+              ?.map((e) => '$e'.trim())
+              .where((e) => e.isNotEmpty)
+              .toList() ??
+          const <String>[];
+      final rawFocus = textOf(result, 'focus', textOf(input, 'focus'));
+      final normalizedFocus =
+          rawFocus.isEmpty || rawFocus == 'all' ? '' : rawFocus;
+      final parsedMeta = PerplexityAnswerParser.parse(
+        answer,
+        structuredSources:
+            <({String url, String title, String domain, String snippet})>[
+              for (final s in serverSources)
+                (
+                  url: textOf(s, 'url'),
+                  title: textOf(s, 'title'),
+                  domain: textOf(s, 'domain'),
+                  snippet: textOf(s, 'snippet'),
+                ),
+            ],
+        externalSteps: serverSteps,
+        focus: normalizedFocus,
+      );
+      final normalizedSources = <Json>[
+        for (final s in parsedMeta.sources)
+          <String, dynamic>{
+            'url': s.url,
+            if (s.title.isNotEmpty) 'title': s.title,
+            if (s.domain.isNotEmpty) 'domain': s.domain,
+            if (s.snippet.isNotEmpty) 'snippet': s.snippet,
+            if (s.publisher.isNotEmpty) 'publisher': s.publisher,
+            if (s.publishedAt.isNotEmpty) 'publishedAt': s.publishedAt,
+          },
+      ];
+      final rawMode = textOf(result, 'mode', textOf(input, 'mode'));
+      final normalizedMode = rawMode == 'auto' ? '' : rawMode;
       final saved = await _finish(
         store,
         threadId,
         messageId,
         answer,
         'complete',
+        sources: normalizedSources,
+        mode: normalizedMode,
+        steps: serverSteps,
+        focus: normalizedFocus,
       );
       if (saved) {
         for (final chunk in _streamChunks(answer)) {
@@ -316,8 +363,12 @@ class SupabaseCopilotApi extends CopilotApi {
     String id,
     String messageId,
     String text,
-    String status,
-  ) async {
+    String status, {
+    List<Json> sources = const <Json>[],
+    String mode = '',
+    List<String> steps = const <String>[],
+    String focus = '',
+  }) async {
     final result = await store.change((state) {
       final thread = records(
         state['threads'],
@@ -334,6 +385,18 @@ class SupabaseCopilotApi extends CopilotApi {
       }
       message['body'] = text;
       message['status'] = status;
+      if (sources.isNotEmpty) {
+        message['sources'] = sources;
+      }
+      if (mode.isNotEmpty) {
+        message['mode'] = mode;
+      }
+      if (steps.isNotEmpty) {
+        message['steps'] = steps;
+      }
+      if (focus.isNotEmpty) {
+        message['focus'] = focus;
+      }
       live['status'] = status == 'complete' ? 'idle' : 'error';
       live['updatedAt'] = now();
       return {'saved': true};

@@ -24,6 +24,22 @@ class AppCandle {
   bool get isBullish => close >= open;
 }
 
+/// Rich source / citation metadata attached to an [AppAiMessage].
+@immutable
+class AppAiSource {
+  const AppAiSource({
+    required this.url,
+    this.title = '',
+    this.domain = '',
+    this.snippet = '',
+  });
+
+  final String url;
+  final String title;
+  final String domain;
+  final String snippet;
+}
+
 /// Author of a message in the AI assistant thread.
 enum AppAiRole { user, assistant, system }
 
@@ -37,7 +53,12 @@ class AppAiMessage {
     this.pending = false,
     this.error,
     this.sources = const <String>[],
+    this.structuredSources = const <AppAiSource>[],
+    this.followUps = const <String>[],
+    this.steps = const <String>[],
     this.attachments = const <String>[],
+    this.mode,
+    this.focus,
   });
 
   final String id;
@@ -47,7 +68,12 @@ class AppAiMessage {
   final bool pending;
   final String? error;
   final List<String> sources;
+  final List<AppAiSource> structuredSources;
+  final List<String> followUps;
+  final List<String> steps;
   final List<String> attachments;
+  final String? mode;
+  final String? focus;
 }
 
 /// A suggested prompt chip shown above the AI composer.

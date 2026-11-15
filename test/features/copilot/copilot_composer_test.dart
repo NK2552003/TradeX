@@ -13,7 +13,7 @@ class _RecordingController extends CopilotController {
     connected = true;
   }
   bool accept = false;
-  String? prompt, mode;
+  String? prompt, mode, focus;
   List<Json> files = [];
   int sends = 0;
   @override
@@ -21,9 +21,11 @@ class _RecordingController extends CopilotController {
     String prompt, {
     List<Json> attachments = const [],
     String mode = 'auto',
+    String focus = 'all',
   }) async {
     this.prompt = prompt;
     this.mode = mode;
+    this.focus = focus;
     files = attachments;
     sends++;
     return accept;
@@ -135,6 +137,14 @@ void main() {
         await tester.tap(find.text('Deep research'));
       }
       await tester.pumpAndSettle();
+      await tester.tap(
+        find.byWidgetPredicate(
+          (w) => w is UiDropdownMenu && w.semanticLabel == 'Search focus',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Finance'));
+      await tester.pumpAndSettle();
       controller.accept = true;
       await tester.tap(
         find.byWidgetPredicate(
@@ -143,6 +153,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(controller.mode, 'research');
+      expect(controller.focus, 'finance');
       expect(
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
         isEmpty,

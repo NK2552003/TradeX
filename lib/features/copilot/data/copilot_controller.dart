@@ -280,6 +280,7 @@ class CopilotController extends ChangeNotifier {
     String prompt, {
     List<Json> attachments = const [],
     String mode = 'auto',
+    String focus = 'all',
   }) async {
     if (generating || prompt.trim().isEmpty || hasPendingReview) return false;
     if (isAiQuotaBlocked) {
@@ -303,6 +304,7 @@ class CopilotController extends ChangeNotifier {
       'prompt': prompt,
       'attachments': attachments,
       'mode': mode,
+      if (focus != 'all') 'focus': focus,
     });
   }
 

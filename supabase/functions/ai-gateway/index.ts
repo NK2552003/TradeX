@@ -92,6 +92,70 @@ async function generate(
   throw new Error('AI providers are unavailable. Please try again later.');
 }
 
+const PERPLEXITY_FORMAT_PROTOCOL = `
+Perplexity Card & Citation Response Protocol:
+- Open with a concise, factual Direct Answer grounded ONLY in supplied context and verified search/tool results. Cite claims inline as [Title](https://exact-url) — NEVER fabricate URLs or live market prices.
+- Enrich complex entities and research with fenced JSON blocks (\`\`\`tag ... \`\`\`) choosing only the card types that fit the user's question:
+  • company (equities/crypto/ETFs): {"name","ticker","exchange","sector","price","changePercent","marketCap","pe","eps","revenue","margin","high52w","low52w","analystConsensus":{"buy":...,"hold":...,"sell":...},"highlights":[...],"risks":[...],"summary","sparkline":[...]}
+  • person (executives/founders/investors): {"name","role","organization","netWorth","location","bio","highlights":[...],"tickers":["$TICKER"],"timeline":[{"date":"...","title":"...","description":"..."}],"links":[{"title":"...","url":"https://..."}]}
+  • news (events/headlines): {"title","items":[{"title","publisher","publishedAt","sentiment":"bullish|bearish|neutral","summary","tickers":["$TICKER"],"url":"https://..."}]}
+  • compare / bull_bear / swot / versus: {"mode":"bull_bear|swot|versus|pros_cons","title","leftTitle","rightTitle","leftItems":[...],"rightItems":[...],"strengths":[...],"weaknesses":[...],"opportunities":[...],"threats":[...],"columns":["Entity A","Entity B"],"rows":[{"criterion":"...","values":["...","..."],"winnerIndex":0}]}
+  • timeline: {"title","items":[{"date","title","description","status":"done|active|upcoming","impact":"bullish|bearish|neutral"}]}
+  • setup / trade_setup: {"ticker","bias":"long|short","timeframe","entry","stop","targets":[...],"riskReward","confidence","invalidation","confluences":[...]}
+  • verdict / factbox / faq / checklist / quote: concise structured JSON objects ({"title","verdict","confidence","bullets"} | {"title","facts":[{"label","value"}],"description"} | {"title","items":[{"q","a"}]} | {"title","items":[...]} | {"quote","author","source","url"})
+  • earnings: {"ticker","quarter","epsActual","epsEstimate","epsSurprise","revenueActual","revenueEstimate","revenueSurprise","guidance","summary","history":[{"quarter","epsActual","epsEstimate","revenueActual","revenueEstimate","beat":true}]}
+  • financials: {"ticker","period":"FY24|TTM","metrics":[{"label","value","change"}],"margins":[{"label","percent"}],"rows":[{"item","value","yoy"}]}
+  • macro: {"title","region","regime","indicators":[{"name","value","previous","consensus","impact":"bullish|bearish|neutral"}],"events":[{"date","event","forecast","previous","impact"}]}
+  • ratings: {"ticker","consensus":"Strong Buy|Buy|Hold|Sell","targetLow","targetMedian","targetHigh","currentPrice","buyCount","holdCount","sellCount","actions":[{"firm","rating","target","date","action"}]}
+  • screener: {"title","universe","columns":[...],"rows":[{"ticker","values":[...],"signal":"bullish|bearish|neutral"}]}
+  • sentiment: {"ticker","score":0..100,"label","putCallRatio","shortInterest","retailFlow","institutionalFlow","drivers":[...]}
+  • product / place: {"name","category","rating","price","location","summary","specs":[{"label","value"}],"pros":[...],"cons":[...],"url"}
+  • media: {"title","items":[{"url","caption","source","type":"chart|image|video"}]}
+  • formula / research_steps: {"title","expression","variables":[{"symbol","meaning","value"}],"example","result"} and {"steps":[{"title","detail","source"}]}
+  • chart / candle / kpi / bar / line / donut / mermaid for quantitative series or workflows.
+- When helpful on exploratory queries, finish with a fenced \`\`\`followups JSON array of 3-4 sharp next questions: ["Question 1?", "Question 2?", "Question 3?"].`;
+
+const FOCUS_DIRECTIVES: Record<string, string> = {
+  finance: 'Search Focus [Finance]: Prioritize equities, SEC/exchange filings, earnings, balance sheets, valuation multiples, and structured earnings/financials/ratings/company cards.',
+  news: 'Search Focus [News]: Prioritize breaking market-moving headlines, official press releases, catalyst timelines, sentiment impact, and cited news/timeline cards.',
+  filings: 'Search Focus [Filings]: Prioritize primary regulatory filings (10-K, 10-Q, 8-K, S-1, red-herring prospectuses, exchange disclosures), footnotes, and risk factors.',
+  macro: 'Search Focus [Macro]: Prioritize central bank policy (Fed/ECB/RBI/BoJ), CPI/PCE/payrolls, yield curves, FX, commodities, and macro/timeline cards.',
+  academic: 'Search Focus [Academic]: Prioritize quantitative finance studies, statistical factor models, mathematical derivations, and formula/factbox/checklist cards.',
+  workspace: 'Search Focus [Workspace]: Ground the analysis first in the supplied user notes, journal records, and strategy context before adding broader synthesis.',
+};
+
+interface ExtractedCitation {
+  url: string;
+  title: string;
+  domain: string;
+}
+
+function extractCitationsFromText(markdown: string): ExtractedCitation[] {
+  const seen = new Map<string, ExtractedCitation>();
+  const addUrl = (rawUrl: string, rawTitle = '') => {
+    const cleanUrl = rawUrl.trim().replace(/[),.;]+$/, '');
+    if (!cleanUrl) return;
+    try {
+      const parsed = new URL(cleanUrl);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return;
+      const key = parsed.toString();
+      if (seen.has(key)) return;
+      const domain = parsed.hostname.replace(/^www\./i, '');
+      const title = rawTitle.trim() || domain;
+      seen.set(key, { url: key, title, domain });
+    } catch {
+      // Ignore invalid URLs.
+    }
+  };
+  for (const match of markdown.matchAll(/\[([^\]\n]{1,160})\]\((https?:\/\/[^\s)]+)\)/g)) {
+    addUrl(match[2], match[1]);
+  }
+  for (const match of markdown.matchAll(/"url"\s*:\s*"(https?:\/\/[^"\s]+)"/g)) {
+    addUrl(match[1]);
+  }
+  return Array.from(seen.values());
+}
+
 export async function handleRequest(request: Request, dependencies: Dependencies = {}): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
   const logger = createEdgeRequestLogger('ai-gateway', request);
@@ -131,6 +195,10 @@ async function executeAiGatewayRequest(
   const kind = body.kind ?? 'completion';
   const persona = body.persona ?? 'swing';
   const mode = body.mode ?? 'auto';
+  const focus = typeof body.focus === 'string' &&
+    ['all', 'finance', 'news', 'filings', 'macro', 'academic', 'workspace'].includes(body.focus)
+    ? body.focus
+    : 'all';
   const attachments = Array.isArray(body.attachments) ? body.attachments : [];
   if (mode !== 'auto' && body.allow_web_search === false) {
     return reply(403, { error: 'Enable research for this workspace and specialist to use web search.' });
@@ -152,6 +220,10 @@ async function executeAiGatewayRequest(
   }
   if (typeof body.trader_skill_context === 'string' && body.trader_skill_context.length <= 8000) {
     messages[0].content += '\n' + body.trader_skill_context;
+  }
+  messages[0].content += '\n' + PERPLEXITY_FORMAT_PROTOCOL;
+  if (focus !== 'all' && FOCUS_DIRECTIVES[focus]) {
+    messages[0].content += '\n' + FOCUS_DIRECTIVES[focus];
   }
   const toolkit = body.trader_toolkit === 'selected' || body.trader_toolkit === 'auto'
     ? body.trader_toolkit : undefined;
@@ -180,7 +252,7 @@ async function executeAiGatewayRequest(
         ? await generateResponses(messages, attachments, mode, env('OPENAI_MODEL') || 'gpt-4o', openAiKey, send, body.allow_web_search === true, toolkit)
         : (() => { throw new Error('OpenAI is required for web search and file attachments.'); })()
       : await generate(messages,
-        typeof body.max_tokens === 'number' ? Math.max(128, Math.min(4096, Math.floor(body.max_tokens))) : 2048,
+        typeof body.max_tokens === 'number' ? Math.max(128, Math.min(4096, Math.floor(body.max_tokens))) : 3584,
         typeof body.temperature === 'number' ? Math.max(0, Math.min(1, body.temperature)) : 0.3, env, send);
     const { data: access, error: accessError } = await account.rpc('get_my_admin_access');
     if (accessError || access?.status !== 'active' || access?.features?.ai !== true) throw new Error('AI access is no longer available for this account.');
@@ -197,7 +269,28 @@ async function executeAiGatewayRequest(
       input_tokens: result.input,
       output_tokens: result.output,
     });
-    return reply(200, { text: result.text, request_id: reservation.request_id, provider: result.provider, model: result.model, usage: reservation.usage });
+    const textSources = extractCitationsFromText(result.text);
+    const mergedSources = new Map<string, ExtractedCitation>();
+    for (const src of [...textSources, ...(result.toolSources ?? [])]) {
+      if (src.url && !mergedSources.has(src.url)) {
+        mergedSources.set(src.url, src);
+      }
+    }
+    const sources = Array.from(mergedSources.values());
+    const steps = Array.isArray(result.steps)
+      ? result.steps.filter((s) => typeof s === 'string' && s.trim().length > 0)
+      : [];
+    return reply(200, {
+      text: result.text,
+      request_id: reservation.request_id,
+      provider: result.provider,
+      model: result.model,
+      usage: reservation.usage,
+      ...(sources.length > 0 ? { sources } : {}),
+      ...(steps.length > 0 ? { steps } : {}),
+      ...(mode !== 'auto' ? { mode } : {}),
+      ...(focus !== 'all' ? { focus } : {}),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'AI request failed.';
     logger.log('error', 'ai_generation_failed', { kind, mode, ...describeError(error) });

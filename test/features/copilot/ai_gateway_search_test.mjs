@@ -79,3 +79,46 @@ for (const selection of ['auto', 'selected']) {
     assert.equal(result.input, selection === 'auto' ? 31 : 20);
   });
 }
+
+test('extracts web search steps, code interpreter steps, and toolSources from Responses output', async () => {
+  const result = await generateResponses(
+    [{ role: 'user', content: 'Analyze NVDA Q4 earnings' }],
+    [],
+    'research',
+    'gpt-4o',
+    'test-key',
+    async () => Response.json({
+      model: 'gpt-4o',
+      output: [
+        { type: 'web_search_call', action: { type: 'search', query: 'NVDA Q4 earnings release' } },
+        { type: 'web_search_call', action: { type: 'open_page', url: 'https://investor.nvidia.com/q4' } },
+        { type: 'code_interpreter_call' },
+        {
+          content: [
+            {
+              type: 'output_text',
+              text: 'Revenue beat consensus [1].',
+              annotations: [
+                {
+                  type: 'url_citation',
+                  start_index: 23,
+                  end_index: 26,
+                  title: 'NVIDIA IR',
+                  url: 'https://investor.nvidia.com/q4',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+    true,
+  );
+  assert.deepEqual(result.steps, [
+    'Searching "NVDA Q4 earnings release"',
+    'Reading investor.nvidia.com',
+    'Running quantitative Python analysis',
+  ]);
+  assert.equal(result.toolSources?.length, 1);
+  assert.equal(result.toolSources?.[0]?.domain, 'investor.nvidia.com');
+});

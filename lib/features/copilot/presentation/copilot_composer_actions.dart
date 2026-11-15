@@ -107,6 +107,33 @@ class _ComposerActions extends StatelessWidget {
                     onPressed: () {},
                   ),
                 ),
+              if (config.onFocusChanged != null && !config.compactHeight)
+                UiDropdownMenu(
+                  semanticLabel: 'Search focus',
+                  enabled: editable,
+                  actions: [
+                    for (final focus in CopilotSearchFocus.values)
+                      UiMenuItem(
+                        label: focus.label,
+                        icon: focus.icon,
+                        selected: config.focus == focus,
+                        onPressed: () => config.onFocusChanged!(focus),
+                      ),
+                  ],
+                  child: UiButton(
+                    label: config.focus == CopilotSearchFocus.all
+                        ? 'Focus'
+                        : config.focus.label,
+                    icon: config.focus.icon,
+                    variant: config.focus == CopilotSearchFocus.all
+                        ? UiVariant.outline
+                        : UiVariant.soft,
+                    selected: config.focus != CopilotSearchFocus.all,
+                    size: btnSize,
+                    rounded: true,
+                    onPressed: () {},
+                  ),
+                ),
               UiDropdownMenu(
                 semanticLabel: 'Composer actions',
                 actions: [

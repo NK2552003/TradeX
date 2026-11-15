@@ -1,7 +1,16 @@
 import { openTraderSkill, uploadTraderToolkit } from './trader-toolkit.ts';
 
 type Message = { role: 'user' | 'assistant' | 'system'; content: string };
-type ProviderResult = { text: string; provider: string; model: string; input?: number; output?: number };
+type ToolSource = { url: string; title: string; domain: string };
+type ProviderResult = {
+  text: string;
+  provider: string;
+  model: string;
+  input?: number;
+  output?: number;
+  steps?: string[];
+  toolSources?: ToolSource[];
+};
 type Citation = { type: string; url?: string; title?: string; start_index?: number; end_index?: number };
 type OutputText = { text?: string; annotations?: Citation[] };
 function tokenCount(value: unknown): number | undefined {
@@ -26,6 +35,69 @@ function withCitations(content: OutputText): string {
   return text;
 }
 
+type OutputItem = {
+  type?: string;
+  name?: string;
+  call_id?: string;
+  query?: string;
+  action?: { type?: string; query?: string; url?: string; pattern?: string };
+  content?: OutputText[];
+};
+
+function collectOutputSteps(items: OutputItem[] | undefined, sink: string[]) {
+  if (!Array.isArray(items)) return;
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+    if (item.type === 'web_search_call') {
+      const q = (item.action?.query ?? item.query ?? '').trim();
+      const actionUrl = (item.action?.url ?? '').trim();
+      let stepLabel = 'Searching live web sources';
+      if (q) {
+        stepLabel = `Searching "${q}"`;
+      } else if (actionUrl) {
+        try {
+          const host = new URL(actionUrl).hostname.replace(/^www\./i, '');
+          stepLabel = `Reading ${host}`;
+        } catch {
+          stepLabel = 'Reading web source';
+        }
+      }
+      if (!sink.includes(stepLabel)) sink.push(stepLabel);
+    } else if (item.type === 'code_interpreter_call') {
+      const stepLabel = 'Running quantitative Python analysis';
+      if (!sink.includes(stepLabel)) sink.push(stepLabel);
+    } else if (item.type === 'function_call' && item.name) {
+      const stepLabel = `Loading ${item.name} toolkit`;
+      if (!sink.includes(stepLabel)) sink.push(stepLabel);
+    }
+  }
+}
+
+function collectToolSources(items: OutputItem[] | undefined): ToolSource[] {
+  if (!Array.isArray(items)) return [];
+  const seen = new Map<string, ToolSource>();
+  for (const item of items) {
+    for (const content of item.content ?? []) {
+      for (const ann of content.annotations ?? []) {
+        if (ann.type !== 'url_citation' || !ann.url) continue;
+        const cleanUrl = ann.url.trim();
+        if (!/^https?:\/\//.test(cleanUrl)) continue;
+        try {
+          const parsed = new URL(cleanUrl);
+          const key = parsed.toString();
+          if (seen.has(key)) continue;
+          const domain = parsed.hostname.replace(/^www\./i, '');
+          const title = (ann.title ?? '').trim() || domain;
+          seen.set(key, { url: key, title, domain });
+        } catch {
+          // Ignore invalid URL.
+        }
+      }
+    }
+  }
+  return Array.from(seen.values());
+}
+
 export async function generateResponses(
   messages: Message[],
   attachments: unknown[],
@@ -47,6 +119,7 @@ export async function generateResponses(
   const tools = mode === 'auto' && !allowWebSearch ? [] : [{ type: 'web_search', ...(mode === 'research' ? { search_context_size: 'high' } : {}) }];
   let fileId = toolkit === 'selected' ? await uploadTraderToolkit(key, send) : undefined;
   let inputTokens = 0, outputTokens = 0;
+  const recordedSteps: string[] = [];
   for (let step = 0; step < 2; step++) {
     const response = await send('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -76,6 +149,7 @@ export async function generateResponses(
     const data = await response.json();
     inputTokens += tokenCount(data.usage?.input_tokens) ?? 0;
     outputTokens += tokenCount(data.usage?.output_tokens) ?? 0;
+    collectOutputSteps(data.output, recordedSteps);
     const calls = data.output?.filter((item: {type: string; name?: string}) =>
       item.type === 'function_call' && item.name === openTraderSkill.name) ?? [];
     if (calls.length && toolkit === 'auto' && !fileId) {
@@ -90,12 +164,15 @@ export async function generateResponses(
       .map((content: OutputText) => withCitations(content))
       .join('');
     if (typeof text !== 'string' || !text.trim()) throw new Error('The AI service returned an empty response.');
+    const toolSources = collectToolSources(data.output);
     return {
       text: text.trim(),
       provider: 'openai',
       model: typeof data.model === 'string' ? data.model : model,
       input: inputTokens || undefined,
       output: outputTokens || undefined,
+      ...(recordedSteps.length > 0 ? { steps: recordedSteps } : {}),
+      ...(toolSources.length > 0 ? { toolSources } : {}),
     };
   }
   throw new Error('The trader workflow did not finish. Retry this request.');

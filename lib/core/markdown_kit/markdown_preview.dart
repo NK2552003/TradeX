@@ -33,6 +33,7 @@ class RichMarkdownPreview extends StatelessWidget {
     this.outlineController,
     this.onOpenRef,
     this.onTapLink,
+    this.onPromptTap,
   });
 
   /// Raw markdown source.
@@ -57,6 +58,9 @@ class RichMarkdownPreview extends StatelessWidget {
 
   /// Fallback handler for standard non-internal hyperlinks.
   final void Function(String text, String? href, String title)? onTapLink;
+
+  /// Called when an interactive Perplexity card action triggers a follow-up prompt.
+  final ValueChanged<String>? onPromptTap;
 
   @override
   Widget build(BuildContext context) {
@@ -222,7 +226,14 @@ class RichMarkdownPreview extends StatelessWidget {
       ],
       builders: <String, MarkdownElementBuilder>{
         'ticker': TickerElementBuilder(onOpenRef: onOpenRef),
-        'pre': RichCodeBlockBuilder(dark: dark),
+        'pre': RichCodeBlockBuilder(
+          dark: dark,
+          onOpenRef: onOpenRef,
+          onTapUrl: onTapLink == null
+              ? null
+              : (String url) => onTapLink!(url, url, ''),
+          onPromptTap: onPromptTap,
+        ),
         'math_inline': MathInlineBuilder(),
         'math_block': MathBlockBuilder(),
         'mark': HighlightMarkBuilder(dark: dark),

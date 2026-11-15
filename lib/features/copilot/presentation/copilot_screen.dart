@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
 // ignore: unnecessary_import
@@ -108,6 +109,32 @@ class CopilotScreenState extends State<CopilotScreen> {
     _query = value;
     if (value.isNotEmpty) _workspaceOpen = true;
   });
+
+  Future<void> _copyThread() async {
+    final thread = _controller.activeThread;
+    if (thread == null || thread.messages.isEmpty) return;
+    final buffer = StringBuffer('# ${thread.title}\n\n');
+    for (final msg in thread.messages) {
+      if (msg.body.trim().isEmpty) continue;
+      buffer.writeln(msg.isUser ? '## Question' : '## Answer');
+      buffer.writeln(msg.body.trim());
+      if (!msg.isUser && msg.sources.isNotEmpty) {
+        buffer.writeln('\n### Sources');
+        for (var i = 0; i < msg.sources.length; i++) {
+          final src = msg.sources[i];
+          final url = textOf(src, 'url');
+          if (url.isEmpty) continue;
+          final title = textOf(src, 'title', textOf(src, 'domain', url));
+          buffer.writeln('${i + 1}. [$title]($url)');
+        }
+      }
+      buffer.writeln();
+    }
+    await Clipboard.setData(ClipboardData(text: buffer.toString().trim()));
+    if (mounted) {
+      UiToast.success(context, title: 'Research thread copied as Markdown');
+    }
+  }
   @override
   void dispose() {
     _controller.removeListener(_accountChanged);
@@ -251,6 +278,17 @@ class CopilotScreenState extends State<CopilotScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (_controller.activeThread?.messages.any(
+                    (m) => m.body.trim().isNotEmpty,
+                  ) ==
+                  true)
+                UiIconButton(
+                  icon: Icons.ios_share_outlined,
+                  tooltip: 'Copy research thread',
+                  variant: UiVariant.ghost,
+                  size: UiSize.sm,
+                  onPressed: _copyThread,
+                ),
               if (!device.isTablet)
                 UiButton(
                   label: device.isMobile ? 'Library' : 'Workspace',

@@ -12,6 +12,7 @@ class HostedFixture {
   Json? row;
   int gatewayCalls = 0;
   int gatewayStatus = 200;
+  Json? gatewayReply;
   int conflicts = 0;
   Completer<void>? gate;
   final began = Completer<void>();
@@ -33,7 +34,7 @@ class HostedFixture {
       return http.Response(
         jsonEncode(
           gatewayStatus == 200
-              ? {'text': 'A real provider response'}
+              ? (gatewayReply ?? {'text': 'A real provider response'})
               : {'error': 'Your AI quota is exhausted.'},
         ),
         gatewayStatus,
@@ -335,6 +336,60 @@ void main() {
         jsonDecode(request.body)['system_prompt'],
         contains('Use concise replies.'),
       );
+    },
+  );
+
+  test(
+    'structured citations and research mode from ai-gateway persist on the saved message',
+    () async {
+      final fixture = HostedFixture()
+        ..gatewayReply = {
+          'text':
+              'NVIDIA reported strong results [Reuters](https://www.reuters.com/tech/nvda-q4).\n\n'
+              '```company\n{"name":"NVIDIA","ticker":"NVDA","price":138.5,"changePercent":3.4}\n```\n',
+          'sources': [
+            {
+              'url': 'https://investor.nvidia.com/q4-release',
+              'title': 'NVIDIA Q4 Press Release',
+              'domain': 'investor.nvidia.com',
+              'snippet': 'Data center revenue surged year over year.',
+            },
+          ],
+          'mode': 'research',
+          'focus': 'finance',
+          'steps': [
+            'Searching "NVIDIA Q4 earnings release"',
+            'Reading investor.nvidia.com',
+          ],
+        };
+      addTearDown(fixture.api.dispose);
+      final id = await fixture.thread();
+      await fixture.api.run(id, {
+        'prompt': 'Research NVIDIA',
+        'focus': 'finance',
+      }).toList();
+
+      final gatewayRequest = fixture.requests.singleWhere(
+        (r) => r.url.path.endsWith('ai-gateway'),
+      );
+      final gatewayPayload = jsonDecode(gatewayRequest.body) as Map;
+      expect(gatewayPayload['max_tokens'], 4096);
+      expect(gatewayPayload['focus'], 'finance');
+
+      final workspace = await fixture.api.getWorkspace();
+      final messages = records(workspace['threads'][0]['messages']);
+      expect(messages.length, 2);
+      final assistant = messages[1];
+      expect(assistant['mode'], 'research');
+      expect(assistant['focus'], 'finance');
+      expect(assistant['steps'], <String>[
+        'Searching "NVIDIA Q4 earnings release"',
+        'Reading investor.nvidia.com',
+      ]);
+      final savedSources = records(assistant['sources']);
+      final urls = savedSources.map((s) => textOf(s, 'url')).toList();
+      expect(urls, contains('https://investor.nvidia.com/q4-release'));
+      expect(urls, contains('https://www.reuters.com/tech/nvda-q4'));
     },
   );
 
