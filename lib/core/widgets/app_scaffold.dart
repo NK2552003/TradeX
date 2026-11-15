@@ -1165,6 +1165,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       return _DeferredFeatureView(
         libraryId: 'market_root',
         loadLibrary: deferred_market_root.loadLibrary,
+        placeholder: UiSkeleton.market(),
         builder: (BuildContext _) => deferred_market_root.MarketRootScreen(
           key: const ValueKey('market-root'),
           destination: _selectedId,
@@ -1256,6 +1257,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       // too — close enough that nothing jumps when the real page lands.
       'calculators' => UiSkeleton.watchlists(),
       'portfolio' => UiSkeleton.portfolio(),
+      'market' => UiSkeleton.market(),
       'community' => UiSkeleton.community(),
       'messages' => UiSkeleton.messages(),
       'ai_copilot' => UiSkeleton.ai(),
@@ -1485,6 +1487,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     'calculators' => _DeferredFeatureView(
       libraryId: 'calculators',
       loadLibrary: deferred_calculators.loadLibrary,
+      placeholder: UiSkeleton.watchlists(),
       builder: (BuildContext _) => deferred_calculators.CalculatorsScreen(
         key: const PageStorageKey<String>('calculators_screen'),
         onSubpageChanged: _onSubpageChanged,
@@ -2281,11 +2284,13 @@ class _DeferredFeatureView extends StatefulWidget {
     required this.libraryId,
     required this.loadLibrary,
     required this.builder,
+    this.placeholder,
   });
 
   final String libraryId;
   final Future<void> Function() loadLibrary;
   final WidgetBuilder builder;
+  final Widget? placeholder;
 
   static final Set<String> _loaded = <String>{};
   static final Map<String, Future<void>> _inFlight = <String, Future<void>>{};
@@ -2347,20 +2352,7 @@ class _DeferredFeatureViewState extends State<_DeferredFeatureView> {
             },
           );
         }
-        final spacing = ctx.ui.spacing;
-        return Padding(
-          padding: EdgeInsets.all(ctx.sp(spacing.lg)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const UiSkeleton(width: 220, height: 28),
-              UiGap.v(spacing.md),
-              const UiSkeleton(width: double.infinity, height: 120),
-              UiGap.v(spacing.md),
-              const UiSkeleton(width: double.infinity, height: 220),
-            ],
-          ),
-        );
+        return widget.placeholder ?? UiSkeleton.page();
       },
     );
   }

@@ -437,3 +437,68 @@ test('authenticated app and community cross-subdomain routes activate silent nav
   assert.ok(veil);
   assert.equal(veil.children[0].getAttribute('data-dock-variant'), 'community');
 });
+
+test('transition chrome mirrors AppTopBar card, swap_vert, desktop/mobile titles, 17px sidebar icons, light skeleton tokens, and Material SVG icons', () => {
+  const env = createFakeDom({
+    url: 'https://app.alphajournal.in/workspace',
+    referrer: 'https://community.alphajournal.in/',
+    cookies: 'ax_sb_auth.n=1; ax_theme_mode=dark',
+  });
+  env.api.initHead();
+  env.api.mountIncoming();
+
+  // TopBar card wrapper + responsive desktop/mobile titles + search/calc actions
+  const topbarCards = env.document.querySelectorAll('.aj-topbar-card');
+  assert.equal(topbarCards.length, 1);
+  const desktopTitle = env.document.querySelector('.aj-top-title-desktop');
+  const mobileTitle = env.document.querySelector('.aj-top-title-mobile');
+  assert.equal(desktopTitle.textContent, 'Terminal / Workspace');
+  assert.equal(mobileTitle.textContent, 'Workspace');
+  assert.equal(env.document.querySelectorAll('.aj-mobile-only').length, 1);
+  assert.equal(env.document.querySelectorAll('.aj-desktop-only').length, 1);
+
+  // AppWorkspaceTile header + footer carry swap_vert icons; sidebar nav icons are 17px
+  assert.equal(env.document.querySelectorAll('.aj-side-swap').length, 2);
+  const sideSvgs = env.document
+    .querySelector('.aj-sidebar')
+    .querySelectorAll('.aj-side-item-left');
+  assert.ok(sideSvgs.length > 0);
+  for (const left of sideSvgs) {
+    const svg = left.children[0];
+    assert.equal(svg.tagName, 'SVG');
+    assert.equal(svg.getAttribute('width'), '17');
+    assert.equal(svg.getAttribute('height'), '17');
+  }
+
+  // Light skeleton token + frosted dock backdrop filter + edge-to-edge scroll padding
+  const skBase = env.document.documentElement.style.getPropertyValue('--aj-sk-base');
+  assert.equal(skBase, 'rgba(250, 249, 249, 0.045)');
+  const dockBg = env.document.documentElement.style.getPropertyValue('--aj-dock-bg');
+  assert.equal(dockBg, 'rgba(21, 19, 18, 0.62)');
+
+  const styleEl = env.document.getElementById('aj-transition-styles');
+  assert.ok(styleEl.textContent.includes('backdrop-filter:blur(18px)'));
+  assert.ok(styleEl.textContent.includes('.aj-scroll{flex:1;overflow:hidden;padding:var(--aj-pad);padding-bottom:16px;}'));
+
+  // Filled apps/grid Material icons on dock vs outlined icons
+  const dockSlots = env.document.querySelectorAll('.aj-dock-slot');
+  assert.equal(dockSlots.length, 5);
+  const centerSvg = dockSlots[2].querySelectorAll('.aj-dock-icon')[0].children[0];
+  assert.equal(centerSvg.getAttribute('fill'), 'currentColor');
+  assert.equal(centerSvg.getAttribute('width'), '22');
+
+  const communityEnv = createFakeDom({
+    url: 'https://community.alphajournal.in/community_feed',
+    referrer: 'https://app.alphajournal.in/',
+    cookies: 'ax_sb_auth.n=1; ax_theme_mode=dark',
+  });
+  communityEnv.api.initHead();
+  communityEnv.api.mountIncoming();
+  const commSlots = communityEnv.document.querySelectorAll('.aj-dock-slot');
+  const feedSvg = commSlots[0].querySelectorAll('.aj-dock-icon')[0].children[0];
+  assert.equal(feedSvg.getAttribute('fill'), 'none');
+  const commCenterSvg = commSlots[2].querySelectorAll('.aj-dock-icon')[0].children[0];
+  assert.equal(commCenterSvg.getAttribute('fill'), 'currentColor');
+  const profileSvg = commSlots[4].querySelectorAll('.aj-dock-icon')[0].children[0];
+  assert.equal(profileSvg.getAttribute('fill'), 'none');
+});

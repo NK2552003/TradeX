@@ -8,6 +8,7 @@ import '../models/app_models.dart';
 import '../motion/app_motion.dart';
 import '../motion/page_transition.dart';
 import '../theme/app_tokens.dart';
+import 'app_quiet_dock.dart';
 
 /// Adaptive application shell.
 ///
@@ -435,9 +436,9 @@ class _AppShellState extends State<AppShell> {
                 dockMargin +
                 mediaQuery.padding.bottom +
                 context.sp(theme.spacing.xs);
-      // Consume the dock inset at the shell boundary. This also protects pages
-      // with fixed bottom controls or scroll views that ignore MediaQuery.
-      // SafeArea removes the consumed inset for descendants to avoid double padding.
+      // Expose the dock footprint via MediaQuery padding so scrollable views
+      // and inner SafeArea footers keep their last items reachable above the
+      // dock while allowing page content to flow transparently behind it.
       final MediaQueryData dockSafeMedia = mediaQuery
           .removeViewInsets(removeBottom: true)
           .copyWith(
@@ -445,12 +446,7 @@ class _AppShellState extends State<AppShell> {
           );
       final Widget dockSafeContent = MediaQuery(
         data: dockSafeMedia,
-        child: SafeArea(
-          top: false,
-          left: false,
-          right: false,
-          child: contentSurface,
-        ),
+        child: contentSurface,
       );
       final List<AppNavItem> destinations = _dockItems;
       final int selectedIndex = _dockIndexFor(widget.selectedId);
@@ -472,7 +468,7 @@ class _AppShellState extends State<AppShell> {
         }
       }
       final bool moreRouteSelected = activeMoreItem != null;
-      final Widget dockScaffold = QuietDockScaffold(
+      final Widget dockScaffold = AppQuietDockScaffold(
         key: ValueKey<String>(
           'quiet_dock_${_isCommunityRoute ? "community" : "main"}',
         ),
@@ -543,7 +539,6 @@ class _AppShellState extends State<AppShell> {
         swipeEnabled: false,
         lazy: true,
         keepAlive: false,
-        useRail: false,
         backgroundColor: theme.colors.background,
         pageBuilder: (BuildContext context, int index) {
           // Only the live destination gets the real page. Handing the same
@@ -562,10 +557,16 @@ class _AppShellState extends State<AppShell> {
           );
         },
         theme: QuietDockTheme(
-          background: Colors.transparent,
+          background: keyboardVisible
+              ? Colors.transparent
+              : theme.colors.surface.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.62 : 0.74,
+                ),
           borderColor: keyboardVisible
               ? Colors.transparent
-              : theme.colors.border,
+              : theme.colors.borderStrong.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.65 : 0.75,
+                ),
           selectedColor: theme.colors.primary,
           unselectedColor: theme.colors.foregroundMuted,
           indicatorColor: keyboardVisible
@@ -574,10 +575,15 @@ class _AppShellState extends State<AppShell> {
           indicatorBorderColor: keyboardVisible
               ? Colors.transparent
               : theme.colors.primary.withValues(alpha: 0.3),
-          shadowColor: Colors.transparent,
+          shadowColor: keyboardVisible
+              ? Colors.transparent
+              : Colors.black.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.36 : 0.10,
+                ),
           height: keyboardVisible ? 0 : dockHeight,
           margin: keyboardVisible ? 0 : dockMargin,
           iconSize: keyboardVisible ? 0 : 22,
+          blur: 18,
           frosted: !keyboardVisible,
           showLabels: false,
           pageDuration: theme.motion.normal,

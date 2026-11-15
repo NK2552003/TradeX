@@ -31,10 +31,11 @@
       primarySoft: 'rgba(250, 249, 249, 0.12)',
       primaryBorder: 'rgba(250, 249, 249, 0.30)',
       brand: '#8B9FE8',
-      skBase: 'rgba(27, 25, 24, 0.82)',
-      skHighlight: 'rgba(250, 249, 249, 0.055)',
-      dockBg: 'rgba(13, 12, 11, 0.18)',
-      shadow: 'none',
+      skBase: 'rgba(250, 249, 249, 0.045)',
+      skHighlight: 'rgba(250, 249, 249, 0.04)',
+      dockBg: 'rgba(21, 19, 18, 0.62)',
+      dockBorder: 'rgba(58, 55, 52, 0.65)',
+      shadow: '0 8px 24px rgba(0, 0, 0, 0.36)',
     },
     light: {
       bg: '#FAFAF9',
@@ -50,10 +51,11 @@
       primarySoft: 'rgba(21, 19, 18, 0.12)',
       primaryBorder: 'rgba(21, 19, 18, 0.30)',
       brand: '#6B7FD7',
-      skBase: 'rgba(245, 245, 244, 0.82)',
-      skHighlight: 'rgba(21, 19, 18, 0.055)',
-      dockBg: 'rgba(250, 250, 249, 0.24)',
-      shadow: 'none',
+      skBase: 'rgba(21, 19, 18, 0.055)',
+      skHighlight: 'rgba(255, 255, 255, 0.55)',
+      dockBg: 'rgba(255, 255, 255, 0.74)',
+      dockBorder: 'rgba(214, 211, 209, 0.75)',
+      shadow: '0 8px 24px rgba(21, 19, 18, 0.10)',
     },
   };
 
@@ -723,9 +725,14 @@
     };
 
     var chosen = specs[key] || specs.workspace;
+    var mobileLabel = chosen.topTitle;
+    if (mobileLabel && mobileLabel.indexOf(' / ') !== -1) {
+      mobileLabel = mobileLabel.split(' / ').slice(1).join(' / ');
+    }
     return {
       surfaceKey: key,
       topTitle: chosen.topTitle,
+      mobileTitle: mobileLabel || chosen.label,
       label: silent.label && key !== 'workspace' ? silent.label : chosen.label,
       subtitle: chosen.subtitle,
       layoutKind: chosen.layoutKind,
@@ -763,6 +770,7 @@
         '--aj-sk-base': p.skBase,
         '--aj-sk-highlight': p.skHighlight,
         '--aj-dock-bg': p.dockBg,
+        '--aj-dock-border': p.dockBorder,
         '--aj-shadow': p.shadow,
         '--aj-pad': theme.compact ? '12px' : '16px',
       };
@@ -791,59 +799,74 @@
     style.textContent = [
       '.aj-trans-host{position:fixed;inset:0;display:flex;background:var(--aj-bg);color:var(--aj-fg);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;pointer-events:auto;overflow:hidden;-webkit-font-smoothing:antialiased;}',
       /* AppSidebar matching AppShell screenshot (no border-right divider) */
-      '.aj-sidebar{display:none;flex-direction:column;width:76px;flex-shrink:0;background:var(--aj-bg);padding:8px 6px;gap:8px;}',
-      '@media(min-width:1024px){.aj-sidebar{width:244px;padding:8px 9px 10px;}}',
+      '.aj-sidebar{display:none;flex-direction:column;width:76px;flex-shrink:0;background:var(--aj-bg);padding:4px;}',
+      '@media(min-width:1024px){.aj-sidebar{width:244px;padding:4px 5px;}}',
       '@media(min-width:768px){.aj-sidebar{display:flex;}}',
-      '.aj-side-head{display:flex;align-items:center;gap:10px;padding:8px 10px;}',
-      '.aj-logo-badge{width:28px;height:28px;border-radius:7px;background:var(--aj-primary);color:var(--aj-bg);display:grid;place-items:center;font-weight:800;font-size:15px;letter-spacing:-.04em;flex-shrink:0;font-family:Georgia,serif;}',
+      '.aj-side-head{display:flex;align-items:center;justify-content:center;gap:8px;padding:5px 4px;border-radius:12px;}',
+      '@media(min-width:1024px){.aj-side-head{justify-content:flex-start;padding:5px 8px;background:rgba(255,255,255,0.025);border:1px solid var(--aj-border);}}',
+      '.aj-light .aj-side-head{background:rgba(255,255,255,0.7);}',
+      '.aj-logo-badge{width:20px;height:20px;border-radius:3px;background:var(--aj-primary);color:var(--aj-bg);display:grid;place-items:center;font-weight:800;font-size:12px;letter-spacing:-.04em;flex-shrink:0;font-family:Georgia,serif;}',
       '.aj-side-brand{display:none;flex-direction:column;gap:2px;min-width:0;flex:1;}',
       '@media(min-width:1024px){.aj-side-brand{display:flex;}}',
-      '.aj-side-title{font-size:13px;font-weight:700;color:var(--aj-fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
-      '.aj-side-nav{display:flex;flex-direction:column;gap:10px;flex:1;overflow:hidden;padding:4px 2px;}',
+      '.aj-side-title{font-size:13px;font-weight:600;color:var(--aj-fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;}',
+      '.aj-side-sub{font-size:11px;color:var(--aj-fg-subtle);line-height:1.25;}',
+      '.aj-side-swap{display:none;color:var(--aj-fg-muted);align-items:center;justify-content:center;}',
+      '@media(min-width:1024px){.aj-side-swap{display:flex;}}',
+      '.aj-side-nav{display:flex;flex-direction:column;gap:8px;flex:1;overflow:hidden;padding:6px 2px;}',
       '.aj-side-sec{display:flex;flex-direction:column;gap:2px;}',
-      '.aj-side-sec-title{display:none;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--aj-fg-subtle);padding:10px 10px 4px;text-transform:uppercase;}',
+      '.aj-side-sec-title{display:none;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--aj-fg-subtle);padding:8px 8px 4px;text-transform:uppercase;}',
       '@media(min-width:1024px){.aj-side-sec-title{display:block;}}',
-      '.aj-side-item{display:flex;align-items:center;justify-content:center;gap:10px;height:36px;border-radius:10px;padding:0 10px;color:var(--aj-fg-muted);font-size:13px;font-weight:500;white-space:nowrap;}',
+      '.aj-side-item{display:flex;align-items:center;justify-content:center;gap:9px;height:33px;border-radius:8px;padding:4px 8px;color:var(--aj-fg-muted);font-size:13px;font-weight:500;white-space:nowrap;border:1px solid transparent;}',
       '@media(min-width:1024px){.aj-side-item{justify-content:space-between;}}',
-      '.aj-side-item-left{display:flex;align-items:center;gap:10px;min-width:0;}',
-      '.aj-side-item.is-active{background:var(--aj-surface-hover);color:var(--aj-fg);border:1px solid var(--aj-border);font-weight:600;}',
+      '.aj-side-item-left{display:flex;align-items:center;gap:9px;min-width:0;}',
+      '.aj-side-item.is-active{background:var(--aj-primary-soft);color:var(--aj-fg);border:1px solid var(--aj-primary-border);font-weight:600;}',
+      '.aj-side-item.is-active svg{color:var(--aj-primary);}',
       '.aj-side-item-label{display:none;}',
       '@media(min-width:1024px){.aj-side-item-label{display:inline;}}',
       '.aj-side-chev{display:none;color:var(--aj-fg-subtle);font-size:12px;}',
       '@media(min-width:1024px){.aj-side-chev{display:inline;}}',
-      '.aj-side-subwrap{display:none;flex-direction:column;gap:2px;padding-left:22px;margin-top:2px;}',
+      '.aj-side-subwrap{display:none;flex-direction:column;gap:2px;padding-left:26px;margin-top:2px;}',
       '@media(min-width:1024px){.aj-side-subwrap{display:flex;}}',
-      '.aj-side-sub{height:30px;padding:0 10px;border-radius:8px;display:flex;align-items:center;font-size:12.5px;color:var(--aj-fg-muted);}',
-      '.aj-side-sub.is-active{background:var(--aj-surface-hover);color:var(--aj-fg);font-weight:600;}',
-      '.aj-side-foot{display:none;padding:8px 10px;border-radius:12px;align-items:center;gap:10px;}',
+      '.aj-side-sub{height:29px;padding:0 8px;border-radius:8px;display:flex;align-items:center;font-size:13px;color:var(--aj-fg-muted);}',
+      '.aj-side-sub.is-active{background:var(--aj-primary-soft);color:var(--aj-fg);font-weight:600;}',
+      '.aj-side-foot{display:none;padding:6px 8px;border-radius:10px;align-items:center;gap:9px;border:1px solid var(--aj-border);background:rgba(255,255,255,0.02);}',
+      '.aj-light .aj-side-foot{background:rgba(255,255,255,0.65);}',
       '@media(min-width:1024px){.aj-side-foot{display:flex;}}',
-      /* AppTopBar + rounded desktop AppContentSurface */
+      /* AppTopBar UiCard wrapper + rounded desktop AppContentSurface */
       '.aj-workspace{flex:1;min-width:0;display:flex;flex-direction:column;height:100%;overflow:hidden;}',
-      '.aj-topbar{height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 var(--aj-pad);background:var(--aj-bg);gap:12px;}',
-      '.aj-top-left{display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0;}',
-      '.aj-top-menu-icon{color:var(--aj-fg-muted);display:none;align-items:center;justify-content:center;width:28px;height:28px;}',
+      '.aj-topbar{flex-shrink:0;padding:4px 8px;background:var(--aj-bg);}',
+      '.aj-topbar-card{height:40px;display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:var(--aj-surface);border:1px solid var(--aj-border);border-radius:12px;gap:10px;}',
+      '.aj-top-left{display:flex;align-items:center;gap:6px;min-width:0;flex:1;}',
+      '.aj-top-menu-icon{color:var(--aj-fg);display:none;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;flex-shrink:0;}',
       '@media(min-width:768px){.aj-top-menu-icon{display:flex;}}',
-      '.aj-top-title{font-size:13.5px;font-weight:600;color:var(--aj-fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
-      '.aj-search-stub{display:none;align-items:center;gap:8px;flex:1;max-width:440px;height:34px;padding:0 12px;border-radius:10px;background:var(--aj-surface);border:1px solid var(--aj-border);color:var(--aj-fg-subtle);font-size:12px;}',
-      '@media(min-width:768px){.aj-search-stub{display:flex;}}',
+      '.aj-top-title{font-size:14px;font-weight:500;line-height:1.55;color:var(--aj-fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+      '.aj-top-title-desktop{display:none;}',
+      '.aj-top-title-mobile{display:inline;}',
+      '@media(min-width:768px){.aj-top-title-desktop{display:inline;}.aj-top-title-mobile{display:none;}}',
+      '.aj-search-stub{display:none;align-items:center;gap:8px;flex:1.4;max-width:440px;height:28px;padding:0 10px;border-radius:8px;background:var(--aj-surface-muted);border:1px solid var(--aj-border);color:var(--aj-fg-subtle);font-size:12px;}',
+      '@media(min-width:860px){.aj-search-stub{display:flex;}}',
       '.aj-search-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
-      '.aj-top-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}',
-      '.aj-features-pill{display:none;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:999px;background:var(--aj-surface);border:1px solid var(--aj-border);color:var(--aj-fg);font-size:12px;font-weight:500;}',
-      '@media(min-width:900px){.aj-features-pill{display:inline-flex;}}',
-      '.aj-icon-btn{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--aj-fg-muted);}',
+      '.aj-top-right{display:flex;align-items:center;gap:2px;flex-shrink:0;}',
+      '.aj-features-pill{display:none;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:8px;background:var(--aj-primary-soft);color:var(--aj-primary);font-size:13px;font-weight:500;margin-right:2px;}',
+      '@media(min-width:960px){.aj-features-pill{display:inline-flex;}}',
+      '.aj-icon-btn{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--aj-fg);}',
+      '.aj-mobile-only{display:grid;}',
+      '.aj-desktop-only{display:none;}',
+      '@media(min-width:860px){.aj-mobile-only{display:none;}.aj-desktop-only{display:grid;}}',
       /* Rounded bordered desktop content frame matching app-content-surface */
       '.aj-content-frame{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}',
-      '@media(min-width:768px){.aj-content-frame{margin:0 11px 11px 0;border-radius:16px;border:1px solid var(--aj-border);background:var(--aj-bg);}}',
-      '.aj-scroll{flex:1;overflow:hidden;padding:var(--aj-pad);padding-bottom:92px;}',
+      '@media(min-width:768px){.aj-content-frame{margin:0 7px 7px 0;border-radius:16px;border:1px solid var(--aj-border);background:var(--aj-bg);}}',
+      '.aj-scroll{flex:1;overflow:hidden;padding:var(--aj-pad);padding-bottom:16px;}',
       '@media(min-width:768px){.aj-scroll{padding:16px;padding-bottom:24px;}}',
-      '.aj-container{width:100%;max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:14px;}',
+      '.aj-container{width:100%;max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:12px;}',
       '.aj-page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}',
-      '.aj-page-title{font-size:20px;font-weight:700;letter-spacing:-.02em;color:var(--aj-fg);line-height:1.25;}',
-      '.aj-page-sub{font-size:12px;color:var(--aj-fg-muted);margin-top:2px;line-height:1.35;}',
-      '.aj-card{background:var(--aj-surface);border:1px solid var(--aj-border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;}',
-      '.aj-tabs-box{height:36px;padding:4px;border-radius:10px;background:var(--aj-surface-muted);border:1px solid var(--aj-border);display:flex;align-items:center;gap:6px;}',
+      '.aj-page-title{font-size:18px;font-weight:600;letter-spacing:-.01em;color:var(--aj-fg);line-height:1.3;}',
+      '.aj-page-sub{font-size:12px;font-weight:400;color:var(--aj-fg-muted);margin-top:2px;line-height:1.4;}',
+      '.aj-card{background:var(--aj-surface);border:1px solid var(--aj-border);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;}',
+      '.aj-tabs-box{height:36px;padding:4px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid var(--aj-border);display:flex;align-items:center;gap:6px;}',
+      '.aj-light .aj-tabs-box{background:rgba(245,245,244,0.5);}',
       '.aj-tab-item{flex:1;height:100%;border-radius:7px;}',
-      /* Synchronized _UiShimmerPainter sweep (1500ms linear, 42% band) */
+      /* Synchronized _UiShimmerPainter sweep (1500ms linear, 42% band, low contrast) */
       '.aj-sk{position:relative;overflow:hidden;background:var(--aj-sk-base);border-radius:6px;flex-shrink:0;}',
       '.aj-sk-lg{border-radius:10px;}',
       '.aj-sk-pill{border-radius:999px;}',
@@ -862,18 +885,18 @@
       '.aj-comm-feed{flex:1;max-width:700px;min-width:0;display:flex;flex-direction:column;gap:10px;}',
       '.aj-comm-side{display:none;width:320px;flex-shrink:0;flex-direction:column;gap:14px;}',
       '@media(min-width:960px){.aj-comm-side{display:flex;}}',
-      '.aj-heat-strip{display:flex;align-items:center;justify-content:space-around;gap:6px;padding:4px 0;}',
-      '.aj-ribbon{height:60px;padding:0 12px;border-radius:8px;background:var(--aj-surface-muted);border:1px solid var(--aj-border);display:flex;align-items:center;gap:10px;overflow:hidden;}',
-      '.aj-vdiv{width:1px;height:24px;background:var(--aj-border);flex-shrink:0;}',
+      '.aj-heat-strip{display:flex;align-items:center;justify-content:space-around;gap:6px;padding:2px 0;}',
+      '.aj-ribbon{height:54px;padding:0 12px;border-radius:8px;background:var(--aj-surface);border:1px solid var(--aj-border);display:flex;align-items:center;gap:10px;overflow:hidden;}',
+      '.aj-vdiv{width:1px;height:22px;background:var(--aj-border);flex-shrink:0;}',
       '.aj-hdiv{height:1px;background:var(--aj-border);width:100%;}',
-      '.aj-market-split{display:flex;flex-direction:column;gap:14px;}',
+      '.aj-market-split{display:flex;flex-direction:column;gap:12px;}',
       '@media(min-width:768px){.aj-market-split{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,4fr);align-items:start;}}',
-      '.aj-mosaic{height:164px;display:grid;grid-template-columns:3fr 2fr 2fr;gap:4px;}',
+      '.aj-mosaic{height:148px;display:grid;grid-template-columns:3fr 2fr 2fr;gap:4px;}',
       '.aj-mosaic-mid{display:grid;grid-template-rows:1fr 1fr;gap:4px;height:100%;}',
       /* Exact QuietDock floating pill (280x56, radius 28, margin 16, 5 equal 1fr slots, showLabels:false, 4px inset pill) */
       '.aj-dock-wrap{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:20;display:flex;justify-content:center;pointer-events:none;}',
       '@media(min-width:768px){.aj-dock-wrap{display:none;}}',
-      '.aj-dock{width:280px;height:56px;border-radius:28px;background:var(--aj-dock-bg);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1.2px solid var(--aj-border);box-shadow:var(--aj-shadow);display:grid;grid-template-columns:repeat(5,1fr);align-items:stretch;overflow:hidden;}',
+      '.aj-dock{width:280px;height:56px;border-radius:28px;background:var(--aj-dock-bg);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);border:1.2px solid var(--aj-dock-border,var(--aj-border-strong));box-shadow:var(--aj-shadow);display:grid;grid-template-columns:repeat(5,1fr);align-items:stretch;overflow:hidden;}',
       '.aj-dock-slot{position:relative;display:flex;align-items:center;justify-content:center;color:var(--aj-fg-muted);}',
       '.aj-dock-slot.is-active{color:var(--aj-primary);}',
       '.aj-dock-pill{position:absolute;inset:4px;border-radius:24px;background:var(--aj-primary-soft);border:1px solid var(--aj-primary-border);pointer-events:none;}',
@@ -892,15 +915,18 @@
     svg.setAttribute('width', String(size));
     svg.setAttribute('height', String(size));
     svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('stroke', 'currentColor');
-    svg.setAttribute('stroke-width', '1.85');
+    var filledIcons = { apps: true, grid: true };
+    var isFilled = Boolean(filledIcons[name]);
+    svg.setAttribute('fill', isFilled ? 'currentColor' : 'none');
+    svg.setAttribute('stroke', isFilled ? 'none' : 'currentColor');
+    svg.setAttribute('stroke-width', isFilled ? '0' : '1.75');
     svg.setAttribute('stroke-linecap', 'round');
     svg.setAttribute('stroke-linejoin', 'round');
     svg.setAttribute('aria-hidden', 'true');
 
     var paths = {
-      menu: ['M4 7h16M4 12h12M4 17h16'],
+      menu: ['M4 7h16M4 12h16M4 17h10'],
+      swap_vert: ['M8 9l4-4 4 4', 'M8 15l4 4 4-4'],
       dashboard: [
         'M4 5a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5Z',
         'M13 5a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1V5Z',
@@ -908,44 +934,45 @@
         'M4 15a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4Z',
       ],
       edit_note: [
-        'M4 7h11M4 12h8M4 17h5',
-        'M17.5 11.5l3 3-5.5 5.5H12v-3l5.5-5.5Z',
+        'M3 7h11M3 12h11M3 17h7',
+        'M16.5 13.5l3 3-5.2 5.2H11.5v-2.8l5-5.4Z',
       ],
       forum: [
-        'M20 9a2 2 0 0 1 2 2v7l-3-2h-5a2 2 0 0 1-2-2v-1',
-        'M15 4H5a2 2 0 0 0-2 2v7l3-2h9a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z',
+        'M3 5.5A1.5 1.5 0 0 1 4.5 4h10A1.5 1.5 0 0 1 16 5.5V12a1.5 1.5 0 0 1-1.5 1.5H7L3 17V5.5Z',
+        'M19 8h.5A1.5 1.5 0 0 1 21 9.5V20l-3.5-3H9.5A1.5 1.5 0 0 1 8 15.5V15',
       ],
-      feed: ['M4 6h16M4 12h16M4 18h10'],
+      feed: [
+        'M9 5.5A1.5 1.5 0 0 1 10.5 4h9A1.5 1.5 0 0 1 21 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 9 12.5v-7Z',
+        'M12.5 8h5',
+        'M4 9v9a2 2 0 0 0 2 2h10',
+      ],
       compass: [
         'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z',
-        'M15.2 8.8l-2 5.2-5.2 2 2-5.2 5.2-2Z',
+        'M15.4 8.6l-2 5.1-5.1 2 2-5.1 5.1-2Z',
       ],
       users: [
-        'M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1',
-        'M9.5 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z',
-        'M21 19v-1a3.5 3.5 0 0 0-2.6-3.4',
-        'M16.5 3.3a3.5 3.5 0 0 1 0 6.7',
+        'M15 19v-1a4 4 0 0 0-4-4H6.5a4 4 0 0 0-4 4v1',
+        'M8.75 10.5a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Z',
+        'M21.5 19v-1a3.5 3.5 0 0 0-2.6-3.4',
+        'M16 4.2a3.25 3.25 0 0 1 0 6.3',
       ],
       user: [
         'M19 20v-1.5A4.5 4.5 0 0 0 14.5 14h-5A4.5 4.5 0 0 0 5 18.5V20',
         'M12 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z',
       ],
       calc: [
-        'M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z',
-        'M8 7h8M8 12h2M12 12h2M16 12h0M8 16h2M12 16h2M16 16h0',
+        'M5.5 3h13A1.5 1.5 0 0 1 20 4.5v15a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5v-15A1.5 1.5 0 0 1 5.5 3Z',
+        'M8 6.5h8v3H8zM8 13h1.5M11.25 13h1.5M14.5 13H16M8 16.5h1.5M11.25 16.5h1.5M14.5 16.5H16',
       ],
       settings: [
         'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
         'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z',
       ],
       grid: [
-        'M4 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5Z',
-        'M14 5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V5Z',
-        'M4 15a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4Z',
-        'M14 15a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-4Z',
+        'M4 5.5A1.5 1.5 0 0 1 5.5 4h4A1.5 1.5 0 0 1 11 5.5v4A1.5 1.5 0 0 1 9.5 11h-4A1.5 1.5 0 0 1 4 9.5v-4ZM13 5.5A1.5 1.5 0 0 1 14.5 4h4A1.5 1.5 0 0 1 20 5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4A1.5 1.5 0 0 1 13 9.5v-4ZM4 14.5A1.5 1.5 0 0 1 5.5 13h4a1.5 1.5 0 0 1 1.5 1.5v4A1.5 1.5 0 0 1 9.5 20h-4A1.5 1.5 0 0 1 4 18.5v-4ZM13 14.5a1.5 1.5 0 0 1 1.5-1.5h4a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5v-4Z',
       ],
       apps: [
-        'M5 5h2v2H5zM11 5h2v2h-2zM17 5h2v2h-2zM5 11h2v2H5zM11 11h2v2h-2zM17 11h2v2h-2zM5 17h2v2H5zM11 17h2v2h-2zM17 17h2v2h-2z',
+        'M4.5 5.4a.9.9 0 0 1 .9-.9h1.2a.9.9 0 0 1 .9.9v1.2a.9.9 0 0 1-.9.9H5.4a.9.9 0 0 1-.9-.9V5.4ZM10.5 5.4a.9.9 0 0 1 .9-.9h1.2a.9.9 0 0 1 .9.9v1.2a.9.9 0 0 1-.9.9h-1.2a.9.9 0 0 1-.9-.9V5.4ZM16.5 5.4a.9.9 0 0 1 .9-.9h1.2a.9.9 0 0 1 .9.9v1.2a.9.9 0 0 1-.9.9h-1.2a.9.9 0 0 1-.9-.9V5.4ZM4.5 11.4a.9.9 0 0 1 .9-.9h1.2a.9.9 0 0 1 .9.9v1.2a.9.9 0 0 1-.9.9H5.4a.9.9 0 0 1-.9-.9v-1.2ZM10.5 11.4a.9.9 0 0 1 .9-.9h1.2a.9.9 0 0 1 .9.9v1.2a.9.9 0 0 1-.9.9h-1.2a.9.9 0 0 1-.9-.9v-1.2ZM16.5 11.4a.9.9 0 0 1 .9-.9h1.2a.9.9 0 0 1 .9.9v1.2a.9.9 0 0 1-.9.9h-1.2a.9.9 0 0 1-.9-.9v-1.2ZM4.5 17.4a.9.9 0 0 1 .9-.9h1.2a.9.9 0 0 1 .9.9v1.2a.9.9 0 0 1-.9.9H5.4a.9.9 0 0 1-.9-.9v-1.2ZM10.5 17.4a.9.9 0 0 1 .9-.9h1.2a.9.9 0 0 1 .9.9v1.2a.9.9 0 0 1-.9.9h-1.2a.9.9 0 0 1-.9-.9v-1.2ZM16.5 17.4a.9.9 0 0 1 .9-.9h1.2a.9.9 0 0 1 .9.9v1.2a.9.9 0 0 1-.9.9h-1.2a.9.9 0 0 1-.9-.9v-1.2Z',
       ],
       arrow_back: ['M19 12H5', 'M12 19l-7-7 7-7'],
       globe: [
@@ -959,10 +986,12 @@
         'M4 16.5l8 4.5 8-4.5',
       ],
       spark: [
-        'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z',
+        'M10 3l1.6 4.4L16 9l-4.4 1.6L10 15l-1.6-4.4L4 9l4.4-1.6L10 3Z',
+        'M18.5 3.5l.65 1.85 1.85.65-1.85.65-.65 1.85-.65-1.85-1.85-.65 1.85-.65.65-1.85Z',
+        'M18 14.5l.55 1.45 1.45.55-1.45.55-.55 1.45-.55-1.45-1.45-.55 1.45-.55.55-1.45Z',
       ],
       chat: [
-        'M5 6h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 3v-3H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z',
+        'M4.5 6h15A1.5 1.5 0 0 1 21 7.5v8a1.5 1.5 0 0 1-1.5 1.5H8.5L4 20.5V7.5A1.5 1.5 0 0 1 5.5 6Z',
       ],
       trend: ['M3 17l6-6 4 4 8-8', 'M15 7h6v6'],
       campaign: [
@@ -974,12 +1003,12 @@
         'M16 12h4',
       ],
       handshake: ['M7 11l5-5 5 5', 'M4 14l4 4 4-3 4 3 4-4'],
-      search: ['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z', 'M21 21l-4.3-4.3'],
-      bell: ['M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8', 'M13.7 20a2 2 0 0 1-3.4 0'],
+      search: ['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z', 'M20.5 20.5l-4-4'],
+      bell: ['M18 8.5a6 6 0 1 0-12 0c0 6.5-2.5 8-2.5 8h17s-2.5-1.5-2.5-8', 'M13.7 20a2 2 0 0 1-3.4 0'],
       help: [
         'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z',
-        'M9.5 9a2.5 2.5 0 0 1 5 .8c0 1.7-2.5 2.2-2.5 3.7',
-        'M12 17h.01',
+        'M9.6 9.2a2.4 2.4 0 0 1 4.7.8c0 1.5-2.3 2-2.3 3.4',
+        'M12 16.8h.01',
       ],
     };
 
@@ -1011,7 +1040,7 @@
   function uiTabs(doc, count, height) {
     var box = el(doc, 'div', 'aj-tabs-box', height ? 'height:' + height + 'px;' : '');
     for (var i = 0; i < count; i++) {
-      box.appendChild(sk(doc, '100%', '100%', 'aj-tab-item'));
+      box.appendChild(sk(doc, '100%', '10px', 'aj-tab-item'));
     }
     return box;
   }
@@ -1024,119 +1053,118 @@
       t.textContent = title;
       left.appendChild(t);
     } else {
-      left.appendChild(sk(doc, '160px', '24px'));
+      left.appendChild(sk(doc, '148px', '18px'));
     }
     if (subtitle) {
       var s = el(doc, 'div', 'aj-page-sub');
       s.textContent = subtitle;
       left.appendChild(s);
     } else {
-      left.appendChild(sk(doc, '240px', '12px'));
+      left.appendChild(sk(doc, '210px', '11px'));
     }
     head.appendChild(left);
-    head.appendChild(sk(doc, (btnW || 90) + 'px', '36px', 'aj-sk-lg'));
+    head.appendChild(sk(doc, (btnW || 84) + 'px', '30px', 'aj-sk-lg'));
     return head;
   }
 
   function uiMetricCard(doc) {
-    var c = uiCard(doc, 'gap:0;');
+    var c = uiCard(doc, 'padding:12px 14px;gap:0;');
     var top = el(doc, 'div', 'aj-row-between');
-    top.appendChild(sk(doc, '80px', '12px'));
-    top.appendChild(sk(doc, '18px', '18px', 'aj-sk-circle'));
+    top.appendChild(sk(doc, '68px', '10px'));
+    top.appendChild(sk(doc, '14px', '14px', 'aj-sk-circle'));
     c.appendChild(top);
-    c.appendChild(el(doc, 'div', '', 'height:12px;'));
-    c.appendChild(sk(doc, '118px', '26px'));
+    c.appendChild(el(doc, 'div', '', 'height:10px;'));
+    c.appendChild(sk(doc, '92px', '18px'));
     c.appendChild(el(doc, 'div', '', 'height:8px;'));
     var foot = el(doc, 'div', 'aj-row');
-    foot.appendChild(sk(doc, '54px', '18px', 'aj-sk-pill'));
-    foot.appendChild(sk(doc, '60px', '10px'));
+    foot.appendChild(sk(doc, '44px', '16px', 'aj-sk-pill'));
+    foot.appendChild(sk(doc, '48px', '9px'));
     c.appendChild(foot);
     return c;
   }
 
   function uiChartCard(doc, chartHeight) {
-    var c = uiCard(doc, 'gap:14px;');
+    var c = uiCard(doc, 'padding:12px 14px;gap:12px;');
     var head = el(doc, 'div', 'aj-row-between');
     var left = el(doc, 'div', 'aj-col', 'gap:4px;');
-    left.appendChild(sk(doc, '110px', '14px'));
-    left.appendChild(sk(doc, '160px', '22px'));
+    left.appendChild(sk(doc, '96px', '11px'));
+    left.appendChild(sk(doc, '132px', '18px'));
     head.appendChild(left);
-    head.appendChild(sk(doc, '100px', '28px'));
+    head.appendChild(sk(doc, '84px', '24px', 'aj-sk-pill'));
     c.appendChild(head);
-    c.appendChild(sk(doc, '100%', (chartHeight || 180) + 'px', 'aj-sk-lg'));
+    c.appendChild(sk(doc, '100%', (chartHeight || 136) + 'px', 'aj-sk-lg'));
     return c;
   }
 
   function uiListItem(doc, showTrailing) {
-    var c = uiCard(doc, 'flex-direction:row;align-items:center;gap:12px;');
-    c.appendChild(sk(doc, '38px', '38px', 'aj-sk-circle'));
-    var col = el(doc, 'div', 'aj-col', 'flex:1;gap:4px;');
-    col.appendChild(sk(doc, '140px', '14px'));
-    col.appendChild(sk(doc, '200px', '11px'));
+    var c = uiCard(doc, 'padding:10px 14px;flex-direction:row;align-items:center;gap:12px;');
+    c.appendChild(sk(doc, '34px', '34px', 'aj-sk-circle'));
+    var col = el(doc, 'div', 'aj-col', 'flex:1;gap:5px;');
+    col.appendChild(sk(doc, '124px', '12px'));
+    col.appendChild(sk(doc, '172px', '10px'));
     c.appendChild(col);
     if (showTrailing !== false) {
-      c.appendChild(sk(doc, '58px', '22px', 'aj-sk-pill'));
+      c.appendChild(sk(doc, '52px', '20px', 'aj-sk-pill'));
     }
     return c;
   }
 
   function uiIdentityCard(doc) {
-    var c = uiCard(doc, 'gap:12px;');
+    var c = uiCard(doc, 'padding:12px 14px;gap:10px;');
     var row = el(doc, 'div', 'aj-row');
-    row.appendChild(sk(doc, '52px', '52px', 'aj-sk-circle'));
-    var col = el(doc, 'div', 'aj-col', 'flex:1;gap:6px;');
-    col.appendChild(sk(doc, '170px', '18px'));
-    col.appendChild(sk(doc, '110px', '11px'));
+    row.appendChild(sk(doc, '44px', '44px', 'aj-sk-circle'));
+    var col = el(doc, 'div', 'aj-col', 'flex:1;gap:5px;');
+    col.appendChild(sk(doc, '140px', '14px'));
+    col.appendChild(sk(doc, '96px', '10px'));
     row.appendChild(col);
     c.appendChild(row);
-    c.appendChild(sk(doc, '100%', '32px', 'aj-sk-lg'));
+    c.appendChild(sk(doc, '100%', '28px', 'aj-sk-lg'));
     return c;
   }
 
   function buildDashboard(doc, spec) {
     var frag = doc.createDocumentFragment();
-    frag.appendChild(uiHeader(doc, spec.label, spec.subtitle, 90));
+    frag.appendChild(uiHeader(doc, spec.label, spec.subtitle, 84));
     var grid = el(doc, 'div', 'aj-metrics-4');
     for (var i = 0; i < 4; i++) grid.appendChild(uiMetricCard(doc));
     frag.appendChild(grid);
-    frag.appendChild(uiChartCard(doc, 180));
-    frag.appendChild(uiListItem(doc, true));
-    frag.appendChild(uiListItem(doc, true));
+    frag.appendChild(uiChartCard(doc, 148));
+    for (var j = 0; j < 4; j++) frag.appendChild(uiListItem(doc, true));
     return frag;
   }
 
   function buildJournal(doc, spec) {
     var frag = doc.createDocumentFragment();
-    frag.appendChild(uiHeader(doc, spec.label, spec.subtitle, 96));
-    frag.appendChild(uiTabs(doc, 4, 36));
-    var stripCard = uiCard(doc, 'padding:12px 16px;');
+    frag.appendChild(uiHeader(doc, spec.label, spec.subtitle, 88));
+    frag.appendChild(uiTabs(doc, 4, 34));
+    var stripCard = uiCard(doc, 'padding:10px 14px;');
     var strip = el(doc, 'div', 'aj-heat-strip');
-    for (var d = 0; d < 7; d++) strip.appendChild(sk(doc, '32px', '48px'));
+    for (var d = 0; d < 7; d++) strip.appendChild(sk(doc, '32px', '42px', 'aj-sk-lg'));
     stripCard.appendChild(strip);
     frag.appendChild(stripCard);
-    for (var i = 0; i < 4; i++) frag.appendChild(uiListItem(doc, true));
+    for (var i = 0; i < 5; i++) frag.appendChild(uiListItem(doc, true));
     return frag;
   }
 
   function buildStrategies(doc, spec) {
     var frag = doc.createDocumentFragment();
-    frag.appendChild(uiHeader(doc, spec.label, spec.subtitle, 110));
+    frag.appendChild(uiHeader(doc, spec.label, spec.subtitle, 96));
     var kpis = el(doc, 'div', 'aj-metrics-2');
     kpis.appendChild(uiMetricCard(doc));
     kpis.appendChild(uiMetricCard(doc));
     frag.appendChild(kpis);
-    for (var i = 0; i < 3; i++) {
-      var c = uiCard(doc, 'gap:10px;');
+    for (var i = 0; i < 4; i++) {
+      var c = uiCard(doc, 'padding:12px 14px;gap:8px;');
       var top = el(doc, 'div', 'aj-row-between');
-      top.appendChild(sk(doc, '140px', '16px'));
-      top.appendChild(sk(doc, '60px', '22px', 'aj-sk-pill'));
+      top.appendChild(sk(doc, '128px', '13px'));
+      top.appendChild(sk(doc, '54px', '18px', 'aj-sk-pill'));
       c.appendChild(top);
-      c.appendChild(sk(doc, '100%', '14px'));
-      c.appendChild(sk(doc, '65%', '14px'));
+      c.appendChild(sk(doc, '92%', '11px'));
+      c.appendChild(sk(doc, '62%', '11px'));
       var foot = el(doc, 'div', 'aj-row-between');
-      foot.appendChild(sk(doc, '80px', '12px'));
-      foot.appendChild(sk(doc, '80px', '12px'));
-      foot.appendChild(sk(doc, '80px', '12px'));
+      foot.appendChild(sk(doc, '72px', '10px'));
+      foot.appendChild(sk(doc, '72px', '10px'));
+      foot.appendChild(sk(doc, '72px', '10px'));
       c.appendChild(foot);
       frag.appendChild(c);
     }
@@ -1145,24 +1173,24 @@
 
   function buildWatchlists(doc, spec) {
     var frag = doc.createDocumentFragment();
-    frag.appendChild(uiHeader(doc, spec.label, spec.subtitle, 80));
+    frag.appendChild(uiHeader(doc, spec.label, spec.subtitle, 78));
     var pills = el(doc, 'div', 'aj-row');
-    pills.appendChild(sk(doc, '64px', '28px', 'aj-sk-pill'));
-    pills.appendChild(sk(doc, '80px', '28px', 'aj-sk-pill'));
-    pills.appendChild(sk(doc, '72px', '28px', 'aj-sk-pill'));
-    pills.appendChild(sk(doc, '60px', '28px', 'aj-sk-pill'));
+    pills.appendChild(sk(doc, '60px', '26px', 'aj-sk-pill'));
+    pills.appendChild(sk(doc, '76px', '26px', 'aj-sk-pill'));
+    pills.appendChild(sk(doc, '68px', '26px', 'aj-sk-pill'));
+    pills.appendChild(sk(doc, '56px', '26px', 'aj-sk-pill'));
     frag.appendChild(pills);
-    for (var i = 0; i < 4; i++) {
-      var c = uiCard(doc, 'flex-direction:row;align-items:center;gap:12px;');
-      c.appendChild(sk(doc, '32px', '32px', 'aj-sk-circle'));
+    for (var i = 0; i < 6; i++) {
+      var c = uiCard(doc, 'padding:10px 14px;flex-direction:row;align-items:center;gap:12px;');
+      c.appendChild(sk(doc, '30px', '30px', 'aj-sk-circle'));
       var col = el(doc, 'div', 'aj-col', 'flex:1;gap:4px;');
-      col.appendChild(sk(doc, '60px', '14px'));
-      col.appendChild(sk(doc, '100px', '11px'));
+      col.appendChild(sk(doc, '56px', '12px'));
+      col.appendChild(sk(doc, '92px', '10px'));
       c.appendChild(col);
-      c.appendChild(sk(doc, '64px', '24px'));
+      c.appendChild(sk(doc, '56px', '18px'));
       var rt = el(doc, 'div', 'aj-col', 'align-items:flex-end;gap:4px;');
-      rt.appendChild(sk(doc, '56px', '14px'));
-      rt.appendChild(sk(doc, '48px', '18px', 'aj-sk-pill'));
+      rt.appendChild(sk(doc, '48px', '12px'));
+      rt.appendChild(sk(doc, '42px', '16px', 'aj-sk-pill'));
       c.appendChild(rt);
       frag.appendChild(c);
     }
@@ -1171,56 +1199,56 @@
 
   function buildMarket(doc) {
     var frag = doc.createDocumentFragment();
-    var hCard = uiCard(doc, 'padding:10px 16px;flex-direction:row;align-items:center;gap:12px;');
-    hCard.appendChild(sk(doc, '20px', '20px'));
+    var hCard = uiCard(doc, 'padding:10px 14px;flex-direction:row;align-items:center;gap:12px;');
+    hCard.appendChild(sk(doc, '18px', '18px'));
     var hMid = el(doc, 'div', 'aj-col', 'flex:1;gap:4px;');
     var hTop = el(doc, 'div', 'aj-row');
-    hTop.appendChild(sk(doc, '140px', '16px'));
-    hTop.appendChild(sk(doc, '60px', '18px', 'aj-sk-pill'));
+    hTop.appendChild(sk(doc, '124px', '13px'));
+    hTop.appendChild(sk(doc, '52px', '16px', 'aj-sk-pill'));
     hMid.appendChild(hTop);
-    hMid.appendChild(sk(doc, '220px', '11px'));
+    hMid.appendChild(sk(doc, '188px', '10px'));
     hCard.appendChild(hMid);
-    hCard.appendChild(sk(doc, '18px', '18px', 'aj-sk-circle'));
+    hCard.appendChild(sk(doc, '16px', '16px', 'aj-sk-circle'));
     frag.appendChild(hCard);
 
-    frag.appendChild(uiTabs(doc, 6, 38));
+    frag.appendChild(uiTabs(doc, 6, 34));
 
     var rib = el(doc, 'div', 'aj-ribbon');
-    rib.appendChild(sk(doc, '70px', '24px', 'aj-sk-pill'));
+    rib.appendChild(sk(doc, '64px', '22px', 'aj-sk-pill'));
     rib.appendChild(el(doc, 'div', 'aj-vdiv'));
     for (var r = 0; r < 4; r++) {
       var pair = el(doc, 'div', 'aj-row', 'gap:8px;');
       var txt = el(doc, 'div', 'aj-col', 'gap:3px;');
-      txt.appendChild(sk(doc, '46px', '9px'));
-      txt.appendChild(sk(doc, '54px', '11px'));
+      txt.appendChild(sk(doc, '42px', '8px'));
+      txt.appendChild(sk(doc, '48px', '10px'));
       pair.appendChild(txt);
-      pair.appendChild(sk(doc, '32px', '18px'));
+      pair.appendChild(sk(doc, '28px', '16px'));
       rib.appendChild(pair);
     }
     frag.appendChild(rib);
 
     var split = el(doc, 'div', 'aj-market-split');
-    var leftCol = el(doc, 'div', 'aj-col', 'gap:14px;');
-    var idxCard = uiCard(doc, 'gap:10px;');
+    var leftCol = el(doc, 'div', 'aj-col', 'gap:12px;');
+    var idxCard = uiCard(doc, 'padding:12px 14px;gap:8px;');
     var idxHead = el(doc, 'div', 'aj-row-between');
-    idxHead.appendChild(sk(doc, '140px', '18px'));
-    idxHead.appendChild(sk(doc, '64px', '20px', 'aj-sk-pill'));
+    idxHead.appendChild(sk(doc, '124px', '14px'));
+    idxHead.appendChild(sk(doc, '56px', '18px', 'aj-sk-pill'));
     idxCard.appendChild(idxHead);
     for (var i = 0; i < 5; i++) {
-      var row = el(doc, 'div', 'aj-row-between', 'padding:4px 0;');
-      row.appendChild(sk(doc, '90px', '14px'));
+      var row = el(doc, 'div', 'aj-row-between', 'padding:3px 0;');
+      row.appendChild(sk(doc, '82px', '11px'));
       var rt = el(doc, 'div', 'aj-row');
-      rt.appendChild(sk(doc, '60px', '14px'));
-      rt.appendChild(sk(doc, '50px', '14px'));
-      rt.appendChild(sk(doc, '40px', '18px'));
+      rt.appendChild(sk(doc, '52px', '11px'));
+      rt.appendChild(sk(doc, '44px', '11px'));
+      rt.appendChild(sk(doc, '36px', '16px', 'aj-sk-pill'));
       row.appendChild(rt);
       idxCard.appendChild(row);
       if (i < 4) idxCard.appendChild(el(doc, 'div', 'aj-hdiv'));
     }
     leftCol.appendChild(idxCard);
 
-    var hmCard = uiCard(doc, 'gap:10px;');
-    hmCard.appendChild(sk(doc, '160px', '18px'));
+    var hmCard = uiCard(doc, 'padding:12px 14px;gap:8px;');
+    hmCard.appendChild(sk(doc, '136px', '14px'));
     var mos = el(doc, 'div', 'aj-mosaic');
     mos.appendChild(sk(doc, '100%', '100%'));
     var mid = el(doc, 'div', 'aj-mosaic-mid');
@@ -1232,8 +1260,9 @@
     leftCol.appendChild(hmCard);
     split.appendChild(leftCol);
 
-    var rightCol = el(doc, 'div', 'aj-col', 'gap:14px;');
-    rightCol.appendChild(uiChartCard(doc, 160));
+    var rightCol = el(doc, 'div', 'aj-col', 'gap:12px;');
+    rightCol.appendChild(uiChartCard(doc, 132));
+    rightCol.appendChild(uiListItem(doc, true));
     rightCol.appendChild(uiListItem(doc, true));
     rightCol.appendChild(uiListItem(doc, true));
     split.appendChild(rightCol);
@@ -1248,87 +1277,89 @@
     var feed = el(doc, 'div', 'aj-comm-feed');
 
     if (isExplore) {
-      feed.appendChild(uiTabs(doc, 4, 36));
+      feed.appendChild(uiTabs(doc, 4, 34));
     } else {
-      var comp = uiCard(doc, 'gap:8px;');
-      comp.appendChild(sk(doc, '100%', '40px', 'aj-sk-pill'));
+      var comp = uiCard(doc, 'padding:12px 14px;gap:8px;');
+      comp.appendChild(sk(doc, '100%', '34px', 'aj-sk-pill'));
       var chips = el(doc, 'div', 'aj-row');
-      chips.appendChild(sk(doc, '76px', '22px', 'aj-sk-pill'));
-      chips.appendChild(sk(doc, '82px', '22px', 'aj-sk-pill'));
-      chips.appendChild(sk(doc, '86px', '22px', 'aj-sk-pill'));
-      chips.appendChild(sk(doc, '78px', '22px', 'aj-sk-pill'));
+      chips.appendChild(sk(doc, '68px', '20px', 'aj-sk-pill'));
+      chips.appendChild(sk(doc, '74px', '20px', 'aj-sk-pill'));
+      chips.appendChild(sk(doc, '78px', '20px', 'aj-sk-pill'));
+      chips.appendChild(sk(doc, '68px', '20px', 'aj-sk-pill'));
       comp.appendChild(chips);
       feed.appendChild(comp);
     }
 
-    var p1 = uiCard(doc, 'gap:12px;');
+    var p1 = uiCard(doc, 'padding:12px 14px;gap:10px;');
     var a1 = el(doc, 'div', 'aj-row');
-    a1.appendChild(sk(doc, '36px', '36px', 'aj-sk-circle'));
+    a1.appendChild(sk(doc, '32px', '32px', 'aj-sk-circle'));
     var m1 = el(doc, 'div', 'aj-col', 'flex:1;gap:4px;');
-    m1.appendChild(sk(doc, '120px', '13px'));
-    m1.appendChild(sk(doc, '80px', '10px'));
+    m1.appendChild(sk(doc, '110px', '12px'));
+    m1.appendChild(sk(doc, '72px', '9px'));
     a1.appendChild(m1);
-    a1.appendChild(sk(doc, '48px', '18px', 'aj-sk-pill'));
+    a1.appendChild(sk(doc, '44px', '16px', 'aj-sk-pill'));
     p1.appendChild(a1);
-    p1.appendChild(sk(doc, '100%', '14px'));
-    p1.appendChild(sk(doc, '72%', '14px'));
-    p1.appendChild(sk(doc, '100%', '120px'));
+    p1.appendChild(sk(doc, '96%', '11px'));
+    p1.appendChild(sk(doc, '68%', '11px'));
+    p1.appendChild(sk(doc, '100%', '96px', 'aj-sk-lg'));
     var f1 = el(doc, 'div', 'aj-row-between');
-    f1.appendChild(sk(doc, '44px', '14px', 'aj-sk-pill'));
-    f1.appendChild(sk(doc, '44px', '14px', 'aj-sk-pill'));
-    f1.appendChild(sk(doc, '44px', '14px', 'aj-sk-pill'));
-    f1.appendChild(sk(doc, '36px', '14px', 'aj-sk-pill'));
+    f1.appendChild(sk(doc, '40px', '12px', 'aj-sk-pill'));
+    f1.appendChild(sk(doc, '40px', '12px', 'aj-sk-pill'));
+    f1.appendChild(sk(doc, '40px', '12px', 'aj-sk-pill'));
+    f1.appendChild(sk(doc, '32px', '12px', 'aj-sk-pill'));
     p1.appendChild(f1);
     feed.appendChild(p1);
 
-    var p2 = uiCard(doc, 'gap:12px;');
-    var a2 = el(doc, 'div', 'aj-row');
-    a2.appendChild(sk(doc, '36px', '36px', 'aj-sk-circle'));
-    var m2 = el(doc, 'div', 'aj-col', 'flex:1;gap:4px;');
-    m2.appendChild(sk(doc, '140px', '13px'));
-    m2.appendChild(sk(doc, '90px', '10px'));
-    a2.appendChild(m2);
-    p2.appendChild(a2);
-    p2.appendChild(sk(doc, '100%', '14px'));
-    p2.appendChild(sk(doc, '92%', '14px'));
-    p2.appendChild(sk(doc, '65%', '14px'));
-    var tags = el(doc, 'div', 'aj-row');
-    tags.appendChild(sk(doc, '54px', '22px', 'aj-sk-pill'));
-    tags.appendChild(sk(doc, '72px', '22px', 'aj-sk-pill'));
-    tags.appendChild(sk(doc, '68px', '22px', 'aj-sk-pill'));
-    p2.appendChild(tags);
-    var f2 = el(doc, 'div', 'aj-row-between');
-    f2.appendChild(sk(doc, '44px', '14px', 'aj-sk-pill'));
-    f2.appendChild(sk(doc, '44px', '14px', 'aj-sk-pill'));
-    f2.appendChild(sk(doc, '44px', '14px', 'aj-sk-pill'));
-    f2.appendChild(sk(doc, '36px', '14px', 'aj-sk-pill'));
-    p2.appendChild(f2);
-    feed.appendChild(p2);
+    for (var pi = 0; pi < 2; pi++) {
+      var p2 = uiCard(doc, 'padding:12px 14px;gap:10px;');
+      var a2 = el(doc, 'div', 'aj-row');
+      a2.appendChild(sk(doc, '32px', '32px', 'aj-sk-circle'));
+      var m2 = el(doc, 'div', 'aj-col', 'flex:1;gap:4px;');
+      m2.appendChild(sk(doc, '124px', '12px'));
+      m2.appendChild(sk(doc, '82px', '9px'));
+      a2.appendChild(m2);
+      p2.appendChild(a2);
+      p2.appendChild(sk(doc, '94%', '11px'));
+      p2.appendChild(sk(doc, '84%', '11px'));
+      p2.appendChild(sk(doc, '58%', '11px'));
+      var tags = el(doc, 'div', 'aj-row');
+      tags.appendChild(sk(doc, '50px', '18px', 'aj-sk-pill'));
+      tags.appendChild(sk(doc, '64px', '18px', 'aj-sk-pill'));
+      tags.appendChild(sk(doc, '58px', '18px', 'aj-sk-pill'));
+      p2.appendChild(tags);
+      var f2 = el(doc, 'div', 'aj-row-between');
+      f2.appendChild(sk(doc, '40px', '12px', 'aj-sk-pill'));
+      f2.appendChild(sk(doc, '40px', '12px', 'aj-sk-pill'));
+      f2.appendChild(sk(doc, '40px', '12px', 'aj-sk-pill'));
+      f2.appendChild(sk(doc, '32px', '12px', 'aj-sk-pill'));
+      p2.appendChild(f2);
+      feed.appendChild(p2);
+    }
 
     wrap.appendChild(feed);
 
     var side = el(doc, 'div', 'aj-comm-side');
-    side.appendChild(sk(doc, '100%', '40px', 'aj-sk-pill'));
-    var tr = uiCard(doc, 'gap:12px;');
-    tr.appendChild(sk(doc, '120px', '14px'));
+    side.appendChild(sk(doc, '100%', '34px', 'aj-sk-pill'));
+    var tr = uiCard(doc, 'padding:12px 14px;gap:10px;');
+    tr.appendChild(sk(doc, '108px', '12px'));
     for (var ti = 0; ti < 4; ti++) {
       var trow = el(doc, 'div', 'aj-row-between');
-      trow.appendChild(sk(doc, '90px', '12px'));
-      trow.appendChild(sk(doc, '40px', '10px'));
+      trow.appendChild(sk(doc, '84px', '11px'));
+      trow.appendChild(sk(doc, '36px', '9px'));
       tr.appendChild(trow);
     }
     side.appendChild(tr);
 
-    var wf = uiCard(doc, 'gap:12px;');
-    wf.appendChild(sk(doc, '110px', '14px'));
+    var wf = uiCard(doc, 'padding:12px 14px;gap:10px;');
+    wf.appendChild(sk(doc, '96px', '12px'));
     for (var wi = 0; wi < 3; wi++) {
       var wrow = el(doc, 'div', 'aj-row');
-      wrow.appendChild(sk(doc, '32px', '32px', 'aj-sk-circle'));
+      wrow.appendChild(sk(doc, '30px', '30px', 'aj-sk-circle'));
       var wcol = el(doc, 'div', 'aj-col', 'flex:1;gap:3px;');
-      wcol.appendChild(sk(doc, '85px', '12px'));
-      wcol.appendChild(sk(doc, '55px', '10px'));
+      wcol.appendChild(sk(doc, '78px', '11px'));
+      wcol.appendChild(sk(doc, '50px', '9px'));
       wrow.appendChild(wcol);
-      wrow.appendChild(sk(doc, '56px', '26px', 'aj-sk-pill'));
+      wrow.appendChild(sk(doc, '50px', '22px', 'aj-sk-pill'));
       wf.appendChild(wrow);
     }
     side.appendChild(wf);
@@ -1342,14 +1373,14 @@
     var frag = doc.createDocumentFragment();
     frag.appendChild(uiIdentityCard(doc));
     var badges = el(doc, 'div', 'aj-row');
-    badges.appendChild(sk(doc, '78px', '22px', 'aj-sk-pill'));
-    badges.appendChild(sk(doc, '96px', '22px', 'aj-sk-pill'));
-    badges.appendChild(sk(doc, '64px', '22px', 'aj-sk-pill'));
+    badges.appendChild(sk(doc, '72px', '20px', 'aj-sk-pill'));
+    badges.appendChild(sk(doc, '88px', '20px', 'aj-sk-pill'));
+    badges.appendChild(sk(doc, '60px', '20px', 'aj-sk-pill'));
     frag.appendChild(badges);
     var mRow = el(doc, 'div', 'aj-metrics-3');
     for (var i = 0; i < 3; i++) mRow.appendChild(uiMetricCard(doc));
     frag.appendChild(mRow);
-    frag.appendChild(uiChartCard(doc, 160));
+    frag.appendChild(uiChartCard(doc, 136));
     frag.appendChild(uiListItem(doc, true));
     frag.appendChild(uiListItem(doc, true));
     return frag;
@@ -1357,8 +1388,8 @@
 
   function buildMessages(doc) {
     var frag = doc.createDocumentFragment();
-    frag.appendChild(sk(doc, '100%', '40px', 'aj-sk-lg'));
-    for (var i = 0; i < 5; i++) frag.appendChild(uiListItem(doc, true));
+    frag.appendChild(sk(doc, '100%', '34px', 'aj-sk-pill'));
+    for (var i = 0; i < 7; i++) frag.appendChild(uiListItem(doc, true));
     return frag;
   }
 
@@ -1373,22 +1404,22 @@
     left.appendChild(s);
     frag.appendChild(left);
 
-    var prompt = uiCard(doc, 'height:72px;flex-direction:row;align-items:center;gap:12px;');
-    prompt.appendChild(sk(doc, '20px', '20px', 'aj-sk-circle'));
-    prompt.appendChild(sk(doc, '180px', '14px'));
+    var prompt = uiCard(doc, 'padding:12px 14px;height:58px;flex-direction:row;align-items:center;gap:12px;');
+    prompt.appendChild(sk(doc, '18px', '18px', 'aj-sk-circle'));
+    prompt.appendChild(sk(doc, '160px', '12px'));
     var sp = el(doc, 'div', '', 'flex:1;');
     prompt.appendChild(sp);
-    prompt.appendChild(sk(doc, '60px', '32px', 'aj-sk-lg'));
+    prompt.appendChild(sk(doc, '54px', '28px', 'aj-sk-pill'));
     frag.appendChild(prompt);
 
-    for (var i = 0; i < 3; i++) {
-      var ic = uiCard(doc, 'gap:8px;');
+    for (var i = 0; i < 4; i++) {
+      var ic = uiCard(doc, 'padding:12px 14px;gap:8px;');
       var top = el(doc, 'div', 'aj-row-between');
-      top.appendChild(sk(doc, '130px', '14px'));
-      top.appendChild(sk(doc, '70px', '20px', 'aj-sk-pill'));
+      top.appendChild(sk(doc, '118px', '12px'));
+      top.appendChild(sk(doc, '60px', '18px', 'aj-sk-pill'));
       ic.appendChild(top);
-      ic.appendChild(sk(doc, '100%', '14px'));
-      ic.appendChild(sk(doc, '65%', '14px'));
+      ic.appendChild(sk(doc, '92%', '11px'));
+      ic.appendChild(sk(doc, '60%', '11px'));
       frag.appendChild(ic);
     }
     return frag;
@@ -1398,14 +1429,14 @@
     var frag = doc.createDocumentFragment();
     frag.appendChild(uiIdentityCard(doc));
     for (var g = 0; g < 3; g++) {
-      var grp = el(doc, 'div', 'aj-col', 'gap:8px;margin-top:6px;');
-      grp.appendChild(sk(doc, '120px', '11px'));
+      var grp = el(doc, 'div', 'aj-col', 'gap:8px;margin-top:4px;');
+      grp.appendChild(sk(doc, '104px', '10px'));
       for (var r = 0; r < 3; r++) {
-        var row = uiCard(doc, 'flex-direction:row;align-items:center;gap:14px;');
-        row.appendChild(sk(doc, '32px', '32px', 'aj-sk-lg'));
-        var col = el(doc, 'div', 'aj-col', 'flex:1;gap:6px;');
-        col.appendChild(sk(doc, '150px', '13px'));
-        col.appendChild(sk(doc, '100%', '10px'));
+        var row = uiCard(doc, 'padding:10px 14px;flex-direction:row;align-items:center;gap:12px;');
+        row.appendChild(sk(doc, '28px', '28px', 'aj-sk-lg'));
+        var col = el(doc, 'div', 'aj-col', 'flex:1;gap:5px;');
+        col.appendChild(sk(doc, '132px', '11px'));
+        col.appendChild(sk(doc, '78%', '9px'));
         row.appendChild(col);
         grp.appendChild(row);
       }
@@ -1416,9 +1447,9 @@
 
   function buildGenericPage(doc, spec, showTabs) {
     var frag = doc.createDocumentFragment();
-    frag.appendChild(uiHeader(doc, spec.label, spec.subtitle, 90));
-    if (showTabs) frag.appendChild(uiTabs(doc, 3, 38));
-    for (var i = 0; i < 5; i++) frag.appendChild(uiListItem(doc, true));
+    frag.appendChild(uiHeader(doc, spec.label, spec.subtitle, 84));
+    if (showTabs) frag.appendChild(uiTabs(doc, 3, 34));
+    for (var i = 0; i < 6; i++) frag.appendChild(uiListItem(doc, true));
     return frag;
   }
 
@@ -1467,7 +1498,7 @@
     host.setAttribute('data-dock-variant', spec.dockVariant);
     host.setAttribute('data-active-slot', String(spec.activeSlot));
 
-    // Desktop & Tablet Sidebar mirroring AppSidebar
+    // Desktop & Tablet Sidebar mirroring AppSidebar / AppWorkspaceTile
     var sidebar = el(doc, 'aside', 'aj-sidebar');
     var sHead = el(doc, 'div', 'aj-side-head');
     var badge = el(doc, 'div', 'aj-logo-badge');
@@ -1477,8 +1508,13 @@
     var bTitle = el(doc, 'div', 'aj-side-title');
     bTitle.textContent = 'alphajournal';
     sBrand.appendChild(bTitle);
-    sBrand.appendChild(sk(doc, '64px', '10px'));
+    var bSub = el(doc, 'div', 'aj-side-sub');
+    bSub.textContent = dockCfg.planLabel || 'Workspace';
+    sBrand.appendChild(bSub);
     sHead.appendChild(sBrand);
+    var sSwap = el(doc, 'div', 'aj-side-swap');
+    sSwap.appendChild(svgIcon(doc, 'swap_vert', 14));
+    sHead.appendChild(sSwap);
     sidebar.appendChild(sHead);
 
     var sNav = el(doc, 'div', 'aj-side-nav');
@@ -1504,14 +1540,14 @@
           'aj-side-item' + (activeNav || subActive ? ' is-active' : '')
         );
         var left = el(doc, 'div', 'aj-side-item-left');
-        left.appendChild(svgIcon(doc, navItem.icon, 16));
+        left.appendChild(svgIcon(doc, navItem.icon, 17));
         var lblEl = el(doc, 'span', 'aj-side-item-label');
         lblEl.textContent = navItem.label;
         left.appendChild(lblEl);
         itemEl.appendChild(left);
         if (navItem.hasChevron) {
           var chev = el(doc, 'span', 'aj-side-chev');
-          chev.textContent = '›';
+          chev.textContent = (activeNav || subActive) && navItem.subItems ? '⌄' : '›';
           itemEl.appendChild(chev);
         }
         secWrap.appendChild(itemEl);
@@ -1538,32 +1574,48 @@
     var foot = el(doc, 'div', 'aj-side-foot');
     foot.appendChild(sk(doc, '30px', '30px', 'aj-sk-circle'));
     var fCol = el(doc, 'div', 'aj-col', 'flex:1;gap:4px;');
-    fCol.appendChild(sk(doc, '86px', '11px'));
+    fCol.appendChild(sk(doc, '86px', '10px'));
     fCol.appendChild(sk(doc, '62px', '9px'));
     foot.appendChild(fCol);
+    var fSwap = el(doc, 'div', 'aj-side-swap');
+    fSwap.appendChild(svgIcon(doc, 'swap_vert', 14));
+    foot.appendChild(fSwap);
     sidebar.appendChild(foot);
     host.appendChild(sidebar);
 
-    // Main workspace column: AppTopBar + rounded content surface frame
+    // Main workspace column: AppTopBar (UiCard wrapper) + rounded content surface frame
     var workspace = el(doc, 'div', 'aj-workspace');
     var topbar = el(doc, 'header', 'aj-topbar');
+    var topCard = el(doc, 'div', 'aj-topbar-card');
+
     var tLeft = el(doc, 'div', 'aj-top-left');
     var mBtn = el(doc, 'div', 'aj-top-menu-icon');
-    mBtn.appendChild(svgIcon(doc, 'menu', 18));
+    mBtn.appendChild(svgIcon(doc, 'menu', 16));
     tLeft.appendChild(mBtn);
     var titleEl = el(doc, 'span', 'aj-top-title');
-    titleEl.textContent = spec.topTitle || spec.label;
+    var desktopTitle = el(doc, 'span', 'aj-top-title-desktop');
+    desktopTitle.textContent = spec.topTitle || spec.label;
+    var mobileTitle = el(doc, 'span', 'aj-top-title-mobile');
+    mobileTitle.textContent = spec.mobileTitle || spec.label;
+    titleEl.appendChild(desktopTitle);
+    titleEl.appendChild(mobileTitle);
     tLeft.appendChild(titleEl);
-    topbar.appendChild(tLeft);
+    topCard.appendChild(tLeft);
 
     var searchStub = el(doc, 'div', 'aj-search-stub');
     searchStub.appendChild(svgIcon(doc, 'search', 14));
     var sTxt = el(doc, 'span', 'aj-search-txt');
     sTxt.textContent = dockCfg.searchPlaceholder || 'Search...';
     searchStub.appendChild(sTxt);
-    topbar.appendChild(searchStub);
+    topCard.appendChild(searchStub);
 
     var tRight = el(doc, 'div', 'aj-top-right');
+    var mSearchBtn = el(doc, 'div', 'aj-icon-btn aj-mobile-only');
+    mSearchBtn.appendChild(svgIcon(doc, 'search', 16));
+    tRight.appendChild(mSearchBtn);
+    var calcBtn = el(doc, 'div', 'aj-icon-btn aj-desktop-only');
+    calcBtn.appendChild(svgIcon(doc, 'calc', 16));
+    tRight.appendChild(calcBtn);
     var feat = el(doc, 'div', 'aj-features-pill');
     feat.appendChild(svgIcon(doc, 'compass', 14));
     var fTxt = el(doc, 'span');
@@ -1576,7 +1628,9 @@
     var helpBtn = el(doc, 'div', 'aj-icon-btn');
     helpBtn.appendChild(svgIcon(doc, 'help', 16));
     tRight.appendChild(helpBtn);
-    topbar.appendChild(tRight);
+    topCard.appendChild(tRight);
+
+    topbar.appendChild(topCard);
     workspace.appendChild(topbar);
 
     var frame = el(doc, 'div', 'aj-content-frame');

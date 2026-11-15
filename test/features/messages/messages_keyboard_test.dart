@@ -41,10 +41,11 @@ void main() {
         matching: find.byType(TextField),
       );
       final initialBottom = tester.getBottomLeft(composer).dy;
-      expect(initialBottom, lessThanOrEqualTo(844 - 56 - 16 - 24));
+      expect(initialBottom, 844);
       await tester.enterText(field, 'Unsent draft');
       await tester.pumpAndSettle();
       final initialField = tester.getRect(field);
+      expect(initialField.bottom, lessThanOrEqualTo(844 - 56 - 16 - 24));
 
       // Opening, partially swiping back, cancelling, then completing the swipe.
       for (final inset in [300.0, 150.0, 300.0, 120.0, 0.0]) {
