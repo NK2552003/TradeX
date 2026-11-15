@@ -1,4 +1,5 @@
-import 'package:tradex/features/market_data/presentation/market_root_screen.dart';
+import 'package:tradex/features/market_data/presentation/market_root_screen.dart'
+    deferred as deferred_market_root;
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
@@ -13,23 +14,39 @@ import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/core/navigation/role_navigation_config.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_analytics_page.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_audit_log_page.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_overview_page.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_publishing_page.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_records_page.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_settings_page.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_analytics_page.dart'
+    deferred as deferred_admin_analytics;
+import 'package:tradex/features/admin_console/presentation/pages/admin_audit_log_page.dart'
+    deferred as deferred_admin_audit_log;
+import 'package:tradex/features/admin_console/presentation/pages/admin_overview_page.dart'
+    deferred as deferred_admin_overview;
+import 'package:tradex/features/admin_console/presentation/pages/admin_publishing_page.dart'
+    deferred as deferred_admin_publishing;
+import 'package:tradex/features/admin_console/presentation/pages/admin_records_page.dart'
+    deferred as deferred_admin_records;
+import 'package:tradex/features/admin_console/presentation/pages/admin_settings_page.dart'
+    deferred as deferred_admin_settings;
 import 'package:tradex/features/admin_console/models/admin_records.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_team_seats_page.dart';
-import 'package:tradex/features/affiliate_program/affiliate_program.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_marketing_page.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_team_seats_page.dart'
+    deferred as deferred_admin_team_seats;
+import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
+import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
+import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_approvals_page.dart'
+    deferred as deferred_aff_approvals;
+import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_marketing_page.dart'
+    deferred as deferred_aff_marketing;
+import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart'
+    deferred as deferred_aff_overview;
+import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart'
+    deferred as deferred_aff_payouts;
+import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart'
+    deferred as deferred_aff_referrals;
 import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/calculators/ui/calculators_screen.dart';
+import 'package:tradex/features/calculators/ui/calculators_screen.dart'
+    deferred as deferred_calculators;
 import 'package:tradex/features/journal/ui/journal_screen.dart';
 import 'package:tradex/features/notes/ui/notes_screen.dart';
 import 'package:tradex/features/workspace/ui/workspace_screen.dart';
@@ -1042,13 +1059,17 @@ class _AppScaffoldState extends State<AppScaffold> {
     if (_selectedId == 'notifications') return _notificationsPage();
     if (_selectedId.startsWith('settings')) return _settingsPage();
     if (_selectedId == 'market' || _selectedId.startsWith('market_')) {
-      return MarketRootScreen(
-        key: const ValueKey('market-root'),
-        destination: _selectedId,
-        searchQuery: _marketQuery,
-        openRequest: _linkRequest,
-        onNavigate: _go,
-        onSubpageChanged: _onSubpageChanged,
+      return _DeferredFeatureView(
+        libraryId: 'market_root',
+        loadLibrary: deferred_market_root.loadLibrary,
+        builder: (BuildContext _) => deferred_market_root.MarketRootScreen(
+          key: const ValueKey('market-root'),
+          destination: _selectedId,
+          searchQuery: _marketQuery,
+          openRequest: _linkRequest,
+          onNavigate: _go,
+          onSubpageChanged: _onSubpageChanged,
+        ),
       );
     }
 
@@ -1349,9 +1370,13 @@ class _AppScaffoldState extends State<AppScaffold> {
       ),
     ),
 
-    'calculators' => CalculatorsScreen(
-      key: const PageStorageKey<String>('calculators_screen'),
-      onSubpageChanged: _onSubpageChanged,
+    'calculators' => _DeferredFeatureView(
+      libraryId: 'calculators',
+      loadLibrary: deferred_calculators.loadLibrary,
+      builder: (BuildContext _) => deferred_calculators.CalculatorsScreen(
+        key: const PageStorageKey<String>('calculators_screen'),
+        onSubpageChanged: _onSubpageChanged,
+      ),
     ),
     'community' => _communityPage(initialTabIndex: 0),
     'community_feed' => _communityPage(initialTabIndex: 0),
@@ -1365,30 +1390,48 @@ class _AppScaffoldState extends State<AppScaffold> {
   };
 
   Widget _affiliatePage() => switch (_selectedId) {
-    'workspace' || 'overview' => AffiliateOverviewPage(
-      onNavigate: _go,
-      onSwitchToTraderView: () => _switchRole(UserRole.customer),
-      onOpenReferrals: _jump('referrals'),
-      onOpenPayouts: _jump('payouts'),
-      onOpenMarketing: _jump('marketing'),
+    'workspace' || 'overview' => _DeferredFeatureView(
+      libraryId: 'aff_overview',
+      loadLibrary: deferred_aff_overview.loadLibrary,
+      builder: (BuildContext _) => deferred_aff_overview.AffiliateOverviewPage(
+        onNavigate: _go,
+        onSwitchToTraderView: () => _switchRole(UserRole.customer),
+        onOpenReferrals: _jump('referrals'),
+        onOpenPayouts: _jump('payouts'),
+        onOpenMarketing: _jump('marketing'),
+      ),
     ),
-    'referrals' => AffiliateReferralsPage(
-      onNavigate: _go,
-      onSwitchToTraderView: () => _switchRole(UserRole.customer),
-      onOpenPayouts: _jump('payouts'),
-      onOpenMarketing: _jump('marketing'),
+    'referrals' => _DeferredFeatureView(
+      libraryId: 'aff_referrals',
+      loadLibrary: deferred_aff_referrals.loadLibrary,
+      builder: (BuildContext _) =>
+          deferred_aff_referrals.AffiliateReferralsPage(
+            onNavigate: _go,
+            onSwitchToTraderView: () => _switchRole(UserRole.customer),
+            onOpenPayouts: _jump('payouts'),
+            onOpenMarketing: _jump('marketing'),
+          ),
     ),
-    'marketing' => AffiliateMarketingPage(
-      onNavigate: _go,
-      onSwitchToTraderView: () => _switchRole(UserRole.customer),
-      onOpenReferrals: _jump('referrals'),
-      onOpenPayouts: _jump('payouts'),
+    'marketing' => _DeferredFeatureView(
+      libraryId: 'aff_marketing',
+      loadLibrary: deferred_aff_marketing.loadLibrary,
+      builder: (BuildContext _) =>
+          deferred_aff_marketing.AffiliateMarketingPage(
+            onNavigate: _go,
+            onSwitchToTraderView: () => _switchRole(UserRole.customer),
+            onOpenReferrals: _jump('referrals'),
+            onOpenPayouts: _jump('payouts'),
+          ),
     ),
-    'payouts' => AffiliatePayoutsPage(
-      onNavigate: _go,
-      onSwitchToTraderView: () => _switchRole(UserRole.customer),
-      onOpenReferrals: _jump('referrals'),
-      onOpenSettings: _jump('settings_affiliate'),
+    'payouts' => _DeferredFeatureView(
+      libraryId: 'aff_payouts',
+      loadLibrary: deferred_aff_payouts.loadLibrary,
+      builder: (BuildContext _) => deferred_aff_payouts.AffiliatePayoutsPage(
+        onNavigate: _go,
+        onSwitchToTraderView: () => _switchRole(UserRole.customer),
+        onOpenReferrals: _jump('referrals'),
+        onOpenSettings: _jump('settings_affiliate'),
+      ),
     ),
     'messages' => _messagesPage(),
     'ai_copilot' => _aiAssistantPage(),
@@ -1396,33 +1439,102 @@ class _AppScaffoldState extends State<AppScaffold> {
   };
 
   Widget _adminPage() => switch (_selectedId) {
-    'workspace' || 'overview' => AdminOverviewPage(onNavigate: _go),
-    'org_team' => AdminTeamSeatsPage(onNavigate: _go),
-    'org_risk' => const AdminSettingsPage(),
-    'org_audit' => const AdminAuditLogPage(),
-    'org_analytics' => AdminAnalyticsPage(onNavigate: _go),
-    'affiliate_reviews' => const AffiliateApprovalsPage(),
-    'org_publishing' => const AdminPublishingPage(),
-    'admin_comments' => const AdminRecordsPage(
-      resource: AdminResource.comments,
+    'workspace' || 'overview' => _DeferredFeatureView(
+      libraryId: 'admin_overview',
+      loadLibrary: deferred_admin_overview.loadLibrary,
+      builder: (BuildContext _) =>
+          deferred_admin_overview.AdminOverviewPage(onNavigate: _go),
     ),
-    'admin_subscriptions' => const AdminRecordsPage(
-      resource: AdminResource.subscriptions,
+    'org_team' => _DeferredFeatureView(
+      libraryId: 'admin_team_seats',
+      loadLibrary: deferred_admin_team_seats.loadLibrary,
+      builder: (BuildContext _) =>
+          deferred_admin_team_seats.AdminTeamSeatsPage(onNavigate: _go),
     ),
-    'admin_notes' => const AdminRecordsPage(resource: AdminResource.notes),
-    'admin_journal' => const AdminRecordsPage(resource: AdminResource.journal),
-    'admin_strategies' => const AdminRecordsPage(
-      resource: AdminResource.strategies,
+    'org_risk' => _DeferredFeatureView(
+      libraryId: 'admin_settings',
+      loadLibrary: deferred_admin_settings.loadLibrary,
+      builder: (BuildContext _) => deferred_admin_settings.AdminSettingsPage(),
     ),
-    'admin_deletions' => const AdminRecordsPage(
-      resource: AdminResource.deletions,
+    'org_audit' => _DeferredFeatureView(
+      libraryId: 'admin_audit_log',
+      loadLibrary: deferred_admin_audit_log.loadLibrary,
+      builder: (BuildContext _) => deferred_admin_audit_log.AdminAuditLogPage(),
     ),
-    'admin_messages' ||
-    'messages' => const AdminRecordsPage(resource: AdminResource.messages),
-    'admin_ai' => const AdminRecordsPage(
-      resource: AdminResource.ai,
-      resources: [AdminResource.ai, AdminResource.aiRequests],
-      title: 'AI control',
+    'org_analytics' => _DeferredFeatureView(
+      libraryId: 'admin_analytics',
+      loadLibrary: deferred_admin_analytics.loadLibrary,
+      builder: (BuildContext _) =>
+          deferred_admin_analytics.AdminAnalyticsPage(onNavigate: _go),
+    ),
+    'affiliate_reviews' => _DeferredFeatureView(
+      libraryId: 'aff_approvals',
+      loadLibrary: deferred_aff_approvals.loadLibrary,
+      builder: (BuildContext _) =>
+          deferred_aff_approvals.AffiliateApprovalsPage(),
+    ),
+    'org_publishing' => _DeferredFeatureView(
+      libraryId: 'admin_publishing',
+      loadLibrary: deferred_admin_publishing.loadLibrary,
+      builder: (BuildContext _) =>
+          deferred_admin_publishing.AdminPublishingPage(),
+    ),
+    'admin_comments' => _DeferredFeatureView(
+      libraryId: 'admin_records',
+      loadLibrary: deferred_admin_records.loadLibrary,
+      builder: (BuildContext _) => deferred_admin_records.AdminRecordsPage(
+        resource: AdminResource.comments,
+      ),
+    ),
+    'admin_subscriptions' => _DeferredFeatureView(
+      libraryId: 'admin_records',
+      loadLibrary: deferred_admin_records.loadLibrary,
+      builder: (BuildContext _) => deferred_admin_records.AdminRecordsPage(
+        resource: AdminResource.subscriptions,
+      ),
+    ),
+    'admin_notes' => _DeferredFeatureView(
+      libraryId: 'admin_records',
+      loadLibrary: deferred_admin_records.loadLibrary,
+      builder: (BuildContext _) =>
+          deferred_admin_records.AdminRecordsPage(resource: AdminResource.notes),
+    ),
+    'admin_journal' => _DeferredFeatureView(
+      libraryId: 'admin_records',
+      loadLibrary: deferred_admin_records.loadLibrary,
+      builder: (BuildContext _) => deferred_admin_records.AdminRecordsPage(
+        resource: AdminResource.journal,
+      ),
+    ),
+    'admin_strategies' => _DeferredFeatureView(
+      libraryId: 'admin_records',
+      loadLibrary: deferred_admin_records.loadLibrary,
+      builder: (BuildContext _) => deferred_admin_records.AdminRecordsPage(
+        resource: AdminResource.strategies,
+      ),
+    ),
+    'admin_deletions' => _DeferredFeatureView(
+      libraryId: 'admin_records',
+      loadLibrary: deferred_admin_records.loadLibrary,
+      builder: (BuildContext _) => deferred_admin_records.AdminRecordsPage(
+        resource: AdminResource.deletions,
+      ),
+    ),
+    'admin_messages' || 'messages' => _DeferredFeatureView(
+      libraryId: 'admin_records',
+      loadLibrary: deferred_admin_records.loadLibrary,
+      builder: (BuildContext _) => deferred_admin_records.AdminRecordsPage(
+        resource: AdminResource.messages,
+      ),
+    ),
+    'admin_ai' => _DeferredFeatureView(
+      libraryId: 'admin_records',
+      loadLibrary: deferred_admin_records.loadLibrary,
+      builder: (BuildContext _) => deferred_admin_records.AdminRecordsPage(
+        resource: AdminResource.ai,
+        resources: const [AdminResource.ai, AdminResource.aiRequests],
+        title: 'AI control',
+      ),
     ),
     'ai_copilot' => _aiAssistantPage(),
     _ => _unknownPage(),
@@ -2043,6 +2155,98 @@ class _AppScaffoldState extends State<AppScaffold> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Loads a deferred feature library on first visit and renders synchronously on
+/// all subsequent rebuilds without flicker.
+class _DeferredFeatureView extends StatefulWidget {
+  const _DeferredFeatureView({
+    required this.libraryId,
+    required this.loadLibrary,
+    required this.builder,
+  });
+
+  final String libraryId;
+  final Future<void> Function() loadLibrary;
+  final WidgetBuilder builder;
+
+  static final Set<String> _loaded = <String>{};
+  static final Map<String, Future<void>> _inFlight = <String, Future<void>>{};
+
+  @override
+  State<_DeferredFeatureView> createState() => _DeferredFeatureViewState();
+}
+
+class _DeferredFeatureViewState extends State<_DeferredFeatureView> {
+  Future<void>? _loadFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _ensureLoaded();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DeferredFeatureView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.libraryId != widget.libraryId) {
+      _ensureLoaded();
+    }
+  }
+
+  void _ensureLoaded() {
+    if (_DeferredFeatureView._loaded.contains(widget.libraryId)) {
+      _loadFuture = null;
+      return;
+    }
+    _loadFuture = _DeferredFeatureView._inFlight.putIfAbsent(
+      widget.libraryId,
+      () => widget.loadLibrary().then((_) {
+        _DeferredFeatureView._loaded.add(widget.libraryId);
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_DeferredFeatureView._loaded.contains(widget.libraryId)) {
+      return widget.builder(context);
+    }
+    return FutureBuilder<void>(
+      future: _loadFuture,
+      builder: (BuildContext ctx, AsyncSnapshot<void> snap) {
+        if (snap.connectionState == ConnectionState.done && !snap.hasError) {
+          return widget.builder(ctx);
+        }
+        if (snap.hasError) {
+          return UiEmptyState(
+            icon: Icons.cloud_off_rounded,
+            title: 'Unable to load section',
+            message: 'Check your connection and try again.',
+            actionLabel: 'Retry',
+            onActionPressed: () {
+              _DeferredFeatureView._inFlight.remove(widget.libraryId);
+              setState(_ensureLoaded);
+            },
+          );
+        }
+        final spacing = ctx.ui.spacing;
+        return Padding(
+          padding: EdgeInsets.all(ctx.sp(spacing.lg)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const UiSkeleton(width: 220, height: 28),
+              UiGap.v(spacing.md),
+              const UiSkeleton(width: double.infinity, height: 120),
+              UiGap.v(spacing.md),
+              const UiSkeleton(width: double.infinity, height: 220),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -282,7 +281,7 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar>
         isMobile: isMobile,
       ),
       CommunityEngagementButton(
-        icon: CupertinoIcons.paperplane,
+        icon: Icons.send_outlined,
         count: '',
         tooltip: 'Share',
         isActive: widget.shared,

@@ -47,7 +47,15 @@ export default {
     }
     const match = POST_PATH.exec(url.pathname);
     const page = await env.ASSETS.fetch(request);
-    if (!match || request.method !== 'GET') return page;
+    if (!match || request.method !== 'GET') {
+      const ct = page.headers.get('content-type') || '';
+      if (ct.includes('text/html') && !page.headers.has('Cache-Control')) {
+        const headers = new Headers(page.headers);
+        headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return new Response(page.body, { status: page.status, statusText: page.statusText, headers });
+      }
+      return page;
+    }
 
     const post = await loadPost(env, match[1]);
     if (!post) return page;
