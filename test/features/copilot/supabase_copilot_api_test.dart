@@ -127,6 +127,27 @@ void main() {
   );
 
   test(
+    'natural questions add output routing without rewriting saved user text',
+    () async {
+      final fixture = HostedFixture();
+      addTearDown(fixture.api.dispose);
+      final id = await fixture.thread();
+      await fixture.api.run(id, {'prompt': 'Review my trade'}).toList();
+      final payload =
+          jsonDecode(
+                fixture.requests
+                    .lastWhere((r) => r.url.path.endsWith('ai-gateway'))
+                    .body,
+              )
+              as Map;
+      expect(payload['system_prompt'], contains('trade_debrief'));
+      expect(payload['prompt'], 'Review my trade');
+      final workspace = await fixture.api.getWorkspace();
+      expect(workspace['threads'][0]['messages'][0]['body'], 'Review my trade');
+    },
+  );
+
+  test(
     'Auto passes research permission and permits actual web search',
     () async {
       final fixture = HostedFixture();
@@ -355,6 +376,11 @@ void main() {
               'snippet': 'Data center revenue surged year over year.',
             },
           ],
+          'research': {
+            'requestedAt': '2026-11-16T10:00:00Z',
+            'webSearchUsed': true,
+            'timeSensitive': true,
+          },
           'mode': 'research',
           'focus': 'finance',
           'steps': [
@@ -380,6 +406,8 @@ void main() {
       final messages = records(workspace['threads'][0]['messages']);
       expect(messages.length, 2);
       final assistant = messages[1];
+      expect(assistant['research']['webSearchUsed'], isTrue);
+      expect(assistant['research']['requestedAt'], '2026-11-16T10:00:00Z');
       expect(assistant['mode'], 'research');
       expect(assistant['focus'], 'finance');
       expect(assistant['steps'], <String>[
@@ -444,7 +472,9 @@ void main() {
       expect(payload['system_prompt'], contains('Require user approval'));
       expect(
         payload['system_prompt'],
-        isNot(contains('Do not attach this page when autoAttachContext is false.')),
+        isNot(
+          contains('Do not attach this page when autoAttachContext is false.'),
+        ),
       );
     },
   );

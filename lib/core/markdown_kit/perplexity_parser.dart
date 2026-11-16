@@ -109,6 +109,7 @@ class PerplexityBlockTags {
 
   static const Set<String> perplexityCards = <String>{
     'loading_card',
+    'research_panel',
     'company',
     'stock',
     'equity',
@@ -278,7 +279,11 @@ class PerplexityBlockTags {
       'balance_sheet' ||
       'cash_flow' ||
       'valuation' => 'Financial Statements',
-      'macro' || 'economic' || 'fed' || 'rates' || 'calendar' => 'Macro Calendar',
+      'macro' ||
+      'economic' ||
+      'fed' ||
+      'rates' ||
+      'calendar' => 'Macro Calendar',
       'ratings' ||
       'price_target' ||
       'insider' ||
@@ -293,6 +298,7 @@ class PerplexityBlockTags {
       'media' || 'gallery' || 'images' => 'Media Gallery',
       'formula' || 'calculation' || 'math_card' => 'Formula Breakdown',
       'research_steps' || 'search_steps' || 'search_log' => 'Research Steps',
+      'research_panel' => 'Research Brief',
       'card' || 'cards' => 'Research Card',
       'mermaid' || 'flowchart' => 'Diagram',
       'candle' || 'candles' || 'ohlc' => 'Price Action Chart',
@@ -318,9 +324,7 @@ class PerplexityAnswerParser {
   static final RegExp _mdLinkRegex = RegExp(
     r'(?<!!)\[([^\]]+)\]\((https?://[^\s\)]+)\)',
   );
-  static final RegExp _bareUrlRegex = RegExp(
-    r'https?://[^\s\)\]>]+',
-  );
+  static final RegExp _bareUrlRegex = RegExp(r'https?://[^\s\)\]>]+');
   static final RegExp _tickerRegex = RegExp(
     r'(?<![\$\w])\$([A-Za-z][A-Za-z0-9\.\-]{0,7})\b',
   );
@@ -334,7 +338,7 @@ class PerplexityAnswerParser {
     String rawMarkdown, {
     List<String> explicitUrls = const <String>[],
     List<({String url, String title, String domain, String snippet})>
-    structuredSources =
+        structuredSources =
         const [],
     List<String> externalSteps = const <String>[],
     String? focus,
@@ -497,8 +501,9 @@ class PerplexityAnswerParser {
         final List<String> parsed = _parseFollowUps(bulletBlock);
         if (parsed.isNotEmpty) {
           followUps.addAll(parsed);
-          cleanMarkdown =
-              cleanMarkdown.substring(0, trailingRelated.start).trimRight();
+          cleanMarkdown = cleanMarkdown
+              .substring(0, trailingRelated.start)
+              .trimRight();
         }
       }
     }
@@ -527,11 +532,13 @@ class PerplexityAnswerParser {
           publisher: candidate.publisher.trim(),
           publishedAt: candidate.publishedAt.trim(),
         );
-      } else if (_isGenericTitle(existing.title) && !_isGenericTitle(rawTitle)) {
+      } else {
         uniqueSources[normalizedUrl] = PerplexitySource(
           index: existing.index,
           url: existing.url,
-          title: rawTitle,
+          title: _isGenericTitle(existing.title) && !_isGenericTitle(rawTitle)
+              ? rawTitle
+              : existing.title,
           domain: existing.domain,
           snippet: existing.snippet.isNotEmpty
               ? existing.snippet
@@ -562,9 +569,7 @@ class PerplexityAnswerParser {
     // offer crisp, contextual Perplexity follow-up prompts.
     if (!isStreaming &&
         dedupedFollowUps.isEmpty &&
-        (cards.isNotEmpty ||
-            uniqueSources.isNotEmpty ||
-            tickers.isNotEmpty)) {
+        (cards.isNotEmpty || uniqueSources.isNotEmpty || tickers.isNotEmpty)) {
       dedupedFollowUps.addAll(
         _contextualFollowUps(tickers: tickers, cards: cards),
       );
@@ -585,8 +590,8 @@ class PerplexityAnswerParser {
       final String domain = srcUri != null && srcUri.host.isNotEmpty
           ? _domainOf(srcUri, '')
           : (_isHttpUrl(normalizedUrl)
-              ? _domainOf(Uri.tryParse(normalizedUrl), '')
-              : 'Embedded image');
+                ? _domainOf(Uri.tryParse(normalizedUrl), '')
+                : 'Embedded image');
       uniqueMedia[normalizedUrl] = PerplexityMediaItem(
         url: normalizedUrl,
         caption: m.caption.trim(),
@@ -797,7 +802,10 @@ class PerplexityAnswerParser {
 
     final String? ticker = map['ticker']?.toString().trim();
     final String? name = (map['name'] ?? map['title'])?.toString().trim();
-    if (ticker != null && ticker.isNotEmpty && name != null && name.isNotEmpty) {
+    if (ticker != null &&
+        ticker.isNotEmpty &&
+        name != null &&
+        name.isNotEmpty) {
       return '$name ($ticker)';
     }
     if (name != null && name.isNotEmpty) return name;
@@ -818,7 +826,11 @@ class PerplexityAnswerParser {
     final dynamic tickersList = map['tickers'];
     if (tickersList is List) {
       for (final dynamic t in tickersList) {
-        final String s = t.toString().trim().replaceFirst(r'$', '').toUpperCase();
+        final String s = t
+            .toString()
+            .trim()
+            .replaceFirst(r'$', '')
+            .toUpperCase();
         if (s.isNotEmpty && s.length <= 8) outTickers.add(s);
       }
     }
@@ -854,11 +866,7 @@ class PerplexityAnswerParser {
       final String url = rawUrl.trim();
       if (_isMediaUrl(url)) {
         outMedia.add(
-          _MediaCandidate(
-            url: url,
-            caption: caption,
-            sourceUrl: sourceUrl,
-          ),
+          _MediaCandidate(url: url, caption: caption, sourceUrl: sourceUrl),
         );
       }
     }
@@ -898,9 +906,15 @@ class PerplexityAnswerParser {
 
     if (!isMediaBlock) {
       addUrlCandidate(
-        map['url'],
-        title: map['title']?.toString() ?? map['name']?.toString() ?? '',
+        map['url'] ?? map['sourceUrl'],
+        title:
+            map['sourceTitle']?.toString() ??
+            map['title']?.toString() ??
+            map['name']?.toString() ??
+            '',
         publisher: map['publisher']?.toString() ?? '',
+        publishedAt: map['publishedAt']?.toString() ?? '',
+        snippet: map['claim']?.toString() ?? '',
       );
     }
 
@@ -921,6 +935,7 @@ class PerplexityAnswerParser {
     for (final String listKey in const <String>[
       'items',
       'articles',
+      'evidence',
       'cards',
       'media',
       'images',
@@ -940,7 +955,11 @@ class PerplexityAnswerParser {
             );
           } else if ((listKey == 'media' || listKey == 'images') &&
               item is String) {
-            addMediaCandidate(item, caption: itemCaption, sourceUrl: itemSourceUrl);
+            addMediaCandidate(
+              item,
+              caption: itemCaption,
+              sourceUrl: itemSourceUrl,
+            );
           }
         }
       }
@@ -966,7 +985,10 @@ class PerplexityAnswerParser {
     for (final dynamic entry in list) {
       if (entry is Map) {
         final String title =
-            (entry['title'] ?? entry['step'] ?? entry['query'] ?? entry['label'])
+            (entry['title'] ??
+                    entry['step'] ??
+                    entry['query'] ??
+                    entry['label'])
                 ?.toString()
                 .trim() ??
             '';
@@ -1021,7 +1043,7 @@ class PerplexityAnswerParser {
           : 'General & financial scope';
       out.add(
         PerplexitySearchStep(
-          title: 'Analyzed query & extracted entities',
+          title: 'Answer scope & mentioned entities',
           detail: tickers.isEmpty
               ? scope
               : '$scope · Tracked ${tickers.take(5).map((t) => '\$$t').join(', ')}',
@@ -1036,7 +1058,8 @@ class PerplexityAnswerParser {
             .toList();
         out.add(
           PerplexitySearchStep(
-            title: 'Verified ${sources.length} cited ${sources.length == 1 ? 'source' : 'sources'}',
+            title:
+                'Collected ${sources.length} linked ${sources.length == 1 ? 'source' : 'sources'}',
             detail: domains.join(' · '),
             status: isStreaming ? 'active' : 'done',
           ),
@@ -1045,7 +1068,8 @@ class PerplexityAnswerParser {
       if (cards.isNotEmpty) {
         out.add(
           PerplexitySearchStep(
-            title: 'Synthesized ${cards.length} visual ${cards.length == 1 ? 'card' : 'cards'}',
+            title:
+                'Synthesized ${cards.length} visual ${cards.length == 1 ? 'card' : 'cards'}',
             detail: cards
                 .take(4)
                 .map((c) => PerplexityBlockTags.friendlyLabel(c.tag))
@@ -1071,7 +1095,9 @@ class PerplexityAnswerParser {
         'Show the latest breaking news affecting \$$primary',
       ];
     }
-    if (cards.any((PerplexityCardSummary c) => c.tag == 'person' || c.tag == 'bio')) {
+    if (cards.any(
+      (PerplexityCardSummary c) => c.tag == 'person' || c.tag == 'bio',
+    )) {
       final String who = cards.first.label;
       return <String>[
         'What are $who’s most notable recent decisions and news?',
@@ -1085,8 +1111,11 @@ class PerplexityAnswerParser {
   }
 
   static bool _isHttpUrl(String url) {
-    final String lower = url.trim().toLowerCase();
-    return lower.startsWith('https://') || lower.startsWith('http://');
+    final uri = Uri.tryParse(url.trim());
+    return uri != null &&
+        ['https', 'http'].contains(uri.scheme) &&
+        uri.host.isNotEmpty &&
+        uri.userInfo.isEmpty;
   }
 
   static bool _isMediaUrl(String url) {

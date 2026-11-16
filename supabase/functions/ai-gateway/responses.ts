@@ -1,14 +1,16 @@
+import { freshnessInstructions, needsFreshResearch } from './research-policy.ts';
 import { openTraderSkill, uploadTraderToolkit } from './trader-toolkit.ts';
 
 type Message = { role: 'user' | 'assistant' | 'system'; content: string };
 type ToolSource = { url: string; title: string; domain: string };
-type ProviderResult = {
+export type ProviderResult = {
   text: string;
   provider: string;
   model: string;
   input?: number;
   output?: number;
   steps?: string[];
+  webSearchUsed?: boolean;
   toolSources?: ToolSource[];
 };
 type Citation = { type: string; url?: string; title?: string; start_index?: number; end_index?: number };
@@ -108,7 +110,8 @@ export async function generateResponses(
   allowWebSearch = false,
   toolkit?: 'auto' | 'selected',
 ): Promise<ProviderResult> {
-  const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n');
+  const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n') + '\n' + freshnessInstructions();
+  const requireFreshSearch = needsFreshResearch(messages.filter((m) => m.role === 'user').at(-1)?.content ?? '');
   const input: unknown[] = messages.filter((m) => m.role !== 'system').map((message) => ({
     role: message.role,
     content: message.role === 'assistant' ? message.content : [
@@ -116,7 +119,7 @@ export async function generateResponses(
       ...(message.role === 'user' && message === messages.at(-1) ? attachments : []),
     ],
   }));
-  const tools = mode === 'auto' && !allowWebSearch ? [] : [{ type: 'web_search', ...(mode === 'research' ? { search_context_size: 'high' } : {}) }];
+  const tools = mode === 'auto' && !allowWebSearch ? [] : [{ type: 'web_search', external_web_access: true, ...(mode === 'research' ? { search_context_size: 'high' } : {}) }];
   let fileId = toolkit === 'selected' ? await uploadTraderToolkit(key, send) : undefined;
   let inputTokens = 0, outputTokens = 0;
   const recordedSteps: string[] = [];
@@ -132,7 +135,7 @@ export async function generateResponses(
         tools: [...tools, ...(fileId
           ? [{ type: 'code_interpreter', container: { type: 'auto', file_ids: [fileId] } }]
           : toolkit ? [openTraderSkill] : [])],
-        ...(step === 0 && mode !== 'auto' && tools.length > 0 ? { tool_choice: { type: 'web_search' } } : {}),
+        ...(step === 0 && (mode !== 'auto' || requireFreshSearch) && tools.length > 0 ? { tool_choice: { type: 'web_search' } } : {}),
         max_output_tokens: 4096,
       }),
       signal: AbortSignal.timeout(60000),
@@ -168,6 +171,7 @@ export async function generateResponses(
     return {
       text: text.trim(),
       provider: 'openai',
+      webSearchUsed: recordedSteps.some((step) => step.startsWith('Searching') || step.startsWith('Reading')),
       model: typeof data.model === 'string' ? data.model : model,
       input: inputTokens || undefined,
       output: outputTokens || undefined,

@@ -11,6 +11,7 @@ import 'package:tradex/core/markdown_kit/markdown_outline.dart';
 import 'package:tradex/core/markdown_kit/math_syntax.dart';
 import 'package:tradex/core/markdown_kit/scrollable_table.dart';
 import 'package:tradex/core/markdown_kit/ticker_syntax.dart';
+import 'research/typing_cursor_syntax.dart';
 
 /// Renders Markdown with (near-)full GitHub-Flavored-Markdown support plus
 /// the extras a note/journal app benefits from: LaTeX math (`$x$`,
@@ -34,6 +35,7 @@ class RichMarkdownPreview extends StatelessWidget {
     this.onOpenRef,
     this.onTapLink,
     this.onPromptTap,
+    this.showTypingCursor = false,
   });
 
   /// Raw markdown source.
@@ -45,6 +47,7 @@ class RichMarkdownPreview extends StatelessWidget {
 
   final String emptyPlaceholder;
   final bool selectable;
+  final bool showTypingCursor;
   final bool shrinkWrap;
 
   /// When provided, every `#`–`######` heading in [data] is tracked here so a
@@ -65,7 +68,13 @@ class RichMarkdownPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool dark = context.ui.brightness == Brightness.dark;
-    final String raw = data.trim().isEmpty ? emptyPlaceholder : data;
+    final content = data.trim().isEmpty ? emptyPlaceholder : data;
+    final endsWithFence = RegExp(
+      r'(^|\n)\s*(`{3,}|~{3,})\s*$',
+    ).hasMatch(content);
+    final String raw = showTypingCursor
+        ? '$content${endsWithFence ? '\n' : ''}$typingCursorMarker'
+        : content;
     // Raw HTML is pulled out (and replaced with inert placeholder tokens)
     // before any of the markdown-specific normalization passes below run,
     // so a `$`/`==` inside an HTML attribute or an `<img>`'s `alt` text is
@@ -218,6 +227,7 @@ class RichMarkdownPreview extends StatelessWidget {
       selectable: selectable,
       data: _ensureTrailingInlineContent(source),
       inlineSyntaxes: <md.InlineSyntax>[
+        if (showTypingCursor) TypingCursorSyntax(),
         TickerInlineSyntax(),
         MathBlockSyntax(),
         MathInlineSyntax(),
@@ -225,6 +235,7 @@ class RichMarkdownPreview extends StatelessWidget {
         HtmlPlaceholderSyntax(),
       ],
       builders: <String, MarkdownElementBuilder>{
+        if (showTypingCursor) 'typing_cursor': TypingCursorBuilder(),
         'ticker': TickerElementBuilder(onOpenRef: onOpenRef),
         'pre': RichCodeBlockBuilder(
           dark: dark,
@@ -324,10 +335,9 @@ class RichMarkdownPreview extends StatelessWidget {
         backgroundColor: colors.surfaceMuted,
         fontSize: (text.numeric.fontSize ?? 13) * 0.95,
       ),
-      codeblockDecoration: BoxDecoration(
-        color: colors.surfaceMuted,
-        borderRadius: BorderRadius.circular(10),
-      ),
+      // Custom code/card builders own their surface; avoid nested chrome.
+      codeblockDecoration: const BoxDecoration(),
+      codeblockPadding: EdgeInsets.zero,
       horizontalRuleDecoration: BoxDecoration(
         border: Border(top: BorderSide(color: colors.border)),
       ),
@@ -354,9 +364,14 @@ class RichMarkdownPreview extends StatelessWidget {
       blockSpacing: 14,
     );
   }
+
   static Widget _buildAlertCallout(_SourcePiece piece) {
     final String kind = (piece.alertKind ?? 'NOTE').toUpperCase();
-    final (UiIntent intent, IconData icon, String defaultTitle) = switch (kind) {
+    final (
+      UiIntent intent,
+      IconData icon,
+      String defaultTitle,
+    ) = switch (kind) {
       'TIP' => (UiIntent.bullish, Icons.lightbulb_outline, 'Tip'),
       'IMPORTANT' => (UiIntent.primary, Icons.campaign_outlined, 'Important'),
       'WARNING' => (UiIntent.warning, Icons.warning_amber_rounded, 'Warning'),

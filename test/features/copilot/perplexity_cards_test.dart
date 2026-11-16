@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/app-ui/motion/ai_typing_indicator.dart';
 import 'package:tradex/core/markdown_kit/markdown_kit.dart';
 
 const String _fullPerplexityAnswer = '''
@@ -547,7 +548,7 @@ Searching filings…
         );
         // Pump long enough so typewriter reveals the loading_card fence.
         await tester.pump(const Duration(seconds: 2));
-        expect(find.byType(UiTypingIndicator), findsOneWidget);
+        expect(find.byType(AiTypingCursor), findsOneWidget);
         expect(find.byType(UiSkeleton), findsWidgets);
         expect(tester.takeException(), isNull);
       },
@@ -625,7 +626,7 @@ Searching filings…
         await tester.pumpAndSettle();
 
         // Pro Search steps accordion + 4 Perplexity navigation tabs
-        expect(find.text('Pro Search · Completed'), findsOneWidget);
+        expect(find.text('Answer details'), findsOneWidget);
         expect(find.text('Answer'), findsOneWidget);
         expect(find.text('Sources'), findsAtLeastNWidgets(1));
         expect(find.text('Cards'), findsOneWidget);

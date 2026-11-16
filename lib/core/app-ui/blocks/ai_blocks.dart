@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../cards/ai_cards.dart';
 import '../models/app_models.dart';
 import '../models/app_models_extra.dart';
 import '../motion/app_motion.dart';
+import '../motion/ai_typing_indicator.dart';
 
 /// Full AI assistant surface: scrolling thread, suggested prompts and a
 /// composer with send / attach / stop-generation controls.
@@ -72,6 +74,9 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
   late final TextEditingController _controller =
       widget.composerController ?? TextEditingController();
   final ScrollController _scroll = ScrollController();
+  bool _stickToBottom = true;
+  bool _following = false;
+  bool _followScheduled = false;
 
   @override
   void initState() {
@@ -85,18 +90,54 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
     if (oldWidget.messages.length != widget.messages.length ||
         oldWidget.messages.lastOrNull?.body !=
             widget.messages.lastOrNull?.body) {
-      if (!_scroll.hasClients || _scroll.position.extentAfter < 100) {
+      if (_stickToBottom) {
         _followEnd();
       }
     }
   }
 
   void _followEnd() {
+    if (_followScheduled || _following || !_stickToBottom) return;
+    _followScheduled = true;
+    WidgetsBinding.instance.scheduleFrame();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _scroll.hasClients) {
-        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      _followScheduled = false;
+      if (!mounted || !_scroll.hasClients || !_stickToBottom) return;
+      final target = _scroll.position.maxScrollExtent;
+      if ((_scroll.offset - target).abs() < 1) return;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _scroll.jumpTo(target);
+      } else {
+        _following = true;
+        _scroll
+            .animateTo(
+              target,
+              duration: const Duration(milliseconds: 90),
+              curve: Curves.easeOut,
+            )
+            .whenComplete(() {
+              _following = false;
+              if (mounted &&
+                  _stickToBottom &&
+                  _scroll.hasClients &&
+                  _scroll.position.extentAfter > 1) {
+                _followEnd();
+              }
+            });
       }
     });
+  }
+
+  bool _onScroll(ScrollNotification notification) {
+    if (notification is UserScrollNotification) {
+      _stickToBottom =
+          notification.direction != ScrollDirection.forward &&
+          notification.metrics.extentAfter < 100;
+    } else if (notification is ScrollUpdateNotification &&
+        notification.dragDetails != null) {
+      _stickToBottom = notification.metrics.extentAfter < 100;
+    }
+    return false;
   }
 
   @override
@@ -110,6 +151,7 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
     if (!widget.canSend || widget.generating) return;
     final String text = _controller.text.trim();
     if (text.isEmpty) return;
+    _stickToBottom = true;
     widget.onSend(text);
     _controller.clear();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -212,37 +254,48 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
                           );
                         },
                       )
-                    : ListView.builder(
-                        controller: _scroll,
-                        padding: EdgeInsets.symmetric(
-                          vertical: context.sp(theme.spacing.md),
-                        ),
-                        itemCount: widget.messages.length + headerCount,
-                        itemBuilder: (BuildContext ctx, int i) {
-                          if (widget.header != null && i == 0) {
-                            return widget.header!;
-                          }
-                          final AppAiMessage msg =
-                              widget.messages[i - headerCount];
-                          return AppFadeIn(
-                            child:
-                                widget.messageBuilder?.call(ctx, msg) ??
-                                AppAiMessageBubble(
-                                  message: msg,
-                                  onCopy: widget.onCopy == null
-                                      ? null
-                                      : () => widget.onCopy!(msg),
-                                  onRetry: widget.onRetry == null
-                                      ? null
-                                      : () => widget.onRetry!(msg),
-                                  onShare: widget.onShare == null
-                                      ? null
-                                      : () => widget.onShare!(msg),
-                                  onOpenRef: widget.onOpenRef,
-                                  actionsBuilder: widget.messageActionsBuilder,
-                                ),
-                          );
+                    : NotificationListener<AiOutputGrowthNotification>(
+                        onNotification: (_) {
+                          _followEnd();
+                          return false;
                         },
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: _onScroll,
+                          child: ListView.builder(
+                            controller: _scroll,
+                            padding: EdgeInsets.symmetric(
+                              vertical: context.sp(theme.spacing.md),
+                            ),
+                            itemCount: widget.messages.length + headerCount,
+                            itemBuilder: (BuildContext ctx, int i) {
+                              if (widget.header != null && i == 0) {
+                                return widget.header!;
+                              }
+                              final AppAiMessage msg =
+                                  widget.messages[i - headerCount];
+                              return AppFadeIn(
+                                key: ValueKey(msg.id),
+                                child:
+                                    widget.messageBuilder?.call(ctx, msg) ??
+                                    AppAiMessageBubble(
+                                      message: msg,
+                                      onCopy: widget.onCopy == null
+                                          ? null
+                                          : () => widget.onCopy!(msg),
+                                      onRetry: widget.onRetry == null
+                                          ? null
+                                          : () => widget.onRetry!(msg),
+                                      onShare: widget.onShare == null
+                                          ? null
+                                          : () => widget.onShare!(msg),
+                                      onOpenRef: widget.onOpenRef,
+                                      actionsBuilder:
+                                          widget.messageActionsBuilder,
+                                    ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
               ),
             if (widget.prompts.isNotEmpty && !tightHeight) ...<Widget>[

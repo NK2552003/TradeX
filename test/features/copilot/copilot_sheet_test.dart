@@ -96,7 +96,7 @@ void main() {
 
       final double initialQuotaTop = tester.getTopLeft(quotaFinder).dy;
       await tester.drag(
-        find.text('What can I help with?'),
+        find.text('A sharper question.\nA clearer edge.'),
         const Offset(0, -260),
       );
       await tester.pumpAndSettle();
@@ -137,7 +137,7 @@ void main() {
       expect(creditsFinder, findsOneWidget);
       final double beforeBannerTop = tester.getTopLeft(creditsFinder).dy;
       await tester.drag(
-        find.text('What can I help with?'),
+        find.text('A sharper question.\nA clearer edge.'),
         const Offset(0, -260),
       );
       await tester.pumpAndSettle();

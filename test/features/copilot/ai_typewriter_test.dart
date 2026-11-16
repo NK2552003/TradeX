@@ -1,0 +1,190 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/app-ui/motion/ai_typewriter.dart';
+import 'package:tradex/core/app-ui/motion/ai_typing_indicator.dart';
+import 'package:tradex/core/markdown_kit/markdown_preview.dart';
+
+void main() {
+  testWidgets('incoming chunks extend the queue without resetting progress', (
+    tester,
+  ) async {
+    final writer = AiTypewriter();
+    addTearDown(writer.dispose);
+    writer.reset('Hello', animate: true);
+    expect(writer.visibleText, '');
+    await tester.pump(aiTypingCharacterInterval);
+    expect(writer.visibleText, 'H');
+    writer.update('Hello world');
+    expect(writer.visibleText, 'H');
+    await tester.pump(aiTypingCharacterInterval);
+    expect(writer.visibleText, 'He');
+    await tester.pump(const Duration(seconds: 1));
+    expect(writer.visibleText, 'Hello world');
+    expect(writer.isTyping, isFalse);
+  });
+  testWidgets('skip flushes queued content and subsequent chunks immediately', (
+    tester,
+  ) async {
+    final writer = AiTypewriter();
+    addTearDown(writer.dispose);
+    writer.reset('Partial answer', animate: true);
+    writer.skip();
+    expect(writer.visibleText, 'Partial answer');
+    writer.update('Partial answer plus another chunk');
+    expect(writer.visibleText, 'Partial answer plus another chunk');
+    expect(writer.isTyping, isFalse);
+  });
+  testWidgets('reduced motion reveals instantly and graphemes remain whole', (
+    tester,
+  ) async {
+    final writer = AiTypewriter();
+    addTearDown(writer.dispose);
+    writer.reset('👩🏽‍💻éX', animate: true);
+    await tester.pump(aiTypingCharacterInterval);
+    expect(writer.visibleText, '👩🏽‍💻');
+    writer.reducedMotion = true;
+    expect(writer.visibleText, '👩🏽‍💻éX');
+    writer.update('👩🏽‍💻éXYZ');
+    expect(writer.isTyping, isFalse);
+    expect(writer.visibleText, '👩🏽‍💻éXYZ');
+  });
+  testWidgets('saved answers show immediately and new message resets skip', (
+    tester,
+  ) async {
+    final writer = AiTypewriter();
+    addTearDown(writer.dispose);
+    writer.reset('Saved answer', animate: false);
+    expect(writer.visibleText, 'Saved answer');
+    writer.skip();
+    writer.reset('New answer', animate: true);
+    expect(writer.visibleText, '');
+    expect(writer.skipped, isFalse);
+    writer.skip();
+  });
+  testWidgets(
+    'markdown and code reveal progressively, Skip finishes, cursor disappears',
+    (tester) async {
+      const body =
+          '## Analysis\n\n**Clear evidence**\n\n```dart\nprint("hello");\n```';
+      Future<void> render({required bool pending, bool reduced = false}) =>
+          tester.pumpWidget(
+            MaterialApp(
+              theme: UiTheme.dark().toThemeData(),
+              home: MediaQuery(
+                data: MediaQueryData(disableAnimations: reduced),
+                child: Scaffold(
+                  body: SingleChildScrollView(
+                    child: AppAiMessageBubble(
+                      message: AppAiMessage(
+                        id: 'typing',
+                        role: AppAiRole.assistant,
+                        body: body,
+                        pending: pending,
+                      ),
+                      minimal: true,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+      await render(pending: true);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(AiTypingCursor), findsOneWidget);
+      final preview = tester.widget<RichMarkdownPreview>(
+        find.byType(RichMarkdownPreview),
+      );
+      expect(preview.data.length, lessThan(body.length));
+      await tester.tap(find.text('Skip'));
+      await tester.pump();
+      expect(
+        tester
+            .widget<RichMarkdownPreview>(find.byType(RichMarkdownPreview))
+            .data,
+        contains('print("hello")'),
+      );
+      await render(pending: false);
+      await tester.pump();
+      expect(find.byType(AiTypingCursor), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'reduced-motion output has neither animation nor blinking cursor',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: const Scaffold(
+              body: AppAiMessageBubble(
+                message: AppAiMessage(
+                  id: 'reduced',
+                  role: AppAiRole.assistant,
+                  body: 'Entire response appears immediately.',
+                  pending: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(
+        tester
+            .widget<RichMarkdownPreview>(find.byType(RichMarkdownPreview))
+            .data,
+        contains('Entire response appears immediately.'),
+      );
+      expect(find.byType(AiTypingCursor), findsNothing);
+      expect(find.text('Skip'), findsNothing);
+    },
+  );
+  testWidgets(
+    'auto-scroll follows typed output but preserves a reader scrolling up',
+    (tester) async {
+      tester.view.physicalSize = const Size(600, 500);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final body = List.filled(30, 'A growing line of research.').join('\n\n');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AppAiChatBlock(
+              onSend: (_) {},
+              composer: const SizedBox(height: 40),
+              messages: [
+                for (var i = 0; i < 8; i++)
+                  AppAiMessage(
+                    id: 'old-$i',
+                    role: AppAiRole.user,
+                    body: 'Earlier question $i',
+                  ),
+                AppAiMessage(
+                  id: 'scrolling',
+                  role: AppAiRole.assistant,
+                  body: body,
+                  pending: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final list = find.byType(ListView);
+      final scroll = tester.widget<ListView>(list).controller!;
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+      expect(scroll.position.extentAfter, lessThan(5));
+      await tester.drag(list, const Offset(0, 300));
+      await tester.pumpAndSettle();
+      final readingOffset = scroll.offset;
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+      expect(scroll.offset, closeTo(readingOffset, 1));
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+}

@@ -104,7 +104,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('What can I help with?'), findsOneWidget);
+        expect(find.text('A sharper question.\nA clearer edge.'), findsOneWidget);
         expect(find.byType(UiThreePane), findsNothing);
         expect(
           find.byType(UiSplitPane),

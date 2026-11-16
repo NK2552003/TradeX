@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/models/app_models.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+
+import 'research/research_metrics.dart';
 
 import 'perplexity_domain_cards.dart';
 
-Widget? _tickerBadge(
-  String? rawTicker,
-  PerplexityOpenRefCallback? onOpenRef,
-) {
+Widget? _tickerBadge(String? rawTicker, PerplexityOpenRefCallback? onOpenRef) {
   if (rawTicker == null || rawTicker.trim().isEmpty) return null;
   final String clean = PerplexityCardDataUtils.cleanTicker(rawTicker);
   if (clean.isEmpty) return null;
@@ -108,12 +108,20 @@ class PerplexityEarningsCard extends StatelessWidget {
     final UiIntent statusIntent = PerplexityCardDataUtils.parseIntent(status);
 
     final String title = <String>[
-      company ?? (ticker != null ? '\$${PerplexityCardDataUtils.cleanTicker(ticker)}' : 'Earnings'),
+      company ??
+          (ticker != null
+              ? '\$${PerplexityCardDataUtils.cleanTicker(ticker)}'
+              : 'Earnings'),
       ?quarter,
     ].join(' · ');
 
     final List<UiStat> stats = <UiStat>[];
-    void addMetric(String label, String? actual, String? est, String? surprise) {
+    void addMetric(
+      String label,
+      String? actual,
+      String? est,
+      String? surprise,
+    ) {
       if (actual == null && est == null) return;
       final String value = actual ?? est!;
       final String hint = <String>[
@@ -169,7 +177,9 @@ class PerplexityEarningsCard extends StatelessWidget {
       'guidance',
     ]);
     if (nextGuide != null) {
-      stats.add(UiStat(label: 'Guidance', value: nextGuide, intent: UiIntent.info));
+      stats.add(
+        UiStat(label: 'Guidance', value: nextGuide, intent: UiIntent.info),
+      );
     }
 
     final List<String> highlights = PerplexityCardDataUtils.strList(data, [
@@ -193,8 +203,11 @@ class PerplexityEarningsCard extends StatelessWidget {
     ]);
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
       child: UiCard(
+        variant: UiCardVariant.outlined,
+        headerDivider: true,
+        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
         accentColor: statusIntent.color(context),
         title: title,
         subtitle: date,
@@ -208,7 +221,11 @@ class PerplexityEarningsCard extends StatelessWidget {
           children: <Widget>[
             if (_tickerBadge(ticker, onOpenRef) case final Widget badge) badge,
             if (status != null)
-              UiBadge(label: status.toUpperCase(), intent: statusIntent, size: UiSize.xs),
+              UiBadge(
+                label: status.toUpperCase(),
+                intent: statusIntent,
+                size: UiSize.xs,
+              ),
           ],
         ),
         child: Column(
@@ -216,11 +233,11 @@ class PerplexityEarningsCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (stats.isNotEmpty) ...<Widget>[
-              UiStatStrip(stats: stats, minCellWidth: 120),
+              ResearchMetrics(stats: stats),
               UiGap.v(theme.spacing.md),
             ],
             if (summary != null) ...<Widget>[
-              Text(summary, style: context.uiText.body),
+              Text(summary, style: context.uiText.body.copyWith(height: 1.6)),
               UiGap.v(theme.spacing.sm),
             ],
             if (highlights.isNotEmpty || concerns.isNotEmpty) ...<Widget>[
@@ -285,13 +302,16 @@ class PerplexityEarningsCard extends StatelessWidget {
             ],
             if (history.isNotEmpty)
               UiTable<Map<String, dynamic>>(
+                stackOnMobile: true,
+                pageSize: 8,
                 density: UiDensity.compact,
                 rows: history,
                 columns: <UiTableColumn<Map<String, dynamic>>>[
                   UiTableColumn<Map<String, dynamic>>(
                     header: 'Quarter',
                     cell: (BuildContext ctx, Map<String, dynamic> r) => Text(
-                      PerplexityCardDataUtils.str(r, ['quarter', 'period']) ?? '—',
+                      PerplexityCardDataUtils.str(r, ['quarter', 'period']) ??
+                          '—',
                       style: ctx.uiText.bodyStrong,
                     ),
                   ),
@@ -299,9 +319,20 @@ class PerplexityEarningsCard extends StatelessWidget {
                     header: 'EPS Act / Est',
                     cell: (BuildContext ctx, Map<String, dynamic> r) => Text(
                       [
-                        PerplexityCardDataUtils.str(r, ['epsActual', 'actual']) ?? '—',
-                        if (PerplexityCardDataUtils.str(r, ['epsEstimate', 'est']) != null)
-                          PerplexityCardDataUtils.str(r, ['epsEstimate', 'est'])!,
+                        PerplexityCardDataUtils.str(r, [
+                              'epsActual',
+                              'actual',
+                            ]) ??
+                            '—',
+                        if (PerplexityCardDataUtils.str(r, [
+                              'epsEstimate',
+                              'est',
+                            ]) !=
+                            null)
+                          PerplexityCardDataUtils.str(r, [
+                            'epsEstimate',
+                            'est',
+                          ])!,
                       ].join(' vs '),
                       style: ctx.uiText.body,
                     ),
@@ -310,7 +341,11 @@ class PerplexityEarningsCard extends StatelessWidget {
                     header: 'Surprise',
                     cell: (BuildContext ctx, Map<String, dynamic> r) {
                       final String s =
-                          PerplexityCardDataUtils.str(r, ['surprise', 'beat']) ?? '—';
+                          PerplexityCardDataUtils.str(r, [
+                            'surprise',
+                            'beat',
+                          ]) ??
+                          '—';
                       return UiBadge(
                         label: s,
                         intent: PerplexityCardDataUtils.parseIntent(
@@ -323,7 +358,9 @@ class PerplexityEarningsCard extends StatelessWidget {
                   ),
                 ],
               ),
-            if (onPromptTap != null && ticker != null && ticker.trim().isNotEmpty) ...<Widget>[
+            if (onPromptTap != null &&
+                ticker != null &&
+                ticker.trim().isNotEmpty) ...<Widget>[
               UiGap.v(theme.spacing.sm),
               Wrap(
                 spacing: context.sp(theme.spacing.xs),
@@ -383,13 +420,16 @@ class PerplexityFinancialsCard extends StatelessWidget {
       'currency',
       'subtitle',
     ]);
-    final List<Map<String, dynamic>> rawMetrics = PerplexityCardDataUtils.mapList(
-      data,
-      ['metrics', 'highlights', 'kpis'],
-    );
+    final List<Map<String, dynamic>> rawMetrics =
+        PerplexityCardDataUtils.mapList(data, [
+          'metrics',
+          'highlights',
+          'kpis',
+        ]);
     final List<UiStat> stats = <UiStat>[
       for (final Map<String, dynamic> m in rawMetrics)
-        if ((PerplexityCardDataUtils.str(m, ['label', 'name']) ?? '').isNotEmpty &&
+        if ((PerplexityCardDataUtils.str(m, ['label', 'name']) ?? '')
+                .isNotEmpty &&
             (PerplexityCardDataUtils.str(m, ['value', 'val']) ?? '').isNotEmpty)
           UiStat(
             label: PerplexityCardDataUtils.str(m, ['label', 'name'])!,
@@ -401,21 +441,43 @@ class PerplexityFinancialsCard extends StatelessWidget {
           ),
     ];
 
-    final List<Map<String, dynamic>> lineItems = PerplexityCardDataUtils.mapList(
-      data,
-      ['items', 'lineItems', 'breakdown'],
-    );
+    final List<Map<String, dynamic>> lineItems =
+        PerplexityCardDataUtils.mapList(data, [
+          'items',
+          'lineItems',
+          'breakdown',
+          if (data['periods'] == null && data['columns'] == null) 'rows',
+        ]);
     final List<UiKeyValueRow> kvRows = <UiKeyValueRow>[
       for (final Map<String, dynamic> row in lineItems)
-        if ((PerplexityCardDataUtils.str(row, ['label', 'name', 'lineItem']) ?? '')
+        if ((PerplexityCardDataUtils.str(row, [
+                      'label',
+                      'name',
+                      'lineItem',
+                      'item',
+                    ]) ??
+                    '')
                 .isNotEmpty &&
             (PerplexityCardDataUtils.str(row, ['value', 'amount', 'ttm']) ?? '')
                 .isNotEmpty)
           UiKeyValueRow(
-            label: PerplexityCardDataUtils.str(row, ['label', 'name', 'lineItem'])!,
-            value: PerplexityCardDataUtils.str(row, ['value', 'amount', 'ttm'])!,
+            label: PerplexityCardDataUtils.str(row, [
+              'label',
+              'name',
+              'lineItem',
+              'item',
+            ])!,
+            value: PerplexityCardDataUtils.str(row, [
+              'value',
+              'amount',
+              'ttm',
+            ])!,
             detail: PerplexityCardDataUtils.str(row, ['detail', 'note']),
-            trailing: PerplexityCardDataUtils.str(row, ['yoy', 'margin', 'change']),
+            trailing: PerplexityCardDataUtils.str(row, [
+              'yoy',
+              'margin',
+              'change',
+            ]),
             emphasis: row['emphasis'] == true || row['total'] == true,
             share: PerplexityCardDataUtils.numField(row, ['share']),
             intent: PerplexityCardDataUtils.parseIntent(
@@ -424,25 +486,25 @@ class PerplexityFinancialsCard extends StatelessWidget {
           ),
     ];
 
-    final List<dynamic> rawPeriods = (data['periods'] ?? data['columns']) is List
+    final List<dynamic> rawPeriods =
+        (data['periods'] ?? data['columns']) is List
         ? (data['periods'] ?? data['columns']) as List<dynamic>
         : const <dynamic>[];
     final List<String> periods = rawPeriods
         .map((dynamic e) => e.toString().trim())
         .where((String s) => s.isNotEmpty)
         .toList();
-    final List<Map<String, dynamic>> tableRows = PerplexityCardDataUtils.mapList(
-      data,
-      ['rows', 'table', 'series'],
-    );
-    final List<Map<String, dynamic>> multiples = PerplexityCardDataUtils.mapList(
-      data,
-      ['multiples', 'valuation'],
-    );
+    final List<Map<String, dynamic>> tableRows =
+        PerplexityCardDataUtils.mapList(data, ['rows', 'table', 'series']);
+    final List<Map<String, dynamic>> multiples =
+        PerplexityCardDataUtils.mapList(data, ['multiples', 'valuation']);
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
       child: UiCard(
+        variant: UiCardVariant.outlined,
+        headerDivider: true,
+        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
         accentColor: theme.colors.primary,
         title: title,
         subtitle: subtitle,
@@ -457,7 +519,7 @@ class PerplexityFinancialsCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (stats.isNotEmpty) ...<Widget>[
-              UiStatStrip(stats: stats, minCellWidth: 115),
+              ResearchMetrics(stats: stats),
               UiGap.v(theme.spacing.md),
             ],
             if (kvRows.isNotEmpty) ...<Widget>[
@@ -471,13 +533,20 @@ class PerplexityFinancialsCard extends StatelessWidget {
             ],
             if (tableRows.isNotEmpty && periods.isNotEmpty) ...<Widget>[
               UiTable<Map<String, dynamic>>(
+                stackOnMobile: true,
+                pageSize: 8,
                 density: UiDensity.compact,
                 rows: tableRows,
                 columns: <UiTableColumn<Map<String, dynamic>>>[
                   UiTableColumn<Map<String, dynamic>>(
                     header: 'Metric',
                     cell: (BuildContext ctx, Map<String, dynamic> r) => Text(
-                      PerplexityCardDataUtils.str(r, ['label', 'metric', 'name']) ?? '—',
+                      PerplexityCardDataUtils.str(r, [
+                            'label',
+                            'metric',
+                            'name',
+                          ]) ??
+                          '—',
                       style: ctx.uiText.bodyStrong,
                     ),
                   ),
@@ -485,8 +554,11 @@ class PerplexityFinancialsCard extends StatelessWidget {
                     UiTableColumn<Map<String, dynamic>>(
                       header: periods[i],
                       cell: (BuildContext ctx, Map<String, dynamic> r) {
-                        final List<dynamic> vals = (r['values'] as List?) ?? const [];
-                        final String text = i < vals.length ? vals[i].toString() : '—';
+                        final List<dynamic> vals =
+                            (r['values'] as List?) ?? const [];
+                        final String text = i < vals.length
+                            ? vals[i].toString()
+                            : '—';
                         return Text(text, style: ctx.uiText.body);
                       },
                     ),
@@ -526,7 +598,8 @@ class PerplexityMacroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final String title =
-        PerplexityCardDataUtils.str(data, ['title']) ?? 'Macro & Economic Pulse';
+        PerplexityCardDataUtils.str(data, ['title']) ??
+        'Macro & Economic Pulse';
     final String? regime = PerplexityCardDataUtils.str(data, [
       'regime',
       'stance',
@@ -534,19 +607,29 @@ class PerplexityMacroCard extends StatelessWidget {
       'subtitle',
     ]);
     final UiIntent regimeIntent = PerplexityCardDataUtils.parseIntent(regime);
-    final List<Map<String, dynamic>> indicators = PerplexityCardDataUtils.mapList(
-      data,
-      ['indicators', 'events', 'releases', 'rows', 'items'],
-    );
+    final List<Map<String, dynamic>> indicators =
+        PerplexityCardDataUtils.mapList(data, [
+          'indicators',
+          'events',
+          'releases',
+          'rows',
+          'items',
+        ]);
     final List<Map<String, dynamic>> impacts = PerplexityCardDataUtils.mapList(
       data,
       ['impacts', 'assetImpact'],
     );
-    final String? summary = PerplexityCardDataUtils.str(data, ['summary', 'note']);
+    final String? summary = PerplexityCardDataUtils.str(data, [
+      'summary',
+      'note',
+    ]);
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
       child: UiCard(
+        variant: UiCardVariant.outlined,
+        headerDivider: true,
+        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
         accentColor: theme.colors.info,
         title: title,
         subtitle: regime,
@@ -563,18 +646,24 @@ class PerplexityMacroCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (summary != null) ...<Widget>[
-              Text(summary, style: context.uiText.body),
+              Text(summary, style: context.uiText.body.copyWith(height: 1.6)),
               UiGap.v(theme.spacing.sm),
             ],
             if (indicators.isNotEmpty)
               UiTable<Map<String, dynamic>>(
+                stackOnMobile: true,
+                pageSize: 8,
                 density: UiDensity.compact,
                 rows: indicators,
                 columns: <UiTableColumn<Map<String, dynamic>>>[
                   UiTableColumn<Map<String, dynamic>>(
                     header: 'Indicator',
                     cell: (BuildContext ctx, Map<String, dynamic> r) => Text(
-                      PerplexityCardDataUtils.str(r, ['name', 'indicator', 'event']) ??
+                      PerplexityCardDataUtils.str(r, [
+                            'name',
+                            'indicator',
+                            'event',
+                          ]) ??
                           '—',
                       style: ctx.uiText.bodyStrong,
                     ),
@@ -582,14 +671,19 @@ class PerplexityMacroCard extends StatelessWidget {
                   UiTableColumn<Map<String, dynamic>>(
                     header: 'Actual',
                     cell: (BuildContext ctx, Map<String, dynamic> r) => Text(
-                      PerplexityCardDataUtils.str(r, ['actual', 'value']) ?? 'Pending',
+                      PerplexityCardDataUtils.str(r, ['actual', 'value']) ??
+                          'Pending',
                       style: ctx.uiText.bodyStrong,
                     ),
                   ),
                   UiTableColumn<Map<String, dynamic>>(
                     header: 'Forecast',
                     cell: (BuildContext ctx, Map<String, dynamic> r) => Text(
-                      PerplexityCardDataUtils.str(r, ['forecast', 'consensus', 'est']) ??
+                      PerplexityCardDataUtils.str(r, [
+                            'forecast',
+                            'consensus',
+                            'est',
+                          ]) ??
                           '—',
                       style: ctx.uiText.body,
                     ),
@@ -597,7 +691,8 @@ class PerplexityMacroCard extends StatelessWidget {
                   UiTableColumn<Map<String, dynamic>>(
                     header: 'Prior',
                     cell: (BuildContext ctx, Map<String, dynamic> r) => Text(
-                      PerplexityCardDataUtils.str(r, ['prior', 'previous']) ?? '—',
+                      PerplexityCardDataUtils.str(r, ['prior', 'previous']) ??
+                          '—',
                       style: ctx.uiText.caption,
                     ),
                   ),
@@ -614,7 +709,11 @@ class PerplexityMacroCard extends StatelessWidget {
                       label:
                           '${PerplexityCardDataUtils.str(imp, ['asset', 'label']) ?? ''}: ${PerplexityCardDataUtils.str(imp, ['impact', 'bias']) ?? ''}',
                       intent: PerplexityCardDataUtils.parseIntent(
-                        PerplexityCardDataUtils.str(imp, ['impact', 'bias', 'intent']),
+                        PerplexityCardDataUtils.str(imp, [
+                          'impact',
+                          'bias',
+                          'intent',
+                        ]),
                       ),
                       variant: UiBadgeVariant.soft,
                       size: UiSize.xs,
@@ -631,11 +730,7 @@ class PerplexityMacroCard extends StatelessWidget {
 
 /// Wall Street Analyst Ratings, Target Range & Institutional/Insider Actions Card.
 class PerplexityRatingsCard extends StatelessWidget {
-  const PerplexityRatingsCard({
-    super.key,
-    required this.data,
-    this.onOpenRef,
-  });
+  const PerplexityRatingsCard({super.key, required this.data, this.onOpenRef});
 
   final Map<String, dynamic> data;
   final PerplexityOpenRefCallback? onOpenRef;
@@ -643,21 +738,50 @@ class PerplexityRatingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final String? ticker = PerplexityCardDataUtils.str(data, ['ticker', 'symbol']);
+    final String? ticker = PerplexityCardDataUtils.str(data, [
+      'ticker',
+      'symbol',
+    ]);
     final String title =
-        PerplexityCardDataUtils.str(data, ['title']) ?? 'Analyst Ratings & Price Targets';
+        PerplexityCardDataUtils.str(data, ['title']) ??
+        'Analyst Ratings & Price Targets';
     final String? consensus = PerplexityCardDataUtils.str(data, [
       'consensus',
       'rating',
     ]);
-    final double? targetLow = PerplexityCardDataUtils.numField(data, ['targetLow', 'low']);
-    final double? targetMean = PerplexityCardDataUtils.numField(data, ['targetMean', 'targetMedian', 'median', 'mean', 'target']);
-    final double? targetHigh = PerplexityCardDataUtils.numField(data, ['targetHigh', 'high']);
-    final double? currentPrice = PerplexityCardDataUtils.numField(data, ['currentPrice', 'price']);
+    final double? targetLow = PerplexityCardDataUtils.numField(data, [
+      'targetLow',
+      'low',
+    ]);
+    final double? targetMean = PerplexityCardDataUtils.numField(data, [
+      'targetMean',
+      'targetMedian',
+      'median',
+      'mean',
+      'target',
+    ]);
+    final double? targetHigh = PerplexityCardDataUtils.numField(data, [
+      'targetHigh',
+      'high',
+    ]);
+    final double? currentPrice = PerplexityCardDataUtils.numField(data, [
+      'currentPrice',
+      'price',
+    ]);
 
-    final double? buy = PerplexityCardDataUtils.numField(data, ['buy', 'buyCount', 'strongBuy']);
-    final double? hold = PerplexityCardDataUtils.numField(data, ['hold', 'holdCount']);
-    final double? sell = PerplexityCardDataUtils.numField(data, ['sell', 'sellCount']);
+    final double? buy = PerplexityCardDataUtils.numField(data, [
+      'buy',
+      'buyCount',
+      'strongBuy',
+    ]);
+    final double? hold = PerplexityCardDataUtils.numField(data, [
+      'hold',
+      'holdCount',
+    ]);
+    final double? sell = PerplexityCardDataUtils.numField(data, [
+      'sell',
+      'sellCount',
+    ]);
 
     final List<Map<String, dynamic>> actions = PerplexityCardDataUtils.mapList(
       data,
@@ -665,9 +789,14 @@ class PerplexityRatingsCard extends StatelessWidget {
     );
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
       child: UiCard(
-        accentColor: PerplexityCardDataUtils.parseIntent(consensus).color(context),
+        variant: UiCardVariant.outlined,
+        headerDivider: true,
+        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+        accentColor: PerplexityCardDataUtils.parseIntent(
+          consensus,
+        ).color(context),
         title: title,
         leading: Icon(
           Icons.star_half_rounded,
@@ -690,7 +819,9 @@ class PerplexityRatingsCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            if (targetLow != null && targetHigh != null && targetHigh > targetLow) ...<Widget>[
+            if (targetLow != null &&
+                targetHigh != null &&
+                targetHigh > targetLow) ...<Widget>[
               Text(
                 'Wall Street Price Target Range',
                 style: context.uiText.label.copyWith(
@@ -721,7 +852,9 @@ class PerplexityRatingsCard extends StatelessWidget {
               ),
               UiGap.v(theme.spacing.md),
             ],
-            if ((buy ?? 0) > 0 || (hold ?? 0) > 0 || (sell ?? 0) > 0) ...<Widget>[
+            if ((buy ?? 0) > 0 ||
+                (hold ?? 0) > 0 ||
+                (sell ?? 0) > 0) ...<Widget>[
               UiCategoryBar(
                 categories: <UiCategoryItem>[
                   if ((buy ?? 0) > 0)
@@ -736,13 +869,20 @@ class PerplexityRatingsCard extends StatelessWidget {
             ],
             if (actions.isNotEmpty)
               UiTable<Map<String, dynamic>>(
+                stackOnMobile: true,
+                pageSize: 8,
                 density: UiDensity.compact,
                 rows: actions,
                 columns: <UiTableColumn<Map<String, dynamic>>>[
                   UiTableColumn<Map<String, dynamic>>(
                     header: 'Firm / Insider',
                     cell: (BuildContext ctx, Map<String, dynamic> r) => Text(
-                      PerplexityCardDataUtils.str(r, ['firm', 'insider', 'name']) ?? '—',
+                      PerplexityCardDataUtils.str(r, [
+                            'firm',
+                            'insider',
+                            'name',
+                          ]) ??
+                          '—',
                       style: ctx.uiText.bodyStrong,
                     ),
                   ),
@@ -750,7 +890,11 @@ class PerplexityRatingsCard extends StatelessWidget {
                     header: 'Action',
                     cell: (BuildContext ctx, Map<String, dynamic> r) {
                       final String act =
-                          PerplexityCardDataUtils.str(r, ['action', 'rating']) ?? '—';
+                          PerplexityCardDataUtils.str(r, [
+                            'action',
+                            'rating',
+                          ]) ??
+                          '—';
                       return UiBadge(
                         label: act,
                         intent: PerplexityCardDataUtils.parseIntent(act),
@@ -761,7 +905,11 @@ class PerplexityRatingsCard extends StatelessWidget {
                   UiTableColumn<Map<String, dynamic>>(
                     header: 'Target / Value',
                     cell: (BuildContext ctx, Map<String, dynamic> r) => Text(
-                      PerplexityCardDataUtils.str(r, ['target', 'priceTarget', 'value']) ??
+                      PerplexityCardDataUtils.str(r, [
+                            'target',
+                            'priceTarget',
+                            'value',
+                          ]) ??
                           '—',
                       style: ctx.uiText.body,
                     ),
@@ -777,11 +925,7 @@ class PerplexityRatingsCard extends StatelessWidget {
 
 /// Perplexity Market Screener, Ranked Leaderboard & Top Movers Card.
 class PerplexityScreenerCard extends StatelessWidget {
-  const PerplexityScreenerCard({
-    super.key,
-    required this.data,
-    this.onOpenRef,
-  });
+  const PerplexityScreenerCard({super.key, required this.data, this.onOpenRef});
 
   final Map<String, dynamic> data;
   final PerplexityOpenRefCallback? onOpenRef;
@@ -790,7 +934,8 @@ class PerplexityScreenerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final String title =
-        PerplexityCardDataUtils.str(data, ['title']) ?? 'Market Screener & Movers';
+        PerplexityCardDataUtils.str(data, ['title']) ??
+        'Market Screener & Movers';
     final String? criteria = PerplexityCardDataUtils.str(data, [
       'criteria',
       'filter',
@@ -804,14 +949,21 @@ class PerplexityScreenerCard extends StatelessWidget {
 
     final bool hasNumericScores = rows.any(
       (Map<String, dynamic> r) =>
-          PerplexityCardDataUtils.numField(r, ['score', 'changePercent', 'value']) !=
-          null &&
+          PerplexityCardDataUtils.numField(r, [
+                'score',
+                'changePercent',
+                'value',
+              ]) !=
+              null &&
           PerplexityCardDataUtils.str(r, ['price', 'ticker']) == null,
     );
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
       child: UiCard(
+        variant: UiCardVariant.outlined,
+        headerDivider: true,
+        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
         accentColor: theme.colors.primary,
         title: title,
         subtitle: criteria,
@@ -831,24 +983,44 @@ class PerplexityScreenerCard extends StatelessWidget {
                   for (final Map<String, dynamic> r in rows)
                     UiBarListItem(
                       label:
-                          PerplexityCardDataUtils.str(r, ['label', 'name', 'ticker']) ??
+                          PerplexityCardDataUtils.str(r, [
+                            'label',
+                            'name',
+                            'ticker',
+                          ]) ??
                           'Item',
                       value:
-                          PerplexityCardDataUtils.numField(r, ['score', 'changePercent', 'value']) ??
+                          PerplexityCardDataUtils.numField(r, [
+                            'score',
+                            'changePercent',
+                            'value',
+                          ]) ??
                           0,
-                      displayValue: PerplexityCardDataUtils.str(r, ['displayValue', 'change', 'score']),
+                      displayValue: PerplexityCardDataUtils.str(r, [
+                        'displayValue',
+                        'change',
+                        'score',
+                      ]),
                     ),
                 ],
               )
             : UiTable<Map<String, dynamic>>(
+                stackOnMobile: true,
+                pageSize: 8,
                 density: UiDensity.compact,
                 rows: rows,
                 columns: <UiTableColumn<Map<String, dynamic>>>[
                   UiTableColumn<Map<String, dynamic>>(
                     header: 'Asset',
                     cell: (BuildContext ctx, Map<String, dynamic> r) {
-                      final String? t = PerplexityCardDataUtils.str(r, ['ticker', 'symbol']);
-                      final String? name = PerplexityCardDataUtils.str(r, ['name', 'label']);
+                      final String? t = PerplexityCardDataUtils.str(r, [
+                        'ticker',
+                        'symbol',
+                      ]);
+                      final String? name = PerplexityCardDataUtils.str(r, [
+                        'name',
+                        'label',
+                      ]);
                       return Wrap(
                         spacing: ctx.sp(theme.spacing.xs),
                         crossAxisAlignment: WrapCrossAlignment.center,
@@ -908,14 +1080,35 @@ class PerplexitySentimentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final String? ticker = PerplexityCardDataUtils.str(data, ['ticker', 'symbol']);
+    final String? ticker = PerplexityCardDataUtils.str(data, [
+      'ticker',
+      'symbol',
+    ]);
     final String title =
-        PerplexityCardDataUtils.str(data, ['title']) ?? 'Market Sentiment & Options Flow';
-    final String? regime = PerplexityCardDataUtils.str(data, ['regime', 'sentiment', 'bias']);
-    final double? score = PerplexityCardDataUtils.numField(data, ['score', 'fearGreed', 'bullishScore']);
-    final double? bullPct = PerplexityCardDataUtils.numField(data, ['bullishPct', 'bullish']);
-    final double? neutralPct = PerplexityCardDataUtils.numField(data, ['neutralPct', 'neutral']);
-    final double? bearPct = PerplexityCardDataUtils.numField(data, ['bearishPct', 'bearish']);
+        PerplexityCardDataUtils.str(data, ['title']) ??
+        'Market Sentiment & Options Flow';
+    final String? regime = PerplexityCardDataUtils.str(data, [
+      'regime',
+      'sentiment',
+      'bias',
+    ]);
+    final double? score = PerplexityCardDataUtils.numField(data, [
+      'score',
+      'fearGreed',
+      'bullishScore',
+    ]);
+    final double? bullPct = PerplexityCardDataUtils.numField(data, [
+      'bullishPct',
+      'bullish',
+    ]);
+    final double? neutralPct = PerplexityCardDataUtils.numField(data, [
+      'neutralPct',
+      'neutral',
+    ]);
+    final double? bearPct = PerplexityCardDataUtils.numField(data, [
+      'bearishPct',
+      'bearish',
+    ]);
 
     final List<UiStat> flowStats = <UiStat>[
       for (final (String l, List<String> k) in const [
@@ -936,8 +1129,11 @@ class PerplexitySentimentCard extends StatelessWidget {
     final UiIntent intent = PerplexityCardDataUtils.parseIntent(regime);
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
       child: UiCard(
+        variant: UiCardVariant.outlined,
+        headerDivider: true,
+        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
         accentColor: intent.color(context),
         title: title,
         leading: Icon(
@@ -949,7 +1145,8 @@ class PerplexitySentimentCard extends StatelessWidget {
           spacing: context.sp(theme.spacing.xs),
           children: <Widget>[
             if (_tickerBadge(ticker, onOpenRef) case final Widget b) b,
-            if (regime != null) UiBadge(label: regime, intent: intent, size: UiSize.xs),
+            if (regime != null)
+              UiBadge(label: regime, intent: intent, size: UiSize.xs),
           ],
         ),
         child: Column(
@@ -958,8 +1155,11 @@ class PerplexitySentimentCard extends StatelessWidget {
           children: <Widget>[
             if (score != null) ...<Widget>[
               UiProgressBar(
-                value: score > 1 ? (score / 100).clamp(0.0, 1.0) : score.clamp(0.0, 1.0),
-                label: 'Sentiment Index (${score > 1 ? score.round() : (score * 100).round()}/100)',
+                value: score > 1
+                    ? (score / 100).clamp(0.0, 1.0)
+                    : score.clamp(0.0, 1.0),
+                label:
+                    'Sentiment Index (${score > 1 ? score.round() : (score * 100).round()}/100)',
                 intent: intent,
               ),
               UiGap.v(theme.spacing.md),
@@ -968,17 +1168,26 @@ class PerplexitySentimentCard extends StatelessWidget {
               UiCategoryBar(
                 categories: <UiCategoryItem>[
                   if ((bullPct ?? 0) > 0)
-                    UiCategoryItem(label: 'Bull ${bullPct!.round()}%', value: bullPct),
+                    UiCategoryItem(
+                      label: 'Bull ${bullPct!.round()}%',
+                      value: bullPct,
+                    ),
                   if ((neutralPct ?? 0) > 0)
-                    UiCategoryItem(label: 'Neutral ${neutralPct!.round()}%', value: neutralPct),
+                    UiCategoryItem(
+                      label: 'Neutral ${neutralPct!.round()}%',
+                      value: neutralPct,
+                    ),
                   if ((bearPct ?? 0) > 0)
-                    UiCategoryItem(label: 'Bear ${bearPct!.round()}%', value: bearPct),
+                    UiCategoryItem(
+                      label: 'Bear ${bearPct!.round()}%',
+                      value: bearPct,
+                    ),
                 ],
               ),
               UiGap.v(theme.spacing.md),
             ],
             if (flowStats.isNotEmpty) ...<Widget>[
-              UiStatStrip(stats: flowStats, minCellWidth: 110),
+              ResearchMetrics(stats: flowStats),
               UiGap.v(theme.spacing.sm),
             ],
             if (alerts.isNotEmpty)
@@ -998,11 +1207,7 @@ class PerplexitySentimentCard extends StatelessWidget {
 
 /// Perplexity Media & Chart Gallery Card backed by [UiRemoteImage] + [UiLightbox].
 class PerplexityMediaCard extends StatelessWidget {
-  const PerplexityMediaCard({
-    super.key,
-    required this.data,
-    this.onTapUrl,
-  });
+  const PerplexityMediaCard({super.key, required this.data, this.onTapUrl});
 
   final Map<String, dynamic> data;
   final PerplexityOpenUrlCallback? onTapUrl;
@@ -1026,7 +1231,9 @@ class PerplexityMediaCard extends StatelessWidget {
       if (url != null) {
         entries.add((
           url: url,
-          caption: PerplexityCardDataUtils.str(item, ['caption', 'title', 'alt']) ?? '',
+          caption:
+              PerplexityCardDataUtils.str(item, ['caption', 'title', 'alt']) ??
+              '',
           sourceUrl: PerplexityCardDataUtils.str(item, ['sourceUrl', 'link']),
         ));
       }
@@ -1039,7 +1246,8 @@ class PerplexityMediaCard extends StatelessWidget {
       if (single != null) {
         entries.add((
           url: single,
-          caption: PerplexityCardDataUtils.str(data, ['caption', 'title']) ?? '',
+          caption:
+              PerplexityCardDataUtils.str(data, ['caption', 'title']) ?? '',
           sourceUrl: PerplexityCardDataUtils.str(data, ['sourceUrl', 'link']),
         ));
       }
@@ -1047,8 +1255,11 @@ class PerplexityMediaCard extends StatelessWidget {
     if (entries.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
       child: UiCard(
+        variant: UiCardVariant.outlined,
+        headerDivider: true,
+        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
         title: title,
         leading: Icon(
           Icons.collections_outlined,
@@ -1070,11 +1281,16 @@ class PerplexityMediaCard extends StatelessWidget {
                   width: context.sz(210),
                   child: UiCard(
                     variant: UiCardVariant.outlined,
+                    headerDivider: true,
+                    padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+
                     density: UiDensity.compact,
                     onTap: () => UiLightbox.show(
                       context,
                       mediaUrl: entries[i].url,
-                      caption: entries[i].caption.isEmpty ? null : entries[i].caption,
+                      caption: entries[i].caption.isEmpty
+                          ? null
+                          : entries[i].caption,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1147,20 +1363,30 @@ class PerplexityFormulaCard extends StatelessWidget {
       for (final Map<String, dynamic> v in vars)
         if ((PerplexityCardDataUtils.str(v, ['symbol', 'name', 'label']) ?? '')
                 .isNotEmpty &&
-            (PerplexityCardDataUtils.str(v, ['meaning', 'description', 'value']) ??
+            (PerplexityCardDataUtils.str(v, [
+                      'meaning',
+                      'description',
+                      'value',
+                    ]) ??
                     '')
                 .isNotEmpty)
           UiKeyValueRow(
             label: PerplexityCardDataUtils.str(v, ['symbol', 'name', 'label'])!,
-            value:
-                PerplexityCardDataUtils.str(v, ['meaning', 'description', 'value'])!,
+            value: PerplexityCardDataUtils.str(v, [
+              'meaning',
+              'description',
+              'value',
+            ])!,
             trailing: PerplexityCardDataUtils.str(v, ['unit', 'sample']),
           ),
     ];
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
       child: UiCard(
+        variant: UiCardVariant.outlined,
+        headerDivider: true,
+        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
         accentColor: theme.colors.info,
         title: title,
         leading: Icon(
@@ -1234,25 +1460,49 @@ class PerplexityProductPlaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final String title =
-        PerplexityCardDataUtils.str(data, ['name', 'title']) ?? 'Entity Overview';
+        PerplexityCardDataUtils.str(data, ['name', 'title']) ??
+        'Entity Overview';
     final String? category = PerplexityCardDataUtils.str(data, [
       'category',
       'type',
       'location',
       'address',
     ]);
-    final String? price = PerplexityCardDataUtils.str(data, ['price', 'pricing']);
-    final double? rating = PerplexityCardDataUtils.numField(data, ['rating', 'score']);
-    final String? summary = PerplexityCardDataUtils.str(data, ['summary', 'description']);
-    final List<String> pros = PerplexityCardDataUtils.strList(data, ['pros', 'strengths', 'highlights']);
-    final List<String> cons = PerplexityCardDataUtils.strList(data, ['cons', 'weaknesses', 'limitations']);
-    final List<String> alternatives = PerplexityCardDataUtils.strList(data, ['alternatives', 'competitors']);
+    final String? price = PerplexityCardDataUtils.str(data, [
+      'price',
+      'pricing',
+    ]);
+    final double? rating = PerplexityCardDataUtils.numField(data, [
+      'rating',
+      'score',
+    ]);
+    final String? summary = PerplexityCardDataUtils.str(data, [
+      'summary',
+      'description',
+    ]);
+    final List<String> pros = PerplexityCardDataUtils.strList(data, [
+      'pros',
+      'strengths',
+      'highlights',
+    ]);
+    final List<String> cons = PerplexityCardDataUtils.strList(data, [
+      'cons',
+      'weaknesses',
+      'limitations',
+    ]);
+    final List<String> alternatives = PerplexityCardDataUtils.strList(data, [
+      'alternatives',
+      'competitors',
+    ]);
     final String? url = PerplexityCardDataUtils.str(data, ['url', 'website']);
     final bool isPlace = tag == 'place' || tag == 'location';
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
       child: UiCard(
+        variant: UiCardVariant.outlined,
+        headerDivider: true,
+        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
         accentColor: theme.colors.primary,
         title: title,
         subtitle: category,
@@ -1279,7 +1529,7 @@ class PerplexityProductPlaceCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (summary != null) ...<Widget>[
-              Text(summary, style: context.uiText.body),
+              Text(summary, style: context.uiText.body.copyWith(height: 1.6)),
               UiGap.v(theme.spacing.sm),
             ],
             if (pros.isNotEmpty) ...<Widget>[
@@ -1314,8 +1564,9 @@ class PerplexityProductPlaceCard extends StatelessWidget {
                         icon: Icons.compare_arrows_rounded,
                         size: UiSize.xs,
                         variant: UiVariant.outline,
-                        onPressed: () =>
-                            onPromptTap!('Compare $title vs $alt in a structured matrix.'),
+                        onPressed: () => onPromptTap!(
+                          'Compare $title vs $alt in a structured matrix.',
+                        ),
                       ),
                   if (url != null && onTapUrl != null)
                     UiButton(

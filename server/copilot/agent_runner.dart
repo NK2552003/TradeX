@@ -1,3 +1,5 @@
+import 'package:tradex/features/copilot/models/research_policy.dart';
+import 'package:tradex/features/copilot/models/research_router.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -209,7 +211,7 @@ class AgentRunner {
         final stepStart = body.length;
         await for (final response in gateway.respond(client, {
           'instructions':
-              '${instructionsFor(state, specialist, thread)}\n$skills\n${toolkitFile == null ? '' : TraderSkill.toolkitGuidance}${switch (mode) {
+              '${instructionsFor(state, specialist, thread)}\n${ResearchRouter.select(turnPrompt).instructions}\n$skills\n${toolkitFile == null ? '' : TraderSkill.toolkitGuidance}${switch (mode) {
                 'search' => '\nSearch the web for current information and answer concisely with source citations.',
                 'research' => '\nResearch this question in depth using the web. Compare multiple relevant sources, verify dates and conflicting claims, and give a structured, cited synthesis with uncertainties. Do not claim exhaustive coverage.',
                 _ => '',
@@ -237,7 +239,14 @@ class AgentRunner {
                 {},
               ),
           ],
-          if (mode != 'auto' && !resume && step == 0)
+          if (!resume &&
+              step == 0 &&
+              (mode != 'auto' ||
+                  ResearchPolicy.needsFreshResearch(turnPrompt)) &&
+              toolsFor(
+                state,
+                specialist,
+              ).any((tool) => tool['type'] == 'web_search'))
             'tool_choice': {'type': 'web_search'},
           'previous_response_id': ?previous,
           'max_output_tokens': 8000,
@@ -488,6 +497,21 @@ class AgentRunner {
       'sources': sources,
       'artifacts': artifacts,
       'activity': activity,
+      'research': {
+        'requestedAt': message['createdAt'],
+        'webSearchUsed': activity.any(
+          (entry) => entry['type'] == 'web_search_call',
+        ),
+        'timeSensitive': ResearchPolicy.needsFreshResearch(
+          textOf(
+            records(
+                  thread['messages'],
+                ).where((m) => m['role'] == 'user').lastOrNull ??
+                {},
+            'body',
+          ),
+        ),
+      },
     });
     if (error != null) {
       thread['error'] = error;

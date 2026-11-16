@@ -1,6 +1,7 @@
+import { freshnessInstructions, needsFreshResearch, RESEARCH_PANEL_PROTOCOL } from './research-policy.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
-import { generateResponses } from './responses.ts';
+import { generateResponses, type ProviderResult } from './responses.ts';
 
 const cors = {
   'Content-Type': 'application/json',
@@ -11,7 +12,6 @@ const cors = {
 const reply = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: cors });
 type Message = { role: 'user' | 'assistant' | 'system'; content: string };
-type ProviderResult = { text: string; provider: string; model: string; input?: number; output?: number };
 type Dependencies = { fetch?: typeof fetch; env?: (name: string) => string | undefined };
 
 const bearer = (value: string) => String.fromCharCode(66, 101, 97, 114, 101, 114) + ' ' + value;
@@ -221,7 +221,7 @@ async function executeAiGatewayRequest(
   if (typeof body.trader_skill_context === 'string' && body.trader_skill_context.length <= 8000) {
     messages[0].content += '\n' + body.trader_skill_context;
   }
-  messages[0].content += '\n' + PERPLEXITY_FORMAT_PROTOCOL;
+  messages[0].content += '\n' + PERPLEXITY_FORMAT_PROTOCOL + '\n' + RESEARCH_PANEL_PROTOCOL + '\n' + freshnessInstructions();
   if (focus !== 'all' && FOCUS_DIRECTIVES[focus]) {
     messages[0].content += '\n' + FOCUS_DIRECTIVES[focus];
   }
@@ -259,6 +259,7 @@ async function executeAiGatewayRequest(
   if (reserveError) return reply(reserveError.code === '42501' ? 403 : reserveError.code === 'P0001' ? 429 : 503, { error: reserveError.message });
   if (typeof reservation?.request_id !== 'string' || reservation.user_id !== user.user.id) return reply(500, { error: 'Unable to reserve AI request.' });
   try {
+    const researchedAt = new Date().toISOString();
     const openAiKey = env('OPENAI_API_KEY') ?? env('OPEN_AI_KEY');
     const result = mode !== 'auto' || attachments.length > 0 || ((body.allow_web_search === true || toolkit) && !!openAiKey)
       ? openAiKey
@@ -299,6 +300,7 @@ async function executeAiGatewayRequest(
       provider: result.provider,
       model: result.model,
       usage: reservation.usage,
+      research: { requestedAt: researchedAt, timeSensitive: needsFreshResearch(prompt), webSearchUsed: result.webSearchUsed === true },
       ...(sources.length > 0 ? { sources } : {}),
       ...(steps.length > 0 ? { steps } : {}),
       ...(mode !== 'auto' ? { mode } : {}),

@@ -1,14 +1,15 @@
-import 'dart:math' as math;
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/markdown_kit/markdown_kit.dart';
+import 'package:tradex/core/markdown_kit/research/research_answer_tools.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
 import '../models/app_models_extra.dart';
 import '../theme/app_tokens.dart';
+import '../motion/ai_typewriter.dart';
+import '../motion/ai_typing_indicator.dart';
 
 /// One AI chat bubble. User messages align right on a filled surface,
 /// assistant messages align left with rich markdown (charts, tables,
@@ -46,118 +47,54 @@ class AppAiMessageBubble extends StatefulWidget {
   State<AppAiMessageBubble> createState() => _AppAiMessageBubbleState();
 }
 
-class _AppAiMessageBubbleState extends State<AppAiMessageBubble>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _streamController;
-  int _fromChars = 0;
-  int _toChars = 0;
+class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
+  final AiTypewriter _typewriter = AiTypewriter();
   bool _streamedInSession = false;
   int _answerTab = 0;
   bool? _helpfulVote;
-
   bool get _isAssistant => widget.message.role == AppAiRole.assistant;
 
   @override
   void initState() {
     super.initState();
-    _streamController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 320),
-    )..addListener(() {
-        if (mounted) setState(() {});
-      });
+    _streamedInSession = _isAssistant && widget.message.pending;
+    _typewriter.reset(widget.message.body, animate: _streamedInSession);
+    _typewriter.addListener(_onReveal);
+  }
 
-    final int len = widget.message.body.length;
-    if (_isAssistant && widget.message.pending) {
-      _streamedInSession = true;
-      _fromChars = 0;
-      _toChars = len;
-      if (len > 0) {
-        _animateTo(len);
-      }
-    } else {
-      _fromChars = len;
-      _toChars = len;
-      _streamController.value = 1.0;
-    }
+  void _onReveal() {
+    if (!mounted) return;
+    setState(() {});
+    const AiOutputGrowthNotification().dispatch(context);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _typewriter.reducedMotion = MediaQuery.disableAnimationsOf(context);
   }
 
   @override
   void didUpdateWidget(covariant AppAiMessageBubble oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final String newBody = widget.message.body;
-    final String oldBody = oldWidget.message.body;
-
     if (widget.message.id != oldWidget.message.id) {
       _answerTab = 0;
       _helpfulVote = null;
       _streamedInSession = _isAssistant && widget.message.pending;
-      if (_streamedInSession) {
-        _fromChars = 0;
-        _toChars = newBody.length;
-        if (newBody.isNotEmpty) {
-          _animateTo(newBody.length);
-        } else {
-          _streamController.value = 1.0;
-        }
-      } else {
-        _fromChars = newBody.length;
-        _toChars = newBody.length;
-        _streamController.value = 1.0;
-      }
-      return;
+      _typewriter.reset(widget.message.body, animate: _streamedInSession);
+    } else {
+      _streamedInSession =
+          _streamedInSession ||
+          (_isAssistant &&
+              (widget.message.pending || oldWidget.message.pending));
+      _typewriter.update(widget.message.body, animate: _streamedInSession);
     }
-
-    if (!_isAssistant) {
-      _fromChars = newBody.length;
-      _toChars = newBody.length;
-      _streamController.value = 1.0;
-      return;
-    }
-
-    if (widget.message.pending || oldWidget.message.pending) {
-      _streamedInSession = true;
-    }
-
-    if (_streamedInSession && newBody.length > oldBody.length) {
-      _animateTo(newBody.length);
-    } else if (newBody != oldBody) {
-      _fromChars = newBody.length;
-      _toChars = newBody.length;
-      _streamController.value = 1.0;
-    }
-  }
-
-  void _animateTo(int targetLength) {
-    final int current = _currentRevealedLength(widget.message.body);
-    _fromChars = math.min(current, targetLength);
-    _toChars = targetLength;
-    final int delta = math.max(1, _toChars - _fromChars);
-    final int ms = (delta * 7).clamp(180, 680);
-    _streamController.duration = Duration(milliseconds: ms);
-    _streamController.forward(from: 0.0);
-  }
-
-  int _currentRevealedLength(String fullText) {
-    if (fullText.isEmpty) return 0;
-    if (!_streamedInSession || !_streamController.isAnimating) {
-      return fullText.length;
-    }
-    final double t = Curves.easeOutCubic.transform(_streamController.value);
-    final int raw = (_fromChars + (_toChars - _fromChars) * t).round();
-    return raw.clamp(0, fullText.length);
-  }
-
-  String _visibleAssistantBody(String fullText) {
-    final int count = _currentRevealedLength(fullText);
-    if (count >= fullText.length) return fullText;
-    if (count <= 0) return '';
-    return fullText.substring(0, count);
   }
 
   @override
   void dispose() {
-    _streamController.dispose();
+    _typewriter.removeListener(_onReveal);
+    _typewriter.dispose();
     super.dispose();
   }
 
@@ -167,7 +104,7 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble>
     final AppAiMessage message = widget.message;
     final bool mine = message.role == AppAiRole.user;
     final bool isAnimatingStream =
-        _isAssistant && (message.pending || _streamController.isAnimating);
+        _isAssistant && (message.pending || _typewriter.isTyping);
     final List<Widget> extraActions =
         (message.pending ? null : widget.actionsBuilder?.call(message)) ??
         const <Widget>[];
@@ -188,7 +125,7 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble>
     }
 
     final String displayedBody = _isAssistant
-        ? _visibleAssistantBody(message.body)
+        ? _typewriter.visibleText
         : message.body;
 
     final PerplexityAnswerMeta? meta = _isAssistant && displayedBody.isNotEmpty
@@ -218,7 +155,9 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble>
 
     final List<PerplexityCardSummary> structuredCards =
         (meta?.cards ?? const <PerplexityCardSummary>[])
-            .where((c) => c.rawSpec.trim().isNotEmpty && c.tag != 'loading_card')
+            .where(
+              (c) => c.rawSpec.trim().isNotEmpty && c.tag != 'loading_card',
+            )
             .toList(growable: false);
 
     final List<_PerplexityTabKind> availableTabs = <_PerplexityTabKind>[
@@ -266,7 +205,7 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble>
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (message.pending && displayedBody.isEmpty)
-            const UiTypingIndicator(label: 'Searching & analyzing…')
+            Text('Preparing your answer…', style: context.uiText.caption)
           else if (mine)
             _buildUserMessageText(context, theme)
           else ...<Widget>[
@@ -332,14 +271,14 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble>
                 data: meta?.cleanMarkdown ?? displayedBody,
                 emptyPlaceholder: '',
                 selectable: !isAnimatingStream,
+                showTypingCursor:
+                    isAnimatingStream &&
+                    !MediaQuery.disableAnimationsOf(context),
                 onOpenRef: widget.onOpenRef,
                 onPromptTap: widget.onFollowUpTap,
                 imageResolver: (BuildContext ctx, Uri uri) => ClipRRect(
                   borderRadius: ctx.radius(ctx.ui.radii.md),
-                  child: UiRemoteImage(
-                    url: uri.toString(),
-                    fit: BoxFit.cover,
-                  ),
+                  child: UiRemoteImage(url: uri.toString(), fit: BoxFit.cover),
                 ),
                 onTapLink: (String text, String? href, String title) {
                   if (href != null &&
@@ -350,10 +289,18 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble>
                 },
               ),
             ],
-            if (isAnimatingStream && displayedBody.isNotEmpty) ...<Widget>[
-              SizedBox(height: context.sp(theme.spacing.xs)),
-              const UiTypingIndicator(),
-            ],
+            if (isAnimatingStream && !MediaQuery.disableAnimationsOf(context))
+              Row(
+                children: [
+                  if (!_typewriter.skipped)
+                    UiButton(
+                      label: 'Skip',
+                      variant: UiVariant.ghost,
+                      size: UiSize.xs,
+                      onPressed: _typewriter.skip,
+                    ),
+                ],
+              ),
           ],
           if (message.error != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.sm)),
@@ -376,7 +323,15 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble>
             : CrossAxisAlignment.start,
         children: <Widget>[
           bubble,
-          if (!mine && !message.pending)
+          if (!mine && !message.pending && !isAnimatingStream && meta != null)
+            ResearchAnswerTools(
+              markdown: message.body,
+              meta: meta,
+              onSourceTap: widget.onSourceTap,
+              onPrompt: widget.onFollowUpTap,
+              sentAt: message.sentAt,
+            ),
+          if (!mine && !message.pending && !isAnimatingStream)
             Padding(
               padding: EdgeInsets.only(top: context.sp(theme.spacing.xxs)),
               child: SingleChildScrollView(
@@ -446,7 +401,10 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble>
                       ),
                     if (extraActions.isNotEmpty) ...<Widget>[
                       for (int i = 0; i < extraActions.length; i++) ...<Widget>[
-                        if (i > 0 || widget.onCopy != null || widget.onRetry != null || message.sentAt != null)
+                        if (i > 0 ||
+                            widget.onCopy != null ||
+                            widget.onRetry != null ||
+                            message.sentAt != null)
                           SizedBox(width: context.sp(theme.spacing.xxs)),
                         extraActions[i],
                       ],
@@ -842,11 +800,11 @@ class _PerplexityStepsAccordion extends StatelessWidget {
       density: UiDensity.compact,
       sections: <UiAccordionSection>[
         UiAccordionSection(
-          title: isStreaming ? 'Pro Search · Researching' : 'Pro Search · Completed',
+          title: isStreaming ? 'Answer details · Updating' : 'Answer details',
           leadingIcon: isStreaming
               ? Icons.manage_search_rounded
-              : Icons.verified_outlined,
-          badge: summary,
+              : Icons.fact_check_outlined,
+          subtitle: summary,
           intent: UiIntent.primary,
           initiallyOpen: isStreaming,
           child: UiTimeline(
@@ -858,7 +816,9 @@ class _PerplexityStepsAccordion extends StatelessWidget {
                   icon: s.status == 'active'
                       ? Icons.sync_rounded
                       : Icons.check_circle_outline_rounded,
-                  intent: s.status == 'active' ? UiIntent.info : UiIntent.bullish,
+                  intent: s.status == 'active'
+                      ? UiIntent.info
+                      : UiIntent.bullish,
                 ),
             ],
           ),
@@ -904,10 +864,7 @@ class _PerplexityCardsDeckView extends StatelessWidget {
 }
 
 class _PerplexityMediaGalleryView extends StatelessWidget {
-  const _PerplexityMediaGalleryView({
-    required this.media,
-    this.onSourceTap,
-  });
+  const _PerplexityMediaGalleryView({required this.media, this.onSourceTap});
 
   final List<PerplexityMediaItem> media;
   final ValueChanged<String>? onSourceTap;
@@ -921,7 +878,9 @@ class _PerplexityMediaGalleryView extends StatelessWidget {
         final double maxW = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : ctx.sz(520);
-        final int cols = maxW >= ctx.sz(520) ? 3 : (maxW >= ctx.sz(340) ? 2 : 1);
+        final int cols = maxW >= ctx.sz(520)
+            ? 3
+            : (maxW >= ctx.sz(340) ? 2 : 1);
         final double cardW = (maxW - gap * (cols - 1)) / cols;
         return Wrap(
           spacing: gap,
@@ -950,7 +909,8 @@ class _PerplexityMediaGalleryView extends StatelessWidget {
                           width: double.infinity,
                         ),
                       ),
-                      if (item.caption.isNotEmpty || item.domain.isNotEmpty) ...<Widget>[
+                      if (item.caption.isNotEmpty ||
+                          item.domain.isNotEmpty) ...<Widget>[
                         UiGap.v(theme.spacing.xs),
                         if (item.caption.isNotEmpty)
                           Text(
@@ -975,7 +935,8 @@ class _PerplexityMediaGalleryView extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              if (item.sourceUrl.isNotEmpty && onSourceTap != null)
+                              if (item.sourceUrl.isNotEmpty &&
+                                  onSourceTap != null)
                                 UiIconButton(
                                   icon: Icons.open_in_new_rounded,
                                   size: UiSize.xs,
@@ -1200,10 +1161,7 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
 }
 
 class _PerplexitySourcesListView extends StatelessWidget {
-  const _PerplexitySourcesListView({
-    required this.sources,
-    this.onSourceTap,
-  });
+  const _PerplexitySourcesListView({required this.sources, this.onSourceTap});
 
   final List<PerplexitySource> sources;
   final ValueChanged<String>? onSourceTap;

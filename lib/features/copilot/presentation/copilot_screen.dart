@@ -137,6 +137,7 @@ class CopilotScreenState extends State<CopilotScreen> {
       UiToast.success(context, title: 'Research thread copied as Markdown');
     }
   }
+
   @override
   void dispose() {
     _controller.removeListener(_accountChanged);

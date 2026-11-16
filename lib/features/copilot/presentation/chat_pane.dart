@@ -23,6 +23,9 @@ import '../models/workspace.dart';
 import 'copilot_composer.dart';
 import 'copilot_feature_modals.dart';
 import 'review_card.dart';
+import 'research_format_picker.dart';
+import 'research_welcome.dart';
+import 'research_freshness.dart';
 import 'save_page_dialog.dart';
 import 'trader_skill_picker.dart';
 
@@ -239,6 +242,18 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
     );
   }
 
+  Future<void> _browseFormats({String? subject}) async {
+    final prompt = await pickResearchFormat(
+      context,
+      subject: subject ?? _composer.text,
+    );
+    if (!mounted || prompt == null) return;
+    _composer.value = TextEditingValue(
+      text: prompt,
+      selection: TextSelection.collapsed(offset: prompt.length),
+    );
+  }
+
   Future<void> _download(Json artifact) async {
     try {
       final bytes = await controller.api.artifact(
@@ -272,6 +287,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
         .map(
           (message) => AppAiMessage(
             id: message.id,
+            sentAt: DateTime.tryParse(textOf(message.json, 'createdAt')),
             role: message.isUser ? AppAiRole.user : AppAiRole.assistant,
             body: message.id == controller.streamingMessageId
                 ? (controller.streamingText.isNotEmpty
@@ -405,14 +421,13 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                           size: UiSize.xs,
                           variant: UiVariant.solid,
                           intent: UiIntent.primary,
-                          onPressed: () =>
-                              CustomerLimitations.showPlanUpgradeDialog(
-                                context,
-                                featureTitle:
-                                    'AI Copilot Quota Reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
-                                reason:
-                                    'Your ${CustomerLimitations.currentQuota.planName} plan includes ${controller.effectiveAiQueriesLimit} AI queries per month.',
-                              ),
+                          onPressed: () => CustomerLimitations.showPlanUpgradeDialog(
+                            context,
+                            featureTitle:
+                                'AI Copilot Quota Reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
+                            reason:
+                                'Your ${CustomerLimitations.currentQuota.planName} plan includes ${controller.effectiveAiQueriesLimit} AI queries per month.',
+                          ),
                         ),
                       ),
                     )
@@ -425,8 +440,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                         title: 'Could not finish',
                         message: controller.error!,
                         intent: UiIntent.warning,
-                        onClose: () =>
-                            setState(() => controller.error = null),
+                        onClose: () => setState(() => controller.error = null),
                         action: UiButton(
                           label: 'Reconnect',
                           size: UiSize.xs,
@@ -443,627 +457,392 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
             Expanded(
               child: AppAiChatBlock(
                 key: ValueKey(
-                  controller.activeThreadId ?? 'new-${controller.specialist?.id}',
+                  controller.activeThreadId ??
+                      'new-${controller.specialist?.id}',
                 ),
                 header: topNotice,
                 messages: displayed,
-              onSend: _send,
-              onAttach:
-                  controller.isAiQuotaBlocked ||
-                      controller.workspace.setup['attachments'] == false
-                  ? null
-                  : _attach,
-              generating: controller.generating || thread?.status == 'running',
-              onStop: controller.stop,
-              canSend:
-                  !controller.isAiQuotaBlocked &&
-                  controller.connected &&
-                  !controller.hasPendingReview &&
-                  controller.workspace.settings['paused'] != true,
-              composer: CopilotComposer(
-                controller: _composer,
-                compactHeight:
-                    constraints.maxHeight < 520 || widget.voiceActive,
-                enabled:
-                    !controller.isAiQuotaBlocked &&
-                    controller.connected &&
-                    (!controller.voiceBusy || widget.voiceActive) &&
-                    !controller.hasPendingReview &&
-                    controller.workspace.settings['paused'] != true,
-                busy: controller.generating || thread?.status == 'running',
-                attaching: _attaching,
-                attachments: _attachments.map((a) => a.name).toList(),
-                profiles: controller.workspace.specialists,
-                profileId: controller.specialist?.id,
-                mode: _mode,
-                focus: _focus,
-                canResearch:
-                    controller.workspace.setup['research'] != false &&
-                    controller.workspace.settings['research'] == true &&
-                    controller.specialist?.research == true,
-                onModeChanged: (mode) => setState(() => _mode = mode),
-                onFocusChanged: (focus) => setState(() => _focus = focus),
-                onSelectProfile: (id) {
-                  controller.newConversation(specialist: id);
-                  setState(() {
-                    _mode = CopilotPromptMode.auto;
-                    _focus = CopilotSearchFocus.all;
-                  });
-                },
-                onNewConversation: () => controller.newConversation(),
-                onSend: () => _send(
-                  _composer.text.trim().isEmpty
-                      ? 'Please review the attached files.'
-                      : _composer.text.trim(),
-                ),
+                onSend: _send,
                 onAttach:
                     controller.isAiQuotaBlocked ||
                         controller.workspace.setup['attachments'] == false
                     ? null
                     : _attach,
-                onRemoveAttachment: (i) =>
-                    setState(() => _attachments.removeAt(i)),
+                generating:
+                    controller.generating || thread?.status == 'running',
                 onStop: controller.stop,
-                onVoice: controller.isAiQuotaBlocked ? null : widget.onVoice,
-                onConnectWorkspace: () => showCopilotConnectDialog(
-                  context,
-                  onAttach: (CopilotConnectedItem item) {
-                    if (!mounted) return;
+                canSend:
+                    !controller.isAiQuotaBlocked &&
+                    controller.connected &&
+                    !controller.hasPendingReview &&
+                    controller.workspace.settings['paused'] != true,
+                composer: CopilotComposer(
+                  onResearchFormats: _browseFormats,
+                  controller: _composer,
+                  compactHeight:
+                      constraints.maxHeight < 520 || widget.voiceActive,
+                  enabled:
+                      !controller.isAiQuotaBlocked &&
+                      controller.connected &&
+                      (!controller.voiceBusy || widget.voiceActive) &&
+                      !controller.hasPendingReview &&
+                      controller.workspace.settings['paused'] != true,
+                  busy: controller.generating || thread?.status == 'running',
+                  attaching: _attaching,
+                  attachments: _attachments.map((a) => a.name).toList(),
+                  profiles: controller.workspace.specialists,
+                  profileId: controller.specialist?.id,
+                  mode: _mode,
+                  focus: _focus,
+                  canResearch:
+                      controller.workspace.setup['research'] != false &&
+                      controller.workspace.settings['research'] == true &&
+                      controller.specialist?.research == true,
+                  onModeChanged: (mode) => setState(() => _mode = mode),
+                  onFocusChanged: (focus) => setState(() => _focus = focus),
+                  onSelectProfile: (id) {
+                    controller.newConversation(specialist: id);
                     setState(() {
-                      if (_attachments.length >= 4) {
-                        _attachments.removeAt(0);
-                      }
-                      _attachments.add((
-                        name: '${item.category.label}: ${item.title}',
-                        input: item.toAttachmentJson(),
-                      ));
+                      _mode = CopilotPromptMode.auto;
+                      _focus = CopilotSearchFocus.all;
                     });
                   },
-                ),
-                voiceActive: widget.voiceActive,
-              ),
-              composerController: _composer,
-              composerHint: controller.isAiQuotaBlocked
-                  ? 'Monthly AI quota exhausted — upgrade plan to continue'
-                  : 'Ask ${controller.specialist?.name ?? 'your copilot'} anything…',
-              emptyState: _Welcome(
-                onSkills: _browseSkills,
-                onPrompt: (prompt) {
-                  if (controller.isAiQuotaBlocked) {
-                    unawaited(
-                      CustomerLimitations.showPlanUpgradeDialog(
-                        context,
-                        featureTitle:
-                            'AI Copilot Quota Reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
-                        reason:
-                            'Your ${CustomerLimitations.currentQuota.planName} plan includes ${controller.effectiveAiQueriesLimit} monthly AI prompts.',
-                      ),
-                    );
-                    return;
-                  }
-                  _composer.text = prompt;
-                  _composer.selection = TextSelection.collapsed(
-                    offset: prompt.length,
-                  );
-                },
-              ),
-              messageBuilder: (context, message) {
-                final model = messages
-                    .where((m) => m.id == message.id)
-                    .firstOrNull;
-                final bool isLastAssistant =
-                    model != null &&
-                    !model.isUser &&
-                    model.id == messages.lastOrNull?.id;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AppAiMessageBubble(
-                      message: message,
-                      minimal: true,
-                      onOpenRef: widget.onOpenRef,
-                      onFollowUpTap: controller.generating
-                          ? null
-                          : (prompt) => _send(prompt),
-                      onCopy: message.body.isEmpty
-                          ? null
-                          : () => Clipboard.setData(
-                              ClipboardData(text: message.body),
-                            ),
-                      onRetry: isLastAssistant && !controller.generating
-                          ? () => _send(
-                              'Please regenerate and refine your previous response.',
-                            )
-                          : null,
-                      onSourceTap: (url) {
-                        final uri = Uri.tryParse(url);
-                        if (uri != null &&
-                            ['http', 'https'].contains(uri.scheme)) {
-                          launchUrl(uri, mode: LaunchMode.externalApplication);
+                  onNewConversation: () => controller.newConversation(),
+                  onSend: () => _send(
+                    _composer.text.trim().isEmpty
+                        ? 'Please review the attached files.'
+                        : _composer.text.trim(),
+                  ),
+                  onAttach:
+                      controller.isAiQuotaBlocked ||
+                          controller.workspace.setup['attachments'] == false
+                      ? null
+                      : _attach,
+                  onRemoveAttachment: (i) =>
+                      setState(() => _attachments.removeAt(i)),
+                  onStop: controller.stop,
+                  onVoice: controller.isAiQuotaBlocked ? null : widget.onVoice,
+                  onConnectWorkspace: () => showCopilotConnectDialog(
+                    context,
+                    onAttach: (CopilotConnectedItem item) {
+                      if (!mounted) return;
+                      setState(() {
+                        if (_attachments.length >= 4) {
+                          _attachments.removeAt(0);
                         }
-                      },
-                      actionsBuilder: (_) => (model == null || model.isUser)
-                          ? []
-                          : [
-                              UiButton(
-                                label: 'Save page',
-                                icon: Icons.add_to_drive_outlined,
-                                size: UiSize.xs,
-                                variant: UiVariant.ghost,
-                                onPressed: message.body.isEmpty
-                                    ? null
-                                    : () => showSavePageDialog(
-                                        context,
-                                        controller,
-                                        message.body,
-                                      ),
+                        _attachments.add((
+                          name: '${item.category.label}: ${item.title}',
+                          input: item.toAttachmentJson(),
+                        ));
+                      });
+                    },
+                  ),
+                  voiceActive: widget.voiceActive,
+                ),
+                composerController: _composer,
+                composerHint: controller.isAiQuotaBlocked
+                    ? 'Monthly AI quota exhausted — upgrade plan to continue'
+                    : 'Ask ${controller.specialist?.name ?? 'your copilot'} anything…',
+                emptyState: ResearchWelcome(
+                  onFormats: _browseFormats,
+                  onSkills: _browseSkills,
+                  onPrompt: (prompt) {
+                    if (controller.isAiQuotaBlocked) {
+                      unawaited(
+                        CustomerLimitations.showPlanUpgradeDialog(
+                          context,
+                          featureTitle:
+                              'AI Copilot Quota Reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit})',
+                          reason:
+                              'Your ${CustomerLimitations.currentQuota.planName} plan includes ${controller.effectiveAiQueriesLimit} monthly AI prompts.',
+                        ),
+                      );
+                      return;
+                    }
+                    _composer.text = prompt;
+                    _composer.selection = TextSelection.collapsed(
+                      offset: prompt.length,
+                    );
+                  },
+                ),
+                messageBuilder: (context, message) {
+                  final model = messages
+                      .where((m) => m.id == message.id)
+                      .firstOrNull;
+                  final bool isLastAssistant =
+                      model != null &&
+                      !model.isUser &&
+                      model.id == messages.lastOrNull?.id;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (model != null &&
+                          !model.isUser &&
+                          !message.pending &&
+                          model.json['research'] is Map)
+                        ResearchFreshness(
+                          metadata: Map<String, dynamic>.from(
+                            model.json['research'] as Map,
+                          ),
+                        ),
+                      AppAiMessageBubble(
+                        message: message,
+                        minimal: true,
+                        onOpenRef: widget.onOpenRef,
+                        onFollowUpTap: controller.generating
+                            ? null
+                            : (prompt) => _send(prompt),
+                        onCopy: message.body.isEmpty
+                            ? null
+                            : () => Clipboard.setData(
+                                ClipboardData(text: message.body),
                               ),
-                              UiButton(
-                                label: 'Save note',
-                                icon: Icons.note_add_outlined,
-                                size: UiSize.xs,
-                                variant: UiVariant.ghost,
-                                onPressed: message.body.isEmpty
-                                    ? null
-                                    : () => showSaveToFeatureDialog(
-                                        context,
-                                        initialTarget:
-                                            CopilotFeatureTarget.note,
-                                        markdownBody: message.body,
-                                        onOpenRef: widget.onOpenRef,
-                                      ),
-                              ),
-                              UiButton(
-                                label: 'Log trade',
-                                icon: Icons.candlestick_chart_outlined,
-                                size: UiSize.xs,
-                                variant: UiVariant.ghost,
-                                onPressed: message.body.isEmpty
-                                    ? null
-                                    : () => showSaveToFeatureDialog(
-                                        context,
-                                        initialTarget:
-                                            CopilotFeatureTarget.journal,
-                                        markdownBody: message.body,
-                                        onOpenRef: widget.onOpenRef,
-                                      ),
-                              ),
-                              UiButton(
-                                label: 'Strategy',
-                                icon: Icons.psychology_outlined,
-                                size: UiSize.xs,
-                                variant: UiVariant.ghost,
-                                onPressed: message.body.isEmpty
-                                    ? null
-                                    : () => showSaveToFeatureDialog(
-                                        context,
-                                        initialTarget:
-                                            CopilotFeatureTarget.strategy,
-                                        markdownBody: message.body,
-                                        onOpenRef: widget.onOpenRef,
-                                      ),
-                              ),
-                              UiButton(
-                                label: 'Share post',
-                                icon: Icons.forum_outlined,
-                                size: UiSize.xs,
-                                variant: UiVariant.ghost,
-                                onPressed: message.body.isEmpty
-                                    ? null
-                                    : () => showSaveToFeatureDialog(
-                                        context,
-                                        initialTarget:
-                                            CopilotFeatureTarget.community,
-                                        markdownBody: message.body,
-                                        onOpenRef: widget.onOpenRef,
-                                      ),
-                              ),
-                              if (widget.onSpeakMessage != null)
+                        onRetry: isLastAssistant && !controller.generating
+                            ? () => _send(
+                                'Please regenerate and refine your previous response.',
+                              )
+                            : null,
+                        onSourceTap: (url) {
+                          final uri = Uri.tryParse(url);
+                          if (uri != null &&
+                              ['http', 'https'].contains(uri.scheme)) {
+                            launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        actionsBuilder: (_) => (model == null || model.isUser)
+                            ? []
+                            : [
                                 UiButton(
-                                  label: 'Listen',
-                                  icon: Icons.volume_up_outlined,
-                                  size: UiSize.xs,
-                                  variant: UiVariant.ghost,
-                                  onPressed: message.body.isEmpty
-                                      ? null
-                                      : () => widget.onSpeakMessage!(
-                                          message.body,
-                                        ),
-                                ),
-                              if (model.status == 'failed' ||
-                                  model.status == 'interrupted')
-                                UiButton(
-                                  label: 'Continue',
+                                  label: 'Research format',
+                                  icon: Icons.auto_awesome_outlined,
                                   size: UiSize.xs,
                                   variant: UiVariant.ghost,
                                   onPressed: controller.generating
                                       ? null
-                                      : () => _send(
-                                          'Continue the previous answer from where it stopped.',
+                                      : () => _browseFormats(
+                                          subject:
+                                              'this answer: ${message.body.substring(0, message.body.length.clamp(0, 12000))}',
                                         ),
                                 ),
-                            ],
-                    ),
-                    if (model != null && model.artifacts.isNotEmpty) ...[
-                      Wrap(
-                        spacing: context.sp(context.ui.spacing.xs),
-                        runSpacing: context.sp(context.ui.spacing.xs),
-                        children: [
-                          for (final file in model.artifacts)
-                            UiButton(
-                              label: textOf(
-                                file,
-                                'filename',
-                                'Download result',
-                              ),
-                              icon: Icons.download_outlined,
-                              variant: UiVariant.outline,
-                              size: UiSize.sm,
-                              onPressed: () => _download(file),
-                            ),
-                        ],
-                      ),
-                      UiGap.v(context.ui.spacing.sm),
-                    ],
-                    if (model != null)
-                      for (final receipt in thread?.approvals ?? <Json>[])
-                        if (receipt['kind'] == 'propose_page' &&
-                            receipt['status'] == 'approved' &&
-                            receipt['messageId'] == model.id &&
-                            receipt['result']?['id'] != null)
-                          Padding(
-                            padding: EdgeInsets.only(
-                              bottom: context.sp(context.ui.spacing.sm),
-                            ),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: UiButton(
-                                label: 'Open saved page',
-                                icon: Icons.description_outlined,
-                                variant: UiVariant.soft,
-                                size: UiSize.sm,
-                                onPressed: () {
-                                  final page = controller.workspace.pages
-                                      .where(
-                                        (p) =>
-                                            p.id == receipt['result']['id'],
-                                      )
-                                      .firstOrNull;
-                                  if (page != null) widget.onPage?.call(page);
-                                },
-                              ),
-                            ),
-                          ),
-                    if (model != null && model.activity.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          bottom: context.sp(context.ui.spacing.sm),
-                        ),
-                        child: UiAccordion(
-                          sections: [
-                            UiAccordionSection(
-                              title:
-                                  'Work log · ${model.activity.length} steps',
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  for (final item in model.activity)
-                                    Padding(
-                                      padding: EdgeInsets.only(
-                                        bottom: context.sp(
-                                          context.ui.spacing.xxs,
+                                UiButton(
+                                  label: 'Save page',
+                                  icon: Icons.add_to_drive_outlined,
+                                  size: UiSize.xs,
+                                  variant: UiVariant.ghost,
+                                  onPressed: message.body.isEmpty
+                                      ? null
+                                      : () => showSavePageDialog(
+                                          context,
+                                          controller,
+                                          message.body,
                                         ),
-                                      ),
-                                      child: Text(
-                                        textOf(
-                                          item,
-                                          'name',
-                                        ).replaceAll('_', ' '),
-                                        style: context.uiText.caption,
-                                      ),
-                                    ),
-                                ],
+                                ),
+                                UiButton(
+                                  label: 'Save note',
+                                  icon: Icons.note_add_outlined,
+                                  size: UiSize.xs,
+                                  variant: UiVariant.ghost,
+                                  onPressed: message.body.isEmpty
+                                      ? null
+                                      : () => showSaveToFeatureDialog(
+                                          context,
+                                          initialTarget:
+                                              CopilotFeatureTarget.note,
+                                          markdownBody: message.body,
+                                          onOpenRef: widget.onOpenRef,
+                                        ),
+                                ),
+                                UiButton(
+                                  label: 'Log trade',
+                                  icon: Icons.candlestick_chart_outlined,
+                                  size: UiSize.xs,
+                                  variant: UiVariant.ghost,
+                                  onPressed: message.body.isEmpty
+                                      ? null
+                                      : () => showSaveToFeatureDialog(
+                                          context,
+                                          initialTarget:
+                                              CopilotFeatureTarget.journal,
+                                          markdownBody: message.body,
+                                          onOpenRef: widget.onOpenRef,
+                                        ),
+                                ),
+                                UiButton(
+                                  label: 'Strategy',
+                                  icon: Icons.psychology_outlined,
+                                  size: UiSize.xs,
+                                  variant: UiVariant.ghost,
+                                  onPressed: message.body.isEmpty
+                                      ? null
+                                      : () => showSaveToFeatureDialog(
+                                          context,
+                                          initialTarget:
+                                              CopilotFeatureTarget.strategy,
+                                          markdownBody: message.body,
+                                          onOpenRef: widget.onOpenRef,
+                                        ),
+                                ),
+                                UiButton(
+                                  label: 'Share post',
+                                  icon: Icons.forum_outlined,
+                                  size: UiSize.xs,
+                                  variant: UiVariant.ghost,
+                                  onPressed: message.body.isEmpty
+                                      ? null
+                                      : () => showSaveToFeatureDialog(
+                                          context,
+                                          initialTarget:
+                                              CopilotFeatureTarget.community,
+                                          markdownBody: message.body,
+                                          onOpenRef: widget.onOpenRef,
+                                        ),
+                                ),
+                                if (widget.onSpeakMessage != null)
+                                  UiButton(
+                                    label: 'Listen',
+                                    icon: Icons.volume_up_outlined,
+                                    size: UiSize.xs,
+                                    variant: UiVariant.ghost,
+                                    onPressed: message.body.isEmpty
+                                        ? null
+                                        : () => widget.onSpeakMessage!(
+                                            message.body,
+                                          ),
+                                  ),
+                                if (model.status == 'failed' ||
+                                    model.status == 'interrupted')
+                                  UiButton(
+                                    label: 'Continue',
+                                    size: UiSize.xs,
+                                    variant: UiVariant.ghost,
+                                    onPressed: controller.generating
+                                        ? null
+                                        : () => _send(
+                                            'Continue the previous answer from where it stopped.',
+                                          ),
+                                  ),
+                              ],
+                      ),
+                      if (model != null && model.artifacts.isNotEmpty) ...[
+                        Wrap(
+                          spacing: context.sp(context.ui.spacing.xs),
+                          runSpacing: context.sp(context.ui.spacing.xs),
+                          children: [
+                            for (final file in model.artifacts)
+                              UiButton(
+                                label: textOf(
+                                  file,
+                                  'filename',
+                                  'Download result',
+                                ),
+                                icon: Icons.download_outlined,
+                                variant: UiVariant.outline,
+                                size: UiSize.sm,
+                                onPressed: () => _download(file),
                               ),
-                            ),
                           ],
                         ),
-                      ),
-                    if (model != null && model.id == messages.lastOrNull?.id)
-                      for (final approval in approvals)
+                        UiGap.v(context.ui.spacing.sm),
+                      ],
+                      if (model != null)
+                        for (final receipt in thread?.approvals ?? <Json>[])
+                          if (receipt['kind'] == 'propose_page' &&
+                              receipt['status'] == 'approved' &&
+                              receipt['messageId'] == model.id &&
+                              receipt['result']?['id'] != null)
+                            Padding(
+                              padding: EdgeInsets.only(
+                                bottom: context.sp(context.ui.spacing.sm),
+                              ),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: UiButton(
+                                  label: 'Open saved page',
+                                  icon: Icons.description_outlined,
+                                  variant: UiVariant.soft,
+                                  size: UiSize.sm,
+                                  onPressed: () {
+                                    final page = controller.workspace.pages
+                                        .where(
+                                          (p) =>
+                                              p.id == receipt['result']['id'],
+                                        )
+                                        .firstOrNull;
+                                    if (page != null) widget.onPage?.call(page);
+                                  },
+                                ),
+                              ),
+                            ),
+                      if (model != null && model.activity.isNotEmpty)
                         Padding(
                           padding: EdgeInsets.only(
                             bottom: context.sp(context.ui.spacing.sm),
                           ),
-                          child: CopilotReviewCard(
-                            controller: controller,
-                            approval: approval,
-                          ),
-                        ),
-                  ],
-                );
-              },
-            ),
-          ),
-          if (controller.generating && controller.activity.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.only(top: context.sp(context.ui.spacing.xs)),
-              child: Text(
-                textOf(
-                  controller.activity.last,
-                  'name',
-                ).replaceAll('_', ' '),
-                textAlign: TextAlign.center,
-                style: context.uiText.caption.copyWith(
-                  color: context.ui.colors.foregroundSubtle,
-                ),
-              ),
-            ),
-        ],
-      );
-      },
-    );
-  }
-}
-
-class _Welcome extends StatelessWidget {
-  const _Welcome({required this.onSkills, required this.onPrompt});
-  final VoidCallback onSkills;
-  final ValueChanged<String> onPrompt;
-
-  static const List<
-    ({
-      String tag,
-      String title,
-      String subtitle,
-      IconData icon,
-      String prompt,
-    })
-  >
-  _discoverCards = [
-    (
-      tag: 'Company',
-      title: 'Company Dossier',
-      subtitle: 'Fundamentals, 52W range, analyst ratings & key catalysts',
-      icon: Icons.business_outlined,
-      prompt:
-          'Give me a full Perplexity-style company research dossier on NVIDIA (\$NVDA) with fundamentals, 52-week range, analyst consensus, catalysts, and bull vs bear case.',
-    ),
-    (
-      tag: 'Person',
-      title: 'Person & Exec Profile',
-      subtitle: 'Executives, fund managers, bios, career timelines & holdings',
-      icon: Icons.person_search_outlined,
-      prompt:
-          'Create an executive dossier on Jensen Huang including career timeline, leadership track record, key metrics, and linked companies like \$NVDA.',
-    ),
-    (
-      tag: 'News',
-      title: 'Breaking News',
-      subtitle: 'Live headlines, sentiment tags, cited sources & ticker impact',
-      icon: Icons.newspaper_outlined,
-      prompt:
-          'Summarize today\'s biggest market-moving AI, semiconductor, and central bank news with cited sources and affected stocks.',
-    ),
-    (
-      tag: 'Compare',
-      title: 'Compare & SWOT',
-      subtitle: 'Side-by-side metrics matrix, bull vs bear & SWOT quadrant',
-      icon: Icons.compare_arrows_rounded,
-      prompt:
-          'Compare \$NVDA vs \$AMD vs \$AVGO in a structured comparison matrix and SWOT breakdown for the next 12 months.',
-    ),
-    (
-      tag: 'Trade Setup',
-      title: 'Trade Setup & Risk',
-      subtitle: 'Entry zone, invalidation stop, R:R targets & execution checklist',
-      icon: Icons.candlestick_chart_outlined,
-      prompt:
-          'Analyze \$AAPL technical structure and build a structured trade setup card with entry zone, stop loss, targets, and execution checklist.',
-    ),
-    (
-      tag: 'Deep Answer',
-      title: 'Macro & Concepts',
-      subtitle: 'Fact sheets, historical timelines, verdicts & interactive FAQs',
-      icon: Icons.school_outlined,
-      prompt:
-          'Explain gamma squeeze mechanics and options dealer hedging with a structured fact sheet, historical timeline, and FAQs.',
-    ),
-    (
-      tag: 'Earnings',
-      title: 'Earnings & Beats',
-      subtitle: 'EPS & revenue surprise history, guidance & whisper numbers',
-      icon: Icons.assessment_outlined,
-      prompt:
-          'Analyze \$AAPL latest quarterly earnings with an earnings surprise card, EPS & revenue history table, guidance revision, and outlook.',
-    ),
-    (
-      tag: 'Financials',
-      title: 'Statements & Valuation',
-      subtitle: 'Income statement, cash flow, margins & valuation multiples',
-      icon: Icons.account_balance_wallet_outlined,
-      prompt:
-          'Break down \$MSFT financial statements, revenue & FCF margins, balance sheet health, and valuation multiples in a financials card.',
-    ),
-    (
-      tag: 'Macro',
-      title: 'Macro & Fed Calendar',
-      subtitle: 'CPI, payrolls, central bank rates, yields & macro releases',
-      icon: Icons.account_balance_outlined,
-      prompt:
-          'Give me a Perplexity Macro briefing on US CPI, FOMC policy path, Treasury yields, and upcoming releases using a macro card.',
-    ),
-    (
-      tag: 'Ratings',
-      title: 'Wall St Consensus',
-      subtitle: 'Buy/Hold/Sell split, price targets & recent bank upgrades',
-      icon: Icons.grade_outlined,
-      prompt:
-          'Show Wall Street consensus ratings, low/median/high price targets, and recent bank upgrades/downgrades for \$NVDA in a ratings card.',
-    ),
-    (
-      tag: 'Screener',
-      title: 'Market Screener',
-      subtitle: 'Ranked multi-factor screener tables with scores & signals',
-      icon: Icons.filter_alt_outlined,
-      prompt:
-          'Run a quality + momentum stock screener of top AI semiconductor leaders with valuation, growth, signals, and a screener card.',
-    ),
-    (
-      tag: 'Sentiment',
-      title: 'Sentiment & Quant Math',
-      subtitle: 'Bull/bear flow gauge, put-call skew & executable math formulas',
-      icon: Icons.psychology_outlined,
-      prompt:
-          'Measure market sentiment, options put/call flow, institutional positioning, and Kelly position sizing formula for \$SPY using sentiment and formula cards.',
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(theme.spacing.sm),
-        vertical: context.sp(theme.spacing.lg),
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: context.sz(820)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-              UiBadge(
-                label: 'Perplexity Research Mode',
-                icon: Icons.travel_explore_rounded,
-                size: UiSize.sm,
-                variant: UiBadgeVariant.soft,
-                intent: UiIntent.primary,
-              ),
-              UiGap.v(theme.spacing.sm),
-              Text(
-                'What can I help with?',
-                textAlign: TextAlign.center,
-                style: context.uiText.display.copyWith(
-                  fontSize: context.fs(context.uiRes.isMobile ? 28 : 36),
-                  height: 1.15,
-                  letterSpacing: -.8,
-                ),
-              ),
-              UiGap.v(theme.spacing.sm),
-              Text(
-                'Ask anything across companies, people, breaking news, comparisons, trade setups, and macro — delivered in cited visual research cards.',
-                textAlign: TextAlign.center,
-                style: context.uiText.body.copyWith(
-                  color: theme.colors.foregroundMuted,
-                ),
-              ),
-              UiGap.v(theme.spacing.md),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: context.sp(theme.spacing.xs),
-                runSpacing: context.sp(theme.spacing.xs),
-                children: [
-                  UiButton(
-                    label: 'Trader skills',
-                    icon: Icons.bolt_outlined,
-                    variant: UiVariant.soft,
-                    size: UiSize.sm,
-                    onPressed: onSkills,
-                  ),
-                  for (final prompt in const [
-                    'Review a setup',
-                    'Research the market',
-                    'Work with my notes',
-                  ])
-                    UiButton(
-                      label: prompt,
-                      variant: UiVariant.ghost,
-                      size: UiSize.sm,
-                      onPressed: () => onPrompt(prompt),
-                    ),
-                ],
-              ),
-              UiGap.v(theme.spacing.lg),
-              LayoutBuilder(
-                builder: (BuildContext context, BoxConstraints constraints) {
-                  final double gap = context.sp(theme.spacing.sm);
-                  final double maxW = constraints.maxWidth.isFinite
-                      ? constraints.maxWidth
-                      : context.sz(760);
-                  final int cols = maxW >= context.sz(620)
-                      ? 3
-                      : (maxW >= context.sz(410) ? 2 : 1);
-                  final double cardW = (maxW - gap * (cols - 1)) / cols;
-                  return Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
-                    children: [
-                      for (final item in _discoverCards)
-                        SizedBox(
-                          width: cardW,
-                          child: UiCard(
-                            variant: UiCardVariant.outlined,
-                            density: UiDensity.compact,
-                            onTap: () => onPrompt(item.prompt),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Row(
+                          child: UiAccordion(
+                            sections: [
+                              UiAccordionSection(
+                                title:
+                                    'Work log · ${model.activity.length} steps',
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(
-                                      item.icon,
-                                      size: context.sz(16),
-                                      color: theme.colors.primary,
-                                    ),
-                                    UiGap.h(theme.spacing.xs),
-                                    Expanded(
-                                      child: Text(
-                                        item.tag,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: context.uiText.caption.copyWith(
-                                          color: theme.colors.primary,
-                                          fontWeight: FontWeight.w700,
+                                    for (final item in model.activity)
+                                      Padding(
+                                        padding: EdgeInsets.only(
+                                          bottom: context.sp(
+                                            context.ui.spacing.xxs,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          textOf(
+                                            item,
+                                            'name',
+                                          ).replaceAll('_', ' '),
+                                          style: context.uiText.caption,
                                         ),
                                       ),
-                                    ),
-                                    Icon(
-                                      Icons.arrow_forward_rounded,
-                                      size: context.sz(14),
-                                      color: theme.colors.foregroundSubtle,
-                                    ),
                                   ],
                                 ),
-                                UiGap.v(theme.spacing.xxs),
-                                Text(
-                                  item.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: context.uiText.label.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                UiGap.v(theme.spacing.xxs),
-                                Text(
-                                  item.subtitle,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: context.uiText.caption.copyWith(
-                                    color: theme.colors.foregroundMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
+                      if (model != null && model.id == messages.lastOrNull?.id)
+                        for (final approval in approvals)
+                          Padding(
+                            padding: EdgeInsets.only(
+                              bottom: context.sp(context.ui.spacing.sm),
+                            ),
+                            child: CopilotReviewCard(
+                              controller: controller,
+                              approval: approval,
+                            ),
+                          ),
                     ],
                   );
                 },
               ),
-            ],
-          ),
-        ),
-      );
+            ),
+            if (controller.generating && controller.activity.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(
+                  top: context.sp(context.ui.spacing.xs),
+                ),
+                child: Text(
+                  textOf(controller.activity.last, 'name').replaceAll('_', ' '),
+                  textAlign: TextAlign.center,
+                  style: context.uiText.caption.copyWith(
+                    color: context.ui.colors.foregroundSubtle,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -1111,7 +890,9 @@ class _AiQuotaBanner extends StatelessWidget {
                       children: [
                         UiBadge(
                           label: quota.planName,
-                          intent: isBlocked ? UiIntent.warning : UiIntent.neutral,
+                          intent: isBlocked
+                              ? UiIntent.warning
+                              : UiIntent.neutral,
                           variant: UiBadgeVariant.soft,
                           size: UiSize.xs,
                         ),

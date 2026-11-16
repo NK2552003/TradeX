@@ -10,6 +10,7 @@ import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/markdown_kit/perplexity_parser.dart';
 
+import '../models/research_router.dart';
 import '../models/trader_skill.dart';
 import '../models/workspace.dart';
 import '../models/workspace_errors.dart';
@@ -160,11 +161,12 @@ class SupabaseCopilotApi extends CopilotApi {
       final pages = records(
         state['pages'],
       ).where((p) => allowed.contains(p['spaceId'])).toList();
-      final contextPage =
-          !autoAttachContext || thread['pageId'] == null
+      final contextPage = !autoAttachContext || thread['pageId'] == null
           ? null
           : pages.where((p) => p['id'] == thread['pageId']).firstOrNull;
-      if (autoAttachContext && thread['pageId'] != null && contextPage == null) {
+      if (autoAttachContext &&
+          thread['pageId'] != null &&
+          contextPage == null) {
         throw const CopilotFailure(
           'This specialist no longer has access to the selected page.',
           403,
@@ -201,8 +203,7 @@ class SupabaseCopilotApi extends CopilotApi {
           '\nSafety preference: Require user approval before suggesting any permanent workspace, note, journal, or strategy save.',
         );
       }
-      if (specialist['memory'] == true &&
-          settings['memory'] == true) {
+      if (specialist['memory'] == true && settings['memory'] == true) {
         instructions.write(
           '\nUser preferences: ${jsonEncode(records(state['memories']).map((m) => m['text']).toList())}',
         );
@@ -212,6 +213,7 @@ class SupabaseCopilotApi extends CopilotApi {
           '\nSelected page: ${contextPage['title']}\n${contextPage['body']}',
         );
       }
+      instructions.write('\n${ResearchRouter.select(prompt).instructions}');
       final system = instructions.toString();
       if (system.length > 12000) {
         throw const CopilotFailure(
@@ -320,8 +322,9 @@ class SupabaseCopilotApi extends CopilotApi {
               .toList() ??
           const <String>[];
       final rawFocus = textOf(result, 'focus', textOf(input, 'focus'));
-      final normalizedFocus =
-          rawFocus.isEmpty || rawFocus == 'all' ? '' : rawFocus;
+      final normalizedFocus = rawFocus.isEmpty || rawFocus == 'all'
+          ? ''
+          : rawFocus;
       final parsedMeta = PerplexityAnswerParser.parse(
         answer,
         structuredSources:
@@ -357,6 +360,9 @@ class SupabaseCopilotApi extends CopilotApi {
         answer,
         'complete',
         sources: normalizedSources,
+        research: result['research'] is Map
+            ? Map<String, dynamic>.from(result['research'] as Map)
+            : null,
         mode: normalizedMode,
         steps: serverSteps,
         focus: normalizedFocus,
@@ -399,6 +405,7 @@ class SupabaseCopilotApi extends CopilotApi {
     String mode = '',
     List<String> steps = const <String>[],
     String focus = '',
+    Json? research,
   }) async {
     final result = await store.change((state) {
       final thread = records(
@@ -415,6 +422,7 @@ class SupabaseCopilotApi extends CopilotApi {
         return {'saved': false};
       }
       message['body'] = text;
+      if (research != null) message['research'] = research;
       message['status'] = status;
       if (sources.isNotEmpty) {
         message['sources'] = sources;

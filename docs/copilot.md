@@ -160,3 +160,89 @@ flutter build web --release
 Live OpenAI text streaming, the propose → approve → persist page flow, and an authenticated Realtime session configuration were verified with the configured key. Optional Slack and OpenBot integrations require connected-service testing in the target deployment; microphone capture and speaker playback also need a real-device check.
 
 The focused suite and application mounting checks pass. A broader run found eight existing failures (narrow calendar layout, community navigation, and backend fixtures for journal, strategies, notes, profile, billing, and notifications). The same eight failures were reproduced from an isolated checkout of the unchanged repository. The calculator keyboard regression fails against that baseline and passes with this fix.
+
+## Research studio and answer upgrade (2026-11-16)
+
+Copilot now exposes **60 curated output formats** in six categories: Evidence,
+Markets, Fundamentals, Risk, Journal, and Explain. The searchable studio previews
+and copies each prompt, accepts a topic, and returns an editable composer draft.
+The same studio is available beneath existing answers for transformations.
+See [the format catalog](copilot-research-formats.md) for every workflow and its
+specific analytical instruction. These are 60 research/output workflows using
+one validated visual contract, not 60 new external service integrations.
+
+`research_panel` renders a direct summary, responsive sortable/paginated table,
+copyable TSV, expandable evidence trail, publication/event dates, limitations,
+and next steps. Invalid optional fields degrade gracefully. The existing
+company, person, earnings, financials, macro, ratings, screener, sentiment,
+comparison, timeline, setup, and media cards retain their existing behavior with
+consistent surfaces, spacing, scaled metric widths, and stacked mobile tables.
+Long guidance is shown as prose rather than truncated into a numeric tile.
+Comparison matrices now honor declared column names, and financial statement
+rows without period columns remain visible.
+
+Answer tools provide a reading view, source filtering, source/domain counts,
+reference copying, Markdown inspection/copying, an outline, creation timestamp,
+and a context-specific Check latest follow-up. Source counts and inferred answer
+structure are not labeled as verified research. Saved hosted/worker metadata
+records observed web-tool use; time-sensitive responses with no recorded search
+show a visible unverified-current-information notice.
+
+### Freshness behavior
+
+Both the Supabase gateway and Dart worker inject a runtime UTC clock for each
+request. The policy resolves relative dates, checks publication date versus event
+date versus data period, prefers original sources and corrections, labels older
+context, and requires quote timestamps/timezones and delayed-market status.
+Latest-news requests prefer a 24-hour window, widened transparently to seven
+days if needed; financial reporting uses the actual latest reporting period.
+Explicit historical ranges remain valid.
+
+Time-sensitive prompts force the real web-search tool on the first generation
+step when research is enabled. `external_web_access: true` explicitly permits
+live retrieval. Search permissions are preserved. A clock or search call cannot
+guarantee every retrieved page is current or every model claim correct. When
+search is disabled/unavailable, instructions require disclosure and the UI
+marks time-sensitive answers without recorded search as unverified.
+
+### Typing and dark theme
+
+`aiTypingCharacterInterval` in `lib/core/app-ui/motion/ai_typewriter.dart` controls
+the default **25 ms per grapheme** reveal. Incoming chunks extend the queue.
+Emoji/combining characters remain intact. Skip reveals all queued text and makes
+later chunks immediate for that answer; reopening saved history is instant.
+Reduced motion bypasses animation and cursor blinking. A fixed-size blinking
+cursor follows prose and code; code stays monospaced during reveal, then uses
+the existing syntax highlighting when complete. Structured JSON blocks show
+loading cards while incomplete.
+
+The chat follows output growth smoothly near the bottom and stops following
+when the user scrolls up. New message keys preserve typing state. All surfaces, text, controls, and the blinking cursor inherit the active
+application theme. There is no separate purple palette. Light and dark mode
+remain supported through the existing design tokens.
+
+### Research and implementation references
+
+- [Perplexity Pro Search](https://www.perplexity.ai/help-center/en/articles/10352903-what-is-pro-search): sourced answers, multi-step research, and visible research activity informed the answer-first layout and progressive disclosure.
+- [OpenAI web search](https://developers.openai.com/api/docs/guides/tools-web-search): tool choice can require search; `external_web_access` controls live access; citation annotations supply source URLs. The implementation keeps the existing OpenAI integration, without adding a Perplexity subscription or key.
+- [Supabase changelog](https://supabase.com/changelog.md): reviewed before changing the hosted function; no SDK upgrade or database migration is introduced by this upgrade.
+
+Deploy the updated Flutter bundle **and** `ai-gateway` (including
+`research-policy.ts` and `responses.ts`) to activate all hosted changes. Restart
+the Dart worker if using that deployment. No database migration or new provider
+key is required. Local tests mock provider/network boundaries; production
+provider quality, credentials, and quotas still require a signed-in smoke test.
+The live app link showed the signed-out landing page in the verification browser.
+
+### Automatic output selection
+
+Natural-language questions are routed automatically to a relevant research
+format or existing native card. Examples: earnings → earnings card; compare →
+comparison card; position sizing → sizing worksheet; review my trade → debrief;
+current market briefing → session brief. A small composer hint previews the
+suggestion and Change format opens the studio. An explicit studio choice or
+plain-text/code-only request takes priority. Ambiguous questions leave the
+structure to the model using conversation context; mixed questions may use one
+main and one complementary format. Routing adds instructions to the provider
+request without rewriting the user's saved question or consuming an extra AI
+call. It does not change the user's search permissions or source-focus setting.

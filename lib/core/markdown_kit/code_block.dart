@@ -13,7 +13,11 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 // ignore: unused_import
 import 'package:highlight/languages/all.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/app-ui/motion/ai_typing_indicator.dart';
+import 'research/typing_cursor_syntax.dart';
 import 'package:tradex/core/markdown_kit/chart_block.dart';
 import 'package:tradex/core/markdown_kit/flowchart/flowchart_view.dart';
 import 'package:tradex/core/markdown_kit/perplexity_card_block.dart';
@@ -55,7 +59,8 @@ class RichCodeBlockBuilder extends MarkdownElementBuilder {
     final String cls = code.attributes['class'] ?? '';
     final String rawLang = cls.replaceFirst('language-', '').trim();
     final String langKey = rawLang.toLowerCase();
-    final String source = code.textContent;
+    final bool typing = code.textContent.contains(typingCursorMarker);
+    final String source = code.textContent.replaceAll(typingCursorMarker, '');
     if (source.trim().isEmpty) return null;
 
     if (langKey == 'mermaid' || langKey == 'flowchart') {
@@ -99,6 +104,7 @@ class RichCodeBlockBuilder extends MarkdownElementBuilder {
       return ChartBlock(spec: source.trim(), defaultType: defaultType);
     }
     return _CodeBlock(
+      typing: typing,
       source: source.trimRight(),
       language: _canonicalLanguage(rawLang),
       displayLanguage: rawLang,
@@ -174,65 +180,22 @@ class _FencedBlockChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.uiColors;
-    final radius = context.uiRadii.lg;
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: colors.border),
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: context.sp(context.ui.spacing.sm),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            color: colors.surfaceMuted,
-            padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: BorderRadius.circular(context.uiRadii.pill),
-                    border: Border.all(color: colors.border),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon, size: 12, color: colors.foregroundMuted),
-                      const SizedBox(width: 5),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
-                          color: colors.foregroundMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                ...actions,
-              ],
-            ),
-          ),
-          Container(height: 1, color: colors.border),
-          Container(
-            color: colors.surfaceMuted.withValues(alpha: 0.4),
-            padding: bodyPadding,
-            child: body,
-          ),
-        ],
+      child: UiCard(
+        variant: UiCardVariant.subtle,
+        padding: EdgeInsets.all(context.sp(context.ui.spacing.sm)),
+        titleWidget: UiBadge(
+          label: label,
+          icon: icon,
+          variant: UiBadgeVariant.soft,
+          size: UiSize.xs,
+        ),
+        trailing: Wrap(children: actions),
+        headerDivider: true,
+        child: Padding(padding: bodyPadding, child: body),
       ),
     );
   }
@@ -255,13 +218,13 @@ class _ChromeIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.uiColors;
-    return IconButton(
-      icon: Icon(icon, size: 16),
-      color: color ?? colors.foregroundMuted,
-      splashRadius: 16,
-      visualDensity: VisualDensity.compact,
+    return UiIconButton(
+      icon: icon,
+      size: UiSize.sm,
       tooltip: tooltip,
+      intent: color == context.ui.colors.bullish
+          ? UiIntent.success
+          : UiIntent.neutral,
       onPressed: onPressed,
     );
   }
@@ -279,12 +242,14 @@ class _CodeBlock extends StatefulWidget {
     required this.language,
     required this.displayLanguage,
     required this.dark,
+    this.typing = false,
   });
 
   final String source;
   final String language;
   final String displayLanguage;
   final bool dark;
+  final bool typing;
 
   @override
   State<_CodeBlock> createState() => _CodeBlockState();
@@ -339,6 +304,25 @@ class _CodeBlockState extends State<_CodeBlock> {
       height: 1.5,
       color: context.uiColors.foreground,
     );
+    if (widget.typing) {
+      return Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.sp(context.ui.spacing.sm),
+        ),
+        child: Text.rich(
+          TextSpan(
+            style: style,
+            text: widget.source,
+            children: [
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: AiTypingCursor(style: style),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (widget.language.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),

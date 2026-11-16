@@ -9,6 +9,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import '../models/trader_skill.dart';
 import '../models/workspace.dart';
 import 'trader_skill_picker.dart';
+import 'research_routing_hint.dart';
 
 part 'copilot_composer_actions.dart';
 
@@ -53,6 +54,7 @@ class CopilotComposer extends StatefulWidget {
     this.onConnectWorkspace,
     this.voiceActive = false,
     this.compactHeight = false,
+    this.onResearchFormats,
   });
   final TextEditingController controller;
   final Future<void> Function() onSend;
@@ -69,6 +71,7 @@ class CopilotComposer extends StatefulWidget {
   final CopilotPromptMode mode;
   final bool enabled, busy, attaching, canResearch, voiceActive;
   final bool compactHeight;
+  final VoidCallback? onResearchFormats;
   final VoidCallback? onStop, onVoice, onConnectWorkspace;
 
   @override
@@ -377,6 +380,12 @@ class _CopilotComposerState extends State<CopilotComposer> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (widget.onResearchFormats != null && !widget.compactHeight)
+                    ResearchRoutingHint(
+                      controller: widget.controller,
+                      onChoose: widget.onResearchFormats!,
+                      enabled: _editable && widget.enabled,
+                    ),
                   if (_dictating)
                     Padding(
                       padding: EdgeInsets.only(

@@ -3,6 +3,7 @@ import 'package:tradex/core/app-ui/models/app_models.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 
 import 'chart_block.dart';
+import 'research/research_panel.dart';
 import 'perplexity_domain_cards.dart';
 import 'perplexity_extended_cards.dart';
 import 'perplexity_parser.dart';
@@ -64,11 +65,10 @@ class PerplexityCardBlock extends StatelessWidget {
             if (entry is Map)
               _dispatch(
                 context,
-                tag:
-                    (entry['kind'] ?? entry['type'] ?? 'card')
-                        .toString()
-                        .toLowerCase()
-                        .trim(),
+                tag: (entry['kind'] ?? entry['type'] ?? 'card')
+                    .toString()
+                    .toLowerCase()
+                    .trim(),
                 data: Map<String, dynamic>.from(entry),
               ),
         ],
@@ -87,6 +87,8 @@ class PerplexityCardBlock extends StatelessWidget {
     required Map<String, dynamic> data,
   }) {
     switch (tag) {
+      case 'research_panel':
+        return ResearchPanel(data: data, onTapUrl: onTapUrl);
       case 'company':
       case 'stock':
       case 'equity':
@@ -256,8 +258,10 @@ class PerplexityCardBlock extends StatelessWidget {
   }
 
   static String _inferCardKind(Map<String, dynamic> data) {
-    final String? explicit =
-        (data['kind'] ?? data['type'])?.toString().toLowerCase().trim();
+    final String? explicit = (data['kind'] ?? data['type'])
+        ?.toString()
+        .toLowerCase()
+        .trim();
     if (explicit != null && explicit.isNotEmpty) return explicit;
     if (data.containsKey('epsActual') || data.containsKey('epsEstimate')) {
       return 'earnings';
@@ -400,7 +404,9 @@ class _VerdictCard extends StatelessWidget {
               if (summary != null) UiGap.v(theme.spacing.sm),
               for (int i = 0; i < bullets.length; i++)
                 Padding(
-                  padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+                  padding: EdgeInsets.only(
+                    bottom: context.sp(theme.spacing.xs),
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
@@ -455,7 +461,10 @@ class _FactBoxCard extends StatelessWidget {
       'category',
       'typeLabel',
     ]);
-    final String? badge = PerplexityCardDataUtils.str(data, ['badge', 'status']);
+    final String? badge = PerplexityCardDataUtils.str(data, [
+      'badge',
+      'status',
+    ]);
     final String? imageUrl = PerplexityCardDataUtils.str(data, [
       'imageUrl',
       'thumbnail',
@@ -607,7 +616,8 @@ class _FaqCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final String title =
-        PerplexityCardDataUtils.str(data, ['title']) ?? 'Key Questions & Answers';
+        PerplexityCardDataUtils.str(data, ['title']) ??
+        'Key Questions & Answers';
     final List<Map<String, dynamic>> items = PerplexityCardDataUtils.mapList(
       data,
       ['items', 'questions', 'faqs'],
@@ -859,10 +869,12 @@ class _GenericResearchCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final String title =
-        PerplexityCardDataUtils.str(data, ['title', 'name']) ??
-        'Research Card';
+        PerplexityCardDataUtils.str(data, ['title', 'name']) ?? 'Research Card';
     final String? subtitle = PerplexityCardDataUtils.str(data, ['subtitle']);
-    final String? badge = PerplexityCardDataUtils.str(data, ['badge', 'status']);
+    final String? badge = PerplexityCardDataUtils.str(data, [
+      'badge',
+      'status',
+    ]);
     final String? summary = PerplexityCardDataUtils.str(data, [
       'summary',
       'description',

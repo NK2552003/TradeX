@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { freshnessInstructions, needsFreshResearch } from '../../../supabase/functions/ai-gateway/research-policy.ts';
 import { generateResponses } from '../../../supabase/functions/ai-gateway/responses.ts';
 
 const messages = [{ role: 'user', content: 'Find current market news.' }];
@@ -14,7 +15,7 @@ for (const mode of ['auto', 'search', 'research']) {
     }, true);
     assert.equal(sent.model, 'gpt-4o');
     assert.equal(sent.tools[0].type, 'web_search');
-    assert.equal(sent.tool_choice?.type, mode === 'auto' ? undefined : 'web_search');
+    assert.equal(sent.tool_choice?.type, 'web_search');
     assert.equal(sent.tools[0].search_context_size, mode === 'research' ? 'high' : undefined);
     assert.equal(result.text, 'Market news.');
   });
@@ -121,4 +122,39 @@ test('extracts web search steps, code interpreter steps, and toolSources from Re
   ]);
   assert.equal(result.toolSources?.length, 1);
   assert.equal(result.toolSources?.[0]?.domain, 'investor.nvidia.com');
+});
+
+
+test('freshness clock uses the supplied request time across year boundaries', () => {
+  const policy = freshnessInstructions(new Date('2027-01-01T00:01:00Z'));
+  assert.match(policy, /2027-01-01T00:01:00.000Z/);
+  assert.match(policy, /publication date, event date, and underlying data period/);
+  assert.match(policy, /current information could not be verified/);
+});
+
+test('time-sensitive prompts force live search in Auto but conceptual questions do not', async () => {
+  for (const [prompt, required] of [
+    ["What is the latest RBI decision today?", true],
+    ["Check current AAPL price", true],
+    ["Explain compound interest", false],
+  ]) {
+    assert.equal(needsFreshResearch(prompt), required);
+    await generateResponses([{role: 'user', content: prompt}], [], 'auto', 'model', 'test-key', async (_, options) => {
+      const request = JSON.parse(options.body);
+      assert.equal(request.tool_choice?.type, required ? 'web_search' : undefined);
+      assert.equal(request.tools[0].external_web_access, true);
+      assert.match(request.instructions, /CURRENT RESEARCH CLOCK:/);
+      return Response.json(answer);
+    }, true);
+  }
+});
+
+test('latest requests cannot override disabled search', async () => {
+  await generateResponses([{role: 'user', content: 'latest news today'}], [], 'auto', 'model', 'test-key', async (_, options) => {
+    const request = JSON.parse(options.body);
+    assert.deepEqual(request.tools, []);
+    assert.equal(request.tool_choice, undefined);
+    assert.match(request.instructions, /If live tools are unavailable/);
+    return Response.json(answer);
+  }, false);
 });
