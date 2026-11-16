@@ -453,20 +453,47 @@ class _AuthWrapperState extends State<AuthWrapper> {
               token: client.auth.currentSession?.accessToken,
             );
 
+            final bool isAdminAccount =
+                profile.role == UserRole.userAdmin ||
+                (profile.adminKey?.trim().isNotEmpty ?? false);
             var workspaceRole = await AuthSessionStorage.workspaceRoleFor(
               profile,
+              hasAffiliateAccess:
+                  affProfile != null ||
+                  profile.role == UserRole.affiliate ||
+                  isAdminAccount,
             );
             final currentSubdomain = kIsWeb
                 ? CustomerRoute.subdomainFromHost(Uri.base.host)
                 : CustomerSubdomain.root;
-            if (currentSubdomain == CustomerSubdomain.app &&
-                workspaceRole != UserRole.userAdmin) {
+            final String currentPath = kIsWeb
+                ? Uri.base.path.toLowerCase()
+                : '';
+            final bool isExplicitTraderSubdomainEntry =
+                currentSubdomain == CustomerSubdomain.app &&
+                currentPath.isNotEmpty &&
+                currentPath != '/' &&
+                !currentPath.startsWith('/auth/') &&
+                !currentPath.startsWith('/admin_') &&
+                !currentPath.startsWith('/org_');
+            if (isExplicitTraderSubdomainEntry ||
+                (currentSubdomain == CustomerSubdomain.app &&
+                    workspaceRole != UserRole.userAdmin)) {
               workspaceRole = UserRole.customer;
+              unawaited(
+                AuthSessionStorage.saveWorkspaceRole(
+                  profile.id,
+                  UserRole.customer,
+                ),
+              );
             } else if (currentSubdomain == CustomerSubdomain.affiliate &&
-                profile.role == UserRole.affiliate) {
+                (profile.role == UserRole.affiliate ||
+                    isAdminAccount ||
+                    affProfile != null) &&
+                !currentPath.startsWith('/affiliate_application')) {
               workspaceRole = UserRole.affiliate;
             } else if (currentSubdomain == CustomerSubdomain.admin &&
-                profile.role == UserRole.userAdmin) {
+                isAdminAccount) {
               workspaceRole = UserRole.userAdmin;
             }
             final lastDest = await AuthSessionStorage.getLastDestination();

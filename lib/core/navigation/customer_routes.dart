@@ -92,8 +92,16 @@ class CustomerRoute {
       return CustomerSubdomain.affiliate;
     }
     if (normalized == 'overview') {
-      if (activeRole == UserRole.userAdmin ||
-          currentHost.trim().toLowerCase().startsWith('admin.')) {
+      if (activeRole == UserRole.userAdmin) {
+        return CustomerSubdomain.admin;
+      }
+      if (activeRole == UserRole.affiliate) {
+        return CustomerSubdomain.affiliate;
+      }
+      if (activeRole == UserRole.customer) {
+        return CustomerSubdomain.app;
+      }
+      if (currentHost.trim().toLowerCase().startsWith('admin.')) {
         return CustomerSubdomain.admin;
       }
       return CustomerSubdomain.affiliate;

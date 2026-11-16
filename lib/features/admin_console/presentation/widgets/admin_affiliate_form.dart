@@ -6,6 +6,7 @@ import '../../data/admin_repository.dart';
 import '../../models/admin_records.dart';
 import 'admin_action_dialog.dart';
 import 'admin_facts.dart';
+import 'admin_preview_cards.dart';
 import 'admin_records_panel.dart';
 
 class AdminAffiliateForm extends StatefulWidget {
@@ -16,10 +17,12 @@ class AdminAffiliateForm extends StatefulWidget {
     required this.onSaved,
     required this.onOpen,
   });
+
   final AdminUserDetail user;
   final AdminRepository repository;
   final VoidCallback onSaved;
   final void Function(AdminResource resource, AdminRecord record) onOpen;
+
   @override
   State<AdminAffiliateForm> createState() => _AdminAffiliateFormState();
 }
@@ -66,6 +69,8 @@ class _AdminAffiliateFormState extends State<AdminAffiliateForm> {
       2 => AdminResource.referrals,
       _ => AdminResource.payouts,
     };
+    final parsedRate = double.tryParse(_rate);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -97,76 +102,123 @@ class _AdminAffiliateFormState extends State<AdminAffiliateForm> {
             icon: Icons.handshake_outlined,
           )
         else
-          AdminSection(
-            title: 'Partner controls',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AdminFacts(
-                  values: {
-                    'Affiliate code': adminValue(
-                      widget.user.affiliate['affiliate_code'],
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              UiCard(
+                variant: UiCardVariant.surface,
+                accentColor: context.ui.colors.primary,
+                child: UiStatStrip(
+                  minCellWidth: 140,
+                  stats: [
+                    UiStat(
+                      label: 'Partner access status',
+                      value: adminLabel(_status),
+                      intent: adminStatusIntent(_status),
+                      icon: Icons.verified_user_outlined,
                     ),
-                    'Custom slug': adminValue(
-                      widget.user.affiliate['custom_slug'],
+                    UiStat(
+                      label: 'Partner tier',
+                      value: adminLabel(_tier),
+                      intent: UiIntent.primary,
+                      icon: Icons.workspace_premium_outlined,
                     ),
-                    'Total referrals': adminValue(
-                      widget.user.affiliate['total_referrals'],
+                    UiStat(
+                      label: 'Rate preview',
+                      value: parsedRate == null
+                          ? '—'
+                          : '${parsedRate.toStringAsFixed(1)}%',
+                      hint: 'Applied to converted referrals',
+                      intent: UiIntent.info,
+                      icon: Icons.percent_outlined,
                     ),
-                    'Active referrals': adminValue(
-                      widget.user.affiliate['active_referrals'],
+                    UiStat(
+                      label: 'Referral share',
+                      value:
+                          '${widget.user.affiliate['active_referrals'] ?? 0}/${widget.user.affiliate['total_referrals'] ?? 0}',
+                      hint: 'Active of total referrals',
+                      intent: UiIntent.success,
+                      icon: Icons.group_add_outlined,
                     ),
-                    'Payout method': adminValue(
-                      widget.user.affiliate['payout_method'],
-                    ),
-                  },
-                ),
-                const UiGap.v(16),
-                UiSelect<String>(
-                  label: 'Partner access',
-                  value: _status,
-                  options: const [
-                    UiOption(value: 'active', label: 'Active'),
-                    UiOption(value: 'suspended', label: 'Suspended'),
                   ],
-                  onChanged: (value) => setState(() => _status = value),
                 ),
-                const UiGap.v(12),
-                UiSelect<String>(
-                  label: 'Commission tier',
-                  value: _tier,
-                  options: [
-                    for (final value in [
-                      'standard',
-                      'silver',
-                      'gold',
-                      'platinum',
-                    ])
-                      UiOption(value: value, label: adminLabel(value)),
+              ),
+              const UiGap.v(20),
+              AdminSection(
+                title: 'Partner controls',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AdminFacts(
+                      values: {
+                        'Affiliate code': adminValue(
+                          widget.user.affiliate['affiliate_code'],
+                        ),
+                        'Custom slug': adminValue(
+                          widget.user.affiliate['custom_slug'],
+                        ),
+                        'Total referrals': adminValue(
+                          widget.user.affiliate['total_referrals'],
+                        ),
+                        'Active referrals': adminValue(
+                          widget.user.affiliate['active_referrals'],
+                        ),
+                        'Payout method': adminValue(
+                          widget.user.affiliate['payout_method'],
+                        ),
+                      },
+                    ),
+                    const UiGap.v(16),
+                    UiSelect<String>(
+                      label: 'Partner access',
+                      value: _status,
+                      options: const [
+                        UiOption(value: 'active', label: 'Active'),
+                        UiOption(value: 'suspended', label: 'Suspended'),
+                      ],
+                      onChanged: (value) => setState(() => _status = value),
+                    ),
+                    const UiGap.v(12),
+                    UiSelect<String>(
+                      label: 'Commission tier',
+                      value: _tier,
+                      options: [
+                        for (final value in [
+                          'standard',
+                          'silver',
+                          'gold',
+                          'platinum',
+                        ])
+                          UiOption(value: value, label: adminLabel(value)),
+                      ],
+                      onChanged: (value) => setState(() => _tier = value),
+                    ),
+                    const UiGap.v(12),
+                    UiInput(
+                      label: 'Commission rate (%)',
+                      value: _rate,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      onChanged: (value) => setState(() => _rate = value),
+                    ),
+                    if (_error != null) ...[
+                      const UiGap.v(12),
+                      UiCallout(
+                        title: 'Check commission rate',
+                        message: _error!,
+                        intent: UiIntent.danger,
+                      ),
+                    ],
+                    const UiGap.v(16),
+                    UiButton(
+                      label: 'Save affiliate controls',
+                      onPressed: _save,
+                    ),
                   ],
-                  onChanged: (value) => setState(() => _tier = value),
                 ),
-                const UiGap.v(12),
-                UiInput(
-                  label: 'Commission rate (%)',
-                  value: _rate,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  onChanged: (value) => setState(() => _rate = value),
-                ),
-                if (_error != null) ...[
-                  const UiGap.v(12),
-                  UiCallout(
-                    title: 'Check commission rate',
-                    message: _error!,
-                    intent: UiIntent.danger,
-                  ),
-                ],
-                const UiGap.v(16),
-                UiButton(label: 'Save affiliate controls', onPressed: _save),
-              ],
-            ),
+              ),
+            ],
           ),
       ],
     );

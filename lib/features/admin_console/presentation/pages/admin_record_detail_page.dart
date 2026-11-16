@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/admin_repository.dart';
 import '../../models/admin_records.dart';
 import '../widgets/admin_facts.dart';
+import '../widgets/admin_preview_cards.dart';
 import '../widgets/admin_record_actions.dart';
 import '../widgets/admin_records_panel.dart';
 
@@ -19,12 +19,14 @@ class AdminRecordDetailPage extends StatefulWidget {
     this.onOpenUser,
     this.showRelatedRecords = true,
   });
+
   final AdminResource resource;
   final String recordId;
   final AdminRepository repository;
   final VoidCallback onBack;
   final ValueChanged<String>? onOpenUser;
   final bool showRelatedRecords;
+
   @override
   State<AdminRecordDetailPage> createState() => _AdminRecordDetailPageState();
 }
@@ -36,6 +38,7 @@ class _AdminRecordDetailPageState extends State<AdminRecordDetailPage> {
   bool _deleted = false;
   String? _childId;
   int _revision = 0;
+
   @override
   void initState() {
     super.initState();
@@ -122,222 +125,251 @@ class _AdminRecordDetailPageState extends State<AdminRecordDetailPage> {
               data: _data,
               onRetry: _load,
               loadingMessage: 'Loading record and activity…',
-              dataBuilder: (context, data) {
-                final record = AdminRecord(adminMap(data['record']));
-                final userId = data['user_id']?.toString();
-                final body = record.values['body'] ?? record.values['content'];
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(record.title, style: context.uiText.heading),
-                    const UiGap.v(12),
-                    if (widget.onOpenUser != null && userId != null) ...[
-                      UiButton(
-                        label: 'Manage this user',
-                        leadingIcon: Icons.person_outline,
-                        variant: UiVariant.outline,
-                        onPressed: () => widget.onOpenUser!(userId),
-                      ),
-                      const UiGap.v(12),
-                    ],
-                    AdminRecordActions(
-                      resource: widget.resource,
-                      record: record,
-                      userId: userId,
-                      repository: widget.repository,
-                      onSaved: _load,
-                      onDeleted: () => setState(() => _deleted = true),
-                    ),
-                    const UiGap.v(20),
-                    if (widget.resource == AdminResource.posts) ...[
-                      UiCardGrid(
-                        minTileWidth: 170,
-                        children: [
-                          for (final metric in [
-                            ('Views', 'views_count'),
-                            ('Likes', 'likes_count'),
-                            ('Comments', 'comments_count'),
-                            ('Reposts', 'reposts_count'),
-                            ('Bookmarks', 'bookmarks_count'),
-                          ])
-                            UiMetricCard(
-                              title: metric.$1,
-                              value: '${record.count(metric.$2)}',
-                              caption: 'Recorded total',
-                            ),
-                        ],
-                      ),
-                      const UiGap.v(20),
-                    ],
-                    if (record.flag('admin_hidden')) ...[
-                      const UiCallout(
-                        title: 'Record restricted',
-                        message:
-                            'Restore this record to make it available again.',
-                        intent: UiIntent.warning,
-                      ),
-                      const UiGap.v(16),
-                    ],
-                    AdminSection(
-                      title: 'Record details',
-                      child: AdminFacts(
-                        values: {
-                          'Record ID': record.id,
-                          for (final key in _fields)
-                            if (record.values.containsKey(key))
-                              adminLabel(key): key.endsWith('_at')
-                                  ? adminDate(record.values[key])
-                                  : adminValue(record.values[key]),
-                        },
-                      ),
-                    ),
-                    if (body != null) ...[
-                      const UiGap.v(20),
-                      AdminSection(
-                        title: 'Content',
-                        child: SelectableText(
-                          _content(body),
-                          style: context.uiText.body,
-                        ),
-                      ),
-                    ],
-                    if (widget.resource == AdminResource.aiRequests)
-                      for (final entry in [
-                        ('Prompt', 'prompt_text'),
-                        ('Response', 'response_text'),
-                      ])
-                        if (record.text(entry.$2).isNotEmpty) ...[
-                          const UiGap.v(20),
-                          AdminSection(
-                            title: entry.$1,
-                            child: SelectableText(
-                              record.text(entry.$2),
-                              style: context.uiText.body,
-                            ),
-                          ),
-                        ],
-                    if (widget.resource == AdminResource.applications &&
-                        record.text('sample_link').isNotEmpty) ...[
-                      const UiGap.v(12),
-                      UiButton(
-                        label: 'Open application sample',
-                        variant: UiVariant.outline,
-                        onPressed: () async {
-                          final uri = Uri.tryParse(record.text('sample_link'));
-                          if (uri == null ||
-                              !['https', 'http'].contains(uri.scheme)) {
-                            UiToast.error(
-                              context,
-                              title: 'Invalid sample link',
-                            );
-                            return;
-                          }
-                          try {
-                            if (!await launchUrl(
-                                  uri,
-                                  mode: LaunchMode.externalApplication,
-                                ) &&
-                                context.mounted) {
-                              UiToast.error(
-                                context,
-                                title: 'Unable to open sample',
-                              );
-                            }
-                          } catch (_) {
-                            if (context.mounted) {
-                              UiToast.error(
-                                context,
-                                title: 'Unable to open sample',
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ],
-                    const UiGap.v(20),
-                    AdminSection(
-                      title: 'Recent record history',
-                      child: UiTable<AdminRecord>(
-                        stackOnMobile: true,
-                        rows: (data['activity'] as List? ?? [])
-                            .map((row) => AdminRecord(adminMap(row)))
-                            .toList(),
-                        emptyLabel: 'No earlier changes recorded',
-                        columns: [
-                          UiTableColumn(
-                            header: 'Action',
-                            valueGetter: (row) =>
-                                adminLabel(row.text('action')),
-                          ),
-                          UiTableColumn(
-                            header: 'Actor',
-                            valueGetter: (row) => row.text('actor_handle'),
-                          ),
-                          UiTableColumn(
-                            header: 'Reason',
-                            flex: 2,
-                            valueGetter: (row) =>
-                                adminMap(
-                                  row.values['metadata'],
-                                )['reason']?.toString() ??
-                                'Recorded change',
-                          ),
-                          UiTableColumn(
-                            header: 'Time',
-                            valueGetter: (row) =>
-                                adminDate(row.values['created_at']),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (widget.resource == AdminResource.activity) ...[
-                      const UiGap.v(20),
-                      AdminSection(
-                        title: 'Change information',
-                        child: AdminFacts(
-                          values: {
-                            for (final item in adminMap(
-                              record.values['metadata'],
-                            ).entries)
-                              if (item.value is! Map)
-                                adminLabel(item.key): adminValue(item.value),
-                            'Changed controls': adminMap(
-                              adminMap(record.values['metadata'])['changes'],
-                            ).keys.map(adminLabel).join(', '),
-                          },
-                        ),
-                      ),
-                    ],
-                    if (_childResource != null &&
-                        widget.showRelatedRecords) ...[
-                      const UiGap.v(20),
-                      AdminSection(
-                        title: _childResource!.label,
-                        child: AdminRecordsPanel(
-                          key: ValueKey(_revision),
-                          resource: _childResource!,
-                          repository: widget.repository,
-                          parentId: widget.resource == AdminResource.messages
-                              ? record.text('thread_id')
-                              : record.id,
-                          onOpen: (row) => setState(() => _childId = row.id),
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
+              dataBuilder: (context, data) => _buildContent(context, data),
             ),
     );
   }
 
-  String _content(Object value) {
-    if (value is Map) {
-      return value['markdown']?.toString() ??
-          value['text']?.toString() ??
-          value.toString();
-    }
-    return value.toString();
+  Widget _buildContent(BuildContext context, Map<String, dynamic> data) {
+    final colors = context.ui.colors;
+    final record = AdminRecord(adminMap(data['record']));
+    final userId = data['user_id']?.toString();
+    final activityRows = (data['activity'] as List? ?? [])
+        .map((row) => AdminRecord(adminMap(row)))
+        .toList();
+    final author = record.text('author', record.text('actor_handle'));
+    final avatarUrl =
+        record.values['author_avatar_url']?.toString() ??
+        record.values['avatar_url']?.toString();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        UiCard(
+          variant: UiCardVariant.surface,
+          accentColor: switch (adminStatusIntent(record.status)) {
+            UiIntent.danger => colors.danger,
+            UiIntent.warning => colors.warning,
+            UiIntent.success => colors.success,
+            _ => colors.primary,
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (author.isNotEmpty)
+                        UiAvatar(
+                          name: author,
+                          imageUrl: avatarUrl?.isNotEmpty == true
+                              ? avatarUrl
+                              : null,
+                          size: UiSize.md,
+                        )
+                      else
+                        Icon(
+                          adminResourceIcon(widget.resource),
+                          size: context.sz(28),
+                          color: colors.primary,
+                        ),
+                      const UiGap.h(12),
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              record.title,
+                              style: context.uiText.heading,
+                            ),
+                            const UiGap.v(4),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                UiBadge(
+                                  label: adminLabel(record.status),
+                                  intent: adminStatusIntent(record.status),
+                                ),
+                                Text(
+                                  'Created ${adminDate(record.values['created_at'])}',
+                                  style: context.uiText.caption,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (widget.onOpenUser != null && userId != null)
+                    UiButton(
+                      label: 'Manage this user',
+                      leadingIcon: Icons.person_outline,
+                      variant: UiVariant.outline,
+                      onPressed: () => widget.onOpenUser!(userId),
+                    ),
+                ],
+              ),
+              const UiGap.v(16),
+              AdminRecordActions(
+                resource: widget.resource,
+                record: record,
+                userId: userId,
+                repository: widget.repository,
+                onSaved: _load,
+                onDeleted: () => setState(() => _deleted = true),
+              ),
+            ],
+          ),
+        ),
+        const UiGap.v(20),
+        if (widget.resource == AdminResource.posts) ...[
+          UiCardGrid(
+            minTileWidth: 170,
+            children: [
+              for (final metric in [
+                ('Views', 'views_count'),
+                ('Likes', 'likes_count'),
+                ('Comments', 'comments_count'),
+                ('Reposts', 'reposts_count'),
+                ('Bookmarks', 'bookmarks_count'),
+              ])
+                UiMetricCard(
+                  title: metric.$1,
+                  value: '${record.count(metric.$2)}',
+                  caption: 'Recorded total',
+                ),
+            ],
+          ),
+          const UiGap.v(20),
+        ],
+        if (record.flag('admin_hidden')) ...[
+          const UiCallout(
+            title: 'Record restricted',
+            message: 'Restore this record to make it available again.',
+            intent: UiIntent.warning,
+          ),
+          const UiGap.v(16),
+        ],
+        AdminSection(
+          title: 'Live preview',
+          description: 'Formatted operational preview rendered from stored fields.',
+          child: AdminRecordPreviewContent(
+            resource: widget.resource,
+            record: record,
+            showEngagementMetrics: false,
+          ),
+        ),
+        const UiGap.v(20),
+        AdminSection(
+          title: 'Record details',
+          child: AdminFacts(
+            values: {
+              'Record ID': record.id,
+              for (final key in _fields)
+                if (record.values.containsKey(key))
+                  adminLabel(key): key.endsWith('_at')
+                      ? adminDate(record.values[key])
+                      : adminValue(record.values[key]),
+            },
+          ),
+        ),
+        if (widget.resource == AdminResource.activity) ...[
+          const UiGap.v(20),
+          AdminSection(
+            title: 'Change information',
+            child: AdminFacts(
+              values: {
+                for (final item in adminMap(record.values['metadata']).entries)
+                  if (item.value is! Map)
+                    adminLabel(item.key): adminValue(item.value),
+                'Changed controls': adminMap(
+                  adminMap(record.values['metadata'])['changes'],
+                ).keys.map(adminLabel).join(', '),
+              },
+            ),
+          ),
+        ],
+        const UiGap.v(20),
+        AdminSection(
+          title: 'Recent record history',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (activityRows.isNotEmpty) ...[
+                UiTimeline(
+                  entries: [
+                    for (final item in activityRows.take(5))
+                      UiTimelineEntry(
+                        title: adminLabel(item.text('action')),
+                        subtitle: [
+                          item.text('actor_handle'),
+                          adminMap(item.values['metadata'])['reason']
+                                  ?.toString() ??
+                              'Recorded change',
+                        ].where((e) => e.isNotEmpty).join(' · '),
+                        timestamp: adminDate(item.values['created_at']),
+                        icon: Icons.history,
+                      ),
+                  ],
+                ),
+                const UiGap.v(14),
+              ],
+              UiTable<AdminRecord>(
+                stackOnMobile: true,
+                rows: activityRows,
+                emptyLabel: 'No earlier changes recorded',
+                columns: [
+                  UiTableColumn(
+                    header: 'Action',
+                    valueGetter: (row) => adminLabel(row.text('action')),
+                  ),
+                  UiTableColumn(
+                    header: 'Actor',
+                    valueGetter: (row) => row.text('actor_handle'),
+                  ),
+                  UiTableColumn(
+                    header: 'Reason',
+                    flex: 2,
+                    valueGetter: (row) =>
+                        adminMap(row.values['metadata'])['reason']
+                            ?.toString() ??
+                        'Recorded change',
+                  ),
+                  UiTableColumn(
+                    header: 'Time',
+                    valueGetter: (row) => adminDate(row.values['created_at']),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (_childResource != null && widget.showRelatedRecords) ...[
+          const UiGap.v(20),
+          AdminSection(
+            title: _childResource!.label,
+            child: AdminRecordsPanel(
+              key: ValueKey(_revision),
+              resource: _childResource!,
+              repository: widget.repository,
+              parentId: widget.resource == AdminResource.messages
+                  ? record.text('thread_id')
+                  : record.id,
+              onOpen: (row) => setState(() => _childId = row.id),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   List<String> get _fields => [

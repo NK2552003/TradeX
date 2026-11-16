@@ -6,6 +6,7 @@ import '../../data/admin_repository.dart';
 import '../../models/admin_records.dart';
 import 'admin_action_dialog.dart';
 import 'admin_facts.dart';
+import 'admin_preview_cards.dart';
 
 class AdminSubscriptionForm extends StatefulWidget {
   const AdminSubscriptionForm({
@@ -14,9 +15,11 @@ class AdminSubscriptionForm extends StatefulWidget {
     required this.repository,
     required this.onSaved,
   });
+
   final AdminUserDetail user;
   final AdminRepository repository;
   final VoidCallback onSaved;
+
   @override
   State<AdminSubscriptionForm> createState() => _AdminSubscriptionFormState();
 }
@@ -51,13 +54,64 @@ class _AdminSubscriptionFormState extends State<AdminSubscriptionForm> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.ui.colors;
     final subscription = widget.user.subscription;
     final override = adminMap(widget.user.controls['subscription_override']);
     final quota = widget.user.quota;
     final limits = adminMap(quota['limits']);
+    final parsedDays = int.tryParse(_days.trim());
+    final previewValid =
+        parsedDays != null && parsedDays >= 1 && parsedDays <= 3650;
+    final previewExpiry = previewValid
+        ? DateTime.now().toUtc().add(Duration(days: parsedDays))
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        UiCard(
+          variant: UiCardVariant.surface,
+          accentColor: override.isNotEmpty ? colors.info : colors.primary,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              UiStatStrip(
+                minCellWidth: 150,
+                stats: [
+                  UiStat(
+                    label: 'Effective plan',
+                    value: adminLabel(widget.user.tier),
+                    intent: UiIntent.primary,
+                    icon: Icons.workspace_premium_outlined,
+                  ),
+                  UiStat(
+                    label: 'Billing status',
+                    value: adminLabel(
+                      subscription['status']?.toString() ?? 'none',
+                    ),
+                    hint: adminValue(subscription['billing_provider']),
+                    intent: adminStatusIntent(
+                      subscription['status']?.toString() ?? 'neutral',
+                    ),
+                    icon: Icons.credit_card_outlined,
+                  ),
+                  UiStat(
+                    label: 'Admin override',
+                    value: override.isEmpty
+                        ? 'None'
+                        : adminLabel('${override['tier']}'),
+                    hint: override.isEmpty
+                        ? 'Following billing'
+                        : 'Expires ${adminDate(override['expires_at'])}',
+                    intent: override.isEmpty ? UiIntent.neutral : UiIntent.info,
+                    icon: Icons.admin_panel_settings_outlined,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const UiGap.v(20),
         AdminSection(
           title: 'Subscription and access',
           child: AdminFacts(
@@ -93,7 +147,7 @@ class _AdminSubscriptionFormState extends State<AdminSubscriptionForm> {
                   intent: UiIntent.warning,
                 )
               : UiCardGrid(
-                  minTileWidth: 200,
+                  minTileWidth: 210,
                   children: [
                     for (final entry in [
                       ('Notes', 'notes_used', 'notes'),
@@ -121,11 +175,10 @@ class _AdminSubscriptionFormState extends State<AdminSubscriptionForm> {
                         'community_comments_per_day',
                       ),
                     ])
-                      UiMetricCard(
+                      _QuotaUsageCard(
                         title: entry.$1,
-                        value: '${quota[entry.$2] ?? 0}',
-                        caption:
-                            'Allowance: ${limits[entry.$3] ?? 'Unavailable'}',
+                        used: quota[entry.$2],
+                        limit: limits[entry.$3],
                       ),
                   ],
                 ),
@@ -155,6 +208,15 @@ class _AdminSubscriptionFormState extends State<AdminSubscriptionForm> {
                 keyboardType: TextInputType.number,
                 onChanged: (value) => setState(() => _days = value),
               ),
+              if (previewExpiry != null) ...[
+                const UiGap.v(12),
+                UiCallout(
+                  title: 'Override preview',
+                  message:
+                      'Will grant ${adminLabel(_tier)} access until ${adminDate(previewExpiry.toIso8601String())} ($parsedDays days).',
+                  intent: UiIntent.info,
+                ),
+              ],
               if (_error != null) ...[
                 const UiGap.v(12),
                 UiCallout(
@@ -195,6 +257,53 @@ class _AdminSubscriptionFormState extends State<AdminSubscriptionForm> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _QuotaUsageCard extends StatelessWidget {
+  const _QuotaUsageCard({
+    required this.title,
+    required this.used,
+    required this.limit,
+  });
+
+  final String title;
+  final Object? used;
+  final Object? limit;
+
+  @override
+  Widget build(BuildContext context) {
+    final usedNum = used is num ? used as num : 0;
+    final limitNum = limit is num ? limit as num : null;
+    final ratio = limitNum != null && limitNum > 0
+        ? (usedNum / limitNum).clamp(0.0, 1.0)
+        : 0.0;
+    final intent = ratio >= 0.95
+        ? UiIntent.danger
+        : ratio >= 0.75
+        ? UiIntent.warning
+        : UiIntent.primary;
+
+    return UiCard(
+      variant: UiCardVariant.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: context.uiText.label),
+          const UiGap.v(6),
+          Text('${used ?? 0}', style: context.uiText.heading),
+          const UiGap.v(4),
+          Text(
+            'Allowance: ${limit ?? 'Unavailable'}',
+            style: context.uiText.caption,
+          ),
+          if (limitNum != null && limitNum > 0) ...[
+            const UiGap.v(8),
+            UiProgressBar(value: ratio, showValue: false, intent: intent),
+          ],
+        ],
+      ),
     );
   }
 }

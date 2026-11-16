@@ -173,7 +173,7 @@ class AuthSessionStorage {
   }
 
   static Future<void> saveWorkspaceRole(String userId, UserRole role) async {
-    if (userId.isEmpty || role == UserRole.userAdmin) return;
+    if (userId.isEmpty) return;
     // Write cookie synchronously first so immediate cross-subdomain navigation
     // preserves the chosen role on the target host without waiting for async IO.
     CrossSubdomainState.setFlag('ax_role', '$userId:${role.id}');
@@ -181,21 +181,42 @@ class AuthSessionStorage {
     await prefs.setString('auth_workspace_role_$userId', role.id);
   }
 
-  static Future<UserRole> workspaceRoleFor(UserProfileModel profile) async {
-    // A preference never grants partner/admin access to a customer account.
-    if (profile.role != UserRole.affiliate) return profile.role;
-    final shared = CrossSubdomainState.getFlag('ax_role');
-    if (shared == '${profile.id}:${UserRole.customer.id}') {
+  static Future<UserRole> workspaceRoleFor(
+    UserProfileModel profile, {
+    bool hasAffiliateAccess = false,
+  }) async {
+    final bool isAdminAccount =
+        profile.role == UserRole.userAdmin ||
+        (profile.adminKey?.trim().isNotEmpty ?? false);
+    final bool isAffiliateEligible =
+        isAdminAccount ||
+        profile.role == UserRole.affiliate ||
+        hasAffiliateAccess;
+
+    // A preference never grants partner/admin access to an ineligible account.
+    if (!isAffiliateEligible && !isAdminAccount) {
       return UserRole.customer;
     }
-    if (shared == '${profile.id}:${UserRole.affiliate.id}') {
+
+    String? savedRoleId;
+    final shared = CrossSubdomainState.getFlag('ax_role');
+    if (shared != null && shared.startsWith('${profile.id}:')) {
+      savedRoleId = shared.substring(profile.id.length + 1);
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      savedRoleId = prefs.getString('auth_workspace_role_${profile.id}');
+    }
+
+    if (savedRoleId == UserRole.customer.id) {
+      return UserRole.customer;
+    }
+    if (savedRoleId == UserRole.affiliate.id && isAffiliateEligible) {
       return UserRole.affiliate;
     }
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_workspace_role_${profile.id}') ==
-            UserRole.customer.id
-        ? UserRole.customer
-        : UserRole.affiliate;
+    if (savedRoleId == UserRole.userAdmin.id && isAdminAccount) {
+      return UserRole.userAdmin;
+    }
+    return profile.role;
   }
 
   /// Retrieves the last active destination.

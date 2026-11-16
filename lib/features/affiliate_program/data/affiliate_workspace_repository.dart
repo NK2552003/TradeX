@@ -53,7 +53,7 @@ class AffiliateWorkspaceRepository {
       try {
         try {
           final raw = await db.rpc('affiliate_workspace');
-          if (raw is Map) {
+          if (raw is Map && raw['profile'] is Map) {
             final Map<String, Object?> payload = raw.map(
               (k, v) => MapEntry(k.toString(), v),
             );

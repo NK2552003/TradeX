@@ -250,7 +250,8 @@ class _TradeXAppState extends State<TradeXApp> {
                     CustomerSubdomain.community => 'community_feed',
                     CustomerSubdomain.admin => 'overview',
                     CustomerSubdomain.affiliate =>
-                      _activeRole == UserRole.affiliate
+                      (_activeRole == UserRole.affiliate ||
+                              _activeRole == UserRole.userAdmin)
                           ? 'overview'
                           : 'affiliate_application',
                     CustomerSubdomain.root || CustomerSubdomain.app => switch (

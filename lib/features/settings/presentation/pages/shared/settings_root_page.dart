@@ -6,6 +6,8 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_settings_page.dart';
+import 'package:tradex/features/settings/presentation/pages/admin/desk_risk_page.dart';
+import 'package:tradex/features/settings/presentation/pages/admin/organization_settings_page.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/copilot/data/copilot_controller.dart';
 import 'package:tradex/features/settings/presentation/pages/affiliate/affiliate_settings_page.dart';
@@ -195,9 +197,9 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
       'platform' when widget.userRole == UserRole.userAdmin =>
         const AdminSettingsPage(),
       'organization' when widget.userRole == UserRole.userAdmin =>
-        const AdminSettingsPage(),
+        const OrganizationSettingsPage(),
       'desk_risk' when widget.userRole == UserRole.userAdmin =>
-        const AdminSettingsPage(),
+        const DeskRiskPage(),
       'notifications' => const NotificationsSettingsPage(),
       'trading' => const TradingPreferencesPage(),
       'ai' => AiCopilotSettingsPage(
@@ -358,6 +360,18 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
             'title': 'App settings',
             'icon': Icons.tune,
             'subtitle': 'Feature availability and administration policy',
+          },
+          {
+            'id': 'organization',
+            'title': 'Organization & team',
+            'icon': Icons.business_outlined,
+            'subtitle': 'Firm identity, branding and team roles',
+          },
+          {
+            'id': 'desk_risk',
+            'title': 'Desk risk policies',
+            'icon': Icons.shield_outlined,
+            'subtitle': 'Drawdown ceilings, checklists and approval gates',
           },
           {
             'id': 'security',
@@ -601,6 +615,26 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                     const AdminSettingsPage(),
                     'App settings',
                     Icons.tune,
+                  ),
+                ),
+                SettingsNavRow(
+                  title: 'Organization & team',
+                  subtitle: 'Firm identity, branding and team roles',
+                  icon: Icons.business_outlined,
+                  onTap: () => _navigateToSubpage(
+                    const OrganizationSettingsPage(),
+                    'Organization & team',
+                    Icons.business_outlined,
+                  ),
+                ),
+                SettingsNavRow(
+                  title: 'Desk risk policies',
+                  subtitle: 'Drawdown ceilings, checklists and approval gates',
+                  icon: Icons.shield_outlined,
+                  onTap: () => _navigateToSubpage(
+                    const DeskRiskPage(),
+                    'Desk risk policies',
+                    Icons.shield_outlined,
                   ),
                 ),
               ],

@@ -8,6 +8,7 @@ import '../widgets/admin_access_form.dart';
 import '../widgets/admin_action_dialog.dart';
 import '../widgets/admin_affiliate_form.dart';
 import '../widgets/admin_facts.dart';
+import '../widgets/admin_preview_cards.dart';
 import '../widgets/admin_records_panel.dart';
 import '../widgets/admin_subscription_form.dart';
 import 'admin_record_detail_page.dart';
@@ -20,10 +21,12 @@ class AdminUserDetailPage extends StatefulWidget {
     required this.onBack,
     this.initialTab = 'Overview',
   });
+
   final String userId;
   final AdminRepository repository;
   final VoidCallback onBack;
   final String initialTab;
+
   @override
   State<AdminUserDetailPage> createState() => _AdminUserDetailPageState();
 }
@@ -44,12 +47,14 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
     'AI requests',
     'Activity',
   ];
+
   AdminUserDetail? _user;
   String? _error;
   bool _loading = true;
   int _revision = 0;
   late int _tab = _tabs.indexOf(widget.initialTab).clamp(0, _tabs.length - 1);
   (AdminResource, AdminRecord)? _record;
+
   @override
   void initState() {
     super.initState();
@@ -120,69 +125,132 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
         data: _user,
         onRetry: _load,
         loadingMessage: 'Loading user details…',
-        dataBuilder: (context, user) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Wrap(
-              spacing: context.sp(context.ui.spacing.sm),
-              runSpacing: context.sp(context.ui.spacing.sm),
-              children: [
-                UiBadge(
-                  label: adminLabel(user.profile.status),
-                  intent: user.profile.status == 'active'
-                      ? UiIntent.success
-                      : UiIntent.danger,
+        dataBuilder: (context, user) {
+          final colors = context.ui.colors;
+          final handle = user.profile.text('handle');
+          final email = user.profile.text('email');
+          final avatarUrl = user.profile.values['avatar_url']?.toString();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              UiCard(
+                variant: UiCardVariant.surface,
+                accentColor: user.profile.status == 'active'
+                    ? colors.success
+                    : colors.danger,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 10,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      alignment: WrapAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            UiAvatar(
+                              name: user.profile.title,
+                              imageUrl: avatarUrl?.isNotEmpty == true
+                                  ? avatarUrl
+                                  : null,
+                              size: UiSize.md,
+                            ),
+                            const UiGap.h(12),
+                            Flexible(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    user.profile.title,
+                                    style: context.uiText.title,
+                                  ),
+                                  if (handle.isNotEmpty || email.isNotEmpty)
+                                    Text(
+                                      [
+                                        if (handle.isNotEmpty) '@$handle',
+                                        if (email.isNotEmpty) email,
+                                      ].join(' · '),
+                                      style: context.uiText.caption,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        Wrap(
+                          spacing: context.sp(context.ui.spacing.sm),
+                          runSpacing: context.sp(context.ui.spacing.sm),
+                          children: [
+                            UiBadge(
+                              label: adminLabel(user.profile.status),
+                              intent: adminStatusIntent(user.profile.status),
+                            ),
+                            UiBadge(label: adminLabel(user.profile.text('role'))),
+                            UiBadge(
+                              label: adminLabel(user.tier),
+                              intent: UiIntent.primary,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const UiGap.v(12),
+                    Text(
+                      'Joined ${adminDate(user.profile.values['created_at'])} · Last sign-in ${adminDate(user.values['last_sign_in_at'])}',
+                      style: context.uiText.caption,
+                    ),
+                  ],
                 ),
-                UiBadge(label: adminLabel(user.profile.text('role'))),
-                UiBadge(label: adminLabel(user.tier)),
-              ],
-            ),
-            const UiGap.v(16),
-            UiTabs(
-              tabs: _tabs,
-              selectedIndex: _tab,
-              scrollable: true,
-              onChanged: (value) => setState(() => _tab = value),
-            ),
-            const UiGap.v(20),
-            if (_tab == 0)
-              _UserOverview(
-                user: user,
-                repository: widget.repository,
-                onSaved: _load,
               ),
-            if (_tab == 1)
-              AdminAccessForm(
-                key: ValueKey('permissions-$_revision'),
-                user: user,
-                repository: widget.repository,
-                onSaved: _load,
+              const UiGap.v(16),
+              UiTabs(
+                tabs: _tabs,
+                selectedIndex: _tab,
+                scrollable: true,
+                onChanged: (value) => setState(() => _tab = value),
               ),
-            if (_tab == 2)
-              AdminSubscriptionForm(
-                key: ValueKey('subscription-$_revision'),
-                user: user,
-                repository: widget.repository,
-                onSaved: _load,
-              ),
-            if (_tab == 3)
-              AdminAffiliateForm(
-                key: ValueKey('affiliate-$_revision'),
-                user: user,
-                repository: widget.repository,
-                onSaved: _load,
-                onOpen: _openRecord,
-              ),
-            if (_tab >= 4)
-              AdminRecordsPanel(
-                key: ValueKey('$_tab-$_revision'),
-                resource: _resource,
-                repository: widget.repository,
-                userId: widget.userId,
-                onOpen: (row) => _openRecord(_resource, row),
-              ),
-          ],
-        ),
+              const UiGap.v(20),
+              if (_tab == 0)
+                _UserOverview(
+                  user: user,
+                  repository: widget.repository,
+                  onSaved: _load,
+                ),
+              if (_tab == 1)
+                AdminAccessForm(
+                  key: ValueKey('permissions-$_revision'),
+                  user: user,
+                  repository: widget.repository,
+                  onSaved: _load,
+                ),
+              if (_tab == 2)
+                AdminSubscriptionForm(
+                  key: ValueKey('subscription-$_revision'),
+                  user: user,
+                  repository: widget.repository,
+                  onSaved: _load,
+                ),
+              if (_tab == 3)
+                AdminAffiliateForm(
+                  key: ValueKey('affiliate-$_revision'),
+                  user: user,
+                  repository: widget.repository,
+                  onSaved: _load,
+                  onOpen: _openRecord,
+                ),
+              if (_tab >= 4)
+                AdminRecordsPanel(
+                  key: ValueKey('$_tab-$_revision'),
+                  resource: _resource,
+                  repository: widget.repository,
+                  userId: widget.userId,
+                  onOpen: (row) => _openRecord(_resource, row),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -206,14 +274,17 @@ class _UserOverview extends StatelessWidget {
     required this.repository,
     required this.onSaved,
   });
+
   final AdminUserDetail user;
   final AdminRepository repository;
   final VoidCallback onSaved;
+
   @override
   Widget build(BuildContext context) {
     final profile = user.profile;
     final isSelf = profile.id == repository.currentUserId;
     final isAdmin = profile.text('role') == 'user_admin';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -228,6 +299,26 @@ class _UserOverview extends StatelessWidget {
               ),
           ],
         ),
+        if (user.counts.isNotEmpty) ...[
+          const UiGap.v(20),
+          AdminSection(
+            title: 'Activity footprint',
+            description: 'Relative volume across workspace modules.',
+            child: UiCard(
+              variant: UiCardVariant.surface,
+              child: UiBarList(
+                valueFormatter: (v) => v.toStringAsFixed(0),
+                items: [
+                  for (final count in user.counts.entries)
+                    UiBarListItem(
+                      label: adminLabel(count.key),
+                      value: count.value,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
         const UiGap.v(20),
         AdminSection(
           title: 'Account',

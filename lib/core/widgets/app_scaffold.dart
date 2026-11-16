@@ -183,8 +183,30 @@ class _AppScaffoldState extends State<AppScaffold> {
   UserRole? _previewRoleOverride;
   AccountAccess? _liveAccess;
   late final _accessRepository = AccountAccessRepository();
-  UserRole get _effectiveRole =>
-      _previewRoleOverride ?? _liveAccess?.role ?? widget.userRole;
+
+  bool _isRoleAllowedByLiveAccess(UserRole role, AccountAccess live) {
+    if (!live.isActive) return role == UserRole.customer;
+    return switch (role) {
+      UserRole.customer => true,
+      UserRole.affiliate =>
+        live.role == UserRole.userAdmin ||
+        live.role == UserRole.affiliate ||
+        (live.affiliateApproved && live.allows('affiliate')),
+      UserRole.userAdmin => live.role == UserRole.userAdmin,
+    };
+  }
+
+  UserRole get _effectiveRole {
+    final UserRole desired = _previewRoleOverride ?? widget.userRole;
+    final AccountAccess? live = _liveAccess;
+    if (live != null && !widget.showDevelopmentRoleSwitcher) {
+      if (!_isRoleAllowedByLiveAccess(desired, live)) {
+        return live.isActive ? live.role : UserRole.customer;
+      }
+      return desired;
+    }
+    return desired;
+  }
 
   bool _hasEverOwnedAdminRole = false;
   bool _hasEverOwnedAffiliateRole = false;
@@ -199,7 +221,8 @@ class _AppScaffoldState extends State<AppScaffold> {
     if (live != null && !widget.showDevelopmentRoleSwitcher) {
       _hasEverOwnedAdminRole = live.isActive && live.role == UserRole.userAdmin;
       _hasEverOwnedAffiliateRole =
-          live.affiliateApproved && live.allows('affiliate');
+          _hasEverOwnedAdminRole ||
+          (live.affiliateApproved && live.allows('affiliate'));
       _session.hasCustomProfileModeOverride = false;
       _session.syncEligibility(
         baseRole: _hasEverOwnedAdminRole
@@ -214,6 +237,7 @@ class _AppScaffoldState extends State<AppScaffold> {
         loadedProfile?.role == UserRole.userAdmin ||
         (loadedProfile?.adminKey?.trim().isNotEmpty ?? false)) {
       _hasEverOwnedAdminRole = true;
+      _hasEverOwnedAffiliateRole = true;
     }
     if (widget.userRole == UserRole.affiliate ||
         loadedProfile?.role == UserRole.affiliate ||
@@ -238,6 +262,8 @@ class _AppScaffoldState extends State<AppScaffold> {
       _syncSessionEligibility();
       if (!_session.profileMode.value.supportsRole(_effectiveRole)) {
         _previewRoleOverride = UserRole.customer;
+        _resetToOverview();
+      } else if (!_isDestinationHandledByRole(_selectedId, _effectiveRole)) {
         _resetToOverview();
       }
       if (!access.isActive || !access.allows('ai')) _aiRepo.stop();
@@ -806,6 +832,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     final String nextDest = targetRole == UserRole.customer
         ? 'workspace'
         : 'overview';
+    _previewRoleOverride = role;
     if (kIsWeb &&
         widget.onDestinationChanged != null &&
         CustomerRoute.crossOriginRedirectUri(
@@ -832,7 +859,44 @@ class _AppScaffoldState extends State<AppScaffold> {
     return true;
   }
 
+  bool _isDestinationHandledByRole(String id, UserRole role) {
+    if (id == 'notifications' ||
+        id == 'search' ||
+        id == 'public_profile' ||
+        id == 'affiliate_application' ||
+        id == 'market' ||
+        id.startsWith('market_') ||
+        id.startsWith('settings') ||
+        id == 'ai_copilot' ||
+        id == 'messages' ||
+        id == 'workspace' ||
+        id == 'overview') {
+      return true;
+    }
+    return switch (role) {
+      UserRole.customer =>
+        const <String>{
+          'journal',
+          'notes',
+          'strategies',
+          'calculators',
+          'community',
+        }.contains(id) ||
+        id.startsWith('community_'),
+      UserRole.affiliate =>
+        const <String>{'referrals', 'marketing', 'payouts'}.contains(id),
+      UserRole.userAdmin =>
+        id == 'admin_console' ||
+        id == 'affiliate_reviews' ||
+        id.startsWith('admin_') ||
+        id.startsWith('org_'),
+    };
+  }
+
   bool _canReach(String id) {
+    if (!_isDestinationHandledByRole(id, _effectiveRole)) {
+      return false;
+    }
     if ((id == 'admin_console' || id.startsWith('admin_')) &&
         _effectiveRole != UserRole.userAdmin &&
         !_hasEverOwnedAdminRole) {
@@ -1106,15 +1170,17 @@ class _AppScaffoldState extends State<AppScaffold> {
                         AppLinkKind.journal => 'journal',
                         AppLinkKind.strategy => 'strategies',
                         AppLinkKind.aiCopilot => 'ai_copilot',
-                        AppLinkKind.communityPost =>
-                          _canReach('community_feed')
-                              ? 'community_feed'
-                              : 'community',
+                        AppLinkKind.communityPost => 'community_feed',
                         AppLinkKind.messageThread => 'messages',
                         AppLinkKind.ticker => 'market',
                         AppLinkKind.note => 'notes',
                       }));
-    if (!_canReach(destination)) return;
+    final bool needsTraderWorkspace =
+        !_canReach(destination) &&
+        _effectiveRole != UserRole.customer &&
+        _session.profileMode.value.supportsRole(UserRole.customer) &&
+        _isDestinationHandledByRole(destination, UserRole.customer);
+    if (!_canReach(destination) && !needsTraderWorkspace) return;
     final linkedRef = ref.copyWith(
       kind: resolvedKind,
       isPublicContext: isPublic,
@@ -1124,11 +1190,23 @@ class _AppScaffoldState extends State<AppScaffold> {
         CustomerRoute.crossOriginRedirectUri(
               CustomerRoute.forRecord(linkedRef),
               currentHost: Uri.base.host,
-              activeRole: _effectiveRole,
+              activeRole: needsTraderWorkspace
+                  ? UserRole.customer
+                  : _effectiveRole,
             ) !=
             null) {
+      if (needsTraderWorkspace) {
+        _previewRoleOverride = UserRole.customer;
+        _session.activeRole.value = UserRole.customer;
+        widget.onRoleChanged?.call(UserRole.customer);
+      }
       widget.onOpenRecord?.call(linkedRef);
       return;
+    }
+    if (needsTraderWorkspace) {
+      _previewRoleOverride = UserRole.customer;
+      _session.activeRole.value = UserRole.customer;
+      widget.onRoleChanged?.call(UserRole.customer);
     }
     _linkedOrigins.add((destination: _selectedId, request: _linkRequest));
     setState(() {
@@ -1322,7 +1400,9 @@ class _AppScaffoldState extends State<AppScaffold> {
       onOpenMarketing: _effectiveRole == UserRole.affiliate
           ? _jump('marketing')
           : null,
-      onSwitchToTrader: _effectiveRole == UserRole.affiliate
+      onSwitchToTrader:
+          (_effectiveRole == UserRole.affiliate ||
+              _effectiveRole == UserRole.userAdmin)
           ? () => _switchRole(UserRole.customer)
           : null,
       onSubpageChanged: _onSubpageChanged,
@@ -1455,7 +1535,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     // `onOpenRef` to leave, `openRequest` to arrive, and — for the two that put
     // a document behind a real back step on a phone — `onSubpageChanged` so the
     // app bar names what is open.
-    'workspace' => WorkspaceScreen(
+    'workspace' || 'overview' => WorkspaceScreen(
       key: _workspaceKey,
       onOpenFeature: _go,
       onOpenTraderSkill: (skill) =>

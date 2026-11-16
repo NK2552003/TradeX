@@ -20,6 +20,9 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
   bool _loading = true;
   bool _saving = false;
 
+  late double _sampleOrderNotional = DeskRiskModel.positionPerTraderMin;
+  bool _sampleChecklistDone = true;
+
   /// The threshold held on to while the approval gate is switched off. Without it
   /// the figure would be lost the moment the switch went off, and turning it back
   /// on would silently pick a number the desk never chose.
@@ -46,7 +49,7 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
           _loading = false;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -69,7 +72,7 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
           intent: UiIntent.success,
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() => _saving = false);
         UiToast.show(
@@ -79,6 +82,38 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
         );
       }
     }
+  }
+
+  (String title, String message, UiIntent intent) _simulateOrder(
+    DeskRiskModel c,
+  ) {
+    if (_sampleOrderNotional > c.maxPositionPerTrader) {
+      return (
+        'Order Blocked by Capital Limit',
+        'Sample order (${AppTokens.lakhCrore(_sampleOrderNotional)}) exceeds max allocation per trader (${AppTokens.lakhCrore(c.maxPositionPerTrader)}).',
+        UiIntent.danger,
+      );
+    }
+    if (c.enforcePreTradeChecklistAllTraders && !_sampleChecklistDone) {
+      return (
+        'Held for Pre-Trade Checklist',
+        'Traders must complete the mandatory desk risk checklist before broker routing.',
+        UiIntent.warning,
+      );
+    }
+    if (c.requiresManagerApproval &&
+        _sampleOrderNotional > c.requireManagerApprovalAboveAmount) {
+      return (
+        'Routed for Manager Approval',
+        'Order (${AppTokens.lakhCrore(_sampleOrderNotional)}) exceeds the ${AppTokens.lakhCrore(c.requireManagerApprovalAboveAmount)} threshold.',
+        UiIntent.warning,
+      );
+    }
+    return (
+      'Auto-Execute Eligible',
+      'Sample order (${AppTokens.lakhCrore(_sampleOrderNotional)}) clears all active desk risk gates${c.auditLoggingEnabled ? ' with audit logging' : ''}.',
+      UiIntent.success,
+    );
   }
 
   @override
@@ -98,7 +133,9 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
         action: UiButton(label: 'Try again', onPressed: _loadConfig),
       );
     }
+
     final c = _config!;
+    final verdict = _simulateOrder(c);
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = isMobile
         ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
@@ -119,12 +156,139 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Desk Warning Banner
-              UiCallout(
-                title: 'Firm Risk & Compliance Controls',
-                message:
-                    'Settings configured here apply globally to all traders, portfolio managers, and sub-accounts on your institutional desk license.',
-                intent: UiIntent.primary,
+              // Live Risk Posture Strip
+              UiCard(
+                variant: UiCardVariant.surface,
+                accentColor: colors.primary,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Firm Risk & Compliance Controls',
+                              style: context.uiText.title,
+                            ),
+                            const UiGap.v(2),
+                            Text(
+                              'Settings configured here apply globally to all traders, portfolio managers, and sub-accounts on your desk.',
+                              style: context.uiText.caption,
+                            ),
+                          ],
+                        ),
+                        UiButton(
+                          label: 'Refresh',
+                          leadingIcon: Icons.refresh,
+                          size: UiSize.sm,
+                          variant: UiVariant.outline,
+                          onPressed: _loadConfig,
+                        ),
+                      ],
+                    ),
+                    const UiGap.v(14),
+                    UiStatStrip(
+                      minCellWidth: 150,
+                      stats: [
+                        UiStat(
+                          label: 'Max daily drawdown',
+                          value: AppTokens.percent(c.maxFirmDrawdownPercent),
+                          intent: UiIntent.danger,
+                          icon: Icons.trending_down_rounded,
+                        ),
+                        UiStat(
+                          label: 'Trader capital cap',
+                          value: AppTokens.lakhCrore(c.maxPositionPerTrader),
+                          intent: UiIntent.primary,
+                          icon: Icons.account_balance_wallet_outlined,
+                        ),
+                        UiStat(
+                          label: 'Approval gate',
+                          value: c.requiresManagerApproval
+                              ? AppTokens.lakhCrore(
+                                  c.requireManagerApprovalAboveAmount,
+                                )
+                              : 'Disabled',
+                          intent: c.requiresManagerApproval
+                              ? UiIntent.warning
+                              : UiIntent.neutral,
+                          icon: Icons.verified_user_outlined,
+                        ),
+                        UiStat(
+                          label: 'Audit trail',
+                          value: c.auditLoggingEnabled
+                              ? 'Immutable'
+                              : 'Paused',
+                          intent: c.auditLoggingEnabled
+                              ? UiIntent.success
+                              : UiIntent.danger,
+                          icon: Icons.history_edu_rounded,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.lg)),
+
+              // Interactive Order Gate Live Simulator
+              AppSettingsSectionBlock(
+                title: 'Live Execution Gate Preview',
+                description:
+                    'Simulate a sample order notional to preview how your active risk policy routes it in real time.',
+                children: [
+                  UiCard(
+                    variant: UiCardVariant.surface,
+                    accentColor: switch (verdict.$3) {
+                      UiIntent.danger => colors.danger,
+                      UiIntent.warning => colors.warning,
+                      _ => colors.success,
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _RiskLimitHeading(
+                          label: 'Simulated Order Size',
+                          badge: UiBadge(
+                            label: AppTokens.lakhCrore(_sampleOrderNotional),
+                            intent: UiIntent.primary,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        UiSlider(
+                          value: _sampleOrderNotional.clamp(
+                            DeskRiskModel.positionPerTraderMin,
+                            DeskRiskModel.positionPerTraderMax,
+                          ),
+                          min: DeskRiskModel.positionPerTraderMin,
+                          max: DeskRiskModel.positionPerTraderMax,
+                          valueFormatter: AppTokens.lakhCrore,
+                          onChanged: (val) =>
+                              setState(() => _sampleOrderNotional = val),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        UiSwitch(
+                          label: 'Sample trader checklist completed',
+                          value: _sampleChecklistDone,
+                          onChanged: (val) =>
+                              setState(() => _sampleChecklistDone = val),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        UiCallout(
+                          title: verdict.$1,
+                          message: verdict.$2,
+                          intent: verdict.$3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: context.sp(theme.spacing.lg)),
 
