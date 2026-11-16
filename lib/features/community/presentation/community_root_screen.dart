@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
+import 'package:tradex/core/ads/ad_config.dart';
+import 'package:tradex/core/ads/ad_slot.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
@@ -24,6 +26,7 @@ import 'package:tradex/features/community/presentation/widgets/community_compose
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// The signed-in community shell — three-tier responsive Twitter/X layout.
@@ -300,8 +303,10 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         ? 'Joined ${_monthName(trader!.createdAt!.month)} ${trader.createdAt!.year}'
         : null;
 
-    double? winRate = trader?.winRate;
-    if (winRate == null) {
+    final bool statsPublic =
+        ProfileSettingsRepositoryImpl.instance.cachedProfile.publicStats;
+    double? winRate = statsPublic ? trader?.winRate : null;
+    if (statsPublic && winRate == null) {
       try {
         final journalStats = JournalRepositoryScope.repository.stats;
         if (journalStats.total > 0) {
@@ -1056,19 +1061,44 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
               child: SingleChildScrollView(
                 controller: _desktopSidebarController,
                 padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-                child: CommunitySidebar(
-                  repository: _repo,
-                  onFollow: (author) => _repo.toggleFollow(author.id),
-                  onAuthorTap: _openAuthorProfile,
-                  onShowMore: _openNetworkPage,
-                  onNewsShowMore: _openNewsPage,
-                  onExplore: () => _tabController.animateTo(1),
-                  onPostTap: _openPostDetail,
-                  onSearchTap: _openSearchPage,
-                  onSearchSubmitted: (q) => _openHashtagPage(
-                    q.startsWith('\$') || q.startsWith('#') ? q : '\$$q',
-                  ),
-                  showWhoToFollow: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    CommunitySidebar(
+                      repository: _repo,
+                      onFollow: (author) => _repo.toggleFollow(author.id),
+                      onAuthorTap: _openAuthorProfile,
+                      onShowMore: _openNetworkPage,
+                      onNewsShowMore: _openNewsPage,
+                      onExplore: () => _tabController.animateTo(1),
+                      onPostTap: _openPostDetail,
+                      onSearchTap: _openSearchPage,
+                      onSearchSubmitted: (q) => _openHashtagPage(
+                        q.startsWith('\$') || q.startsWith('#') ? q : '\$$q',
+                      ),
+                      showWhoToFollow: true,
+                    ),
+                    if (_tabController.index <= 1) ...<Widget>[
+                      SizedBox(height: context.sp(theme.spacing.md)),
+                      AdSlot(
+                        placement: AdPlacement.communityRail,
+                        contentReady:
+                            _repo.forYouPosts
+                                .where(
+                                  (p) =>
+                                      p.isPublic &&
+                                      p.moderationStatus
+                                              .trim()
+                                              .toLowerCase() ==
+                                          'approved',
+                                )
+                                .length >=
+                            5,
+                        previewContentReady: true,
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),

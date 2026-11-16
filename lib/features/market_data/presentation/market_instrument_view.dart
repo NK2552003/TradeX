@@ -165,9 +165,32 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
   int _section = 0;
   int _chartMode = 0;
   MarketHistoryRange _historyRange = MarketHistoryRange.twoMonths;
+  bool _appliedThemeDefaults = false;
   late final Future<Map<String, dynamic>> _future = widget.repository.detail(
     widget.instrument.symbol,
   );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_appliedThemeDefaults) return;
+    final themeCtrl = AppThemeController.maybeOf(context);
+    if (themeCtrl == null) return;
+    _appliedThemeDefaults = true;
+    _historyRange = switch (themeCtrl.chartRange) {
+      '1D' => MarketHistoryRange.day,
+      '1W' => MarketHistoryRange.week,
+      '1M' => MarketHistoryRange.month,
+      '1Y' || 'ALL' => MarketHistoryRange.twoMonths,
+      _ => MarketHistoryRange.twoMonths,
+    };
+    _chartMode = switch (themeCtrl.preferredPriceChartType) {
+      UiPriceChartType.candles => 0,
+      UiPriceChartType.hollow => 1,
+      UiPriceChartType.line => 2,
+      UiPriceChartType.area => 3,
+    };
+  }
 
   void _readArticle(MarketArticle article, MarketSnapshot market) {
     Navigator.of(context).push(
@@ -527,9 +550,19 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                                 icon: Icons.candlestick_chart,
                               ),
                               UiOption(
-                                label: 'Line',
+                                label: 'Bars',
                                 value: 1,
+                                icon: Icons.candlestick_chart_outlined,
+                              ),
+                              UiOption(
+                                label: 'Line',
+                                value: 2,
                                 icon: Icons.show_chart,
+                              ),
+                              UiOption(
+                                label: 'Area',
+                                value: 3,
+                                icon: Icons.area_chart_rounded,
                               ),
                             ],
                           ),
@@ -547,13 +580,16 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                     message:
                         'Historical price data is not available for this instrument.',
                   )
-                else if (_chartMode == 0)
+                else if (_chartMode == 0 || _chartMode == 1)
                   Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: box.maxWidth < 600 ? context.sz(16) : 0,
                     ),
                     child: UiCandleChart(
                       candles: candles,
+                      type: _chartMode == 1
+                          ? UiPriceChartType.hollow
+                          : UiPriceChartType.candles,
                       height: box.maxWidth < 600 ? 240 : 360,
                     ),
                   )
@@ -561,6 +597,7 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                   UiAreaChart(
                     height: box.maxWidth < 600 ? 240 : 360,
                     showLegend: false,
+                    fillOpacity: _chartMode == 2 ? 0.0 : null,
                     data: [
                       for (final candle in candles)
                         UiChartPoint(
@@ -574,6 +611,7 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                         name: 'Close',
                         type: UiChartSeriesType.area,
                         color: plIntent.color(context),
+                        fillOpacity: _chartMode == 2 ? 0.0 : null,
                       ),
                     ],
                   ),

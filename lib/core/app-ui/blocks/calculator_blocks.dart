@@ -549,6 +549,49 @@ class _CalcHeader extends StatelessWidget {
     final theme = context.ui;
     final c = theme.colors;
     final UiIntent intent = meta.category.intent;
+    final double gapXs = context.sp(theme.spacing.xs);
+
+    final Widget identityRow = Row(
+      children: <Widget>[
+        if (onBack != null) ...<Widget>[
+          UiIconButton(
+            icon: Icons.arrow_back,
+            size: UiSize.sm,
+            tooltip: 'Back to calculators',
+            onPressed: onBack,
+          ),
+          SizedBox(width: gapXs),
+        ],
+        Icon(
+          meta.icon,
+          size: context.sz(theme.sizes.iconSm),
+          color: intent.color(context),
+        ),
+        SizedBox(width: context.sp(theme.spacing.sm)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                meta.name,
+                style: context.uiText.bodyStrong.copyWith(
+                  color: c.foreground,
+                  height: 1.15,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                meta.category.label.toUpperCase(),
+                style: uiOverline(context),
+                maxLines: 1,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -556,51 +599,51 @@ class _CalcHeader extends StatelessWidget {
         vertical: context.sp(theme.spacing.sm),
       ),
       color: backgroundColor ?? c.surfaceMuted,
-      child: Row(
-        children: <Widget>[
-          if (onBack != null) ...<Widget>[
-            UiIconButton(
-              icon: Icons.arrow_back,
-              size: UiSize.sm,
-              tooltip: 'Back to calculators',
-              onPressed: onBack,
+      child: actions.isEmpty
+          ? identityRow
+          : LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final double textScale = MediaQuery.textScalerOf(
+                  context,
+                ).scale(1).clamp(1.0, 2.0);
+                final bool stackActions =
+                    !constraints.hasBoundedWidth ||
+                    constraints.maxWidth < 460 * textScale;
+                final Widget actionWrap = Wrap(
+                  spacing: gapXs,
+                  runSpacing: gapXs,
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: actions,
+                );
+                if (stackActions) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      identityRow,
+                      SizedBox(height: gapXs),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: actionWrap,
+                      ),
+                    ],
+                  );
+                }
+                return Row(
+                  children: <Widget>[
+                    Expanded(child: identityRow),
+                    SizedBox(width: gapXs),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: constraints.maxWidth * 0.55,
+                      ),
+                      child: actionWrap,
+                    ),
+                  ],
+                );
+              },
             ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-          ],
-          Icon(
-            meta.icon,
-            size: context.sz(theme.sizes.iconSm),
-            color: intent.color(context),
-          ),
-          SizedBox(width: context.sp(theme.spacing.sm)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  meta.name,
-                  style: context.uiText.bodyStrong.copyWith(
-                    color: c.foreground,
-                    height: 1.15,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  meta.category.label.toUpperCase(),
-                  style: uiOverline(context),
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-          for (final Widget action in actions) ...<Widget>[
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            action,
-          ],
-        ],
-      ),
     );
   }
 }
@@ -761,15 +804,51 @@ class _InputRail extends StatelessWidget {
               context.sp(theme.spacing.sm),
               context.sp(theme.spacing.xs),
             ),
-            child: Row(
-              children: <Widget>[
-                Expanded(child: Text('Inputs', style: uiOverline(context))),
-                for (final Widget action in actions) ...<Widget>[
-                  SizedBox(width: context.sp(theme.spacing.xxs)),
-                  action,
-                ],
-              ],
-            ),
+            child: actions.isEmpty
+                ? Text('Inputs', style: uiOverline(context))
+                : LayoutBuilder(
+                    builder: (BuildContext context, BoxConstraints constraints) {
+                      final double gapXxs = context.sp(theme.spacing.xxs);
+                      final Widget label = Text(
+                        'Inputs',
+                        style: uiOverline(context),
+                      );
+                      final Widget actionWrap = Wrap(
+                        spacing: gapXxs,
+                        runSpacing: gapXxs,
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: actions,
+                      );
+                      if (!constraints.hasBoundedWidth ||
+                          constraints.maxWidth < 330) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            label,
+                            SizedBox(height: gapXxs),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: actionWrap,
+                            ),
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: <Widget>[
+                          Expanded(child: label),
+                          SizedBox(width: gapXxs),
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: constraints.maxWidth * 0.72,
+                            ),
+                            child: actionWrap,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
           ),
         for (int i = 0; i < groups.length; i++)
           _group(context, groups[i], first: i == 0 && !showHeader),

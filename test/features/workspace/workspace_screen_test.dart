@@ -18,23 +18,23 @@ void main() {
     });
 
     test('correctly identifies linked records', () {
-      expect(service.isLinked(AppLinkKind.strategy, 'strat-1'), isTrue);
-      expect(service.isLinked(AppLinkKind.note, 'note-1'), isTrue);
-      expect(service.isLinked(AppLinkKind.journal, 'trade-1'), isTrue);
+      expect(service.isLinked(AppLinkKind.strategy, 'stg_2'), isTrue);
+      expect(service.isLinked(AppLinkKind.note, 'note_001'), isTrue);
+      expect(service.isLinked(AppLinkKind.journal, 'trd_nifty50_0'), isTrue);
       expect(service.isLinked(AppLinkKind.note, 'non-existent-note'), isFalse);
     });
 
     test('can retrieve primary and all links for a record', () {
       final AppPostLinkInfo? primary =
-          service.getPrimaryLink(AppLinkKind.strategy, 'strat-1');
+          service.getPrimaryLink(AppLinkKind.strategy, 'stg_2');
       expect(primary, isNotNull);
-      expect(primary!.postId, equals('post-101'));
-      expect(primary.postTitle, contains('NVDA'));
+      expect(primary!.postId, equals('post_q1'));
+      expect(primary.postTitle, contains('Momentum Strategy Backtest'));
 
       final List<AppPostLinkInfo> all =
-          service.getLinksForRecord(AppLinkKind.strategy, 'strat-1');
+          service.getLinksForRecord(AppLinkKind.strategy, 'stg_2');
       expect(all, isNotEmpty);
-      expect(all.first.postId, equals('post-101'));
+      expect(all.first.postId, equals('post_q1'));
     });
 
     test('can dynamically link and unlink records', () {

@@ -30,7 +30,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 100));
       expect(tester.takeException(), isNull);
-      expect(find.text('AUDIO PREVIEW'), findsOneWidget);
+      expect(find.text('SIMULATED AUDIO (BETA)'), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }

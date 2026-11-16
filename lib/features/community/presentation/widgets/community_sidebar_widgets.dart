@@ -671,20 +671,51 @@ class _CommunityPushNotificationsCardState
     super.dispose();
   }
 
+  String _friendlyPushError(Object error) {
+    final raw = error.toString().replaceFirst('Bad state: ', '').trim();
+    final lower = raw.toLowerCase();
+    if (lower.contains('web push key') || lower.contains('vapid')) {
+      return 'Browser web push keys are not configured for this host yet. Category switches below still control in-app & email alerts.';
+    }
+    if (lower.contains('denied') || lower.contains('permission')) {
+      return 'Browser notification permission is blocked. Enable notifications in your browser site settings and retry.';
+    }
+    if (lower.contains('unsupported') || lower.contains('service worker')) {
+      return 'Push notifications require HTTPS and a browser with service-worker support.';
+    }
+    return raw.isEmpty ? 'Could not update browser push status.' : raw;
+  }
+
   Future<void> _enable() async {
     try {
       if (_push.status == 'subscribed') {
         await _push.disable();
+        if (mounted) {
+          UiToast.show(
+            context,
+            title: 'Push notifications disabled',
+            message: 'This browser will no longer receive push alerts.',
+            intent: UiIntent.info,
+          );
+        }
       } else {
         await _push.enable();
+        if (mounted) {
+          UiToast.show(
+            context,
+            title: 'Push notifications enabled',
+            message: 'Alerts are active on this device.',
+            intent: UiIntent.success,
+          );
+        }
       }
     } catch (error) {
       if (mounted) {
         UiToast.show(
           context,
           title: 'Notifications not enabled',
-          message: error.toString(),
-          intent: UiIntent.danger,
+          message: _friendlyPushError(error),
+          intent: UiIntent.warning,
         );
       }
     }

@@ -339,7 +339,7 @@ class CommunityTraderRow extends StatelessWidget {
                 ),
               ),
 
-              // Action button or Win Rate Badge
+              // Win Rate Badge and optional Follow action
               if (winRate != null) ...<Widget>[
                 UiBadge(
                   label: '${winRate!.toStringAsFixed(1)}% Win',
@@ -349,7 +349,8 @@ class CommunityTraderRow extends StatelessWidget {
                   variant: UiBadgeVariant.solid,
                   size: UiSize.sm,
                 ),
-              ] else if (onFollow != null) ...<Widget>[
+              ],
+              if (onFollow != null) ...<Widget>[
                 SizedBox(width: context.sp(theme.spacing.xs)),
                 UiIconButton(
                   icon: trader.isFollowing

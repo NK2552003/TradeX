@@ -9,6 +9,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
+import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
 
 /// One chat bubble.
 ///
@@ -798,14 +799,27 @@ class MessageBubble extends StatelessWidget {
           ),
           if (message.fromMe) ...<Widget>[
             SizedBox(width: context.sp(theme.spacing.xxs)),
-            Icon(
-              message.status.icon,
-              size: context.sz(13),
-              color: message.status == MessageStatus.read
-                  ? colors.primary
-                  : message.status == MessageStatus.failed
-                  ? colors.destructive
-                  : colors.foregroundSubtle,
+            Builder(
+              builder: (context) {
+                final showReceipts =
+                    PrivacyRepositoryImpl
+                        .instance
+                        .cachedSettings
+                        .showReadReceipts;
+                final effectiveStatus =
+                    !showReceipts && message.status == MessageStatus.read
+                    ? MessageStatus.delivered
+                    : message.status;
+                return Icon(
+                  effectiveStatus.icon,
+                  size: context.sz(13),
+                  color: effectiveStatus == MessageStatus.read
+                      ? colors.primary
+                      : effectiveStatus == MessageStatus.failed
+                      ? colors.destructive
+                      : colors.foregroundSubtle,
+                );
+              },
             ),
           ],
         ],

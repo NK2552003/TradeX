@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -82,6 +83,7 @@ class ConsentController extends ChangeNotifier {
   final void Function(String key) _removeShared;
   ConsentPreferences _value = const ConsentPreferences();
   Future<void>? _initializing;
+  Zone? _initializingZone;
   int _revision = 0;
   bool _refreshAfterSave = false;
   bool loaded = false;
@@ -92,7 +94,14 @@ class ConsentController extends ChangeNotifier {
       _value.isCurrent(DateTime.now()) ? _value : const ConsentPreferences();
   bool get needsChoice => !value.isCurrent(DateTime.now());
 
-  Future<void> initialize() => _initializing ??= _load();
+  Future<void> initialize() {
+    final Zone currentZone = Zone.current;
+    if (_initializing != null && identical(_initializingZone, currentZone)) {
+      return _initializing!;
+    }
+    _initializingZone = currentZone;
+    return _initializing = _load();
+  }
 
   Future<void> refresh() async {
     if (saving) {

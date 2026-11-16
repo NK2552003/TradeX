@@ -13,6 +13,8 @@ import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:tradex/features/settings/data/device_info_helper.dart';
+import 'package:tradex/features/settings/models/active_session_model.dart';
 import 'package:tradex/features/settings/models/connected_account_model.dart';
 
 @immutable
@@ -191,6 +193,7 @@ abstract class ProfileSettingsRepository {
     required String currentPassword,
     required String newPassword,
   });
+  Future<bool> hasEmailIdentity();
   Future<List<ConnectedAccount>> getConnectedAccounts();
   Future<void> unlinkConnectedAccount(String provider);
   Future<void> linkConnectedAccount(String provider);
@@ -211,6 +214,14 @@ abstract class ProfileSettingsRepository {
     required String action,
     String? adminNotes,
   });
+  Future<ActiveDeviceSession?> registerCurrentDeviceSession();
+  Future<List<ActiveDeviceSession>> getActiveSessions();
+  Future<bool> revokeSession(String sessionId);
+  Future<int> revokeOtherSessions();
+  Future<SecurityPreferencesModel> getSecurityPreferences();
+  Future<SecurityPreferencesModel> updateSecurityPreferences(
+    SecurityPreferencesModel prefs,
+  );
 }
 
 class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
@@ -460,6 +471,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
           'primary_market': _profile.primaryMarket,
           'top_strategy': _profile.topStrategy,
           'risk_mantra': _profile.riskMantra,
+          'public_stats': _profile.publicStats,
           'public_journals': _profile.publicJournals,
           'notification_settings': notifSettings,
           'updated_at': DateTime.now().toIso8601String(),
@@ -650,6 +662,27 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     _profile = _profile.copyWith(avatarUrl: '');
   }
 
+  final List<ConnectedAccount> _demoConnectedAccounts = <ConnectedAccount>[];
+
+  @override
+  Future<bool> hasEmailIdentity() async {
+    final client = SupabaseConfig.client;
+    if (!SupabaseConfig.isConfigured || client?.auth.currentUser == null) {
+      return true;
+    }
+    try {
+      final identities = await client!.auth.getUserIdentities();
+      if (identities.isNotEmpty) {
+        return identities.any((i) => i.provider == 'email');
+      }
+    } catch (_) {}
+    final cached = client!.auth.currentUser?.identities;
+    if (cached != null && cached.isNotEmpty) {
+      return cached.any((i) => i.provider == 'email');
+    }
+    return false;
+  }
+
   @override
   Future<void> requestEmailChange({
     required String newEmail,
@@ -658,7 +691,8 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     if (newEmail.isEmpty || !newEmail.contains('@')) {
       throw Exception('Please provide a valid email address.');
     }
-    if (currentPassword.isEmpty) {
+    final hasEmail = await hasEmailIdentity();
+    if (hasEmail && currentPassword.isEmpty) {
       throw Exception('Current password is required.');
     }
 
@@ -669,10 +703,12 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
         if (email == null) {
           throw StateError('Sign in before changing your email.');
         }
-        await client.auth.signInWithPassword(
-          email: email,
-          password: currentPassword,
-        );
+        if (hasEmail) {
+          await client.auth.signInWithPassword(
+            email: email,
+            password: currentPassword,
+          );
+        }
         await client.auth.updateUser(UserAttributes(email: newEmail));
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] requestEmailChange error: $e');
@@ -692,7 +728,8 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     if (newPassword.length < 8) {
       throw Exception('New password must be at least 8 characters long.');
     }
-    if (currentPassword.isEmpty) {
+    final hasEmail = await hasEmailIdentity();
+    if (hasEmail && currentPassword.isEmpty) {
       throw Exception('Current password cannot be empty.');
     }
 
@@ -703,13 +740,16 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
         if (email == null) {
           throw StateError('Sign in before changing your password.');
         }
-        await client.auth.signInWithPassword(
-          email: email,
-          password: currentPassword,
-        );
+        if (hasEmail) {
+          await client.auth.signInWithPassword(
+            email: email,
+            password: currentPassword,
+          );
+        }
         await client.auth.updateUser(UserAttributes(password: newPassword));
         try {
-          if (!PrivateMessageService.instance.isLocallyUnlockedFast) {
+          if (!PrivateMessageService.instance.isLocallyUnlockedFast &&
+              currentPassword.isNotEmpty) {
             await PrivateMessageService.instance.trySilentUnlockWithPassword(
               currentPassword,
             );
@@ -730,13 +770,31 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     }
   }
 
+  String _connectedRedirectUri() {
+    if (kIsWeb) {
+      return '${Uri.base.origin}/settings_security';
+    }
+    return 'tradex://auth/callback';
+  }
+
   @override
   Future<List<ConnectedAccount>> getConnectedAccounts() async {
     final client = SupabaseConfig.client;
-    if (!SupabaseConfig.isConfigured || client?.auth.currentUser == null) {
+    if (!SupabaseConfig.isConfigured) {
+      return List<ConnectedAccount>.unmodifiable(_demoConnectedAccounts);
+    }
+    if (client?.auth.currentUser == null) {
       return [];
     }
-    final identities = await client!.auth.getUserIdentities();
+    List<UserIdentity> identities;
+    try {
+      identities = await client!.auth.getUserIdentities();
+    } catch (_) {
+      identities = client!.auth.currentUser?.identities ?? const [];
+    }
+    if (identities.isEmpty) {
+      identities = client.auth.currentUser?.identities ?? const [];
+    }
     return [
       for (final identity in identities.where(
         (i) => i.provider == 'google' || i.provider == 'apple',
@@ -745,7 +803,10 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
           provider: identity.provider,
           linkedAt:
               DateTime.tryParse(identity.createdAt ?? '') ?? DateTime.now(),
-          email: identity.identityData?['email'] as String?,
+          email:
+              identity.identityData?['email'] as String? ??
+              identity.identityData?['name'] as String? ??
+              identity.identityData?['full_name'] as String?,
         ),
     ];
   }
@@ -753,7 +814,11 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
   @override
   Future<void> unlinkConnectedAccount(String provider) async {
     final client = SupabaseConfig.client;
-    if (!SupabaseConfig.isConfigured || client?.auth.currentUser == null) {
+    if (!SupabaseConfig.isConfigured) {
+      _demoConnectedAccounts.removeWhere((a) => a.provider == provider);
+      return;
+    }
+    if (client?.auth.currentUser == null) {
       throw StateError('Sign in to manage connected accounts.');
     }
     final identities = await client!.auth.getUserIdentities();
@@ -763,25 +828,66 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     if (identity == null) {
       throw StateError('This identity is no longer connected.');
     }
-    await client.auth.unlinkIdentity(identity);
+    if (identities.length <= 1) {
+      throw StateError(
+        'Set a password or connect another login provider before unlinking your only sign-in method.',
+      );
+    }
+    try {
+      await client.auth.unlinkIdentity(identity);
+    } on AuthException catch (e) {
+      throw StateError(e.message);
+    }
   }
 
   @override
   Future<void> linkConnectedAccount(String provider) async {
     final client = SupabaseConfig.client;
-    if (!SupabaseConfig.isConfigured || client?.auth.currentUser == null) {
-      throw StateError('Sign in to manage connected accounts.');
-    }
     final oauth = switch (provider) {
       'google' => OAuthProvider.google,
       'apple' => OAuthProvider.apple,
       _ => throw ArgumentError('Unsupported identity provider'),
     };
-    if (!await client!.auth.linkIdentity(
-      oauth,
-      redirectTo: kIsWeb ? null : 'tradex://auth/callback',
-    )) {
-      throw StateError('Could not open the identity provider. Please retry.');
+    if (!SupabaseConfig.isConfigured) {
+      if (_demoConnectedAccounts.every((a) => a.provider != provider)) {
+        _demoConnectedAccounts.add(
+          ConnectedAccount(
+            provider: provider,
+            linkedAt: DateTime.now(),
+            email: _profile.email.isNotEmpty ? _profile.email : null,
+          ),
+        );
+      }
+      return;
+    }
+    if (client?.auth.currentUser == null) {
+      throw StateError('Sign in to manage connected accounts.');
+    }
+    try {
+      final launched = await client!.auth.linkIdentity(
+        oauth,
+        redirectTo: _connectedRedirectUri(),
+      );
+      if (!launched) {
+        throw StateError('Could not open the identity provider. Please retry.');
+      }
+    } on AuthException catch (e) {
+      final msg = e.message.toLowerCase();
+      final label = provider == 'google' ? 'Google' : 'Apple';
+      if (msg.contains('already') || msg.contains('exists')) {
+        throw StateError(
+          'This $label account is already linked to another TraderHub profile.',
+        );
+      }
+      if (msg.contains('manual linking')) {
+        throw StateError(
+          'Account linking is not enabled on the authentication server (Manual Linking disabled).',
+        );
+      }
+      if (msg.contains('not enabled') || msg.contains('unsupported provider')) {
+        throw StateError('$label OAuth is not enabled on this project.');
+      }
+      throw StateError(e.message);
     }
   }
 
@@ -1050,5 +1156,375 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
         createdAt: now.subtract(const Duration(days: 2)),
       ),
     ];
+  }
+
+  static const String _deviceSessionIdKey = 'tradex_current_device_session_id_v1';
+  static const String _demoSessionsKey = 'tradex_demo_device_sessions_v1';
+  static const String _securityPrefsKey = 'tradex_security_prefs_v1';
+
+  Future<String> _resolveCurrentSessionId() async {
+    final token = SupabaseConfig.client?.auth.currentSession?.accessToken;
+    final jwtSid = ActiveDeviceSession.decodeJwtSessionId(token);
+    if (jwtSid != null && jwtSid.isNotEmpty) {
+      return jwtSid;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final existing = prefs.getString(_deviceSessionIdKey);
+      if (existing != null && existing.trim().isNotEmpty) {
+        return existing.trim();
+      }
+      final generated =
+          'local-${defaultTargetPlatform.name.toLowerCase()}-${DateTime.now().millisecondsSinceEpoch}';
+      await prefs.setString(_deviceSessionIdKey, generated);
+      return generated;
+    } catch (_) {
+      return 'local-${defaultTargetPlatform.name.toLowerCase()}';
+    }
+  }
+
+  ActiveDeviceSession _buildCurrentDeviceSession(
+    String sessionId, {
+    DateTime? createdAt,
+    DateTime? lastActiveAt,
+  }) {
+    final now = DateTime.now();
+    final meta = DeviceInfoHelper.currentDeviceMetadata();
+    return ActiveDeviceSession(
+      sessionId: sessionId,
+      deviceName: meta.deviceName,
+      platform: meta.platform,
+      browserOrApp: meta.browserOrApp,
+      osName: meta.osName,
+      userAgent: meta.userAgent,
+      createdAt: createdAt ?? now,
+      lastActiveAt: lastActiveAt ?? now,
+      isCurrent: true,
+    );
+  }
+
+  Future<List<ActiveDeviceSession>> _loadLocalDemoSessions(
+    String currentSid,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_demoSessionsKey);
+      if (raw != null && raw.trim().isNotEmpty) {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          final parsed = decoded
+              .whereType<Map>()
+              .map(
+                (e) => ActiveDeviceSession.fromJson(
+                  Map<String, dynamic>.from(e),
+                  currentSessionId: currentSid,
+                ),
+              )
+              .toList();
+          if (parsed.isNotEmpty) {
+            if (!parsed.any((s) => s.sessionId == currentSid)) {
+              parsed.insert(0, _buildCurrentDeviceSession(currentSid));
+            }
+            return _sortSessions(parsed);
+          }
+        }
+      }
+    } catch (_) {}
+    final seeded = <ActiveDeviceSession>[_buildCurrentDeviceSession(currentSid)];
+    await _saveLocalDemoSessions(seeded);
+    return seeded;
+  }
+
+  Future<void> _saveLocalDemoSessions(List<ActiveDeviceSession> list) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _demoSessionsKey,
+        jsonEncode(list.map((e) => e.toJson()).toList()),
+      );
+    } catch (_) {}
+  }
+
+  List<ActiveDeviceSession> _sortSessions(List<ActiveDeviceSession> items) {
+    final sorted = List<ActiveDeviceSession>.from(items)
+      ..sort((a, b) {
+        if (a.isCurrent != b.isCurrent) return a.isCurrent ? -1 : 1;
+        return b.lastActiveAt.compareTo(a.lastActiveAt);
+      });
+    return sorted;
+  }
+
+  @override
+  Future<ActiveDeviceSession?> registerCurrentDeviceSession() async {
+    final currentSid = await _resolveCurrentSessionId();
+    final current = _buildCurrentDeviceSession(currentSid);
+    final client = SupabaseConfig.client;
+    final user = client?.auth.currentUser;
+
+    if (!SupabaseConfig.isConfigured || client == null || user == null) {
+      final existing = await _loadLocalDemoSessions(currentSid);
+      final idx = existing.indexWhere((s) => s.sessionId == currentSid);
+      if (idx >= 0) {
+        existing[idx] = current.copyWith(createdAt: existing[idx].createdAt);
+      } else {
+        existing.insert(0, current);
+      }
+      await _saveLocalDemoSessions(existing);
+      return current;
+    }
+
+    try {
+      final row = await client.rpc(
+        'register_my_device_session',
+        params: {
+          'p_session_id': currentSid,
+          'p_device_name': current.deviceName,
+          'p_platform': current.platform,
+          'p_browser_or_app': current.browserOrApp,
+          'p_os_name': current.osName,
+          'p_user_agent': current.userAgent,
+          'p_location_hint': current.locationHint,
+        },
+      );
+      if (row is Map) {
+        return ActiveDeviceSession.fromJson(
+          Map<String, dynamic>.from(row),
+          currentSessionId: currentSid,
+        );
+      }
+    } catch (e) {
+      debugPrint(
+        '[ProfileSettingsRepository] register_my_device_session fallback: $e',
+      );
+      try {
+        await client.from('user_device_sessions').upsert({
+          'user_id': user.id,
+          'session_id': currentSid,
+          'device_name': current.deviceName,
+          'platform': current.platform,
+          'browser_or_app': current.browserOrApp,
+          'os_name': current.osName,
+          'user_agent': current.userAgent,
+          'is_revoked': false,
+          'revoked_at': null,
+          'last_active_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      } catch (_) {}
+    }
+    return current;
+  }
+
+  @override
+  Future<List<ActiveDeviceSession>> getActiveSessions() async {
+    final currentSid = await _resolveCurrentSessionId();
+    final client = SupabaseConfig.client;
+    final user = client?.auth.currentUser;
+
+    if (!SupabaseConfig.isConfigured || client == null || user == null) {
+      return _loadLocalDemoSessions(currentSid);
+    }
+
+    await registerCurrentDeviceSession();
+
+    List<ActiveDeviceSession> sessions = <ActiveDeviceSession>[];
+    try {
+      final res = await client.rpc('list_my_active_sessions');
+      if (res is List) {
+        sessions = res
+            .whereType<Map>()
+            .map(
+              (item) => ActiveDeviceSession.fromJson(
+                Map<String, dynamic>.from(item),
+                currentSessionId: currentSid,
+              ),
+            )
+            .toList();
+      }
+    } catch (e) {
+      debugPrint(
+        '[ProfileSettingsRepository] list_my_active_sessions fallback: $e',
+      );
+      try {
+        final rows = await client
+            .from('user_device_sessions')
+            .select()
+            .eq('user_id', user.id)
+            .eq('is_revoked', false)
+            .order('last_active_at', ascending: false);
+        sessions = (rows as List)
+            .whereType<Map>()
+            .map(
+              (item) => ActiveDeviceSession.fromJson(
+                Map<String, dynamic>.from(item),
+                currentSessionId: currentSid,
+              ),
+            )
+            .toList();
+      } catch (_) {}
+    }
+
+    if (sessions.isEmpty || !sessions.any((s) => s.isCurrent)) {
+      final hasMatch = sessions.indexWhere((s) => s.sessionId == currentSid);
+      if (hasMatch >= 0) {
+        sessions[hasMatch] = sessions[hasMatch].copyWith(isCurrent: true);
+      } else {
+        sessions.insert(0, _buildCurrentDeviceSession(currentSid));
+      }
+    }
+
+    return _sortSessions(sessions);
+  }
+
+  @override
+  Future<bool> revokeSession(String sessionId) async {
+    final sid = sessionId.trim();
+    if (sid.isEmpty) return false;
+
+    final currentSid = await _resolveCurrentSessionId();
+    final bool isCurrent = sid == currentSid;
+    final client = SupabaseConfig.client;
+    final user = client?.auth.currentUser;
+
+    if (!SupabaseConfig.isConfigured || client == null || user == null) {
+      final list = await _loadLocalDemoSessions(currentSid);
+      list.removeWhere((s) => s.sessionId == sid);
+      await _saveLocalDemoSessions(list);
+      return isCurrent;
+    }
+
+    try {
+      await client.rpc('revoke_my_session', params: {'p_session_id': sid});
+    } catch (e) {
+      debugPrint('[ProfileSettingsRepository] revoke_my_session fallback: $e');
+      try {
+        await client
+            .from('user_device_sessions')
+            .update({
+              'is_revoked': true,
+              'revoked_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('user_id', user.id)
+            .eq('session_id', sid);
+      } catch (_) {}
+    }
+
+    if (isCurrent) {
+      try {
+        await client.auth.signOut(scope: SignOutScope.local);
+      } catch (_) {}
+    }
+
+    return isCurrent;
+  }
+
+  @override
+  Future<int> revokeOtherSessions() async {
+    final currentSid = await _resolveCurrentSessionId();
+    final client = SupabaseConfig.client;
+    final user = client?.auth.currentUser;
+
+    if (!SupabaseConfig.isConfigured || client == null || user == null) {
+      final list = await _loadLocalDemoSessions(currentSid);
+      final int removed = list.where((s) => s.sessionId != currentSid).length;
+      list.removeWhere((s) => s.sessionId != currentSid);
+      await _saveLocalDemoSessions(list);
+      return removed;
+    }
+
+    int count = 0;
+    try {
+      await client.auth.signOut(scope: SignOutScope.others);
+    } catch (e) {
+      debugPrint('[ProfileSettingsRepository] signOut(others) warning: $e');
+    }
+
+    try {
+      final res = await client.rpc(
+        'revoke_other_my_sessions',
+        params: {'p_keep_session_id': currentSid},
+      );
+      if (res is Map && res['auth_sessions_deleted'] is num) {
+        count = (res['auth_sessions_deleted'] as num).toInt();
+      }
+    } catch (e) {
+      debugPrint(
+        '[ProfileSettingsRepository] revoke_other_my_sessions fallback: $e',
+      );
+      try {
+        await client
+            .from('user_device_sessions')
+            .update({
+              'is_revoked': true,
+              'revoked_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('user_id', user.id)
+            .neq('session_id', currentSid);
+      } catch (_) {}
+    }
+    return count;
+  }
+
+  @override
+  Future<SecurityPreferencesModel> getSecurityPreferences() async {
+    SecurityPreferencesModel prefsModel = const SecurityPreferencesModel();
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final raw = sp.getString(_securityPrefsKey);
+      if (raw != null && raw.trim().isNotEmpty) {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          prefsModel = SecurityPreferencesModel.fromJson(
+            Map<String, dynamic>.from(decoded),
+          );
+        }
+      }
+    } catch (_) {}
+
+    final client = SupabaseConfig.client;
+    final uid = client?.auth.currentUser?.id;
+    if (SupabaseConfig.isConfigured && client != null && uid != null) {
+      try {
+        final row = await client
+            .from('user_app_preferences')
+            .select('security_settings')
+            .eq('user_id', uid)
+            .maybeSingle();
+        final sec = row?['security_settings'];
+        if (sec is Map && sec.isNotEmpty) {
+          prefsModel = SecurityPreferencesModel.fromJson(
+            Map<String, dynamic>.from(sec),
+          );
+          final sp = await SharedPreferences.getInstance();
+          await sp.setString(
+            _securityPrefsKey,
+            jsonEncode(prefsModel.toJson()),
+          );
+        }
+      } catch (_) {}
+    }
+    return prefsModel;
+  }
+
+  @override
+  Future<SecurityPreferencesModel> updateSecurityPreferences(
+    SecurityPreferencesModel prefs,
+  ) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(_securityPrefsKey, jsonEncode(prefs.toJson()));
+    } catch (_) {}
+
+    final client = SupabaseConfig.client;
+    final uid = client?.auth.currentUser?.id;
+    if (SupabaseConfig.isConfigured && client != null && uid != null) {
+      try {
+        await client.from('user_app_preferences').upsert({
+          'user_id': uid,
+          'security_settings': prefs.toJson(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      } catch (_) {}
+    }
+    return prefs;
   }
 }

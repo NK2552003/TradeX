@@ -19,6 +19,7 @@ import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:tradex/features/linking/link_graph_service.dart';
 import 'package:tradex/features/messages/data/messages_seed_data.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
+import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
 
 /// Reactive store for the Messages feature.
 ///
@@ -52,6 +53,10 @@ class MessagesRepository extends ChangeNotifier {
     }
     _unlockListener = _onEncryptionUnlockChanged;
     PrivateMessageService.instance.unlockRevision.addListener(_unlockListener!);
+    _privacyListener = _onPrivacySettingsChanged;
+    PrivacyRepositoryImpl.instance.settingsNotifier.addListener(
+      _privacyListener!,
+    );
   }
 
   void _resetOnAccountSwitch() {
@@ -162,6 +167,11 @@ class MessagesRepository extends ChangeNotifier {
   int _realtimeRetryAttempt = 0;
   StreamSubscription<AuthState>? _authSubscription;
   VoidCallback? _unlockListener;
+  VoidCallback? _privacyListener;
+
+  void _onPrivacySettingsChanged() {
+    notifyListeners();
+  }
 
   Future<String> Function(
     String ciphertext,
@@ -1218,19 +1228,53 @@ class MessagesRepository extends ChangeNotifier {
     return live;
   }
 
+  static bool isLikelySpamRequest(MessageThread thread) {
+    final hay =
+        '${thread.lastMessagePreview} ${thread.peer.displayName ?? ''} ${thread.peer.bio ?? ''}'
+            .toLowerCase();
+    const spamSignals = <String>[
+      '1000%',
+      'guaranteed profit',
+      'guaranteed return',
+      't.me/',
+      'telegram',
+      'whatsapp',
+      'free signal',
+      'pump signal',
+      'airdrop',
+      'send usdt',
+      'dm for vip',
+      'double your',
+    ];
+    return spamSignals.any(hay.contains);
+  }
+
+  Iterable<MessageThread> get _visibleRequests {
+    final privacy = PrivacyRepositoryImpl.instance.cachedSettings;
+    return _requests.where((MessageThread t) {
+      if (privacy.filterSpamRequests && isLikelySpamRequest(t)) {
+        return false;
+      }
+      return true;
+    });
+  }
+
   List<MessageThread> get archivedThreads =>
       _threads.where((MessageThread t) => t.archived).toList()
         ..sort(_byPinnedThenRecency);
 
   List<MessageThread> get requests =>
-      List<MessageThread>.unmodifiable(_requests);
+      List<MessageThread>.unmodifiable(_visibleRequests.toList());
 
   /// Total unread across active threads + pending requests, for the nav badge.
   int get unreadCount =>
       threads.fold<int>(0, (int sum, MessageThread t) => sum + t.unread) +
-      _requests.fold<int>(0, (int sum, MessageThread t) => sum + t.unread);
+      _visibleRequests.fold<int>(
+        0,
+        (int sum, MessageThread t) => sum + t.unread,
+      );
 
-  int get requestCount => _requests.length;
+  int get requestCount => _visibleRequests.length;
 
   bool isTyping(String threadId) => _typing.contains(threadId);
 
@@ -1289,7 +1333,7 @@ class MessagesRepository extends ChangeNotifier {
   /// Applies the inbox [filter] then a free-text [query] over title + preview.
   List<MessageThread> filtered(ThreadFilter filter, String query) {
     Iterable<MessageThread> base = switch (filter) {
-      ThreadFilter.requests => _requests,
+      ThreadFilter.requests => _visibleRequests,
       _ => threads,
     };
     base = switch (filter) {
@@ -1698,6 +1742,25 @@ class MessagesRepository extends ChangeNotifier {
     if (idx == -1 || _threads[idx].unread == 0) return;
     _threads[idx] = _threads[idx].copyWith(unread: 0);
     notifyListeners();
+    if (!PrivacyRepositoryImpl.instance.cachedSettings.showReadReceipts) {
+      return;
+    }
+    final client = SupabaseConfig.client;
+    final currentUserId = _resolveUserId();
+    if (SupabaseConfig.isConfigured &&
+        client != null &&
+        currentUserId.isNotEmpty &&
+        _isUuid(threadId) &&
+        _isUuid(currentUserId)) {
+      unawaited(
+        client
+            .from('chat_members')
+            .update({'last_read_at': DateTime.now().toUtc().toIso8601String()})
+            .eq('thread_id', threadId)
+            .eq('user_id', currentUserId)
+            .then<void>((_) {}, onError: (Object _) {}),
+      );
+    }
   }
 
   /// Uploads a chat attachment to the private `chat-attachments` bucket under
@@ -2516,7 +2579,9 @@ class MessagesRepository extends ChangeNotifier {
 
       var builder = client
           .from('profiles')
-          .select('id, handle, display_name, avatar_url, bio, role, email');
+          .select(
+            'id, handle, display_name, avatar_url, bio, role, email, notification_settings',
+          );
 
       if (cleanQuery.isNotEmpty) {
         if (_uuidRegex.hasMatch(cleanQuery)) {
@@ -2542,6 +2607,20 @@ class MessagesRepository extends ChangeNotifier {
             ? rawHandle.substring(1)
             : rawHandle;
         final displayName = row['display_name'] as String? ?? handle;
+        final notif = row['notification_settings'];
+        if (notif is Map) {
+          final msgPriv = notif['message_privacy'];
+          if (msgPriv is Map) {
+            final permission = msgPriv['message_permission'] as String?;
+            final allowReqs = msgPriv['allow_message_requests'] as bool?;
+            if (permission == 'invited' || allowReqs == false) {
+              if (id.isNotEmpty) _restrictedTraders.add(id.toLowerCase());
+              if (handle.isNotEmpty) {
+                _restrictedTraders.add(handle.toLowerCase());
+              }
+            }
+          }
+        }
         traders.add(
           AppTrader(
             id: id,
@@ -2675,6 +2754,12 @@ class MessagesRepository extends ChangeNotifier {
         _unlockListener!,
       );
       _unlockListener = null;
+    }
+    if (_privacyListener != null) {
+      PrivacyRepositoryImpl.instance.settingsNotifier.removeListener(
+        _privacyListener!,
+      );
+      _privacyListener = null;
     }
     _realtimeRetryTimer?.cancel();
     _realtimeRetryTimer = null;

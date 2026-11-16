@@ -168,18 +168,29 @@ class _NotificationsList extends StatelessWidget {
           padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
           child: CommunityNotificationCard(
             notification: item,
-            onTap: () {
-              if (item.postSnippet != null && repository.feedPosts.isNotEmpty) {
-                final post = repository.feedPosts.firstWhere(
-                  (p) => p.author.handle == (item.actor?.handle ?? ''),
-                  orElse: () => repository.feedPosts.first,
-                );
+            onTap: () async {
+              await repository.markNotificationRead(item.id);
+              CommunityPost? post;
+              if (item.postId != null && item.postId!.isNotEmpty) {
+                post =
+                    repository.loadPostById(item.postId!) ??
+                    await repository.fetchPostById(item.postId!);
+              } else if (item.postSnippet != null && item.actor != null) {
+                post = repository.feedPosts
+                    .where((p) => p.author.handle == item.actor!.handle)
+                    .firstOrNull;
+              }
+              if (!context.mounted) return;
+              if (post != null) {
+                final targetPost = post;
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => CommunityPostDetailView(
-                      post: post,
+                      post: targetPost,
                       repository: repository,
                       currentUser: repository.currentAuthor,
+                      forceSingleColumn: true,
+                      onAuthorTap: onAuthorTap,
                     ),
                   ),
                 );

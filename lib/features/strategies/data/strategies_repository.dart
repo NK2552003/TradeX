@@ -669,7 +669,10 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     AppStrategy saved = draft;
     final resolvedUid = _resolveUserId();
     final targetUserId = (SupabaseConfig.isConfigured || draft.userId.isEmpty) ? resolvedUid : draft.userId;
-    final String assignedId = _isUuid(draft.id) ? draft.id : const Uuid().v4();
+    final String assignedId =
+        draft.id.isEmpty || (SupabaseConfig.isConfigured && !_isUuid(draft.id))
+        ? const Uuid().v4()
+        : draft.id;
 
     if (SupabaseConfig.isConfigured) {
       try {

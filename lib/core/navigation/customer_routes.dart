@@ -101,6 +101,8 @@ class CustomerRoute {
     if (normalized == 'settings' ||
         normalized == 'settings_profile' ||
         normalized == 'settings_security' ||
+        normalized == 'settings_trading' ||
+        normalized == 'settings_ai' ||
         normalized == 'settings_notifications' ||
         normalized == 'settings_privacy' ||
         normalized == 'settings_appearance' ||

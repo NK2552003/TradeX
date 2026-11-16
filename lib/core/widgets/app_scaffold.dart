@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:tradex/features/market_data/presentation/market_root_screen.dart'
     deferred as deferred_market_root;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:tradex/core/ads/ad_config.dart';
+import 'package:tradex/core/ads/ad_scope.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
@@ -54,6 +57,9 @@ import 'package:tradex/features/journal/ui/journal_screen.dart';
 import 'package:tradex/features/notes/ui/notes_screen.dart';
 import 'package:tradex/features/workspace/ui/workspace_screen.dart';
 
+import 'package:tradex/features/settings/data/repositories/ai_settings_repository.dart';
+import 'package:tradex/features/settings/data/repositories/notification_prefs_repository.dart';
+import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
 import 'package:tradex/features/strategies/ui/strategies_screen.dart';
@@ -279,6 +285,18 @@ class _AppScaffoldState extends State<AppScaffold> {
     _loadIdentity();
     _loadUnread();
     _loadAffiliateApplicationStatus();
+    NotificationPrefsRepositoryImpl.instance.getPreferences().catchError(
+      (Object _) => NotificationPrefsRepositoryImpl.instance.cachedPreferences,
+    );
+    PrivacyRepositoryImpl.instance.getPrivacySettings().catchError(
+      (Object _) => PrivacyRepositoryImpl.instance.cachedSettings,
+    );
+    ProfileSettingsRepositoryImpl.instance
+        .registerCurrentDeviceSession()
+        .catchError((Object _) => null);
+    AiSettingsRepositoryImpl.instance
+        .getSettings(copilotController: _aiRepo)
+        .catchError((Object _) => AiSettingsRepositoryImpl.instance.cachedSettings);
   }
 
   void _onCommunityRepoChanged() {
@@ -294,11 +312,17 @@ class _AppScaffoldState extends State<AppScaffold> {
       currentUser: _chromeIdentity,
       onOpenRef: _openLinkRef,
       onOpenAuthor: _openAuthorProfile,
+      onOpenSecuritySettings: () => _go('settings_security'),
     );
   }
 
   void _handleLiveNotification(CommunityNotificationItem item) {
     if (!mounted) return;
+    if (!NotificationPrefsRepositoryImpl.instance.shouldSurfaceInApp(
+      item.type,
+    )) {
+      return;
+    }
     UiToast.show(
       context,
       title: item.title ?? item.label,
@@ -1262,6 +1286,9 @@ class _AppScaffoldState extends State<AppScaffold> {
         : _selectedId.replaceFirst('settings_', '');
     return SettingsRootPage(
       communityRepository: _communityRepo,
+      copilotController: _aiRepo,
+      onOpenCopilot: () => _go('ai_copilot'),
+      onOpenUpgrade: () => _go('settings_billing'),
       key: ValueKey<String>('settings_${_effectiveRole.id}_$sectionId'),
       userRole: _effectiveRole,
       initialSectionId: sectionId,
@@ -1402,6 +1429,7 @@ class _AppScaffoldState extends State<AppScaffold> {
         currentUser: _chromeIdentity,
         onSubpageChanged: _onSubpageChanged,
         onOpenRef: _openLinkRef,
+        onOpenSettings: () => _go('settings_ai'),
         repository: _aiRepo,
         initialPrompt: _aiInitialPrompt,
         searchQuery: _aiQuery,
@@ -2037,6 +2065,19 @@ class _AppScaffoldState extends State<AppScaffold> {
     final bool showMultiRoleFooter =
         _session.profileMode.value.allowedRoles.length > 1 ||
         widget.showDevelopmentRoleSwitcher;
+    final bool publicSurface =
+        !_showAffiliateApplication &&
+        AdEligibility.publicDestination(
+          _selectedId,
+          publicRecord:
+              _selectedId == 'notes' &&
+              (_linkRequest?.publicContext ?? false),
+        );
+    final bool adsEligible =
+        !widget.showDevelopmentRoleSwitcher &&
+        publicSurface &&
+        AdEligibility.freeAccount(_liveAccess, tier, widget.userId);
+    final bool adsPreviewEligible = publicSurface && tier == AppTier.free;
     final Widget scaffoldContent = Column(
       children: <Widget>[
         if (widget.showDevelopmentRoleSwitcher) _buildSessionBanner(),
@@ -2142,22 +2183,26 @@ class _AppScaffoldState extends State<AppScaffold> {
     // thread, community post detail, AI history panel, etc.) declares a back
     // handler via onSubpageChanged, the system back gesture should invoke that
     // handler instead of popping the root route and closing the application.
-    return PopScope(
-      canPop:
-          _activeSubpageOnBack == null &&
-          !_showAffiliateApplication &&
-          _destinationHistory.isEmpty,
-      onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (didPop) return;
-        if (_showAffiliateApplication) {
-          setState(() => _showAffiliateApplication = false);
-        } else if (_activeSubpageOnBack != null) {
-          _activeSubpageOnBack?.call();
-        } else {
-          _goBack();
-        }
-      },
-      child: scaffoldContent,
+    return AdSenseScope(
+      eligible: adsEligible,
+      previewEligible: adsPreviewEligible,
+      child: PopScope(
+        canPop:
+            _activeSubpageOnBack == null &&
+            !_showAffiliateApplication &&
+            _destinationHistory.isEmpty,
+        onPopInvokedWithResult: (bool didPop, Object? result) {
+          if (didPop) return;
+          if (_showAffiliateApplication) {
+            setState(() => _showAffiliateApplication = false);
+          } else if (_activeSubpageOnBack != null) {
+            _activeSubpageOnBack?.call();
+          } else {
+            _goBack();
+          }
+        },
+        child: scaffoldContent,
+      ),
     );
   }
 
@@ -2303,7 +2348,7 @@ class _DeferredFeatureViewState extends State<_DeferredFeatureView> {
     }
     _loadFuture = _DeferredFeatureView._inFlight.putIfAbsent(
       widget.libraryId,
-      () => widget.loadLibrary().then((_) {
+      () => Zone.root.run(widget.loadLibrary).then((_) {
         _DeferredFeatureView._loaded.add(widget.libraryId);
       }),
     );

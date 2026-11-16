@@ -17,7 +17,9 @@ class RecordAccess {
     if (actor != null && actor.isNotEmpty) {
       return ownerId == actor;
     }
-    return CustomerDataPolicy.allowDemo;
+    return CustomerDataPolicy.allowDemo &&
+        (ownerId == 'demo_user' ||
+            ownerId == '00000000-0000-0000-0000-000000000001');
   }
 
   static bool canRead(

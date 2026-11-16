@@ -830,9 +830,10 @@ class CommunityRepository extends ChangeNotifier {
         final profRes = await client
             .from('profiles')
             .select(
-              'id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, posts_count, subscription_tier',
+              'id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, public_stats, posts_count, subscription_tier',
             )
-            .limit(40);
+            .order('win_rate', ascending: false, nullsFirst: false)
+            .limit(60);
         final List<CommunityAuthor> authors = [];
         CommunityAuthor fromProfile(Map<String, dynamic> pmap) {
           final pId = pmap['id']?.toString() ?? '';
@@ -841,6 +842,12 @@ class CommunityRepository extends ChangeNotifier {
           final cleanHandle = rawHandle.replaceFirst(RegExp(r'^@+'), '').trim();
           final isCurrUser = pId == targetUserId;
           final isFollowingThisAuthor = _followedAuthorIds.contains(pId);
+          final bool statsPublic = pmap['public_stats'] as bool? ?? true;
+          if (!statsPublic) {
+            _privateStatsAuthorIds.add(pId);
+          } else {
+            _privateStatsAuthorIds.remove(pId);
+          }
 
           final int dbFollowers = (pmap['followers_count'] as num?)?.toInt() ?? 0;
           final int dbFollowing = (pmap['following_count'] as num?)?.toInt() ?? 0;
@@ -879,7 +886,7 @@ class CommunityRepository extends ChangeNotifier {
             riskMantra: pmap['risk_mantra'] as String?,
             location: pmap['location'] as String?,
             website: pmap['website'] as String?,
-            winRate: (pmap['win_rate'] as num?)?.toDouble(),
+            winRate: statsPublic ? (pmap['win_rate'] as num?)?.toDouble() : null,
             followers: finalFollowers,
             following: finalFollowing,
             postsCount: (pmap['posts_count'] as num?)?.toInt() ?? 0,
@@ -903,7 +910,7 @@ class CommunityRepository extends ChangeNotifier {
           final extraProfiles = await client
               .from('profiles')
               .select(
-                'id, handle, display_name, avatar_url, bio, role, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, posts_count, subscription_tier',
+                'id, handle, display_name, avatar_url, bio, role, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, public_stats, posts_count, subscription_tier',
               )
               .inFilter('id', missingIds);
           for (final profile in extraProfiles as List) {
@@ -912,8 +919,14 @@ class CommunityRepository extends ChangeNotifier {
         }
         if (authors.isNotEmpty) {
           _suggestedTraders = authors;
-          _leaderboard = [for (final a in authors) MapEntry(a, a.winRate ?? 0.0)];
+          _leaderboard = _rankLeaderboardEntries(
+            authors: authors,
+            period: '1M',
+          );
+          _leaderboardByPeriod.clear();
+          _leaderboardByPeriod['1M'] = _leaderboard;
         }
+        await fetchLeaderboard(period: '1M');
       } catch (e) {
         debugPrint('[CommunityRepository] Error fetching profiles: $e');
       }
@@ -975,6 +988,8 @@ class CommunityRepository extends ChangeNotifier {
       _ => AppTier.free,
     };
 
+    final bool statsPublic = authorProfile?['public_stats'] as bool? ?? true;
+
     return CommunityAuthor(
       id: authorId,
       handle: (authorProfile?['handle'] ?? authorProfile?['username']) as String? ?? 'trader',
@@ -991,7 +1006,9 @@ class CommunityRepository extends ChangeNotifier {
       isFollowing: isFollowing,
       followers: (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
       following: (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
-      winRate: (authorProfile?['win_rate'] as num?)?.toDouble(),
+      winRate: statsPublic
+          ? (authorProfile?['win_rate'] as num?)?.toDouble()
+          : null,
       tradingStyle: (authorProfile?['top_strategy'] ?? authorProfile?['trading_style']) as String?,
       primaryMarket: authorProfile?['primary_market'] as String?,
       avgHoldDuration: authorProfile?['avg_hold_duration'] as String?,
@@ -1141,6 +1158,9 @@ class CommunityRepository extends ChangeNotifier {
   List<CommunityAuthor> _suggestedTraders = <CommunityAuthor>[];
   List<MapEntry<CommunityAuthor, double>> _leaderboard =
       <MapEntry<CommunityAuthor, double>>[];
+  final Map<String, List<MapEntry<CommunityAuthor, double>>>
+      _leaderboardByPeriod = <String, List<MapEntry<CommunityAuthor, double>>>{};
+  final Set<String> _privateStatsAuthorIds = <String>{};
   List<CommunityNewsItem> _news = <CommunityNewsItem>[];
   List<CommunityTrendItem> _trending = <CommunityTrendItem>[];
   List<CommunityNotificationItem> _notifications =
@@ -1216,7 +1236,348 @@ class CommunityRepository extends ChangeNotifier {
       .toList();
   List<CommunityAuthor> get suggestedTraders =>
       _suggestedTraders.where((a) => !_blockedUsers.contains(a.id)).toList();
-  List<MapEntry<CommunityAuthor, double>> get leaderboard => _leaderboard;
+  List<MapEntry<CommunityAuthor, double>> get leaderboard =>
+      leaderboardForPeriod('1M');
+
+  DateTime? _leaderboardCutoff(String period, DateTime now) => switch (period
+      .toUpperCase()) {
+    '1W' => now.subtract(const Duration(days: 7)),
+    '1M' => now.subtract(const Duration(days: 30)),
+    '3M' => now.subtract(const Duration(days: 90)),
+    _ => null,
+  };
+
+  List<MapEntry<CommunityAuthor, double>> _rankLeaderboardEntries({
+    required List<CommunityAuthor> authors,
+    required String period,
+    Map<String, ({int wins, int total})>? tradeStatsByAuthor,
+    Map<String, int>? recentPostCountByAuthor,
+  }) {
+    final normPeriod = period.toUpperCase();
+    final currentUid = currentAuthor.id;
+    final bool currentStatsPublic =
+        SupabaseAuthBackendService.instance.currentUserProfile?.publicStats ??
+        true;
+
+    final Map<String, CommunityAuthor> unique = <String, CommunityAuthor>{};
+    for (final a in authors) {
+      if (a.id.isEmpty) continue;
+      if (_blockedUsers.contains(a.id)) continue;
+      if (_privateStatsAuthorIds.contains(a.id)) continue;
+      if (a.id == currentUid && !currentStatsPublic) continue;
+      unique.putIfAbsent(a.id, () => a);
+    }
+
+    final rows = <({CommunityAuthor author, double score, int trades, int posts})>[];
+    for (final author in unique.values) {
+      final tStats = tradeStatsByAuthor?[author.id];
+      final int trades = tStats?.total ?? 0;
+      final int posts = recentPostCountByAuthor?[author.id] ?? 0;
+      double? score;
+      if (tStats != null && tStats.total > 0) {
+        score = (tStats.wins / tStats.total) * 100.0;
+      } else if (author.winRate != null && author.winRate! > 0) {
+        score = author.winRate!;
+      }
+
+      if (score == null) continue;
+      rows.add((
+        author: author.copyWith(
+          isFollowing: _followedAuthorIds.contains(author.id),
+          winRate: score,
+        ),
+        score: double.parse(score.toStringAsFixed(1)),
+        trades: trades,
+        posts: posts,
+      ));
+    }
+
+    rows.sort((a, b) {
+      final cmpScore = b.score.compareTo(a.score);
+      if (cmpScore != 0) return cmpScore;
+      final cmpTrades = b.trades.compareTo(a.trades);
+      if (cmpTrades != 0) return cmpTrades;
+      final cmpPosts = b.posts.compareTo(a.posts);
+      if (cmpPosts != 0) return cmpPosts;
+      final cmpFollowers = b.author.followers.compareTo(a.author.followers);
+      if (cmpFollowers != 0) return cmpFollowers;
+      return b.author.postsCount.compareTo(a.author.postsCount);
+    });
+
+    // If Supabase profiles have no recorded win_rate or public trades yet,
+    // still surface active non-private community authors ranked by setups & followers.
+    if (rows.isEmpty && unique.isNotEmpty) {
+      final cutoff = _leaderboardCutoff(normPeriod, DateTime.now());
+      final fallbackRows = unique.values.map((author) {
+        final periodPosts = _forYouPosts
+            .where(
+              (p) =>
+                  p.author.id == author.id &&
+                  (cutoff == null || !p.createdAt.isBefore(cutoff)),
+            )
+            .length;
+        return (
+          author: author.copyWith(
+            isFollowing: _followedAuthorIds.contains(author.id),
+          ),
+          score: author.winRate ?? 0.0,
+          periodPosts: periodPosts,
+        );
+      }).toList()
+        ..sort((a, b) {
+          final cmpVal = b.score.compareTo(a.score);
+          if (cmpVal != 0) return cmpVal;
+          final cmpPeriod = b.periodPosts.compareTo(a.periodPosts);
+          if (cmpPeriod != 0) return cmpPeriod;
+          final cmpPosts = b.author.postsCount.compareTo(a.author.postsCount);
+          if (cmpPosts != 0) return cmpPosts;
+          return b.author.followers.compareTo(a.author.followers);
+        });
+      return [for (final r in fallbackRows) MapEntry(r.author, r.score)];
+    }
+
+    return [for (final r in rows) MapEntry(r.author, r.score)];
+  }
+
+  List<MapEntry<CommunityAuthor, double>> leaderboardForPeriod(String period) {
+    final norm = period.toUpperCase();
+    final cached = _leaderboardByPeriod[norm];
+    if (cached != null && cached.isNotEmpty) {
+      return cached
+          .where(
+            (e) =>
+                !_blockedUsers.contains(e.key.id) &&
+                !_privateStatsAuthorIds.contains(e.key.id),
+          )
+          .map(
+            (e) => MapEntry(
+              e.key.copyWith(isFollowing: _followedAuthorIds.contains(e.key.id)),
+              e.value,
+            ),
+          )
+          .toList();
+    }
+
+    final base = _leaderboard
+        .where(
+          (e) =>
+              !_blockedUsers.contains(e.key.id) &&
+              !_privateStatsAuthorIds.contains(e.key.id),
+        )
+        .toList();
+    final seenBaseIds = base.map((e) => e.key.id).toSet();
+    final extraFromPosts = _forYouPosts
+        .where(
+          (p) =>
+              p.author.id.isNotEmpty &&
+              !seenBaseIds.contains(p.author.id) &&
+              !_blockedUsers.contains(p.author.id) &&
+              !_privateStatsAuthorIds.contains(p.author.id) &&
+              p.author.winRate != null &&
+              p.author.winRate! > 0,
+        )
+        .map((p) {
+          seenBaseIds.add(p.author.id);
+          return MapEntry<CommunityAuthor, double>(p.author, p.author.winRate!);
+        });
+    final combinedBase = <MapEntry<CommunityAuthor, double>>[
+      ...base,
+      ...extraFromPosts,
+    ];
+
+    if (combinedBase.isEmpty) {
+      final candidateAuthors = <CommunityAuthor>[
+        ..._suggestedTraders,
+        ..._forYouPosts.map((p) => p.author),
+      ];
+      return _rankLeaderboardEntries(authors: candidateAuthors, period: norm);
+    }
+
+    if (!SupabaseConfig.isConfigured && norm != '1M') {
+      final adjusted = combinedBase.asMap().entries.map((entry) {
+        final idx = entry.key;
+        final author = entry.value.key;
+        final raw = entry.value.value;
+        final delta = switch (norm) {
+          '1W' => ((idx % 3 == 0 ? 4.2 : (idx % 2 == 0 ? -2.8 : 1.7))),
+          '3M' => ((idx % 2 == 0 ? -1.4 : 2.9)),
+          'ALL' => ((idx == 0 ? -3.1 : (idx % 2 == 1 ? 3.5 : 0.8))),
+          _ => 0.0,
+        };
+        final next = (raw + delta).clamp(1.0, 99.0);
+        return MapEntry(
+          author.copyWith(isFollowing: _followedAuthorIds.contains(author.id)),
+          double.parse(next.toStringAsFixed(1)),
+        );
+      }).toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      return adjusted;
+    }
+
+    final sorted = combinedBase
+        .map(
+          (e) => MapEntry(
+            e.key.copyWith(isFollowing: _followedAuthorIds.contains(e.key.id)),
+            e.value,
+          ),
+        )
+        .toList()
+      ..sort((a, b) {
+        final cmp = b.value.compareTo(a.value);
+        if (cmp != 0) return cmp;
+        return b.key.followers.compareTo(a.key.followers);
+      });
+    return sorted;
+  }
+
+  Future<List<MapEntry<CommunityAuthor, double>>> fetchLeaderboard({
+    String period = '1M',
+  }) async {
+    final norm = period.toUpperCase();
+    if (!SupabaseConfig.isConfigured) {
+      final local = leaderboardForPeriod(norm);
+      _leaderboardByPeriod[norm] = local;
+      notifyListeners();
+      return local;
+    }
+    final client = SupabaseConfig.client;
+    if (client == null) return leaderboardForPeriod(norm);
+
+    final now = DateTime.now().toUtc();
+    final cutoff = _leaderboardCutoff(norm, now);
+    final currentUid = currentAuthor.id;
+
+    try {
+      final profRes = await client
+          .from('profiles')
+          .select(
+            'id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, public_stats, posts_count, subscription_tier',
+          )
+          .order('win_rate', ascending: false, nullsFirst: false)
+          .limit(60);
+
+      final authors = <CommunityAuthor>[];
+      for (final item in profRes as List) {
+        final pmap = item as Map<String, dynamic>;
+        final pId = pmap['id']?.toString() ?? '';
+        if (pId.isEmpty) continue;
+        final statsPublic = pmap['public_stats'] as bool? ?? true;
+        if (!statsPublic) {
+          _privateStatsAuthorIds.add(pId);
+          continue;
+        }
+        _privateStatsAuthorIds.remove(pId);
+        final rawHandle =
+            (pmap['handle'] ?? pmap['username']) as String? ?? 'trader';
+        final cleanHandle = rawHandle.replaceFirst(RegExp(r'^@+'), '').trim();
+        final subTier =
+            (pmap['subscription_tier'] as String?)?.toLowerCase().trim() ??
+            'free';
+        final appTier = switch (subTier) {
+          'enterprise' || 'pro' => AppTier.enterprise,
+          'premium' || 'basic' => AppTier.premium,
+          _ => AppTier.free,
+        };
+        authors.add(
+          CommunityAuthor(
+            id: pId,
+            handle: cleanHandle,
+            displayName: pmap['display_name'] as String? ?? cleanHandle,
+            avatarUrl: _resolveAvatarUrl(pmap['avatar_url'] as String?),
+            bio: pmap['bio'] as String?,
+            tradingStyle:
+                (pmap['top_strategy'] ?? pmap['trading_style']) as String?,
+            primaryMarket: pmap['primary_market'] as String?,
+            avgHoldDuration: pmap['avg_hold_duration'] as String?,
+            riskMantra: pmap['risk_mantra'] as String?,
+            location: pmap['location'] as String?,
+            website: pmap['website'] as String?,
+            winRate: (pmap['win_rate'] as num?)?.toDouble(),
+            followers: (pmap['followers_count'] as num?)?.toInt() ?? 0,
+            following: (pmap['following_count'] as num?)?.toInt() ?? 0,
+            postsCount: (pmap['posts_count'] as num?)?.toInt() ?? 0,
+            verified: pmap['verified'] as bool? ?? false,
+            subscriptionTier: subTier,
+            tier: appTier,
+            userRole: _parseUserRole(pmap['role'] as String?),
+            isFollowing: _followedAuthorIds.contains(pId),
+          ),
+        );
+      }
+
+      final Map<String, ({int wins, int total})> tradeStats =
+          <String, ({int wins, int total})>{};
+      try {
+        dynamic query = client
+            .from('journal_entries')
+            .select('user_id, outcome, pnl, exit_price, opened_at, closed_at')
+            .eq('is_public', true);
+        if (cutoff != null) {
+          query = query.gte('opened_at', cutoff.toIso8601String());
+        }
+        final tradeRows = await query.limit(500);
+        for (final row in tradeRows as List) {
+          final r = row as Map<String, dynamic>;
+          final uid = r['user_id']?.toString() ?? '';
+          if (uid.isEmpty || _privateStatsAuthorIds.contains(uid)) continue;
+          final outcome = r['outcome']?.toString().toLowerCase() ?? '';
+          final exitPrice = r['exit_price'];
+          if (outcome == 'open' || (outcome.isEmpty && exitPrice == null)) {
+            continue;
+          }
+          final pnl = (r['pnl'] as num?)?.toDouble() ?? 0.0;
+          final bool isWin = outcome == 'win' || (outcome.isEmpty && pnl > 0);
+          final prev = tradeStats[uid] ?? (wins: 0, total: 0);
+          tradeStats[uid] = (
+            wins: prev.wins + (isWin ? 1 : 0),
+            total: prev.total + 1,
+          );
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] leaderboard trade stats skipped: $e');
+      }
+
+      final Map<String, int> recentPosts = <String, int>{};
+      for (final p in _forYouPosts) {
+        if (cutoff == null || !p.createdAt.isBefore(cutoff)) {
+          recentPosts[p.author.id] = (recentPosts[p.author.id] ?? 0) + 1;
+        }
+      }
+
+      // If no live profiles have wins/trades yet, preserve any explicitly set
+      // current user's public_stats preference visibility.
+      if (currentUid.isNotEmpty) {
+        final bool currPublic =
+            SupabaseAuthBackendService
+                .instance
+                .currentUserProfile
+                ?.publicStats ??
+            true;
+        if (!currPublic) {
+          _privateStatsAuthorIds.add(currentUid);
+        } else {
+          _privateStatsAuthorIds.remove(currentUid);
+        }
+      }
+
+      final mergedAuthors = authors.isNotEmpty ? authors : _suggestedTraders;
+      final ranked = _rankLeaderboardEntries(
+        authors: mergedAuthors,
+        period: norm,
+        tradeStatsByAuthor: tradeStats,
+        recentPostCountByAuthor: recentPosts,
+      );
+      _leaderboardByPeriod[norm] = ranked;
+      if (norm == '1M' || _leaderboard.isEmpty) {
+        _leaderboard = ranked;
+      }
+      if (!_disposed) notifyListeners();
+      return ranked;
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchLeaderboard error: $e');
+      return leaderboardForPeriod(norm);
+    }
+  }
   List<CommunityNewsItem> get news => _news;
   Map<String, List<CommunityNewsItem>> get newsByCategory {
     final snapshot = marketSnapshot;

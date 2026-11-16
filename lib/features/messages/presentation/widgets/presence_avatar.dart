@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
+import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
 
 /// Thread avatar: a presence-dot avatar for direct messages, or a small stacked
 /// cluster for groups. Built on the shared [AppPresenceAvatar] so presence reads
@@ -24,13 +25,16 @@ class MessagesThreadAvatar extends StatelessWidget {
     if (thread.isGroup) {
       return _GroupCluster(thread: thread, size: size, onTap: onTap);
     }
+    final bool effectivePresence =
+        showPresence &&
+        PrivacyRepositoryImpl.instance.cachedSettings.showActivityStatus;
     return AppPresenceAvatar(
       imageUrl: thread.avatarUrl,
       name: thread.title,
       size: size,
       verified: thread.peer.verified,
-      presenceColor: showPresence ? thread.presence.color(context) : null,
-      presenceLabel: showPresence ? thread.presence.label : null,
+      presenceColor: effectivePresence ? thread.presence.color(context) : null,
+      presenceLabel: effectivePresence ? thread.presence.label : null,
       onTap: onTap,
     );
   }

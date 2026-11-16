@@ -1,8 +1,12 @@
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
+import 'package:tradex/core/ads/ad_scope.dart';
+import 'package:tradex/core/ads/promotion_preview.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
+import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
 
 /// The inbox: search, filter chips, an optional pinned section, then the thread
 /// list. Every row and count comes from [MessagesRepository]; this widget holds
@@ -118,7 +122,21 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
         if (showRequestsBanner) _requestsBanner(context, repo),
         Expanded(
           child: results.isEmpty
-              ? _empty(context)
+              ? (!kReleaseMode &&
+                        AdSenseScope.maybeOf(context)?.config.preview == true
+                    ? SingleChildScrollView(
+                        padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            _empty(context),
+                            UiGap.v(theme.spacing.md),
+                            const PromotionPreview(surface: 'Messages'),
+                          ],
+                        ),
+                      )
+                    : _empty(context))
               : ListView(
                   padding: EdgeInsets.only(
                     left: context.sp(theme.spacing.sm),
@@ -128,7 +146,11 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
                   children: <Widget>[
                     if (showPinned && unreadTotal > 0)
                       _unreadSummary(context, unreadTotal, unreadChats),
-                    if (live.isNotEmpty) ...<Widget>[
+                    if (live.isNotEmpty &&
+                        PrivacyRepositoryImpl
+                            .instance
+                            .cachedSettings
+                            .showActivityStatus) ...<Widget>[
                       const MessagesSectionHeader(
                         title: 'Active now',
                         icon: Icons.bolt_rounded,
@@ -145,6 +167,12 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
                     ],
                     ...rest.map((MessageThread t) => _tile(repo, t)),
                     _footerLinks(context, repo),
+                    if (!kReleaseMode &&
+                        AdSenseScope.maybeOf(context)?.config.preview ==
+                            true) ...<Widget>[
+                      UiGap.v(theme.spacing.md),
+                      const PromotionPreview(surface: 'Messages'),
+                    ],
                   ],
                 ),
         ),

@@ -408,6 +408,16 @@ class RoleNavigationConfig {
                 icon: Icons.lock_outline_rounded,
               ),
               AppNavItem(
+                id: 'settings_trading',
+                label: 'Trading & Risk',
+                icon: Icons.candlestick_chart_outlined,
+              ),
+              AppNavItem(
+                id: 'settings_ai',
+                label: 'AI & Copilot',
+                icon: Icons.auto_awesome_outlined,
+              ),
+              AppNavItem(
                 id: 'settings_affiliate_perks',
                 label: 'Become an Affiliate',
                 icon: Icons.handshake_outlined,
@@ -589,6 +599,11 @@ class RoleNavigationConfig {
                 id: 'settings_security',
                 label: 'Email & Security',
                 icon: Icons.lock_outline_rounded,
+              ),
+              AppNavItem(
+                id: 'settings_ai',
+                label: 'AI & Copilot',
+                icon: Icons.auto_awesome_outlined,
               ),
               AppNavItem(
                 id: 'settings_notifications',
@@ -827,6 +842,11 @@ class RoleNavigationConfig {
                 id: 'settings_security',
                 label: 'Account security',
                 icon: Icons.lock_outline,
+              ),
+              AppNavItem(
+                id: 'settings_ai',
+                label: 'AI & Copilot',
+                icon: Icons.auto_awesome_outlined,
               ),
               AppNavItem(
                 id: 'settings_notifications',

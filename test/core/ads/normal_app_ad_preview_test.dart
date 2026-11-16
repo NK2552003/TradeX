@@ -21,9 +21,16 @@ void main() {
     await EnvConfig.init();
   });
 
+  late bool savedAllowDemo;
+
   setUp(() {
+    savedAllowDemo = CustomerDataPolicy.allowDemo;
     CustomerDataPolicy.allowDemo = false;
     dotenv.testLoad(fileInput: 'ADSENSE_PREVIEW=true\nADSENSE_ENABLED=false');
+  });
+
+  tearDown(() {
+    CustomerDataPolicy.allowDemo = savedAllowDemo;
   });
 
   Widget themed(Widget child) => UiApp(

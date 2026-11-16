@@ -24,6 +24,7 @@ class CopilotScreen extends StatefulWidget {
     this.currentUser,
     this.onSubpageChanged,
     this.onOpenRef,
+    this.onOpenSettings,
     this.searchQuery,
     this.openRequest,
     this.embedInScaffold = true,
@@ -35,6 +36,7 @@ class CopilotScreen extends StatefulWidget {
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
   onSubpageChanged;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final VoidCallback? onOpenSettings;
   final String? searchQuery;
   final AppLinkOpenRequest? openRequest;
   final bool embedInScaffold;
@@ -229,6 +231,7 @@ class CopilotScreenState extends State<CopilotScreen> {
             }),
             onPage: (page) => setState(() => _page = page),
             onClose: () => _showWorkspace(false),
+            onOpenSettings: widget.onOpenSettings,
           )
         : CopilotPageEditor(
             key: ValueKey(_page!.id),
@@ -288,6 +291,14 @@ class CopilotScreenState extends State<CopilotScreen> {
                   variant: UiVariant.ghost,
                   size: UiSize.sm,
                   onPressed: _copyThread,
+                ),
+              if (widget.onOpenSettings != null)
+                UiIconButton(
+                  icon: Icons.tune_rounded,
+                  tooltip: 'AI & Copilot settings',
+                  variant: UiVariant.ghost,
+                  size: UiSize.sm,
+                  onPressed: widget.onOpenSettings,
                 ),
               if (!device.isTablet)
                 UiButton(

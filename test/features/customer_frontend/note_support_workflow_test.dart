@@ -91,8 +91,8 @@ void main() {
       final fields = find.byType(TextField);
       await tester.enterText(fields.at(0), 'A real support subject');
       await tester.enterText(fields.at(1), 'Keep this message until accepted');
-      await tester.ensureVisible(find.text('Send Support Ticket'));
-      await tester.tap(find.text('Send Support Ticket'));
+      await tester.ensureVisible(find.text('Send support ticket'));
+      await tester.tap(find.text('Send support ticket'));
       await tester.pumpAndSettle();
       expect(attempts, 1);
       expect(
@@ -104,7 +104,7 @@ void main() {
         'Keep this message until accepted',
       );
       reject = false;
-      await tester.tap(find.text('Send Support Ticket'));
+      await tester.tap(find.text('Send support ticket'));
       await tester.pump();
       expect(attempts, 2);
       expect(

@@ -13,148 +13,214 @@ import 'package:tradex/features/public_site/data/public_site_repository.dart';
 import 'package:tradex/features/public_site/models/public_site_content.dart';
 
 class FileAssets extends CachingAssetBundle {
+  static final List<Map<String, dynamic>> _sampleInstruments = [
+    {
+      'ticker': 'BTC',
+      'price': 65000.0,
+      'previous_close': 62984.50,
+      'change_pct': 3.2,
+      'market': 'CRYPTO',
+      'name': 'Bitcoin',
+      'volume': 2000000,
+    },
+    {
+      'ticker': 'AAPL',
+      'price': 150.0,
+      'previous_close': 146.34,
+      'change_pct': 2.5,
+      'market': 'US',
+      'name': 'Apple Inc.',
+      'volume': 1000000,
+    },
+    {
+      'ticker': 'MSFT',
+      'price': 300.0,
+      'previous_close': 303.64,
+      'change_pct': -1.2,
+      'market': 'US',
+      'name': 'Microsoft Corp.',
+      'volume': 800000,
+    },
+    {
+      'ticker': 'GOOGL',
+      'price': 2800.0,
+      'previous_close': 2769.54,
+      'change_pct': 1.1,
+      'market': 'US',
+      'name': 'Alphabet Inc.',
+      'volume': 500000,
+    },
+    {
+      'ticker': 'ETH',
+      'price': 3500.0,
+      'previous_close': 3517.59,
+      'change_pct': -0.5,
+      'market': 'CRYPTO',
+      'name': 'Ethereum',
+      'volume': 1200000,
+    },
+    for (final (i, sym) in [
+      'NVDA',
+      'AMZN',
+      'META',
+      'TSLA',
+      'AMD',
+      'NFLX',
+      'AVGO',
+      'ORCL',
+      'CRM',
+      'ADBE',
+      'INTC',
+      'CSCO',
+      'QCOM',
+      'TXN',
+      'IBM',
+      'NOW',
+      'INTU',
+      'AMAT',
+      'MU',
+      'LRCX',
+      'KLAC',
+      'SNPS',
+      'CDNS',
+      'PANW',
+      'CRWD',
+      'SNOW',
+      'DDOG',
+      'NET',
+      'MDB',
+      'PLTR',
+      for (int j = 1; j <= 65; j++) 'EQ${j.toString().padLeft(2, '0')}',
+    ].indexed)
+      {
+        'ticker': sym,
+        'price': 120.0 + i * 5.0,
+        'previous_close': (120.0 + i * 5.0) * (i.isEven ? 0.99 : 1.01),
+        'change_pct': i.isEven ? 1.8 - (i * 0.015) : -0.8 - (i * 0.01),
+        'market': 'US',
+        'name': '$sym Corp.',
+        'volume': 950000 - i * 5000,
+      },
+  ];
+
+  static final List<Map<String, dynamic>> _sampleCandles = [
+    for (int i = 0; i < 45; i++)
+      {
+        'date': DateTime.utc(2026, 8, 1)
+            .add(Duration(days: i))
+            .toIso8601String(),
+        'open': 142.0 + i * 0.15,
+        'high': 145.0 + i * 0.15,
+        'low': 141.0 + i * 0.15,
+        'close': 144.0 + i * 0.14,
+        'volume': 500000 + i * 5000,
+      },
+  ];
+
   static final Map<String, String> _memoryFiles = {
     'assets/data/manifest.json': jsonEncode({
       'generated_at': '2026-10-01T00:00:00Z',
+      'detail_count': 99,
+      'history_count': 2,
       'files': [
         'quotes.json',
         'fundamentals.json',
         'all_news.json',
         'screeners.json',
+        'tickers/universe.json',
+        'history/AAPL.json',
+        'history/BTC.json',
       ],
     }),
+    'assets/data/tickers/universe.json': jsonEncode([
+      for (final row in _sampleInstruments)
+        {
+          'ticker': row['ticker'],
+          'name': row['name'],
+          'market': row['market'],
+          'exchange': row['market'] == 'CRYPTO' ? 'CRYPTO' : 'NASDAQ',
+          'currency': 'USD',
+        },
+    ]),
     'assets/data/quotes.json': jsonEncode({
-      'AAPL': {
-        'ticker': 'AAPL',
-        'price': 150.0,
-        'change_pct': 2.5,
-        'market': 'US',
-        'name': 'Apple Inc.',
-        'volume': 1000000,
-      },
-      'MSFT': {
-        'ticker': 'MSFT',
-        'price': 300.0,
-        'change_pct': -1.2,
-        'market': 'US',
-        'name': 'Microsoft Corp.',
-        'volume': 800000,
-      },
-      'GOOGL': {
-        'ticker': 'GOOGL',
-        'price': 2800.0,
-        'change_pct': 1.1,
-        'market': 'US',
-        'name': 'Alphabet Inc.',
-        'volume': 500000,
-      },
-      'BTC': {
-        'ticker': 'BTC',
-        'price': 65000.0,
-        'change_pct': 3.2,
-        'market': 'CRYPTO',
-        'name': 'Bitcoin',
-        'volume': 2000000,
-      },
-      'ETH': {
-        'ticker': 'ETH',
-        'price': 3500.0,
-        'change_pct': -0.5,
-        'market': 'CRYPTO',
-        'name': 'Ethereum',
-        'volume': 1200000,
-      },
+      for (final row in _sampleInstruments) row['ticker'] as String: row,
     }),
     'assets/data/fundamentals.json': jsonEncode({
-      'AAPL': {'name': 'Apple Inc.', 'sector': 'Technology'},
-      'MSFT': {'name': 'Microsoft Corp.', 'sector': 'Technology'},
-      'GOOGL': {'name': 'Alphabet Inc.', 'sector': 'Technology'},
+      for (final row in _sampleInstruments)
+        row['ticker'] as String: {
+          'name': row['name'],
+          'sector': row['market'] == 'CRYPTO' ? 'Digital Assets' : 'Technology',
+        },
     }),
     'assets/data/all_news.json': jsonEncode([
       {
         'title': 'Tech Sector Rallies as Markets Open Higher',
         'summary':
             'Major technology stocks posted strong gains on robust earnings reports and easing inflation signals.',
+        'publisher': 'Market Wire',
         'link': 'https://example.com/news/1',
+        'thumbnail_url': 'https://example.com/thumb/1.png',
         'published_at': '2026-10-01T12:00:00Z',
         'category': 'Markets',
-        'tickers': ['AAPL', 'MSFT'],
+        'related_tickers': ['AAPL', 'MSFT'],
+      },
+      {
+        'title': 'Cloud Enterprise Spending Beats Forecasts',
+        'summary':
+            'Enterprise software budgets expand on AI workload migrations.',
+        'publisher': 'Enterprise Beat',
+        'link': 'https://example.com/news/2',
+        'published_at': '2026-10-01T11:30:00Z',
+        'category': 'Technology',
+        'related_tickers': ['MSFT', 'GOOGL'],
+      },
+      {
+        'title': 'Bank Earnings Preview and Rate Outlook',
+        'summary':
+            'Regional and global banks brace for net interest margin shifts.',
+        'publisher': 'Financial Post',
+        'link': 'https://example.com/news/3',
+        'published_at': '2026-10-01T11:00:00Z',
+        'category': 'Finance',
+        'related_tickers': ['JPM', 'BAC'],
+      },
+      {
+        'title': 'Crypto Assets Video Breakdown',
+        'summary':
+            'Video walkthrough of Bitcoin institutional flows and liquidity cycles.',
+        'publisher': 'Market Desk Video',
+        'content_type': 'VIDEO',
+        'link': 'https://example.com/video/1',
+        'published_at': '2026-10-01T09:00:00Z',
+        'category': 'Crypto',
+        'related_tickers': ['BTC'],
       },
       {
         'title': 'Crypto Assets Show Continued Strength',
         'summary':
             'Bitcoin and Ethereum maintained upward trajectories amid growing institutional adoption.',
-        'link': 'https://example.com/news/2',
-        'published_at': '2026-10-01T10:00:00Z',
+        'publisher': 'Digital Asset Daily',
+        'link': 'https://example.com/news/4',
+        'published_at': '2026-10-01T08:30:00Z',
         'category': 'Crypto',
-        'tickers': ['BTC', 'ETH'],
+        'related_tickers': ['BTC', 'ETH'],
       },
     ]),
     'assets/data/screeners.json': jsonEncode({
       'top_gainers': [
-        {
-          'ticker': 'AAPL',
-          'price': 150.0,
-          'change_pct': 2.5,
-          'market': 'US',
-          'name': 'Apple Inc.',
-          'volume': 1000000,
-        },
-        {
-          'ticker': 'BTC',
-          'price': 65000.0,
-          'change_pct': 3.2,
-          'market': 'CRYPTO',
-          'name': 'Bitcoin',
-          'volume': 2000000,
-        },
+        _sampleInstruments[0],
+        _sampleInstruments[1],
       ],
-      'most_active': [
-        {
-          'ticker': 'AAPL',
-          'price': 150.0,
-          'change_pct': 2.5,
-          'market': 'US',
-          'name': 'Apple Inc.',
-          'volume': 1000000,
-        },
-      ],
+      'most_active': _sampleInstruments,
     }),
     'assets/data/screeners/top_gainers.json': jsonEncode({
-      'results': [
-        {
-          'ticker': 'AAPL',
-          'price': 150.0,
-          'change_pct': 2.5,
-          'market': 'US',
-          'name': 'Apple Inc.',
-          'volume': 1000000,
-        },
-      ],
+      'results': [_sampleInstruments[0], _sampleInstruments[1]],
     }),
     'assets/data/screeners/aggressive_small_caps.json': jsonEncode({
-      'results': [
-        {
-          'ticker': 'AAPL',
-          'price': 150.0,
-          'change_pct': 2.5,
-          'market': 'US',
-          'name': 'Apple Inc.',
-          'volume': 1000000,
-        },
-      ],
+      'results': [_sampleInstruments[1]],
     }),
     'assets/data/screeners/oversold_stocks_by_rsi.json': jsonEncode({
-      'results': [
-        {
-          'ticker': 'MSFT',
-          'price': 300.0,
-          'change_pct': -1.2,
-          'market': 'US',
-          'name': 'Microsoft Corp.',
-          'volume': 800000,
-        },
-      ],
+      'results': [_sampleInstruments[2]],
     }),
     'assets/data/by_topic/crypto.json': jsonEncode([
       {
@@ -162,7 +228,7 @@ class FileAssets extends CachingAssetBundle {
         'summary': 'Detailed crypto analysis for traders and institutions.',
         'link': 'https://example.com/crypto/1',
         'published_at': '2026-10-01T08:00:00Z',
-        'tickers': ['BTC'],
+        'related_tickers': ['BTC'],
       },
     ]),
     'assets/data/by_topic/clean_energy.json': jsonEncode([
@@ -171,52 +237,117 @@ class FileAssets extends CachingAssetBundle {
         'summary': 'Clean energy investment updates.',
         'link': 'https://example.com/energy/1',
         'published_at': '2026-10-01T07:00:00Z',
-        'tickers': [],
+        'related_tickers': [],
       },
     ]),
     'assets/data/stock_detail/AAPL.json': jsonEncode({
       'ticker': 'AAPL',
-      'name': 'Apple Inc.',
-      'chart': {
-        'data': [
+      'market': 'US',
+      'quote': {
+        'ticker': 'AAPL',
+        'name': 'Apple Inc.',
+        'market': 'US',
+        'currency': 'USD',
+        'price': 150.0,
+        'previous_close': 146.34,
+        'change_pct': 2.5,
+        'day_high': 151.2,
+        'day_low': 147.8,
+        'volume': 1000000,
+      },
+      'summary': {
+        'name': 'Apple Inc.',
+        'sector': 'Technology',
+        'industry': 'Consumer Electronics',
+        'market_cap': 2450000000000,
+        'pe_ratio': 28.4,
+        'forward_pe': 25.1,
+        'eps': 5.28,
+        'beta': 1.18,
+        'dividend_yield': 0.0055,
+        'fifty_two_week_high': 199.62,
+        'fifty_two_week_low': 124.17,
+        'longBusinessSummary':
+            'Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.',
+      },
+      'chart': {'ticker': 'AAPL', 'data': _sampleCandles},
+      'recommendations': [
+        {
+          'period': '0m',
+          'strongBuy': 14,
+          'buy': 20,
+          'hold': 6,
+          'sell': 1,
+          'strongSell': 0,
+        },
+      ],
+      'holders': {
+        'institutional_holders': [
           {
-            'date': '2026-09-01T09:30:00Z',
-            'open': 146.0,
-            'high': 149.0,
-            'low': 145.0,
-            'close': 148.0,
-            'volume': 500000,
-          },
-          {
-            'date': '2026-09-02T09:30:00Z',
-            'open': 148.0,
-            'high': 151.0,
-            'low': 147.0,
-            'close': 150.0,
-            'volume': 600000,
+            'Holder': 'Vanguard Group',
+            'shares': 120000000,
+            'pctHeld': 0.082,
+            'value': 18000000000,
           },
         ],
+        'mutualfund_holders': [
+          {
+            'Holder': 'Vanguard 500 Index',
+            'shares': 45000000,
+            'pctHeld': 0.031,
+            'value': 6750000000,
+          },
+        ],
+      },
+      'dividends_and_splits': {
+        'dividends': [
+          {'date': '2026-08-10', 'amount': 0.25},
+        ],
+        'splits': [
+          {'date': '2020-08-31', 'ratio': '4:1'},
+        ],
+      },
+      'options': {
+        'chains': {
+          '2026-11-20': {
+            'calls': [
+              {
+                'strike': 150.0,
+                'lastPrice': 3.4,
+                'openInterest': 12500,
+                'volume': 1800,
+              },
+            ],
+            'puts': [
+              {
+                'strike': 145.0,
+                'lastPrice': 2.1,
+                'openInterest': 9200,
+                'volume': 1100,
+              },
+            ],
+          },
+        },
       },
     }),
     'assets/data/history/AAPL.json': jsonEncode({
       'ticker': 'AAPL',
+      'data': _sampleCandles,
+    }),
+    'assets/data/history/BTC.json': jsonEncode({
+      'ticker': 'BTC',
       'data': [
-        {
-          'date': '2026-09-01T09:30:00Z',
-          'open': 146.0,
-          'high': 149.0,
-          'low': 145.0,
-          'close': 148.0,
-          'volume': 500000,
-        },
-        {
-          'date': '2026-09-02T09:30:00Z',
-          'open': 148.0,
-          'high': 151.0,
-          'low': 147.0,
-          'close': 150.0,
-          'volume': 600000,
-        },
+        for (int i = 0; i < 45; i++)
+          {
+            'date': DateTime.utc(2026, 8, 1)
+                .add(Duration(days: i))
+                .toIso8601String(),
+            'open': 61000.0 + i * 80.0,
+            'high': 62000.0 + i * 80.0,
+            'low': 60500.0 + i * 80.0,
+            'close': 61500.0 + i * 85.0,
+            'volume': 1800000 + i * 10000,
+          },
       ],
     }),
     'assets/data/landing_page.json': jsonEncode(
@@ -234,7 +365,7 @@ class FileAssets extends CachingAssetBundle {
       final bytes = utf8.encode(content);
       return ByteData.sublistView(Uint8List.fromList(bytes));
     }
-    return ByteData(0);
+    throw FlutterError('Unable to load asset: "$key".');
   }
 }
 

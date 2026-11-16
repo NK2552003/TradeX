@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 import 'package:tradex/features/messages/presentation/widgets/presence_avatar.dart';
+import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
 
 /// A single thread row in the inbox list.
 ///
@@ -121,12 +122,25 @@ class ConversationTile extends StatelessWidget {
         Row(
           children: <Widget>[
             if (thread.lastFromMe && !typing) ...<Widget>[
-              Icon(
-                thread.lastStatus.icon,
-                size: context.sz(14),
-                color: thread.lastStatus == MessageStatus.read
-                    ? colors.primary
-                    : colors.foregroundSubtle,
+              Builder(
+                builder: (context) {
+                  final showReceipts =
+                      PrivacyRepositoryImpl
+                          .instance
+                          .cachedSettings
+                          .showReadReceipts;
+                  final displayStatus =
+                      !showReceipts && thread.lastStatus == MessageStatus.read
+                      ? MessageStatus.delivered
+                      : thread.lastStatus;
+                  return Icon(
+                    displayStatus.icon,
+                    size: context.sz(14),
+                    color: displayStatus == MessageStatus.read
+                        ? colors.primary
+                        : colors.foregroundSubtle,
+                  );
+                },
               ),
               SizedBox(width: context.sp(theme.spacing.xxs)),
             ],

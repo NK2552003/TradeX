@@ -12,6 +12,7 @@ import 'package:tradex/core/navigation/customer_routes.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/core/config/startup_ready.dart';
@@ -305,7 +306,40 @@ class _TradeXAppState extends State<TradeXApp> {
     };
     final savedDensity = CrossSubdomainState.getFlag('ax_theme_density');
     final density = savedDensity == 'Compact' ? 'Compact' : 'Comfortable';
-    return AppThemeController(mode, density);
+    final savedRange = CrossSubdomainState.getFlag('ax_chart_range');
+    final chartRange = const <String>{
+      '1D',
+      '1W',
+      '1M',
+      '1Y',
+      'ALL',
+    }.contains(savedRange)
+        ? savedRange!
+        : '1D';
+    final savedStyle = CrossSubdomainState.getFlag('ax_chart_style');
+    final chartStyle = const <String>{
+      'Candlestick',
+      'Line',
+      'Area',
+      'Bars',
+    }.contains(savedStyle)
+        ? savedStyle!
+        : 'Candlestick';
+    final savedColors = CrossSubdomainState.getFlag('ax_chart_colors');
+    final colorConvention = const <String>{
+      'Standard (Green/Red)',
+      'Colorblind-Safe (Blue/Orange)',
+      'Monochrome (High Contrast)',
+    }.contains(savedColors)
+        ? savedColors!
+        : 'Standard (Green/Red)';
+    return AppThemeController(
+      mode,
+      density,
+      chartRange,
+      chartStyle,
+      colorConvention,
+    );
   }
 
   void _syncThemeToSubdomains() {
@@ -319,12 +353,85 @@ class _TradeXAppState extends State<TradeXApp> {
       _themeController.density,
       maxAgeDays: 180,
     );
+    CrossSubdomainState.setFlag(
+      'ax_chart_range',
+      _themeController.chartRange,
+      maxAgeDays: 180,
+    );
+    CrossSubdomainState.setFlag(
+      'ax_chart_style',
+      _themeController.chartStyle,
+      maxAgeDays: 180,
+    );
+    CrossSubdomainState.setFlag(
+      'ax_chart_colors',
+      _themeController.colorConvention,
+      maxAgeDays: 180,
+    );
+    _saveAppearancePrefs();
+  }
+
+  Future<void> _hydrateAppearancePrefs() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      final savedMode = sp.getString('ax_theme_mode');
+      if (savedMode != null && CrossSubdomainState.getFlag('ax_theme_mode') == null) {
+        final mode = switch (savedMode) {
+          'light' => ThemeMode.light,
+          'system' => ThemeMode.system,
+          'dark' => ThemeMode.dark,
+          _ => null,
+        };
+        if (mode != null) _themeController.setMode(mode);
+      }
+      final savedDensity = sp.getString('ax_theme_density');
+      if (savedDensity != null &&
+          CrossSubdomainState.getFlag('ax_theme_density') == null &&
+          (savedDensity == 'Compact' || savedDensity == 'Comfortable')) {
+        _themeController.setDensity(savedDensity);
+      }
+      final savedRange = sp.getString('ax_chart_range');
+      if (savedRange != null &&
+          CrossSubdomainState.getFlag('ax_chart_range') == null &&
+          const {'1D', '1W', '1M', '1Y', 'ALL'}.contains(savedRange)) {
+        _themeController.setChartRange(savedRange);
+      }
+      final savedStyle = sp.getString('ax_chart_style');
+      if (savedStyle != null &&
+          CrossSubdomainState.getFlag('ax_chart_style') == null &&
+          const {'Candlestick', 'Line', 'Area', 'Bars'}.contains(savedStyle)) {
+        _themeController.setChartStyle(savedStyle);
+      }
+      final savedColors = sp.getString('ax_chart_colors');
+      if (savedColors != null &&
+          CrossSubdomainState.getFlag('ax_chart_colors') == null &&
+          const {
+            'Standard (Green/Red)',
+            'Colorblind-Safe (Blue/Orange)',
+            'Monochrome (High Contrast)',
+          }.contains(savedColors)) {
+        _themeController.setColorConvention(savedColors);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveAppearancePrefs() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString('ax_theme_mode', _themeController.value.name);
+      await sp.setString('ax_theme_density', _themeController.density);
+      await sp.setString('ax_chart_range', _themeController.chartRange);
+      await sp.setString('ax_chart_style', _themeController.chartStyle);
+      await sp.setString('ax_chart_colors', _themeController.colorConvention);
+    } catch (_) {}
   }
 
   @override
   void initState() {
     super.initState();
     usePathUrlStrategy();
+    _hydrateAppearancePrefs();
     _themeController.addListener(_syncThemeToSubdomains);
   }
 
@@ -372,17 +479,31 @@ class _TradeXAppState extends State<TradeXApp> {
                 )
               : const UiSpacing();
 
+          final UiColors lightColors = UiColors.light().withMarketConvention(
+            _themeController.colorConvention,
+            Brightness.light,
+          );
+          final UiColors darkColors = UiColors.dark().withMarketConvention(
+            _themeController.colorConvention,
+            Brightness.dark,
+          );
           final UiTheme theme = isDark
-              ? UiTheme.dark(spacing: spacing)
-              : UiTheme.light(spacing: spacing);
+              ? UiTheme.dark(colors: darkColors, spacing: spacing)
+              : UiTheme.light(colors: lightColors, spacing: spacing);
 
           return UiApp(
             theme: theme,
             builder: (context) => MaterialApp.router(
               title: AppConstants.appName,
               debugShowCheckedModeBanner: false,
-              theme: UiTheme.light(spacing: spacing).toThemeData(),
-              darkTheme: UiTheme.dark(spacing: spacing).toThemeData(),
+              theme: UiTheme.light(
+                colors: lightColors,
+                spacing: spacing,
+              ).toThemeData(),
+              darkTheme: UiTheme.dark(
+                colors: darkColors,
+                spacing: spacing,
+              ).toThemeData(),
               themeMode: _themeController.value,
               builder: (context, child) => UiToastScope(
                 child: Material(

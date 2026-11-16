@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
@@ -17,6 +19,14 @@ abstract class TradingPrefsRepository {
 }
 
 class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
+  static const String _localExtrasKey = 'tradex_trading_extras_v1';
+  static const String _localCoreKey = 'tradex_trading_core_v1';
+
+  static final TradingPrefsRepositoryImpl instance =
+      TradingPrefsRepositoryImpl._();
+  TradingPrefsRepositoryImpl._();
+  factory TradingPrefsRepositoryImpl() => instance;
+
   String get _targetUserId =>
       SupabaseConfig.client?.auth.currentUser?.id ??
       SupabaseAuthBackendService.instance.currentUserProfile?.id ??
@@ -56,8 +66,40 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
     ),
   ];
 
+  Future<void> _hydrateLocalPrefs() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final coreRaw = sp.getString(_localCoreKey);
+      if (coreRaw != null && coreRaw.trim().isNotEmpty) {
+        final decoded = jsonDecode(coreRaw);
+        if (decoded is Map) {
+          _prefs = TradingPrefsModel.fromJson(
+            Map<String, dynamic>.from(decoded),
+          );
+        }
+      }
+      final extrasRaw = sp.getString(_localExtrasKey);
+      if (extrasRaw != null && extrasRaw.trim().isNotEmpty) {
+        final decoded = jsonDecode(extrasRaw);
+        if (decoded is Map) {
+          _prefs = _prefs.mergeExtrasJson(Map<String, dynamic>.from(decoded));
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _persistLocalPrefs(TradingPrefsModel prefs) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(_localCoreKey, jsonEncode(prefs.toJson()));
+      await sp.setString(_localExtrasKey, jsonEncode(prefs.toExtrasJson()));
+    } catch (_) {}
+  }
+
   @override
   Future<TradingPrefsModel> getPreferences() async {
+    await _hydrateLocalPrefs();
+
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
@@ -74,8 +116,19 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
 
         if (res != null) {
           _prefs = TradingPrefsModel.fromJson(res);
-          return _prefs;
         }
+
+        final appPref = await client
+            .from('user_app_preferences')
+            .select('trading_extras')
+            .eq('user_id', targetUserId)
+            .maybeSingle();
+        final extras = appPref?['trading_extras'];
+        if (extras is Map && extras.isNotEmpty) {
+          _prefs = _prefs.mergeExtrasJson(Map<String, dynamic>.from(extras));
+        }
+        await _persistLocalPrefs(_prefs);
+        return _prefs;
       } catch (e) {
         debugPrint('[TradingPrefsRepository] getPreferences error: $e');
       }
@@ -86,6 +139,7 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
   @override
   Future<TradingPrefsModel> updatePreferences(TradingPrefsModel prefs) async {
     _prefs = prefs;
+    await _persistLocalPrefs(prefs);
 
     if (SupabaseConfig.isConfigured) {
       try {
@@ -102,7 +156,15 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
             )
             .single();
 
-        _prefs = TradingPrefsModel.fromJson(res);
+        _prefs = TradingPrefsModel.fromJson(res).mergeExtrasJson(
+          prefs.toExtrasJson(),
+        );
+
+        await client.from('user_app_preferences').upsert({
+          'user_id': targetUserId,
+          'trading_extras': prefs.toExtrasJson(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        });
       } catch (e) {
         debugPrint('[TradingPrefsRepository] updatePreferences error: $e');
       }

@@ -175,8 +175,9 @@ void main() {
     });
 
     test('uploadAttachment rejects service access when allowDemo is false and disconnected', () async {
+      final previousAllowDemo = CustomerDataPolicy.allowDemo;
       CustomerDataPolicy.allowDemo = false;
-      addTearDown(() => CustomerDataPolicy.allowDemo = true);
+      addTearDown(() => CustomerDataPolicy.allowDemo = previousAllowDemo);
 
       final tempFile = File('${Directory.systemTemp.path}/test_strategy_chart2.png');
       tempFile.writeAsStringSync('dummy-image-bytes');
@@ -294,6 +295,28 @@ void main() {
 
   group('Issue #40: Work Item 3 - Link Graph Authoritative Mutation & Race Resolution', () {
     final repo = StrategiesRepositoryImpl.instance;
+    const currentUserId = '11111111-2222-3333-4444-555555555555';
+    late bool previousAllowDemo;
+
+    setUp(() {
+      previousAllowDemo = CustomerDataPolicy.allowDemo;
+      CustomerDataPolicy.allowDemo = true;
+      AuthBackendService.instance.setCurrentProfile(
+        UserProfileModel(
+          id: currentUserId,
+          email: 'trader@example.com',
+          handle: 'trader',
+          displayName: 'Trader',
+          role: UserRole.customer,
+          createdAt: DateTime.now(),
+        ),
+      );
+    });
+
+    tearDown(() {
+      AuthBackendService.instance.setCurrentProfile(null);
+      CustomerDataPolicy.allowDemo = previousAllowDemo;
+    });
 
     test('linkNote and unlinkNote update in-memory state cleanly', () async {
       final strategy = AppStrategy(

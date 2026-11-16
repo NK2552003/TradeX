@@ -458,6 +458,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       repository: widget.repository,
       currentUser: widget.currentUser,
       isLoading: widget.repository.isLoading,
+      showAdvertisements: true,
       padding: EdgeInsets.only(
         top: effectiveTop,
         left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),

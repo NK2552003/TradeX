@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/utils/file_download.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
 import 'package:tradex/features/settings/models/privacy_settings_model.dart';
@@ -34,6 +35,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
   DataExportRequest? _exportRequest;
   bool _loading = true;
   bool _requestingExport = false;
+  bool _downloadingExport = false;
 
   @override
   void initState() {
@@ -209,9 +211,11 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
         });
         UiToast.show(
           context,
-          title: 'Export Requested',
-          message: 'We are packaging your trading data archive.',
-          intent: UiIntent.info,
+          title: req.isReady ? 'Archive Ready' : 'Export Requested',
+          message: req.isReady
+              ? 'Your GDPR ZIP archive is packaged and ready to download.'
+              : 'We are packaging your trading data archive.',
+          intent: req.isReady ? UiIntent.success : UiIntent.info,
         );
       }
     } catch (e) {
@@ -276,35 +280,65 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
             variant: UiVariant.primary,
             intent: UiIntent.primary,
             size: UiSize.sm,
-            onPressed: () async {
-              final request = _exportRequest!;
-              final uri = Uri.tryParse(request.downloadUrl ?? '');
-              final valid =
-                  uri != null &&
-                  uri.scheme == 'https' &&
-                  uri.host.isNotEmpty &&
-                  (request.expiresAt == null ||
-                      request.expiresAt!.isAfter(DateTime.now()));
-              try {
-                if (!valid ||
-                    !await launchUrl(
-                      uri,
-                      mode: LaunchMode.externalApplication,
-                    )) {
-                  throw StateError('Export unavailable');
-                }
-              } catch (_) {
-                if (mounted) {
-                  UiToast.show(
-                    context,
-                    title: 'Download unavailable',
-                    message:
-                        'This archive link is missing or expired. Request a new export.',
-                    intent: UiIntent.warning,
-                  );
-                }
-              }
-            },
+            loading: _downloadingExport,
+            onPressed: _downloadingExport
+                ? null
+                : () async {
+                    final request = _exportRequest!;
+                    final uri = Uri.tryParse(request.downloadUrl ?? '');
+                    final hasRemoteLink =
+                        uri != null &&
+                        uri.scheme == 'https' &&
+                        uri.host.isNotEmpty &&
+                        (request.expiresAt == null ||
+                            request.expiresAt!.isAfter(DateTime.now()));
+                    setState(() => _downloadingExport = true);
+                    try {
+                      if (hasRemoteLink) {
+                        final launched = await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        );
+                        if (!launched) {
+                          throw StateError('Unable to open download link');
+                        }
+                      } else {
+                        final archive = await PrivacyRepositoryImpl.instance
+                            .buildDataExportArchive();
+                        await downloadBytesFile(
+                          archive.bytes,
+                          filename: archive.filename,
+                          mimeType: 'application/zip',
+                        );
+                      }
+                      if (mounted) {
+                        UiToast.show(
+                          context,
+                          title: 'Download Started',
+                          message: 'Your GDPR trading data ZIP is downloading.',
+                          intent: UiIntent.success,
+                        );
+                      }
+                    } catch (_) {
+                      if (mounted) {
+                        UiToast.show(
+                          context,
+                          title: 'Download unavailable',
+                          message:
+                              'Could not package or download the archive. Request a fresh export and retry.',
+                          intent: UiIntent.warning,
+                        );
+                      }
+                    } finally {
+                      if (mounted) setState(() => _downloadingExport = false);
+                    }
+                  },
+          ),
+          UiIconButton(
+            icon: Icons.refresh_rounded,
+            size: UiSize.xs,
+            tooltip: 'Regenerate archive',
+            onPressed: _requestingExport ? null : _handleRequestExport,
           ),
         ],
       );

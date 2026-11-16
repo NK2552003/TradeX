@@ -3,6 +3,7 @@ import json
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from argparse import Namespace
@@ -46,7 +47,8 @@ class MarketSyncTests(unittest.TestCase):
 
     def test_short_provider_history_is_discarded_without_failing_partition(self):
         report = {'errors': [], 'warnings': [], 'symbols': {}}
-        history = [{'date': '2026-11-08', 'open': 10, 'high': 11,
+        now = datetime.now(timezone.utc)
+        history = [{'date': now.date().isoformat(), 'open': 10, 'high': 11,
                     'low': 9, 'close': 10, 'volume': 1}]
         with patch.object(
             pipeline,
@@ -56,7 +58,7 @@ class MarketSyncTests(unittest.TestCase):
                     'history': history,
                     'quote': {
                         'ticker': 'SHORT',
-                        'updated_at': '2026-11-08T10:00:00+00:00',
+                        'updated_at': now.isoformat(),
                     },
                     'fundamental': {},
                     'ticker': {'ticker': 'SHORT'},

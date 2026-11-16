@@ -2,11 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:tradex/core/ads/ad_scope.dart';
+import 'package:tradex/core/ads/promotion_preview.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/data/app_session.dart';
@@ -327,7 +330,11 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
       builder: (context, constraints) {
         final showQuotaBanner =
             constraints.maxHeight >= 420 && !controller.isAiQuotaBlocked;
+        final showPromoPreview =
+            !kReleaseMode &&
+            AdSenseScope.maybeOf(context)?.config.preview == true;
         final hasTopNotices =
+            showPromoPreview ||
             showQuotaBanner ||
             controller.pageContextId != null ||
             controller.isAiQuotaBlocked ||
@@ -338,6 +345,13 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (showPromoPreview)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: context.sp(context.ui.spacing.sm),
+                      ),
+                      child: const PromotionPreview(surface: 'AI Assistant'),
+                    ),
                   if (showQuotaBanner) _AiQuotaBanner(controller: controller),
                   if (controller.pageContextId != null)
                     Padding(

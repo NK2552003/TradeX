@@ -81,6 +81,7 @@ class CommunityAuthor {
     String? subscriptionTier,
     AppTier? tier,
     bool? verified,
+    double? winRate,
   }) =>
       CommunityAuthor(
         id: id,
@@ -95,7 +96,7 @@ class CommunityAuthor {
         isFollowing: isFollowing ?? this.isFollowing,
         followers: followers ?? this.followers,
         following: following ?? this.following,
-        winRate: winRate,
+        winRate: winRate ?? this.winRate,
         tradingStyle: tradingStyle,
         experienceLevel: experienceLevel,
         primaryMarket: primaryMarket,

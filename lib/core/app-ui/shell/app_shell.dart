@@ -1684,6 +1684,7 @@ class AppTopBar extends StatelessWidget {
         'settings_billing' => Icons.credit_card_outlined,
         'settings_appearance' => Icons.palette_outlined,
         'settings_trading' => Icons.candlestick_chart_outlined,
+        'settings_ai' => Icons.auto_awesome_outlined,
         'settings_privacy' => Icons.security_rounded,
         'settings_help' => Icons.help_outline_rounded,
         'settings_organization' => Icons.corporate_fare_rounded,

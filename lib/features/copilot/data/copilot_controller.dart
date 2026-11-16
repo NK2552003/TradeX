@@ -205,6 +205,24 @@ class CopilotController extends ChangeNotifier {
     }
   }
 
+  /// Applies workspace settings updates immediately in memory so Settings
+  /// and Copilot stay synchronized even while offline.
+  void applyLocalSettings(Map<String, dynamic> patch) {
+    final Map<String, dynamic> settings = Map<String, dynamic>.from(
+      workspace.json['settings'] as Map? ?? const <String, dynamic>{},
+    );
+    workspace.json['settings'] = settings;
+    settings.addAll(patch);
+    final defaultSpec = patch['defaultSpecialistId']?.toString().trim();
+    if (defaultSpec != null &&
+        defaultSpec.isNotEmpty &&
+        activeThreadId == null &&
+        workspace.specialists.any((s) => s.id == defaultSpec)) {
+      specialistId = defaultSpec;
+    }
+    _notify();
+  }
+
   void selectThread(String id) {
     if (conversationLocked) return;
     activeThreadId = id;

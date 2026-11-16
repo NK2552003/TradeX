@@ -871,6 +871,14 @@ Formatting and Response Directives:
             'LOSS',
             'NOTE',
             'TRADE',
+            'ANALYZE',
+            'ANALYSE',
+            'BREAKOUT',
+            'SETUP',
+            'REVIEW',
+            'CHECK',
+            'GIVE',
+            'SHOW',
           }.contains(t),
         )
         .toList();

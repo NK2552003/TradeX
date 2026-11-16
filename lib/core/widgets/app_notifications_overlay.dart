@@ -22,6 +22,7 @@ class AppNotificationsOverlay extends StatefulWidget {
     this.onOpenRef,
     this.onOpenPost,
     this.onOpenAuthor,
+    this.onOpenSecuritySettings,
     this.onClose,
   });
 
@@ -30,6 +31,7 @@ class AppNotificationsOverlay extends StatefulWidget {
   final void Function(AppLinkRef ref)? onOpenRef;
   final ValueChanged<CommunityPost>? onOpenPost;
   final ValueChanged<CommunityAuthor>? onOpenAuthor;
+  final VoidCallback? onOpenSecuritySettings;
   final VoidCallback? onClose;
 
   static Future<void> show(
@@ -39,6 +41,7 @@ class AppNotificationsOverlay extends StatefulWidget {
     void Function(AppLinkRef ref)? onOpenRef,
     ValueChanged<CommunityPost>? onOpenPost,
     ValueChanged<CommunityAuthor>? onOpenAuthor,
+    VoidCallback? onOpenSecuritySettings,
   }) {
     final theme = context.ui;
     final bool isMobile = context.uiRes.isMobile;
@@ -56,7 +59,7 @@ class AppNotificationsOverlay extends StatefulWidget {
                 ? Alignment.bottomCenter
                 : Alignment.centerRight,
             child: SizedBox(
-              width: isMobile ? double.infinity : ctx.sz(420),
+              width: isMobile ? double.infinity : ctx.sz(440),
               height: isMobile
                   ? MediaQuery.sizeOf(ctx).height * 0.94
                   : double.infinity,
@@ -71,6 +74,7 @@ class AppNotificationsOverlay extends StatefulWidget {
                     onOpenRef: onOpenRef,
                     onOpenPost: onOpenPost,
                     onOpenAuthor: onOpenAuthor,
+                    onOpenSecuritySettings: onOpenSecuritySettings,
                     onClose: () => Navigator.of(ctx).maybePop(),
                   ),
                 ),
@@ -103,6 +107,8 @@ class AppNotificationsOverlay extends StatefulWidget {
 class _AppNotificationsOverlayState extends State<AppNotificationsOverlay> {
   // 0: All, 1: People you follow, 2: Comments, 3: Follows, 4: System
   int _selectedFilter = 0;
+  CommunityPost? _activePost;
+  bool _loadingPost = false;
 
   @override
   void initState() {
@@ -185,76 +191,132 @@ class _AppNotificationsOverlayState extends State<AppNotificationsOverlay> {
     return groups;
   }
 
-  void _handleItemTap(CommunityNotificationItem item) {
-    widget.repository.markNotificationRead(item.id);
+  Future<void> _handleItemTap(CommunityNotificationItem item) async {
+    await widget.repository.markNotificationRead(item.id);
+    if (!mounted) return;
 
     if (item.postId != null && item.postId!.isNotEmpty) {
-      final post = widget.repository.loadPostById(item.postId!);
+      if (item.type == CommunityNotificationType.message) {
+        widget.onClose?.call();
+        widget.onOpenRef?.call(
+          AppLinkRef(
+            kind: AppLinkKind.messageThread,
+            id: item.postId!,
+            title: item.title ?? 'Messages',
+          ),
+        );
+        return;
+      }
+
+      if (item.type == CommunityNotificationType.tradeExecution ||
+          item.type == CommunityNotificationType.signal ||
+          item.type == CommunityNotificationType.marginAlert) {
+        widget.onClose?.call();
+        widget.onOpenRef?.call(
+          AppLinkRef(
+            kind: item.type == CommunityNotificationType.tradeExecution
+                ? AppLinkKind.journal
+                : AppLinkKind.ticker,
+            id: item.postId!,
+            title: item.title ?? 'Market',
+          ),
+        );
+        return;
+      }
+
+      CommunityPost? post = widget.repository.loadPostById(item.postId!);
+      if (post == null) {
+        setState(() => _loadingPost = true);
+        post = await widget.repository.fetchPostById(item.postId!);
+        if (!mounted) return;
+        setState(() => _loadingPost = false);
+      }
+
       if (post != null) {
         if (widget.onOpenPost != null) {
+          widget.onClose?.call();
           widget.onOpenPost!(post);
         } else {
-          _showPostDetail(post);
+          setState(() => _activePost = post);
         }
+        return;
+      }
+
+      if (item.actor == null) {
+        UiToast.info(
+          context,
+          title: 'Post unavailable',
+          message: 'This post may have been removed or made private.',
+        );
         return;
       }
     }
 
-    if (item.actor != null && widget.onOpenAuthor != null) {
-      widget.onOpenAuthor!(item.actor!);
+    if (item.type == CommunityNotificationType.security ||
+        item.type == CommunityNotificationType.system) {
+      await _showSecurityAlertDetails(item);
       return;
     }
 
-    if (item.type == CommunityNotificationType.security ||
-        item.type == CommunityNotificationType.system) {
-      _showSecurityAlertDetails(item);
+    if (item.actor != null && widget.onOpenAuthor != null) {
+      widget.onClose?.call();
+      widget.onOpenAuthor!(item.actor!);
     }
   }
 
-  void _showPostDetail(CommunityPost post) {
-    showModalBottomSheet<void>(
+  Future<void> _showSecurityAlertDetails(CommunityNotificationItem item) async {
+    final bool? openSettings = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return ClipRRect(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(ctx.sp(context.ui.radii.xl)),
-          ),
-          child: SizedBox(
-            height: MediaQuery.sizeOf(ctx).height * 0.9,
-            child: CommunityPostDetailView(
-              post: post,
-              repository: widget.repository,
-              currentUser: _currentAuthor,
-              onBack: () => Navigator.of(ctx).pop(),
-              onAuthorTap: (a) {
-                Navigator.of(ctx).pop();
-                widget.onOpenAuthor?.call(a);
-              },
-              onOpenRef: widget.onOpenRef,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showSecurityAlertDetails(CommunityNotificationItem item) {
-    UiDialog.confirm(
-      context,
-      title: item.title ?? 'Security Alert',
-      description:
+      builder: (ctx) => UiDialog(
+        title: item.title ?? 'Security Alert',
+        content: Text(
           item.body ??
-          "A security event was logged on your account. If this was not you, rotate your credentials immediately.",
-      confirmLabel: 'Looks Good',
-      cancelLabel: 'Security Settings',
+              'A security event was logged on your account. If this was not you, review your credentials and security settings immediately.',
+          style: context.uiText.body,
+        ),
+        actions: [
+          UiButton(
+            label: 'Security Settings',
+            variant: UiVariant.outline,
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+          UiButton(
+            label: 'Looks Good',
+            intent: UiIntent.primary,
+            onPressed: () => Navigator.of(ctx).pop(false),
+          ),
+        ],
+      ),
     );
+    if (openSettings == true && mounted) {
+      widget.onClose?.call();
+      widget.onOpenSecuritySettings?.call();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
+    if (_activePost != null) {
+      return CommunityPostDetailView(
+        key: ValueKey<String>('overlay_post_${_activePost!.id}'),
+        post: _activePost!,
+        repository: widget.repository,
+        currentUser: _currentAuthor,
+        forceSingleColumn: true,
+        showHeader: true,
+        onBack: () => setState(() => _activePost = null),
+        onAuthorTap: (author) {
+          widget.onClose?.call();
+          widget.onOpenAuthor?.call(author);
+        },
+        onOpenRef: (ref) {
+          widget.onClose?.call();
+          widget.onOpenRef?.call(ref);
+        },
+      );
+    }
+
     final int unreadCount = widget.repository.unreadNotifications;
     final filteredItems = _getFilteredNotifications();
     final grouped = _groupByTime(filteredItems);
@@ -273,6 +335,11 @@ class _AppNotificationsOverlayState extends State<AppNotificationsOverlay> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        if (_loadingPost)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 4),
+            child: UiSkeleton(height: 3, width: double.infinity),
+          ),
         // Header
         Padding(
           padding: EdgeInsets.fromLTRB(
@@ -286,11 +353,15 @@ class _AppNotificationsOverlayState extends State<AppNotificationsOverlay> {
               Expanded(
                 child: Row(
                   children: [
-                    Text(
-                      'Notifications',
-                      style: context.uiText.heading.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colors.foreground,
+                    Flexible(
+                      child: Text(
+                        'Notifications',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.heading.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colors.foreground,
+                        ),
                       ),
                     ),
                     if (unreadCount > 0) ...[

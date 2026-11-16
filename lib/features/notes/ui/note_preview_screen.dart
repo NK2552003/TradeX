@@ -2,6 +2,8 @@ import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tradex/core/ads/ad_config.dart';
+import 'package:tradex/core/ads/ad_slot.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
 // Required unified UI surfaces for feature pages.
@@ -526,6 +528,14 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           if (_bundle.isNotEmpty || _canEdit) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.xl)),
             _linkedRecords(context),
+          ],
+          if (_note.isPublic && _isPublicViewer) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.xl)),
+            AdSlot(
+              placement: AdPlacement.publicNoteFooter,
+              contentReady: _note.wordCount >= 120,
+              previewContentReady: true,
+            ),
           ],
         ],
       ),

@@ -27,6 +27,9 @@ void main() {
           ),
         ),
       );
+      await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      });
       await tester.pumpAndSettle();
 
       expect(find.byType(MarketRootScreen), findsOneWidget);

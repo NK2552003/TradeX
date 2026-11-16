@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/navigation/customer_routes.dart';
 import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
@@ -40,13 +40,20 @@ class RecordingSignup extends Fake implements AuthRepository {
 
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
+  late bool savedAllowDemo;
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    savedAllowDemo = CustomerDataPolicy.allowDemo;
     CustomerDataPolicy.allowDemo = true;
   });
-  tearDown(() => CustomerDataPolicy.allowDemo = false);
+  tearDown(() => CustomerDataPolicy.allowDemo = savedAllowDemo);
   Future<void> settle(WidgetTester tester) async {
-    await tester.pump();
+    for (int i = 0; i < 3; i++) {
+      await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      });
+      await tester.pump();
+    }
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
   }
@@ -83,6 +90,7 @@ void main() {
       await settle(tester);
       expect(find.byType(AffiliateOverviewPage), findsOneWidget);
       expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
     },
   );
   testWidgets(
@@ -269,6 +277,9 @@ void main() {
       await AuthSessionStorage.saveSession(profile: profile);
       await AuthSessionStorage.saveWorkspaceRole(profile.id, UserRole.customer);
       await tester.pumpWidget(const MaterialApp(home: AuthWrapper()));
+      await tester.pump(
+        AlphaThread.pullDuration + const Duration(milliseconds: 50),
+      );
       await settle(tester);
       final shell = tester.widget<AppScaffold>(find.byType(AppScaffold));
       expect(shell.userRole, UserRole.customer);

@@ -456,10 +456,10 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Notification Preferences'), findsOneWidget);
+        expect(find.text('Notification preferences'), findsOneWidget);
         expect(find.text('Push Notifications'), findsOneWidget);
-        expect(find.text('Trade Setup & Signal Alerts'), findsOneWidget);
-        expect(find.text('Save Preferences'), findsOneWidget);
+        expect(find.text('Trade Executions & Orders'), findsOneWidget);
+        expect(find.text('Email Notifications & Digest'), findsOneWidget);
       },
     );
 
@@ -677,7 +677,7 @@ void main() {
         // Verify CommunityShareSheet opened with post preview, URL, and external share options
         expect(find.text('Share Post'), findsOneWidget);
         expect(
-          find.text('https://alphajournal.in/community/post/post-share-101?public=true'),
+          find.text('https://community.alphajournal.in/community/post/post-share-101?public=true'),
           findsOneWidget,
         );
         expect(
@@ -703,7 +703,7 @@ void main() {
 
         expect(repo.shareCountFor('post-share-101'), 1);
         expect(shareCallbackFired, isTrue);
-        expect(copiedLink, 'https://alphajournal.in/community/post/post-share-101?public=true');
+        expect(copiedLink, 'https://community.alphajournal.in/community/post/post-share-101?public=true');
 
         // Tap Save Post to Trader Notes
         final int notesBefore =
@@ -754,7 +754,7 @@ void main() {
 
         expect(find.text('Share Post'), findsOneWidget);
         expect(
-          find.text('https://alphajournal.in/community/post/app-post-77?public=true'),
+          find.text('https://community.alphajournal.in/community/post/app-post-77?public=true'),
           findsOneWidget,
         );
         expect(

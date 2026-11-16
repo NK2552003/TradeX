@@ -22,8 +22,7 @@ enum WorkspaceSection {
   calls('Call history', Icons.call_outlined),
   memory('Memory & learning', Icons.bookmark_border),
   connections('Connections', Icons.extension_outlined),
-  computer('Computer', Icons.computer_outlined),
-  settings('Settings', Icons.tune_rounded);
+  computer('Computer', Icons.computer_outlined);
 
   const WorkspaceSection(this.label, this.icon);
   final String label;
@@ -37,12 +36,14 @@ class CopilotWorkspacePane extends StatefulWidget {
     required this.onConversation,
     required this.onPage,
     required this.onClose,
+    this.onOpenSettings,
     this.searchQuery = '',
   });
   final CopilotController controller;
   final VoidCallback onConversation;
   final ValueChanged<WorkspacePage> onPage;
   final VoidCallback onClose;
+  final VoidCallback? onOpenSettings;
   final String searchQuery;
   @override
   State<CopilotWorkspacePane> createState() => _CopilotWorkspacePaneState();
@@ -95,6 +96,14 @@ class _CopilotWorkspacePaneState extends State<CopilotWorkspacePane> {
               ),
             ),
             UiGap.h(context.ui.spacing.xs),
+            if (widget.onOpenSettings != null) ...[
+              UiIconButton(
+                icon: Icons.tune_rounded,
+                tooltip: 'AI & Copilot settings',
+                onPressed: widget.onOpenSettings,
+              ),
+              UiGap.h(context.ui.spacing.xs),
+            ],
             UiIconButton(
               icon: Icons.close_rounded,
               tooltip: 'Close workspace',
@@ -103,8 +112,7 @@ class _CopilotWorkspacePaneState extends State<CopilotWorkspacePane> {
           ],
         ),
         UiGap.v(context.ui.spacing.md),
-        if (_section != WorkspaceSection.settings &&
-            _section != WorkspaceSection.computer) ...[
+        if (_section != WorkspaceSection.computer) ...[
           UiInput.search(
             value: _query,
             hintText: 'Search ${_section.label.toLowerCase()}',
@@ -149,9 +157,6 @@ class _CopilotWorkspacePaneState extends State<CopilotWorkspacePane> {
               query: _query,
             ),
             WorkspaceSection.computer => CopilotComputerPanel(
-              controller: controller,
-            ),
-            WorkspaceSection.settings => CopilotSettings(
               controller: controller,
             ),
           },

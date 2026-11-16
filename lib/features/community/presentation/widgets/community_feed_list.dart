@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:tradex/core/ads/ad_config.dart';
+import 'package:tradex/core/ads/ad_slot.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
@@ -96,6 +98,13 @@ class CommunityFeedList extends StatelessWidget {
             message:
                 'Be the first to share a thesis, trade setup or market insight.',
           );
+      final Widget? previewAd = showAdvertisements
+          ? const AdSlot(
+              placement: AdPlacement.feedInline,
+              contentReady: false,
+              previewContentReady: true,
+            )
+          : null;
 
       if (onRefresh != null) {
         return RefreshIndicator(
@@ -105,8 +114,25 @@ class CommunityFeedList extends StatelessWidget {
             controller: controller,
             padding: padding,
             physics: const AlwaysScrollableScrollPhysics(),
-            children: <Widget>[empty],
+            children: <Widget>[
+              empty,
+              if (previewAd != null) ...<Widget>[
+                const UiDivider(spacing: 0),
+                previewAd,
+              ],
+            ],
           ),
+        );
+      }
+      if (previewAd != null) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            empty,
+            const UiDivider(spacing: 0),
+            previewAd,
+          ],
         );
       }
       return empty;
@@ -130,6 +156,14 @@ class CommunityFeedList extends StatelessWidget {
           header!,
           SizedBox(height: context.sp(context.ui.spacing.md)),
           empty,
+          if (showAdvertisements) ...<Widget>[
+            const UiDivider(spacing: 0),
+            const AdSlot(
+              placement: AdPlacement.feedInline,
+              contentReady: false,
+              previewContentReady: true,
+            ),
+          ],
         ],
       );
 
@@ -150,6 +184,33 @@ class CommunityFeedList extends StatelessWidget {
       itemCount: posts.length,
       itemBuilder: (BuildContext ctx, int index) {
         final post = posts[index];
+        final bool isBoundary = (index + 1) % 5 == 0;
+        final bool isShortTail = posts.length < 5 && index == posts.length - 1;
+        Widget? adSlot;
+        if (showAdvertisements && isBoundary) {
+          final int occurrence = (index + 1) ~/ 5;
+          final slice = posts.sublist(index - 4, index + 1);
+          final bool sliceReady = slice.every(
+            (p) =>
+                p.isPublic &&
+                p.moderationStatus.trim().toLowerCase() == 'approved',
+          );
+          adSlot = AdSlot(
+            key: ValueKey<String>('feed-ad-$occurrence'),
+            placement: occurrence.isOdd
+                ? AdPlacement.feedInline
+                : AdPlacement.feedFooter,
+            occurrence: occurrence,
+            contentReady: sliceReady,
+            previewContentReady: true,
+          );
+        } else if (showAdvertisements && isShortTail) {
+          adSlot = const AdSlot(
+            placement: AdPlacement.feedInline,
+            contentReady: false,
+            previewContentReady: true,
+          );
+        }
         return Column(
           children: [
             if (index > 0) const UiDivider(spacing: 0),
@@ -168,6 +229,10 @@ class CommunityFeedList extends StatelessWidget {
               onOpenRef: onOpenRef,
               onQuote: onQuote,
             ),
+            if (adSlot != null) ...[
+              const UiDivider(spacing: 0),
+              adSlot,
+            ],
           ],
         );
       },

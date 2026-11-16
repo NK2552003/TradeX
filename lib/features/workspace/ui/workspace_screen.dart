@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
+import 'package:tradex/core/ads/ad_scope.dart';
+import 'package:tradex/core/ads/promotion_preview.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/record_access.dart';
@@ -696,6 +699,13 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                       ),
               ),
               SizedBox(height: context.sp(theme.spacing.md)),
+
+              if (!kReleaseMode &&
+                  AdSenseScope.maybeOf(context)?.config.preview ==
+                      true) ...<Widget>[
+                const PromotionPreview(surface: 'Writing Desk'),
+                SizedBox(height: context.sp(theme.spacing.md)),
+              ],
 
               // ── Quick Links ──────────────────────────────────────────
               AppFadeIn(child: _buildQuickLinks(context)),

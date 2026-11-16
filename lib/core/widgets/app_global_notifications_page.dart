@@ -173,10 +173,31 @@ class _AppGlobalNotificationsPageState
         onAuthorTap: _openAuthorProfile,
         onOpenRef: widget.onOpenRef,
         showHeader: false,
+        forceSingleColumn: true,
       ),
       'Post Discussion',
       Icons.article_rounded,
     );
+  }
+
+  Future<void> _handleCommunityTap(CommunityNotificationItem item) async {
+    await widget.repository.markNotificationRead(item.id);
+    CommunityPost? post;
+    if (item.postId != null && item.postId!.isNotEmpty) {
+      post =
+          widget.repository.loadPostById(item.postId!) ??
+          await widget.repository.fetchPostById(item.postId!);
+    } else if (item.postSnippet != null && item.actor != null) {
+      post = widget.repository.feedPosts
+          .where((p) => p.author.handle == item.actor!.handle)
+          .firstOrNull;
+    }
+    if (!mounted) return;
+    if (post != null) {
+      _openPostDetail(post);
+    } else if (item.actor != null) {
+      _openAuthorProfile(item.actor!);
+    }
   }
 
   void _openAuthorProfile(CommunityAuthor author) {
@@ -452,19 +473,7 @@ class _AppGlobalNotificationsPageState
                       ),
                       child: CommunityNotificationCard(
                         notification: item,
-                        onTap: () {
-                          if (item.postSnippet != null &&
-                              widget.repository.feedPosts.isNotEmpty) {
-                            final post = widget.repository.feedPosts.firstWhere(
-                              (p) =>
-                                  p.author.handle == (item.actor?.handle ?? ''),
-                              orElse: () => widget.repository.feedPosts.first,
-                            );
-                            _openPostDetail(post);
-                          } else if (item.actor != null) {
-                            _openAuthorProfile(item.actor!);
-                          }
-                        },
+                        onTap: () => _handleCommunityTap(item),
                       ),
                     );
                   },
@@ -618,18 +627,7 @@ class _AppGlobalNotificationsPageState
             padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
             child: CommunityNotificationCard(
               notification: c,
-              onTap: () {
-                if (c.postSnippet != null &&
-                    widget.repository.feedPosts.isNotEmpty) {
-                  final post = widget.repository.feedPosts.firstWhere(
-                    (p) => p.author.handle == (c.actor?.handle ?? ''),
-                    orElse: () => widget.repository.feedPosts.first,
-                  );
-                  _openPostDetail(post);
-                } else if (c.actor != null) {
-                  _openAuthorProfile(c.actor!);
-                }
-              },
+              onTap: () => _handleCommunityTap(c),
             ),
           );
         }

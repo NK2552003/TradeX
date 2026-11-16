@@ -569,6 +569,9 @@ class JournalRepositoryImpl implements JournalRepository {
     return List<AppTrade>.unmodifiable(copy);
   }
 
+  /// Synchronously returns the currently cached trades sorted newest-first.
+  List<AppTrade> get currentEntries => _snapshot();
+
   void _publish() {
     if (!_changes.isClosed) _changes.add(_snapshot());
   }
@@ -675,7 +678,10 @@ class JournalRepositoryImpl implements JournalRepository {
 
     AppTrade saved = draft;
     final targetUserId = _resolveUserId();
-    final String assignedId = _isUuid(draft.id) ? draft.id : const Uuid().v4();
+    final String assignedId =
+        draft.id.isEmpty || (SupabaseConfig.isConfigured && !_isUuid(draft.id))
+        ? const Uuid().v4()
+        : draft.id;
 
     if (SupabaseConfig.isConfigured) {
       try {

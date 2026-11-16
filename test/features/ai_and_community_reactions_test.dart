@@ -87,8 +87,14 @@ void main() {
 
       expect(reply, isNotEmpty);
       expect(reply, contains('RELIANCE'));
-      expect(reply, contains('Key Structural & Liquidity Levels'));
-      expect(reply, contains('Trade Execution Blueprint'));
+      final parsed = jsonDecode(reply) as Map<String, dynamic>;
+      expect(
+        parsed['title'],
+        equals('RELIANCE Institutional Swing Trade Breakdown'),
+      );
+      expect(parsed['rr_initial'], equals('1:1.8'));
+      expect(parsed['plan'], isA<List<dynamic>>());
+      expect((parsed['plan'] as List<dynamic>).length, greaterThanOrEqualTo(4));
     });
 
     test('Note AI refactoring rejects unauthenticated requests when no keys are configured', () async {

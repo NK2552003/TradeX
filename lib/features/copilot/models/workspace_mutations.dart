@@ -168,12 +168,32 @@ class WorkspaceMutations {
         (state['skills'] as List).removeWhere((s) => s['id'] == id);
         return {};
       case 'settings.save':
-        final settings = state['settings'] as Json;
+        final settings = state['settings'] = Map<String, dynamic>.from(
+          state['settings'] as Map? ?? const <String, dynamic>{},
+        );
         if (['system', 'light', 'dark'].contains(input['appearance'])) {
           settings['appearance'] = input['appearance'];
         }
-        for (final flag in ['paused', 'research', 'memory', 'apps']) {
+        for (final flag in [
+          'paused',
+          'research',
+          'memory',
+          'apps',
+          'autoAttachContext',
+          'requireToolApproval',
+          'voiceAutoSpeak',
+        ]) {
           if (input.containsKey(flag)) settings[flag] = input[flag] == true;
+        }
+        if (['concise', 'balanced', 'detailed'].contains(input['responseStyle'])) {
+          settings['responseStyle'] = input['responseStyle'];
+        }
+        if (['inline', 'footnotes'].contains(input['citationsStyle'])) {
+          settings['citationsStyle'] = input['citationsStyle'];
+        }
+        final defaultSpec = textOf(input, 'defaultSpecialistId').trim();
+        if (defaultSpec.isNotEmpty) {
+          settings['defaultSpecialistId'] = defaultSpec;
         }
         return settings;
       case 'schedule.save':

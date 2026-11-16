@@ -127,7 +127,12 @@ void main() {
     expect((await repo.load()).profile.number('unpaid_balance'), 44000);
   });
   Future<void> settle(WidgetTester tester) async {
-    await tester.pump();
+    for (int i = 0; i < 3; i++) {
+      await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      });
+      await tester.pump();
+    }
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
   }

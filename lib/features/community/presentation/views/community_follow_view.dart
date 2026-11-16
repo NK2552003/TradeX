@@ -30,6 +30,8 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   late TabController _tabController;
   final String _searchQuery = '';
   String _leaderboardPeriod = '1M';
+  bool _refreshing = false;
+  bool _loadingLeaderboard = false;
 
   String get _effectiveQuery => (widget.searchQuery?.trim().isNotEmpty ?? false)
       ? widget.searchQuery!.trim()
@@ -47,6 +49,29 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     widget.repository.addListener(_onDataChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadLeaderboard(_leaderboardPeriod);
+    });
+  }
+
+  Future<void> _loadLeaderboard(String period) async {
+    setState(() => _loadingLeaderboard = true);
+    try {
+      await widget.repository.fetchLeaderboard(period: period);
+    } finally {
+      if (mounted) setState(() => _loadingLeaderboard = false);
+    }
+  }
+
+  Future<void> _refreshNetwork() async {
+    if (_refreshing) return;
+    setState(() => _refreshing = true);
+    try {
+      await widget.repository.fetchFromSupabase();
+      await widget.repository.fetchLeaderboard(period: _leaderboardPeriod);
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
   }
 
   @override
@@ -210,8 +235,8 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
                 UiIconButton(
                   icon: Icons.refresh_rounded,
                   size: UiSize.xs,
-                  tooltip: 'Refresh Network',
-                  onPressed: () => setState(() {}),
+                  tooltip: _refreshing ? 'Refreshing...' : 'Refresh Network',
+                  onPressed: _refreshing ? null : _refreshNetwork,
                 ),
                 UiIconButton(
                   icon: Icons.shield_outlined,
@@ -326,7 +351,16 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   Widget _buildLeaderboardTab() {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final entries = widget.repository.leaderboard;
+    final rawEntries = widget.repository.leaderboardForPeriod(_leaderboardPeriod);
+    final query = _effectiveQuery.toLowerCase();
+    final entries = query.isEmpty
+        ? rawEntries
+        : rawEntries.where((entry) {
+            final t = entry.key;
+            return t.displayName.toLowerCase().contains(query) ||
+                t.handle.toLowerCase().contains(query) ||
+                (t.tradingStyle?.toLowerCase().contains(query) ?? false);
+          }).toList();
 
     final Widget content = Column(
       children: [
@@ -338,17 +372,25 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Ranked by Win-Rate',
-                style: context.uiText.caption.copyWith(
-                  color: theme.colors.foregroundMuted,
+              Expanded(
+                child: Text(
+                  'Ranked by Win-Rate · $_leaderboardPeriod',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
               ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
               UiToggleGroup<String>(
                 size: UiSize.xs,
                 variant: UiToggleGroupVariant.segmented,
                 value: _leaderboardPeriod,
-                onChanged: (v) => setState(() => _leaderboardPeriod = v),
+                onChanged: (v) {
+                  setState(() => _leaderboardPeriod = v);
+                  _loadLeaderboard(v);
+                },
                 options: const [
                   UiToggleOption(value: '1W', label: '1W'),
                   UiToggleOption(value: '1M', label: '1M'),
@@ -360,35 +402,62 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
           ),
         ),
         const UiDivider(),
-        Expanded(
-          child: ListView.separated(
-            padding: EdgeInsets.all(
-              context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        if (_loadingLeaderboard && entries.isEmpty)
+          Expanded(
+            child: UiSkeleton.settingsList(showHeader: false, rows: 6),
+          )
+        else if (entries.isEmpty)
+          Expanded(
+            child: Center(
+              child: UiEmptyState(
+                icon: Icons.emoji_events_outlined,
+                title: query.isNotEmpty
+                    ? 'No matching traders'
+                    : 'No ranked traders yet',
+                message: query.isNotEmpty
+                    ? 'Try another name, handle, or trading style.'
+                    : 'Public win-rates and verified setups for this timeframe will appear here.',
+                actionLabel: query.isEmpty ? 'Refresh' : null,
+                onActionPressed: query.isEmpty ? _refreshNetwork : null,
+              ),
             ),
-            itemCount: entries.length,
-            separatorBuilder: (_, _) =>
-                SizedBox(height: context.sp(theme.spacing.xs)),
-            itemBuilder: (BuildContext context, int index) {
-              final rank = index + 1;
-              final trader = entries[index].key;
-              final winRate = entries[index].value;
+          )
+        else
+          Expanded(
+            child: ListView.separated(
+              padding: EdgeInsets.all(
+                context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+              ),
+              itemCount: entries.length,
+              separatorBuilder: (_, _) =>
+                  SizedBox(height: context.sp(theme.spacing.xs)),
+              itemBuilder: (BuildContext context, int index) {
+                final rank = index + 1;
+                final trader = entries[index].key;
+                final winRate = entries[index].value;
+                final bool isSelf =
+                    trader.id.isNotEmpty &&
+                    trader.id == widget.repository.currentAuthor.id;
 
-              return UiCard(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.md),
-                  vertical: context.sp(theme.spacing.sm),
-                ),
-                child: CommunityTraderRow(
-                  trader: trader,
-                  rank: rank,
-                  winRate: winRate,
-                  showBio: !isMobile,
-                  onTap: () => widget.onAuthorTap?.call(trader),
-                ),
-              );
-            },
+                return UiCard(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.md),
+                    vertical: context.sp(theme.spacing.sm),
+                  ),
+                  child: CommunityTraderRow(
+                    trader: trader,
+                    rank: rank,
+                    winRate: winRate,
+                    showBio: !isMobile,
+                    onTap: () => widget.onAuthorTap?.call(trader),
+                    onFollow: isSelf
+                        ? null
+                        : () => widget.repository.toggleFollow(trader.id),
+                  ),
+                );
+              },
+            ),
           ),
-        ),
       ],
     );
 

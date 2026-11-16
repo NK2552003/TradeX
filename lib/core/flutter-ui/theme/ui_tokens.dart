@@ -180,6 +180,79 @@ class UiColors {
     series: UiPalette.series,
   );
 
+  UiColors copyWith({
+    Color? background,
+    Color? surface,
+    Color? surfaceMuted,
+    Color? surfaceHover,
+    Color? overlay,
+    Color? border,
+    Color? borderStrong,
+    Color? foreground,
+    Color? foregroundMuted,
+    Color? foregroundSubtle,
+    Color? primary,
+    Color? primaryHover,
+    Color? onPrimary,
+    Color? secondary,
+    Color? onSecondary,
+    Color? bullish,
+    Color? bearish,
+    Color? warning,
+    Color? info,
+    Color? destructive,
+    Color? onDestructive,
+    Color? focusRing,
+    Color? disabledBackground,
+    Color? disabledForeground,
+    List<Color>? series,
+  }) => UiColors(
+    background: background ?? this.background,
+    surface: surface ?? this.surface,
+    surfaceMuted: surfaceMuted ?? this.surfaceMuted,
+    surfaceHover: surfaceHover ?? this.surfaceHover,
+    overlay: overlay ?? this.overlay,
+    border: border ?? this.border,
+    borderStrong: borderStrong ?? this.borderStrong,
+    foreground: foreground ?? this.foreground,
+    foregroundMuted: foregroundMuted ?? this.foregroundMuted,
+    foregroundSubtle: foregroundSubtle ?? this.foregroundSubtle,
+    primary: primary ?? this.primary,
+    primaryHover: primaryHover ?? this.primaryHover,
+    onPrimary: onPrimary ?? this.onPrimary,
+    secondary: secondary ?? this.secondary,
+    onSecondary: onSecondary ?? this.onSecondary,
+    bullish: bullish ?? this.bullish,
+    bearish: bearish ?? this.bearish,
+    warning: warning ?? this.warning,
+    info: info ?? this.info,
+    destructive: destructive ?? this.destructive,
+    onDestructive: onDestructive ?? this.onDestructive,
+    focusRing: focusRing ?? this.focusRing,
+    disabledBackground: disabledBackground ?? this.disabledBackground,
+    disabledForeground: disabledForeground ?? this.disabledForeground,
+    series: series ?? this.series,
+  );
+
+  /// Applies the selected financial chart & signal color convention while
+  /// keeping destructive/alert tokens distinct.
+  UiColors withMarketConvention(String convention, Brightness brightness) {
+    final bool dark = brightness == Brightness.dark;
+    if (convention == 'Colorblind-Safe (Blue/Orange)') {
+      return copyWith(
+        bullish: dark ? const Color(0xFF38BDF8) : const Color(0xFF0072B2),
+        bearish: dark ? const Color(0xFFFB923C) : const Color(0xFFD55E00),
+      );
+    }
+    if (convention == 'Monochrome (High Contrast)') {
+      return copyWith(
+        bullish: dark ? const Color(0xFFF9FAFB) : const Color(0xFF111827),
+        bearish: dark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+      );
+    }
+    return this;
+  }
+
   UiColors lerpTo(UiColors other, double t) => UiColors(
     background: Color.lerp(background, other.background, t)!,
     surface: Color.lerp(surface, other.surface, t)!,

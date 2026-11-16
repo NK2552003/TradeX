@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:tradex/core/ads/ad_config.dart';
+import 'package:tradex/core/ads/ad_slot.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
@@ -1246,6 +1248,16 @@ class _MarketArticleViewState extends State<MarketArticleView> {
               leadingIcon: Icons.open_in_new,
               intent: UiIntent.primary,
               onPressed: article.link.isEmpty ? null : () => _source(context),
+            ),
+            UiGap.v(context.ui.spacing.lg),
+            AdSlot(
+              placement: AdPlacement.articleFooter,
+              contentReady:
+                  article.publisher.trim().toLowerCase().contains(
+                    'alphajournal',
+                  ) &&
+                  article.summary.trim().length >= 600,
+              previewContentReady: true,
             ),
           ],
         ),

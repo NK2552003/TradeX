@@ -211,6 +211,9 @@ const { PGlite } = require('@electric-sql/pglite');
     CREATE POLICY "community_comments_select" ON public.community_comments FOR SELECT TO anon, authenticated USING (
       true
     );
+    CREATE POLICY "community_comments_insert" ON public.community_comments FOR INSERT TO authenticated WITH CHECK (
+      auth.uid() = author_id
+    );
     CREATE POLICY "community_comments_update" ON public.community_comments FOR UPDATE TO authenticated USING (
       auth.uid() = author_id
     );
@@ -222,6 +225,14 @@ const { PGlite } = require('@electric-sql/pglite');
       votes_count integer NOT NULL DEFAULT 0
     );
     ALTER TABLE public.community_poll_options ENABLE ROW LEVEL SECURITY;
+    CREATE POLICY "community_poll_options_select" ON public.community_poll_options FOR SELECT TO anon, authenticated USING (
+      true
+    );
+    CREATE POLICY "community_poll_options_manage" ON public.community_poll_options FOR ALL TO authenticated USING (
+      EXISTS (SELECT 1 FROM public.community_posts p WHERE p.id = post_id AND p.author_id = auth.uid())
+    ) WITH CHECK (
+      EXISTS (SELECT 1 FROM public.community_posts p WHERE p.id = post_id AND p.author_id = auth.uid())
+    );
 
     CREATE TABLE public.community_likes (
       post_id uuid NOT NULL REFERENCES public.community_posts(id) ON DELETE CASCADE,

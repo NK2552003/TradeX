@@ -129,10 +129,15 @@ class MarketOverviewView extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                '${q.currency} ${q.price.toStringAsFixed(2)}',
-                                style: context.uiText.bodyStrong,
+                              Expanded(
+                                child: Text(
+                                  '${q.currency} ${q.price.toStringAsFixed(2)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.uiText.bodyStrong,
+                                ),
                               ),
+                              UiGap.h(context.ui.spacing.xs),
                               UiBadge(
                                 label:
                                     '${isGainer ? '+' : ''}${q.changePercent.toStringAsFixed(2)}%',

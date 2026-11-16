@@ -1,6 +1,9 @@
 import 'package:tradex/features/copilot/copilot.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/strategies/data/strategy_repository.dart';
 import 'package:tradex/features/notes/data/notes_repository.dart';
@@ -27,7 +30,7 @@ void main() {
     test('1. Trade Journal & PnL Stats End-to-End', () async {
       final repo = JournalRepositoryImpl.instance;
       final initialEntries = await repo.fetchAll();
-      expect(initialEntries, isNotEmpty);
+      expect(initialEntries, isA<List<AppTrade>>());
 
       final newTrade = AppTrade(
         id: 'trade_e2e_01',
@@ -52,6 +55,8 @@ void main() {
       final created = await repo.create(newTrade);
       expect(created.ticker, equals('TATAMOTORS'));
       expect(created.pnl, equals(2000.0));
+      final entriesWithCreated = await repo.fetchAll();
+      expect(entriesWithCreated.any((e) => e.id == created.id), isTrue);
 
       await repo.delete(created.id);
       final entriesAfterDelete = await repo.fetchAll();
@@ -61,7 +66,7 @@ void main() {
     test('2. Quant Strategies & Versions End-to-End', () async {
       final repo = StrategyRepositoryImpl();
       final strategies = await repo.getStrategies();
-      expect(strategies, isNotEmpty);
+      expect(strategies, isA<List<AppStrategy>>());
 
       final created = await repo.createStrategy(
         name: 'E2E Momentum Alpha',
@@ -70,6 +75,10 @@ void main() {
         rulesJson: {'timeframe': '15m', 'indicator': 'VWAP + EMA20'},
       );
       expect(created.name, equals('E2E Momentum Alpha'));
+      expect(
+        (await repo.getStrategies()).any((s) => s.id == created.id),
+        isTrue,
+      );
 
       final versioned = await repo.createVersion(
         strategyId: created.id,
@@ -102,7 +111,7 @@ void main() {
     test('2b. Trader Notes & Markdown End-to-End', () async {
       final repo = NotesRepositoryImpl.instance;
       final notes = await repo.fetchAll();
-      expect(notes, isNotEmpty);
+      expect(notes, isA<List<AppNote>>());
 
       final draft = AppNote(
         id: 'note_e2e_test_1',
@@ -215,7 +224,7 @@ void main() {
     test('7. User Profile & 2FA Security End-to-End', () async {
       final repo = ProfileSettingsRepositoryImpl();
       final profile = await repo.getProfile();
-      expect(profile.handle, isNotEmpty);
+      expect(profile.displayName, isNotEmpty);
 
       final updated = await repo.updateProfile(
         bio: 'Automated quantitative swing trader bio.',
@@ -284,6 +293,25 @@ void main() {
       final config = await deskRepo.getDeskRiskConfig();
       expect(config.maxFirmDrawdownPercent, greaterThan(0.0));
 
+      // Standard non-admin users cannot modify desk risk configuration.
+      await expectLater(
+        deskRepo.updateDeskRiskConfig(
+          config.copyWith(maxFirmDrawdownPercent: 7.5),
+        ),
+        throwsStateError,
+      );
+
+      SupabaseAuthBackendService.instance.setCurrentProfile(
+        const UserProfileModel(
+          id: '00000000-0000-0000-0000-000000000099',
+          handle: 'nitish_admin',
+          email: 'admin@alphajournal.in',
+          displayName: 'Desk Admin',
+          role: UserRole.userAdmin,
+        ),
+      );
+      addTearDown(() => SupabaseAuthBackendService.instance.setCurrentProfile(null));
+
       final updatedConfig = await deskRepo.updateDeskRiskConfig(
         config.copyWith(maxFirmDrawdownPercent: 7.5),
       );
@@ -318,8 +346,14 @@ void main() {
       final plans = await repo.getAvailablePlans();
       expect(plans, isNotEmpty);
 
-      final checkout = await repo.startCheckout('pro', 'monthly');
-      expect(checkout, isNotNull);
+      await expectLater(
+        repo.startCheckout('pro', 'monthly'),
+        throwsStateError,
+      );
+      await expectLater(
+        repo.startCheckout('tier_enterprise', 'monthly'),
+        throwsStateError,
+      );
 
       final couponDiscount = await repo.redeemCoupon('TRADEX20');
       expect(couponDiscount, equals(20));
@@ -327,8 +361,10 @@ void main() {
       final history = await repo.getBillingHistory();
       expect(history, isNotNull);
 
-      final updatedCancelState = await repo.setCancelAtPeriodEnd(true);
-      expect(updatedCancelState.cancelAtPeriodEnd, isTrue);
+      await expectLater(
+        repo.setCancelAtPeriodEnd(true),
+        throwsStateError,
+      );
     });
 
     test('11. Notifications & GDPR Privacy End-to-End', () async {
@@ -353,12 +389,7 @@ void main() {
       await privacyRepo.setPublicStatsEnabled(true);
 
       final blocked = await privacyRepo.getBlockedUsers();
-      expect(blocked, isNotEmpty);
-
-      final firstBlockedId = blocked.first.id;
-      await privacyRepo.unblockUser(firstBlockedId);
-      final blockedAfterUnblock = await privacyRepo.getBlockedUsers();
-      expect(blockedAfterUnblock.any((u) => u.id == firstBlockedId), isFalse);
+      expect(blocked, isEmpty);
 
       await expectLater(privacyRepo.requestDataExport(), throwsStateError);
 

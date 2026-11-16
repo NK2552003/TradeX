@@ -43,6 +43,7 @@ class CommunityPostDetailView extends StatefulWidget {
     this.onStartDirectMessage,
     this.onBack,
     this.showHeader = true,
+    this.forceSingleColumn = false,
     this.onOpenRef,
     this.onTagTap,
     this.onPostTap,
@@ -55,6 +56,7 @@ class CommunityPostDetailView extends StatefulWidget {
   final ValueChanged<AppTrader>? onStartDirectMessage;
   final VoidCallback? onBack;
   final bool showHeader;
+  final bool forceSingleColumn;
   final ValueChanged<AppLinkRef>? onOpenRef;
   final ValueChanged<String>? onTagTap;
   final ValueChanged<CommunityPost>? onPostTap;
@@ -255,20 +257,34 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final isDesktop = context.uiRes.isDesktop;
-    final isMobile = context.uiRes.isMobile;
     final author = _currentPost.author;
     final comments = widget.repository.commentsForPost(widget.post.id);
 
-    return Scaffold(
-      backgroundColor: theme.colors.background,
-      bottomNavigationBar: isMobile ? _buildMobileStickyReplyBar(theme) : null,
-      body: SafeArea(
-        bottom: false,
-        child: isDesktop
-            ? _buildDesktopLayout(theme, author, comments)
-            : _buildStandardLayout(theme, isMobile, author, comments),
-      ),
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double availableWidth = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : context.uiRes.width;
+        // Right sidebar (340) + main thread (700) fits cleanly at >= 1080px,
+        // while compact mobile chrome applies below 680px.
+        final bool isDesktop =
+            !widget.forceSingleColumn && availableWidth >= 1080;
+        final bool isMobile =
+            widget.forceSingleColumn || availableWidth < 680;
+
+        return Scaffold(
+          backgroundColor: theme.colors.background,
+          bottomNavigationBar: isMobile
+              ? _buildMobileStickyReplyBar(theme)
+              : null,
+          body: SafeArea(
+            bottom: false,
+            child: isDesktop
+                ? _buildDesktopLayout(theme, author, comments)
+                : _buildStandardLayout(theme, isMobile, author, comments),
+          ),
+        );
+      },
     );
   }
 

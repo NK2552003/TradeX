@@ -220,18 +220,30 @@ class _CommunitySendDmDialogState extends State<CommunitySendDmDialog> {
                   (widget.post == null && _message.trim().isEmpty)
               ? null
               : () {
+                  final AppTrader trader = AppTrader(
+                    id: _selectedRecipient!.id,
+                    handle: _selectedRecipient!.handle,
+                    displayName: _selectedRecipient!.displayName,
+                    avatarUrl: _selectedRecipient!.avatarUrl,
+                  );
+                  if (MessagesRepositoryScope.repository.isMessagingRestricted(
+                    trader,
+                  )) {
+                    UiToast.show(
+                      context,
+                      title: 'Direct messages restricted',
+                      message:
+                          '@${trader.handle} only accepts messages from invited or followed accounts.',
+                      intent: UiIntent.warning,
+                    );
+                    return;
+                  }
                   widget.repository.sendDirectMessage(
                     _selectedRecipient!.id,
                     _message,
                     sharedPost: widget.post,
                   );
                   try {
-                    final AppTrader trader = AppTrader(
-                      id: _selectedRecipient!.id,
-                      handle: _selectedRecipient!.handle,
-                      displayName: _selectedRecipient!.displayName,
-                      avatarUrl: _selectedRecipient!.avatarUrl,
-                    );
                     final String threadId = MessagesRepositoryScope.repository
                         .startConversation(trader);
                     final AppLinkRef? postRef = widget.post != null

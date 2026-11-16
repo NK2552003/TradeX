@@ -7,8 +7,10 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_settings_page.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
+import 'package:tradex/features/copilot/data/copilot_controller.dart';
 import 'package:tradex/features/settings/presentation/pages/affiliate/affiliate_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/account_security_page.dart';
+import 'package:tradex/features/settings/presentation/pages/shared/ai_copilot_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/appearance_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/delete_account_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/help_about_page.dart';
@@ -17,6 +19,7 @@ import 'package:tradex/features/settings/presentation/pages/shared/privacy_setti
 import 'package:tradex/features/settings/presentation/pages/shared/profile_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/trader/billing_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/trader/trader_affiliate_perks_page.dart';
+import 'package:tradex/features/settings/presentation/pages/trader/trading_preferences_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
@@ -39,10 +42,16 @@ class SettingsRootPage extends StatefulWidget {
     this.onSubpageChanged,
     this.onOpenRef,
     this.communityRepository,
+    this.copilotController,
+    this.onOpenCopilot,
+    this.onOpenUpgrade,
   });
 
   final UserRole userRole;
   final CommunityRepository? communityRepository;
+  final CopilotController? copilotController;
+  final VoidCallback? onOpenCopilot;
+  final VoidCallback? onOpenUpgrade;
   final String? initialSectionId;
   final bool showNavigationPane;
   final VoidCallback? onLogout;
@@ -190,6 +199,12 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
       'desk_risk' when widget.userRole == UserRole.userAdmin =>
         const AdminSettingsPage(),
       'notifications' => const NotificationsSettingsPage(),
+      'trading' => const TradingPreferencesPage(),
+      'ai' => AiCopilotSettingsPage(
+        copilotController: widget.copilotController,
+        onOpenCopilot: widget.onOpenCopilot,
+        onUpgradePlan: widget.onOpenUpgrade,
+      ),
       'privacy' => PrivacySettingsPage(
         userRole: widget.userRole,
         onAccountDeleted: widget.onLogout,
@@ -232,7 +247,19 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
             'id': 'security',
             'title': 'Email & Security',
             'icon': Icons.lock_outline_rounded,
-            'subtitle': 'Password, connected accounts, and sessions',
+            'subtitle': 'Password, connected accounts, and active devices',
+          },
+          {
+            'id': 'trading',
+            'title': 'Trading & Risk',
+            'icon': Icons.candlestick_chart_outlined,
+            'subtitle': 'Position sizing, currency, checklist, and watchlists',
+          },
+          {
+            'id': 'ai',
+            'title': 'AI & Copilot',
+            'icon': Icons.auto_awesome_outlined,
+            'subtitle': 'Research, memory, specialists, and MCP connections',
           },
           {
             'id': 'billing',
@@ -284,7 +311,13 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
             'id': 'security',
             'title': 'Email & Security',
             'icon': Icons.lock_outline_rounded,
-            'subtitle': 'Password and OAuth providers',
+            'subtitle': 'Password, OAuth providers, and active devices',
+          },
+          {
+            'id': 'ai',
+            'title': 'AI & Copilot',
+            'icon': Icons.auto_awesome_outlined,
+            'subtitle': 'Assistant preferences, memory, and connected apps',
           },
           {
             'id': 'notifications',
@@ -330,7 +363,13 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
             'id': 'security',
             'title': 'Admin Security & Auth',
             'icon': Icons.lock_outline_rounded,
-            'subtitle': 'Password, sign-in methods and sessions',
+            'subtitle': 'Password, sign-in methods, and active devices',
+          },
+          {
+            'id': 'ai',
+            'title': 'AI & Copilot',
+            'icon': Icons.auto_awesome_outlined,
+            'subtitle': 'Copilot controls, specialists, and connected tools',
           },
           {
             'id': 'notifications',
@@ -573,6 +612,33 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
           AppSettingsSectionBlock(
             title: 'Platform Preferences',
             children: [
+              if (widget.userRole == UserRole.customer)
+                SettingsNavRow(
+                  title: 'Trading, Risk & Checklists',
+                  subtitle:
+                      'Default risk sizing, display currency, timezone, and watchlist',
+                  icon: Icons.candlestick_chart_outlined,
+                  onTap: () => _navigateToSubpage(
+                    const TradingPreferencesPage(),
+                    'Trading & Risk',
+                    Icons.candlestick_chart_outlined,
+                  ),
+                ),
+              SettingsNavRow(
+                title: 'AI & Copilot Settings',
+                subtitle:
+                    'Pause AI work, web research, memory, specialists, and MCP tools',
+                icon: Icons.auto_awesome_outlined,
+                onTap: () => _navigateToSubpage(
+                  AiCopilotSettingsPage(
+                    copilotController: widget.copilotController,
+                    onOpenCopilot: widget.onOpenCopilot,
+                    onUpgradePlan: widget.onOpenUpgrade,
+                  ),
+                  'AI & Copilot',
+                  Icons.auto_awesome_outlined,
+                ),
+              ),
               SettingsNavRow(
                 title: 'Notifications & Alerts',
                 subtitle: widget.userRole == UserRole.affiliate

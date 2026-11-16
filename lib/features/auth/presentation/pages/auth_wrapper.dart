@@ -63,6 +63,16 @@ class AuthWrapper extends StatefulWidget {
 
   /// Context message shown on the login screen (e.g. deep-link sign-in prompt).
   final String? loginNotice;
+
+  static String? _pendingOAuthLinkError;
+
+  /// Returns and clears any OAuth callback error recorded while a session was
+  /// already active (for example during connected-account linking).
+  static String? consumePendingOAuthError() {
+    final error = _pendingOAuthLinkError;
+    _pendingOAuthLinkError = null;
+    return error;
+  }
   final AuthRepository? authRepository;
 
   @override
@@ -329,18 +339,27 @@ class _AuthWrapperState extends State<AuthWrapper> {
       // 0. On Web, if URL contains OAuth callback code or access token, exchange it first:
       if (kIsWeb && SupabaseConfig.isConfigured) {
         final uri = Uri.base;
+        final fragmentParams = uri.fragment.contains('=')
+            ? Uri.splitQueryString(uri.fragment)
+            : const <String, String>{};
         final oauthError =
             uri.queryParameters['error_description'] ??
-            uri.queryParameters['error'];
-        if (oauthError != null &&
-            oauthError.isNotEmpty &&
-            SupabaseConfig.client?.auth.currentSession == null) {
-          _oauthErrorNotice = oauthError;
+            uri.queryParameters['error'] ??
+            fragmentParams['error_description'] ??
+            fragmentParams['error'];
+        final hasActiveSession =
+            SupabaseConfig.client?.auth.currentSession != null;
+        if (oauthError != null && oauthError.isNotEmpty) {
+          if (hasActiveSession) {
+            AuthWrapper._pendingOAuthLinkError = oauthError;
+          } else {
+            _oauthErrorNotice = oauthError;
+          }
         }
-        if ((uri.queryParameters.containsKey('code') ||
-                (uri.fragment.isNotEmpty &&
-                    uri.fragment.contains('access_token='))) &&
-            SupabaseConfig.client?.auth.currentSession == null) {
+        final hasOAuthPayload =
+            uri.queryParameters.containsKey('code') ||
+            (uri.fragment.isNotEmpty && uri.fragment.contains('access_token='));
+        if (hasOAuthPayload) {
           try {
             await SupabaseConfig.client?.auth.getSessionFromUrl(uri);
           } catch (e) {

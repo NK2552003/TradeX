@@ -2,6 +2,8 @@
 library;
 
 // Models
+export 'models/active_session_model.dart';
+export 'models/ai_settings_model.dart';
 export 'models/notification_prefs_model.dart';
 export 'models/privacy_settings_model.dart';
 export 'models/trading_prefs_model.dart';
@@ -13,6 +15,7 @@ export 'models/desk_risk_model.dart';
 
 // Repositories
 export 'data/repositories/profile_settings_repository.dart';
+export 'data/repositories/ai_settings_repository.dart';
 export 'data/repositories/notification_prefs_repository.dart';
 export 'data/repositories/privacy_repository.dart';
 export 'data/repositories/trading_prefs_repository.dart';
@@ -27,6 +30,7 @@ export 'presentation/widgets/settings_nav_row.dart';
 // Shared Pages
 export 'presentation/pages/shared/settings_root_page.dart';
 export 'presentation/pages/shared/profile_settings_page.dart';
+export 'presentation/pages/shared/ai_copilot_settings_page.dart';
 export 'presentation/pages/shared/account_security_page.dart';
 export 'presentation/pages/shared/delete_account_page.dart';
 export 'presentation/pages/shared/notifications_settings_page.dart';

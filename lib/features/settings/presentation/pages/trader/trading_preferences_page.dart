@@ -20,6 +20,28 @@ class _TradingPreferencesPageState extends State<TradingPreferencesPage> {
   bool _saving = false;
 
   final List<int> _refreshIntervals = const <int>[5, 15, 30, 60];
+  final List<String> _currencies = const <String>[
+    'INR',
+    'USD',
+    'EUR',
+    'GBP',
+    'JPY',
+    'AUD',
+  ];
+  final List<String> _timezones = const <String>[
+    'Asia/Kolkata (IST)',
+    'America/New_York (EST)',
+    'Europe/London (GMT)',
+    'Asia/Tokyo (JST)',
+    'UTC',
+  ];
+  final List<String> _assetClasses = const <String>[
+    'Equities',
+    'Options & Futures',
+    'Crypto',
+    'Forex',
+    'Commodities',
+  ];
 
   @override
   void initState() {
@@ -419,6 +441,98 @@ class _TradingPreferencesPageState extends State<TradingPreferencesPage> {
                           );
                         });
                       },
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.lg)),
+
+              // Currency, Market Session & Journal Execution Defaults
+              AppSettingsSectionBlock(
+                title: 'Currency, Session & Journal Rules',
+                description:
+                    'Regional display currency, session clock, primary market, and pre-trade enforcement.',
+                children: [
+                  AppSettingCard(
+                    title: 'Preferred Display Currency',
+                    description:
+                        'Base currency used in calculators, portfolio summaries, and P&L metrics.',
+                    icon: Icons.currency_exchange_rounded,
+                    control: UiSelect<String>(
+                      width: isMobile ? null : 160,
+                      value: _currencies.contains(_prefs.preferredCurrency)
+                          ? _prefs.preferredCurrency
+                          : _currencies.first,
+                      options: _currencies
+                          .map((c) => UiOption<String>(label: c, value: c))
+                          .toList(),
+                      onChanged: (val) => setState(() {
+                        _prefs = _prefs.copyWith(preferredCurrency: val);
+                      }),
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Default Market Session Timezone',
+                    description:
+                        'Session open/close anchor for daily review timestamps and heatmaps.',
+                    icon: Icons.schedule_rounded,
+                    control: UiSelect<String>(
+                      width: isMobile ? null : 230,
+                      value: _timezones.contains(_prefs.marketTimezone)
+                          ? _prefs.marketTimezone
+                          : _timezones.first,
+                      options: _timezones
+                          .map((tz) => UiOption<String>(label: tz, value: tz))
+                          .toList(),
+                      onChanged: (val) => setState(() {
+                        _prefs = _prefs.copyWith(marketTimezone: val);
+                      }),
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Primary Asset Class',
+                    description:
+                        'Default instrument filter and template pre-selected in new journal entries.',
+                    icon: Icons.category_outlined,
+                    control: UiSelect<String>(
+                      width: isMobile ? null : 200,
+                      value: _assetClasses.contains(_prefs.defaultAssetClass)
+                          ? _prefs.defaultAssetClass
+                          : _assetClasses.first,
+                      options: _assetClasses
+                          .map((a) => UiOption<String>(label: a, value: a))
+                          .toList(),
+                      onChanged: (val) => setState(() {
+                        _prefs = _prefs.copyWith(defaultAssetClass: val);
+                      }),
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Require Pre-Trade Checklist Confirmation',
+                    description:
+                        'Prompt for checklist verification before logging or publishing a new execution.',
+                    icon: Icons.fact_check_outlined,
+                    control: UiSwitch(
+                      value: _prefs.requireChecklistConfirmation,
+                      onChanged: (val) => setState(() {
+                        _prefs = _prefs.copyWith(
+                          requireChecklistConfirmation: val,
+                        );
+                      }),
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Deduct Estimated Brokerage & Fees',
+                    description:
+                        'Automatically compute net P&L after taxes, exchange charges, and slippage.',
+                    icon: Icons.receipt_long_outlined,
+                    control: UiSwitch(
+                      value: _prefs.deductEstimatedFeesFromPnl,
+                      onChanged: (val) => setState(() {
+                        _prefs = _prefs.copyWith(
+                          deductEstimatedFeesFromPnl: val,
+                        );
+                      }),
                     ),
                   ),
                 ],

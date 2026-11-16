@@ -53,7 +53,7 @@ class AppJournalTemplate {
   /// `id` is empty: the repository assigns one on `create`, which is what marks
   /// the difference between a draft the trader can still abandon and a record
   /// that exists.
-  AppTrade toDraft() {
+  AppTrade toDraft({bool isPublic = false}) {
     final DateTime now = DateTime.now();
     return AppTrade(
       id: '',
@@ -67,6 +67,7 @@ class AppJournalTemplate {
       content: body,
       tags: tags,
       updatedAt: now,
+      isPublic: isPublic,
     ).withDerivedCounts();
   }
 }
