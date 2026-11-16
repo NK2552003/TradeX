@@ -5,6 +5,7 @@ import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/customer_quota_usage.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/app_session.dart';
+import 'package:tradex/core/security/private_message_service.dart';
 import 'package:tradex/core/utils/app_visibility.dart';
 
 import '../models/workspace.dart';
@@ -26,6 +27,9 @@ class CopilotController extends ChangeNotifier {
     _actor = SupabaseConfig.client?.auth.currentUser?.id;
     _auth = SupabaseConfig.client?.auth.onAuthStateChange.listen(
       (_) => _accountChanged(),
+    );
+    PrivateMessageService.instance.unlockRevision.addListener(
+      _onEncryptionUnlocked,
     );
     AppSession.instance.aiQueriesUsed.addListener(_onUsageChanged);
     if (autoLoad) {
@@ -56,8 +60,26 @@ class CopilotController extends ChangeNotifier {
   int _epoch = 0;
   int _loadSequence = 0;
   int _pollFailures = 0;
+  bool _specialistManuallySelected = false;
   Future<String?>? _creatingThread;
   bool _disposed = false;
+
+  bool get autoAttachContext =>
+      workspace.settings['autoAttachContext'] != false;
+  bool get requireToolApproval =>
+      workspace.settings['requireToolApproval'] != false;
+  bool get voiceAutoSpeak => workspace.settings['voiceAutoSpeak'] == true;
+  String get responseStyle {
+    final style = (workspace.settings['responseStyle'] ?? '').toString().trim();
+    return const {'concise', 'balanced', 'detailed'}.contains(style)
+        ? style
+        : 'balanced';
+  }
+
+  String get citationsStyle {
+    final cite = (workspace.settings['citationsStyle'] ?? '').toString().trim();
+    return const {'inline', 'footnotes'}.contains(cite) ? cite : 'inline';
+  }
 
   int get accountEpoch => _epoch;
   int get effectiveAiQueriesUsed =>
@@ -95,6 +117,14 @@ class CopilotController extends ChangeNotifier {
   bool get hasPendingReview =>
       activeThread?.approvals.any((a) => a['status'] == 'pending') ?? false;
 
+  void _onEncryptionUnlocked() {
+    if (_disposed || !SupabaseConfig.isConfigured) return;
+    if (!connected || (error != null && !generating)) {
+      _pollFailures = 0;
+      unawaited(reload(quiet: false));
+    }
+  }
+
   void _accountChanged() {
     final next = SupabaseConfig.client?.auth.currentUser?.id;
     if (next == _actor) return;
@@ -102,6 +132,8 @@ class CopilotController extends ChangeNotifier {
     _epoch++;
     workspace = CopilotWorkspace.fromJson(initialWorkspace());
     activeThreadId = null;
+    specialistId = 'analyst';
+    _specialistManuallySelected = false;
     pageContextId = null;
     generating = false;
     voiceBusy = false;
@@ -189,6 +221,17 @@ class CopilotController extends ChangeNotifier {
       }
       if (!quiet) error = null;
       if (activeThreadId != null && activeThread == null) activeThreadId = null;
+      final defaultSpec =
+          (workspace.settings['defaultSpecialistId'] ?? '').toString().trim();
+      if (activeThreadId == null &&
+          !_specialistManuallySelected &&
+          defaultSpec.isNotEmpty &&
+          workspace.specialists.any((s) => s.id == defaultSpec)) {
+        specialistId = defaultSpec;
+      }
+      if (!autoAttachContext && activeThreadId != null && pageContextId != null) {
+        pageContextId = null;
+      }
     } catch (failure) {
       if (_disposed || epoch != _epoch || sequence != _loadSequence) return;
       _pollFailures++;
@@ -216,24 +259,50 @@ class CopilotController extends ChangeNotifier {
     final defaultSpec = patch['defaultSpecialistId']?.toString().trim();
     if (defaultSpec != null &&
         defaultSpec.isNotEmpty &&
-        activeThreadId == null &&
         workspace.specialists.any((s) => s.id == defaultSpec)) {
-      specialistId = defaultSpec;
+      _specialistManuallySelected = false;
+      if (activeThreadId == null) {
+        specialistId = defaultSpec;
+      }
     }
+    if (patch.containsKey('autoAttachContext') &&
+        patch['autoAttachContext'] != true &&
+        activeThreadId != null) {
+      pageContextId = null;
+    }
+    _notify();
+  }
+
+  void clearPageContext() {
+    if (pageContextId == null) return;
+    pageContextId = null;
     _notify();
   }
 
   void selectThread(String id) {
     if (conversationLocked) return;
     activeThreadId = id;
-    pageContextId = activeThread?.pageId;
+    pageContextId = autoAttachContext ? activeThread?.pageId : null;
     error = null;
     _notify();
   }
 
   void newConversation({String? specialist, String? pageId}) {
     if (conversationLocked) return;
-    specialistId = specialist ?? this.specialist?.id ?? specialistId;
+    if (specialist != null) {
+      _specialistManuallySelected = true;
+      specialistId = specialist;
+    } else {
+      final defaultSpec =
+          (workspace.settings['defaultSpecialistId'] ?? '').toString().trim();
+      if (defaultSpec.isNotEmpty &&
+          !_specialistManuallySelected &&
+          workspace.specialists.any((s) => s.id == defaultSpec)) {
+        specialistId = defaultSpec;
+      } else {
+        specialistId = this.specialist?.id ?? specialistId;
+      }
+    }
     activeThreadId = pageId == null
         ? null
         : workspace.threads
@@ -409,6 +478,9 @@ class CopilotController extends ChangeNotifier {
     _epoch++;
     _poll?.cancel();
     _auth?.cancel();
+    PrivateMessageService.instance.unlockRevision.removeListener(
+      _onEncryptionUnlocked,
+    );
     AppSession.instance.aiQueriesUsed.removeListener(_onUsageChanged);
     if (_autoLoad) {
       AppVisibility.instance.removeListener(_onVisibilityChanged);

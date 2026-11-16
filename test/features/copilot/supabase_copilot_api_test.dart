@@ -404,4 +404,48 @@ void main() {
     addTearDown(configured.dispose);
     expect(configured, isA<SupabaseCopilotApi>());
   });
+
+  test(
+    'responseStyle, citationsStyle, autoAttachContext, and requireToolApproval flow into gateway request',
+    () async {
+      final fixture = HostedFixture();
+      addTearDown(fixture.api.dispose);
+      final page = await fixture.api.action({
+        'action': 'page.save',
+        'spaceId': 'playbook',
+        'title': 'Secret Note',
+        'body': 'Do not attach this page when autoAttachContext is false.',
+      });
+      await fixture.api.action({
+        'action': 'settings.save',
+        'responseStyle': 'concise',
+        'citationsStyle': 'footnotes',
+        'autoAttachContext': false,
+        'requireToolApproval': true,
+      });
+      final thread = await fixture.api.action({
+        'action': 'thread.create',
+        'specialistId': 'analyst',
+        'pageId': page['id'],
+      });
+      await fixture.api.run(thread['id'] as String, {
+        'prompt': 'Summarize market tone',
+      }).toList();
+
+      final request = fixture.requests.singleWhere(
+        (r) => r.url.path.endsWith('ai-gateway'),
+      );
+      final payload = jsonDecode(request.body) as Map;
+      expect(payload['response_style'], 'concise');
+      expect(payload['citations_style'], 'footnotes');
+      expect(payload['max_tokens'], 1800);
+      expect(payload['system_prompt'], contains('CONCISE'));
+      expect(payload['system_prompt'], contains('FOOTNOTES'));
+      expect(payload['system_prompt'], contains('Require user approval'));
+      expect(
+        payload['system_prompt'],
+        isNot(contains('Do not attach this page when autoAttachContext is false.')),
+      );
+    },
+  );
 }

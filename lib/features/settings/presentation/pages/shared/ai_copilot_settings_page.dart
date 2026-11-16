@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/app_session.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/security/private_message_service.dart';
 import 'package:tradex/features/copilot/data/copilot_controller.dart';
 import 'package:tradex/features/copilot/models/workspace.dart';
 import 'package:tradex/features/copilot/presentation/connection_settings.dart';
@@ -47,6 +49,8 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
   late AiSettingsModel _settings = _repo.cachedSettings;
   bool _loading = true;
   bool _reconnecting = false;
+  bool _syncingWorkspace = false;
+  late bool _wasCopilotConnected = _copilot.connected;
 
   @override
   void initState() {
@@ -63,24 +67,51 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
     super.dispose();
   }
 
+  bool get _needsE2eeUnlock =>
+      SupabaseConfig.isConfigured &&
+      SupabaseConfig.client?.auth.currentUser != null &&
+      !_copilot.connected &&
+      !PrivateMessageService.instance.isLocallyUnlockedFast;
+
   void _onExternalChanged() {
     if (!mounted) return;
+    if (!_wasCopilotConnected && _copilot.connected && !_syncingWorkspace) {
+      _wasCopilotConnected = true;
+      unawaited(_reconcileWorkspace());
+      return;
+    }
+    _wasCopilotConnected = _copilot.connected;
     setState(() {
-      if (_copilot.connected) {
-        _settings = _settings.mergeWorkspaceSettings(
-          _copilot.workspace.settings,
-        );
-      } else {
-        _settings = _repo.cachedSettings;
-      }
+      _settings = _repo.cachedSettings;
     });
+  }
+
+  Future<void> _reconcileWorkspace() async {
+    if (_syncingWorkspace) return;
+    _syncingWorkspace = true;
+    try {
+      await _repo.syncCopilotWorkspace(_copilot);
+      if (!mounted) return;
+      setState(() {
+        _settings = _repo.cachedSettings;
+      });
+    } finally {
+      _syncingWorkspace = false;
+    }
   }
 
   Future<void> _loadSettings() async {
     final loaded = await _repo.getSettings(copilotController: _copilot);
     if (!mounted) return;
+    if (_copilot.connected &&
+        !_wasCopilotConnected &&
+        !_syncingWorkspace) {
+      _wasCopilotConnected = true;
+      await _reconcileWorkspace();
+      if (!mounted) return;
+    }
     setState(() {
-      _settings = loaded;
+      _settings = _repo.cachedSettings == loaded ? loaded : _repo.cachedSettings;
       _loading = false;
     });
   }
@@ -96,7 +127,19 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
       copilotController: _copilot,
       syncCopilotWorkspace: true,
     );
-    if (!mounted || toastTitle == null) return;
+    if (!mounted) return;
+    final String? syncErr = _repo.lastSyncError;
+    if (syncErr != null && syncErr.isNotEmpty) {
+      setState(() {});
+      UiToast.show(
+        context,
+        title: 'Saved Locally — Cloud Sync Attention',
+        message: syncErr,
+        intent: UiIntent.warning,
+      );
+      return;
+    }
+    if (toastTitle == null) return;
     UiToast.show(
       context,
       title: toastTitle,
@@ -109,26 +152,130 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
     if (_reconnecting) return;
     setState(() => _reconnecting = true);
     await _copilot.reload();
+    if (_copilot.connected) {
+      await _repo.syncCopilotWorkspace(_copilot);
+    } else {
+      await _repo.getSettings(copilotController: _copilot);
+    }
     if (!mounted) return;
     setState(() {
       _reconnecting = false;
-      if (_copilot.connected) {
-        _settings = _settings.mergeWorkspaceSettings(
-          _copilot.workspace.settings,
-        );
-      }
+      _settings = _repo.cachedSettings;
     });
+    final String? syncErr = _repo.lastSyncError;
     UiToast.show(
       context,
-      title: _copilot.connected
+      title: _copilot.connected && syncErr == null
           ? 'Copilot Connected'
-          : 'Copilot Service Offline',
-      message: _copilot.connected
-          ? 'Workspace settings and specialists synced.'
-          : (_copilot.error ??
-                'Changes remain saved locally and will sync when online.'),
-      intent: _copilot.connected ? UiIntent.success : UiIntent.warning,
+          : (_copilot.connected
+                ? 'Workspace Connected (Preferences Pending)'
+                : 'Copilot Service Offline'),
+      message: syncErr ??
+          (_copilot.connected
+              ? 'Workspace settings and specialists synced.'
+              : (_copilot.error ??
+                    'Changes remain saved locally and will sync when online.')),
+      intent: (_copilot.connected && syncErr == null)
+          ? UiIntent.success
+          : UiIntent.warning,
     );
+  }
+
+  Future<void> _openUnlockWorkspaceDialog() async {
+    final bool hasIdentity = await PrivateMessageService.instance
+        .hasIdentity()
+        .catchError((_) => true);
+    if (!mounted) return;
+    final TextEditingController passCtrl = TextEditingController();
+    String? dialogError;
+    bool unlocking = false;
+    try {
+      final bool? unlocked = await UiDialog.show<bool>(
+        context,
+        maxWidth: 460,
+        child: StatefulBuilder(
+          builder: (ctx, setModalState) => UiDialog(
+            title: hasIdentity
+                ? 'Unlock Encrypted AI Workspace'
+                : 'Set Up Encrypted AI Workspace',
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  hasIdentity
+                      ? 'Enter your account password or recovery passphrase to decrypt and sync your Copilot threads, memories, and workspace settings.'
+                      : 'Create a 16+ character recovery passphrase to encrypt your Copilot history and settings across devices.',
+                  style: context.uiText.caption.copyWith(
+                    color: context.ui.colors.foregroundMuted,
+                  ),
+                ),
+                SizedBox(height: context.sp(context.ui.spacing.md)),
+                UiPasswordField(
+                  controller: passCtrl,
+                  label: hasIdentity
+                      ? 'Password or Recovery Passphrase'
+                      : 'Recovery Passphrase (min 16 chars)',
+                  hintText: 'Enter passphrase…',
+                  onChanged: (_) {
+                    if (dialogError != null) {
+                      setModalState(() => dialogError = null);
+                    }
+                  },
+                ),
+                if (dialogError != null) ...[
+                  SizedBox(height: context.sp(context.ui.spacing.sm)),
+                  UiCallout(
+                    title: 'Unlock Failed',
+                    message: dialogError!,
+                    intent: UiIntent.danger,
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              UiButton(
+                label: 'Cancel',
+                variant: UiVariant.ghost,
+                onPressed: unlocking ? null : () => Navigator.of(ctx).pop(false),
+              ),
+              UiButton(
+                label: 'Unlock',
+                loading: unlocking,
+                onPressed: unlocking
+                    ? null
+                    : () async {
+                        setModalState(() {
+                          unlocking = true;
+                          dialogError = null;
+                        });
+                        try {
+                          await PrivateMessageService.instance.unlock(
+                            passCtrl.text,
+                            allowAccountPassword: hasIdentity,
+                          );
+                          if (ctx.mounted) Navigator.of(ctx).pop(true);
+                        } catch (e) {
+                          if (!ctx.mounted) return;
+                          setModalState(() {
+                            unlocking = false;
+                            dialogError = e is StateError
+                                ? e.message
+                                : '$e';
+                          });
+                        }
+                      },
+              ),
+            ],
+          ),
+        ),
+      );
+      if (unlocked == true && mounted) {
+        await _reconnectCopilot();
+      }
+    } finally {
+      passCtrl.dispose();
+    }
   }
 
   static bool _specialistAllows(Specialist specialist, String flag) =>
@@ -156,18 +303,27 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
       for (final flag in const ['research', 'memory', 'code', 'apps', 'learning'])
         flag: flag == field ? value : _specialistAllows(specialist, flag),
     };
-    final res = await _copilot.action(body, refresh: true, reportError: false);
-    if (!mounted) return;
-    if (res == null) {
-      specialist.json[field] = value;
-      setState(() {});
+    bool synced = false;
+    try {
+      final res = _copilot.connected
+          ? await _copilot.action(body, refresh: true, reportError: false)
+          : null;
+      synced = res != null;
+    } catch (_) {
+      synced = false;
     }
+    if (!synced) {
+      specialist.json[field] = value;
+      if (mounted) setState(() {});
+    }
+    if (!mounted) return;
     UiToast.show(
       context,
       title: '${specialist.name} Updated',
-      message:
-          '${_permissionLabel(field)} ${value ? 'enabled' : 'disabled'} for ${specialist.name}.',
-      intent: UiIntent.info,
+      message: synced
+          ? '${_permissionLabel(field)} ${value ? 'enabled' : 'disabled'} for ${specialist.name}.'
+          : '${_permissionLabel(field)} updated locally; reconnect Copilot workspace to sync.',
+      intent: synced ? UiIntent.info : UiIntent.warning,
     );
   }
 
@@ -260,12 +416,20 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
                                   style: context.uiText.bodyStrong,
                                 ),
                                 UiBadge(
-                                  label: _copilot.connected
+                                  label: _copilot.connected &&
+                                          _repo.lastSyncError == null
                                       ? 'Connected'
-                                      : 'Local Sync',
-                                  intent: _copilot.connected
+                                      : (_repo.hasCloudPreferences
+                                            ? 'Account Synced'
+                                            : (_needsE2eeUnlock
+                                                  ? 'Locked'
+                                                  : 'Local Sync')),
+                                  intent: _copilot.connected &&
+                                          _repo.lastSyncError == null
                                       ? UiIntent.success
-                                      : UiIntent.neutral,
+                                      : (_repo.lastSyncError != null
+                                            ? UiIntent.warning
+                                            : UiIntent.neutral),
                                   size: UiSize.xs,
                                 ),
                               ],
@@ -274,6 +438,13 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
                               spacing: context.sp(theme.spacing.xs),
                               runSpacing: context.sp(theme.spacing.xs),
                               children: [
+                                if (_needsE2eeUnlock)
+                                  UiButton(
+                                    label: 'Unlock Workspace',
+                                    variant: UiVariant.primary,
+                                    size: UiSize.sm,
+                                    onPressed: _openUnlockWorkspaceDialog,
+                                  ),
                                 if (widget.onOpenCopilot != null)
                                   UiButton(
                                     label: 'Open AI Copilot',
@@ -299,12 +470,47 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
                           _copilot.error?.isNotEmpty == true
                               ? _copilot.error!
                               : (_copilot.connected
-                                    ? 'Connected to encrypted Copilot workspace. Settings apply across all devices.'
-                                    : 'Preferences save immediately on this device and sync to cloud workspace when connected.'),
+                                    ? (_repo.lastSyncError ??
+                                          'Connected to encrypted Copilot workspace and Supabase preferences. Settings apply across all devices.')
+                                    : (_repo.hasCloudPreferences
+                                          ? 'Saved to your Supabase account preferences. Encrypted Copilot workspace will sync once connected.'
+                                          : 'Preferences save immediately on this device and sync to cloud workspace when connected.')),
                           style: context.uiText.caption.copyWith(
                             color: colors.foregroundMuted,
                           ),
                         ),
+                        if (_repo.lastSyncError != null &&
+                            _repo.lastSyncError!.isNotEmpty) ...[
+                          SizedBox(height: context.sp(theme.spacing.sm)),
+                          UiCallout(
+                            title: 'Cloud Preferences Sync Issue',
+                            message: _repo.lastSyncError!,
+                            intent: UiIntent.warning,
+                            action: UiButton(
+                              label: 'Retry Sync',
+                              size: UiSize.xs,
+                              variant: UiVariant.outline,
+                              onPressed: _reconnectCopilot,
+                            ),
+                          ),
+                        ],
+                        if (_needsE2eeUnlock &&
+                            _copilot.error != null &&
+                            _copilot.error!.isNotEmpty) ...[
+                          SizedBox(height: context.sp(theme.spacing.sm)),
+                          UiCallout(
+                            title: 'Encrypted Copilot Workspace Locked',
+                            message:
+                                'Unlock with your account password or recovery passphrase to connect threads, memories, and specialists on this browser.',
+                            intent: UiIntent.info,
+                            action: UiButton(
+                              label: 'Unlock Workspace',
+                              size: UiSize.xs,
+                              variant: UiVariant.primary,
+                              onPressed: _openUnlockWorkspaceDialog,
+                            ),
+                          ),
+                        ],
                         SizedBox(height: context.sp(theme.spacing.md)),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -582,11 +788,15 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
                   ),
                   SettingsNavRow(
                     title: 'Connected Apps & MCP Servers',
-                    subtitle:
-                        'Configure external MCP endpoints, allowed tools, and Slack integration',
+                    subtitle: _copilot.workspace.setup['apps'] == true
+                        ? 'Configure external MCP endpoints, allowed tools, and Slack integration'
+                        : 'In-app Notes, Journal & Watchlist connectors active; external MCP requires COPILOT_API_URL',
                     icon: Icons.hub_outlined,
-                    badgeLabel:
-                        '${_copilot.workspace.connections.length} connected',
+                    badgeLabel: _copilot.workspace.setup['apps'] == true
+                        ? '${_copilot.workspace.connections.length} connected'
+                        : (_settings.allowConnectedApps
+                              ? 'In-app active'
+                              : 'Hosted mode'),
                     onTap: () => openSettingsSubpage(
                       context,
                       title: 'Connected Apps & MCP Servers',

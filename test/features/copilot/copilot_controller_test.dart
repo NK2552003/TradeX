@@ -127,4 +127,61 @@ void main() {
     expect(secondAttempt, isFalse);
     expect(api.runs, 1);
   });
+
+  test(
+    'reload applies defaultSpecialistId and autoAttachContext controls pageContextId',
+    () async {
+      final api = DeferredApi();
+      api.state = {
+        ...initialWorkspace(),
+        'pages': [
+          {
+            'id': 'p-1',
+            'spaceId': 'playbook',
+            'title': 'Trade Plan',
+            'body': 'Plan notes',
+            'revision': 1,
+          },
+        ],
+        'threads': [
+          {
+            'id': 't-1',
+            'specialistId': 'coach',
+            'pageId': 'p-1',
+            'messages': [],
+          },
+        ],
+        'settings': {
+          'paused': false,
+          'research': true,
+          'memory': true,
+          'apps': false,
+          'defaultSpecialistId': 'writer',
+          'autoAttachContext': false,
+          'voiceAutoSpeak': true,
+          'responseStyle': 'detailed',
+          'citationsStyle': 'footnotes',
+        },
+      };
+      final controller = CopilotController(api: api, autoLoad: false);
+      addTearDown(controller.dispose);
+
+      await controller.reload();
+      expect(controller.specialistId, 'writer');
+      expect(controller.responseStyle, 'detailed');
+      expect(controller.citationsStyle, 'footnotes');
+      expect(controller.voiceAutoSpeak, isTrue);
+      expect(controller.autoAttachContext, isFalse);
+
+      controller.selectThread('t-1');
+      expect(controller.pageContextId, isNull);
+
+      controller.applyLocalSettings({'autoAttachContext': true});
+      controller.selectThread('t-1');
+      expect(controller.pageContextId, 'p-1');
+
+      controller.clearPageContext();
+      expect(controller.pageContextId, isNull);
+    },
+  );
 }

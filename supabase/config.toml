@@ -3,6 +3,15 @@
 [analytics]
 enabled = true
 
+[auth]
+site_url = "https://app.alphajournal.in"
+additional_redirect_urls = [
+  "https://app.alphajournal.in/**",
+  "http://localhost:*/**",
+  "tradex://auth/callback",
+]
+enable_manual_linking = true
+
 # Require a user JWT at the gateway and independently validate it with Auth
 # before checking the caller's current account role and permissions.
 [functions.admin-delete-user]

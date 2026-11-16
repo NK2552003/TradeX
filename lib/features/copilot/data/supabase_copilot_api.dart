@@ -151,14 +151,20 @@ class SupabaseCopilotApi extends CopilotApi {
           403,
         );
       }
+      final settings = state['settings'] as Json;
+      final autoAttachContext = settings['autoAttachContext'] != false;
+      final responseStyle = textOf(settings, 'responseStyle', 'balanced');
+      final citationsStyle = textOf(settings, 'citationsStyle', 'inline');
+      final requireToolApproval = settings['requireToolApproval'] != false;
       final allowed = List<String>.from(specialist['spaceIds'] ?? []);
       final pages = records(
         state['pages'],
       ).where((p) => allowed.contains(p['spaceId'])).toList();
-      final contextPage = thread['pageId'] == null
+      final contextPage =
+          !autoAttachContext || thread['pageId'] == null
           ? null
           : pages.where((p) => p['id'] == thread['pageId']).firstOrNull;
-      if (thread['pageId'] != null && contextPage == null) {
+      if (autoAttachContext && thread['pageId'] != null && contextPage == null) {
         throw const CopilotFailure(
           'This specialist no longer has access to the selected page.',
           403,
@@ -172,8 +178,31 @@ class SupabaseCopilotApi extends CopilotApi {
         ..write(
           '\nAnswer using supplied context. Use web search when available for current information and cite sources. Never claim to have searched without tool results. Report code execution only when the Python tool returns results. Do not claim to schedule work or save documents. Offer document drafts in your reply.\nPresent rich Perplexity-style structured research using cited [Source](url) links, fenced visual cards (company, person, news, compare, timeline, setup, verdict, factbox, faq, checklist, quote, earnings, financials, macro, ratings, screener, sentiment, product, media, formula, research_steps, chart, kpi), and a trailing followups JSON array.',
         );
+      if (responseStyle == 'concise') {
+        instructions.write(
+          '\nResponse style: CONCISE. Lead immediately with key metrics/answer in 2-4 crisp bullet points and compact visual cards; avoid filler.',
+        );
+      } else if (responseStyle == 'detailed') {
+        instructions.write(
+          '\nResponse style: DETAILED. Provide institutional-grade multi-section analysis, thorough breakdown tables, bull/bear scenarios, risks, and rich visual cards.',
+        );
+      }
+      if (citationsStyle == 'footnotes') {
+        instructions.write(
+          '\nCitations style: FOOTNOTES. Reference claims inline using numbered markers like [1], [2] and finish with a numbered Sources list linking markdown URLs.',
+        );
+      } else {
+        instructions.write(
+          '\nCitations style: INLINE. Embed descriptive markdown links [Source](url) directly next to the facts they support.',
+        );
+      }
+      if (requireToolApproval) {
+        instructions.write(
+          '\nSafety preference: Require user approval before suggesting any permanent workspace, note, journal, or strategy save.',
+        );
+      }
       if (specialist['memory'] == true &&
-          (state['settings'] as Json)['memory'] == true) {
+          settings['memory'] == true) {
         instructions.write(
           '\nUser preferences: ${jsonEncode(records(state['memories']).map((m) => m['text']).toList())}',
         );
@@ -225,7 +254,9 @@ class SupabaseCopilotApi extends CopilotApi {
             textOf(body, 'focus').isNotEmpty)
           'focus': textOf(body, 'focus'),
         'allow_web_search': allowWebSearch,
-        'max_tokens': 4096,
+        'response_style': responseStyle,
+        'citations_style': citationsStyle,
+        'max_tokens': responseStyle == 'concise' ? 1800 : 4096,
         'attachments': records(body['attachments']),
         'messages': messages
             .skip(messages.length > 40 ? messages.length - 40 : 0)

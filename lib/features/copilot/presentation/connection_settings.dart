@@ -16,19 +16,32 @@ class CopilotConnections extends StatelessWidget {
   final CopilotController controller;
   final String query;
   @override
-  Widget build(BuildContext context) => ListView(
-    children: [
-      UiButton(
-        label: 'Connect an MCP server',
-        icon: Icons.add,
-        variant: UiVariant.outline,
-        onPressed: () => _edit(context),
-      ),
-      UiGap.v(context.ui.spacing.md),
-      Text(
-        'Bring your apps into the conversation. Choose a specialist, allow specific tools, and review actions before they run.',
-        style: context.uiText.body,
-      ),
+  Widget build(BuildContext context) {
+    final bool workerAppsSupported = controller.workspace.setup['apps'] == true;
+    final bool inAppAppsEnabled = controller.workspace.settings['apps'] != false;
+    return ListView(
+      shrinkWrap: true,
+      children: [
+        if (!workerAppsSupported) ...[
+          UiCallout(
+            title: 'Supabase Hosted Mode',
+            message:
+                'In-app TradeX connectors (Notes, Journal, Strategies, Community, Watchlists) are ${inAppAppsEnabled ? 'enabled' : 'disabled'} via Supabase. External HTTP MCP servers and Slack require setting COPILOT_API_URL to a dedicated Copilot worker.',
+            intent: UiIntent.info,
+          ),
+          UiGap.v(context.ui.spacing.md),
+        ],
+        UiButton(
+          label: 'Connect an MCP server',
+          icon: Icons.add,
+          variant: UiVariant.outline,
+          onPressed: workerAppsSupported ? () => _edit(context) : null,
+        ),
+        UiGap.v(context.ui.spacing.md),
+        Text(
+          'Bring your apps into the conversation. Choose a specialist, allow specific tools, and review actions before they run.',
+          style: context.uiText.body,
+        ),
       UiGap.v(context.ui.spacing.md),
       for (final connection in controller.workspace.connections.where(
         (c) => textOf(c, 'name').toLowerCase().contains(query.toLowerCase()),
@@ -120,6 +133,7 @@ class CopilotConnections extends StatelessWidget {
       ),
     ],
   );
+  }
   Future<void> _edit(BuildContext context, [Json? connection]) =>
       UiDialog.show<void>(
         context,

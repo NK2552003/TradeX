@@ -649,12 +649,21 @@ class CopilotVoiceController extends ChangeNotifier {
           final String specialistInstructions =
               controller.specialist?.instructions ??
               'Provide concise, natural-language spoken trading insights.';
+          final String responseStyle = controller.responseStyle;
+          final int maxVoiceTokens = responseStyle == 'detailed'
+              ? 1100
+              : (responseStyle == 'concise' ? 350 : 650);
+          final String styleInstruction = switch (responseStyle) {
+            'concise' => 'Keep your spoken reply very brief (1-3 crisp sentences).',
+            'detailed' => 'Give a comprehensive, structured spoken explanation with concrete figures and context.',
+            _ => 'Keep your spoken response conversational, insightful, and clear.',
+          };
           final String aiReply = await UnifiedAiService.instance.complete(
             prompt: trimmed,
             systemPrompt:
                 'You are ${controller.specialist?.name ?? "Atlas"} ($specialistRole) speaking in a live natural-language voice call (${voiceModel.label} voice). '
-                '$specialistInstructions Keep your spoken response conversational, insightful, and clear.',
-            maxTokens: 600,
+                '$specialistInstructions $styleInstruction',
+            maxTokens: maxVoiceTokens,
             mode: voiceMode,
             allowWebSearch: canWebSearch,
           );

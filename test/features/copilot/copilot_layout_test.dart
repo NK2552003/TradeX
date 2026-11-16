@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/copilot/data/copilot_api.dart';
+import 'package:tradex/features/copilot/models/workspace_mutations.dart';
+import 'package:tradex/features/copilot/presentation/chat_pane.dart';
 import 'package:tradex/features/copilot/presentation/page_editor.dart';
 import 'package:tradex/core/markdown_kit/markdown_editor_field.dart';
 
@@ -31,6 +33,42 @@ class MemoryCopilotApi extends CopilotApi {
     page.addAll({...body, 'revision': (page['revision'] as int) + 1});
     state['pages'] = [page];
     return page;
+  }
+}
+
+class _AutoSpeakApi extends CopilotApi {
+  _AutoSpeakApi() : state = initialWorkspace();
+  final Json state;
+
+  @override
+  Future<Json> getWorkspace() async => jsonDecode(jsonEncode(state)) as Json;
+
+  @override
+  Future<Json> action(Json body) async => WorkspaceMutations.apply(state, body);
+
+  @override
+  Stream<Json> run(String threadId, Json body, {bool approval = false}) async* {
+    final thread = records(state['threads']).firstWhere((t) => t['id'] == threadId);
+    final stamp = DateTime.now().toUtc().toIso8601String();
+    (thread['messages'] as List).addAll(<Json>[
+      {
+        'id': 'u-1',
+        'role': 'user',
+        'body': body['prompt'],
+        'status': 'complete',
+        'createdAt': stamp,
+      },
+      {
+        'id': 'a-1',
+        'role': 'assistant',
+        'body': 'NVDA support is near 132 with bullish breadth.',
+        'status': 'complete',
+        'createdAt': stamp,
+      },
+    ]);
+    yield {'type': 'started', 'messageId': 'a-1'};
+    yield {'type': 'delta', 'text': 'NVDA support is near 132 with bullish breadth.'};
+    yield {'type': 'done'};
   }
 }
 
@@ -183,6 +221,52 @@ void main() {
         contains('Keep this local draft'),
       );
       expect(records(api.state['pages']).single['body'], 'Updated plan');
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
+    'CopilotChatPane triggers onSpeakMessage when voiceAutoSpeak is enabled',
+    (tester) async {
+      tester.view.physicalSize = const Size(960, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final api = _AutoSpeakApi();
+      api.state['settings']['voiceAutoSpeak'] = true;
+      final controller = CopilotController(api: api, autoLoad: false)
+        ..connected = true;
+      await controller.reload();
+
+      String? spokenText;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: UiTheme.dark().toThemeData(),
+          home: Scaffold(
+            body: CopilotChatPane(
+              controller: controller,
+              onSpeakMessage: (text) => spokenText = text,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).last, 'Check NVDA');
+      await tester.pumpAndSettle();
+      final sendBtn = find.byWidgetPredicate(
+        (w) => w is UiButton && w.label == 'Send message',
+      );
+      await tester.tap(sendBtn);
+      await tester.pumpAndSettle();
+
+      expect(controller.error, isNull);
+      expect(controller.activeThread?.messages, isNotEmpty);
+      expect(spokenText, 'NVDA support is near 132 with bullish breadth.');
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();

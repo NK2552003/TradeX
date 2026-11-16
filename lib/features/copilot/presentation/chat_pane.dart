@@ -203,6 +203,17 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
     if (!mounted) return;
     if (accepted) {
       setState(() => _optimisticPrompt = null);
+      if (controller.voiceAutoSpeak &&
+          !widget.voiceActive &&
+          widget.onSpeakMessage != null) {
+        final reply = controller.activeThread?.messages
+            .where((m) => !m.isUser && m.body.trim().isNotEmpty)
+            .lastOrNull
+            ?.body;
+        if (reply != null && reply.trim().isNotEmpty) {
+          widget.onSpeakMessage!(reply);
+        }
+      }
     } else {
       final restoredText = previousDraft.isNotEmpty ? previousDraft : prompt;
       _composer.value = TextEditingValue(
@@ -358,11 +369,24 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                       padding: EdgeInsets.only(
                         bottom: context.sp(context.ui.spacing.sm),
                       ),
-                      child: UiBadge(
-                        label:
-                            'Discussing: ${controller.workspace.pages.where((p) => p.id == controller.pageContextId).firstOrNull?.title ?? 'Page'}',
-                        icon: Icons.article_outlined,
-                        intent: UiIntent.neutral,
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: context.sp(context.ui.spacing.xs),
+                        children: [
+                          UiBadge(
+                            label:
+                                'Discussing: ${controller.workspace.pages.where((p) => p.id == controller.pageContextId).firstOrNull?.title ?? 'Page'}',
+                            icon: Icons.article_outlined,
+                            intent: UiIntent.neutral,
+                          ),
+                          UiIconButton(
+                            icon: Icons.close_rounded,
+                            tooltip: 'Detach page context',
+                            size: UiSize.xs,
+                            variant: UiVariant.ghost,
+                            onPressed: controller.clearPageContext,
+                          ),
+                        ],
                       ),
                     ),
                   if (controller.isAiQuotaBlocked)

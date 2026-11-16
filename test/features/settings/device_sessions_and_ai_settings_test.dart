@@ -439,6 +439,73 @@ void main() {
         expect(controller.workspace.settings['paused'], isTrue);
       },
     );
+
+    testWidgets(
+      'AiCopilotSettingsPage updates live when CopilotController connects later and Connected Apps handles hosted mode cleanly',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final api = _RecordingCopilotApi();
+        api.state['specialists'] = [
+          ...(api.state['specialists'] as List),
+          {
+            'id': 'quant',
+            'name': 'Quant',
+            'role': 'Risk modeler',
+            'instructions': 'Compute statistical expectancy.',
+            'spaceIds': ['research'],
+            'research': true,
+            'memory': true,
+            'code': true,
+            'apps': false,
+            'learning': false,
+          },
+        ];
+        api.state['setup'] = <String, dynamic>{
+          'backend': 'supabase',
+          'apps': false,
+          'schedules': false,
+          'computer': false,
+          'slack': false,
+        };
+        final controller = CopilotController(api: api, autoLoad: false);
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          _wrapTestApp(
+            AiCopilotSettingsPage(
+              copilotController: controller,
+              repository: AiSettingsRepositoryImpl.instance,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Local Sync'), findsOneWidget);
+
+        // Simulate background workspace connect finishing after page opened.
+        await controller.reload();
+        await tester.pumpAndSettle();
+
+        expect(find.text('Connected'), findsOneWidget);
+        expect(find.text('Hosted mode'), findsOneWidget);
+
+        // Open Connected Apps & MCP Servers subpage and verify Hosted Mode guard.
+        final mcpRow = find.text('Connected Apps & MCP Servers');
+        await tester.ensureVisible(mcpRow);
+        await tester.tap(mcpRow);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Supabase Hosted Mode'), findsOneWidget);
+        final connectBtn = tester.widget<UiButton>(
+          find.widgetWithText(UiButton, 'Connect an MCP server'),
+        );
+        expect(connectBtn.onPressed, isNull);
+      },
+    );
   });
 
   group('Missing settings exposed & wired in navigation', () {

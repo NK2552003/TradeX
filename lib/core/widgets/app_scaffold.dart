@@ -171,6 +171,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   late final CommunityRepository _communityRepo = CommunityRepository();
   late final MessagesRepository _messagesRepo = MessagesRepository();
   late final CopilotController _aiRepo = CopilotController();
+  bool _aiRepoWasConnected = false;
   final GlobalKey<MessagesRootScreenState> _messagesKey =
       GlobalKey<MessagesRootScreenState>();
   final GlobalKey<CopilotScreenState> _aiKey =
@@ -294,9 +295,18 @@ class _AppScaffoldState extends State<AppScaffold> {
     ProfileSettingsRepositoryImpl.instance
         .registerCurrentDeviceSession()
         .catchError((Object _) => null);
+    _aiRepo.addListener(_onAiRepoChanged);
     AiSettingsRepositoryImpl.instance
         .getSettings(copilotController: _aiRepo)
         .catchError((Object _) => AiSettingsRepositoryImpl.instance.cachedSettings);
+  }
+
+  void _onAiRepoChanged() {
+    if (_aiRepoWasConnected == _aiRepo.connected) return;
+    _aiRepoWasConnected = _aiRepo.connected;
+    if (_aiRepo.connected) {
+      unawaited(AiSettingsRepositoryImpl.instance.syncCopilotWorkspace(_aiRepo));
+    }
   }
 
   void _onCommunityRepoChanged() {
@@ -401,6 +411,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     _communityRepo.removeListener(_onCommunityRepoChanged);
     _communityRepo.dispose();
     _messagesRepo.dispose();
+    _aiRepo.removeListener(_onAiRepoChanged);
     _aiRepo.dispose();
     super.dispose();
   }

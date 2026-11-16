@@ -177,9 +177,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
               widget.onStageChanged?.call(AuthStage.forgotPassword);
             }
           }
-          if (event == AuthChangeEvent.signedIn &&
-              (_sessionState.stage != AuthStage.authenticated ||
-                  data.session?.user.id != _sessionState.userId)) {
+          if ((event == AuthChangeEvent.signedIn &&
+                  (_sessionState.stage != AuthStage.authenticated ||
+                      data.session?.user.id != _sessionState.userId)) ||
+              (event == AuthChangeEvent.userUpdated &&
+                  _sessionState.stage == AuthStage.authenticated)) {
             unawaited(
               _restoreActiveSession().then((_) {
                 if (mounted && _sessionState.stage == AuthStage.authenticated) {
@@ -364,6 +366,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
             await SupabaseConfig.client?.auth.getSessionFromUrl(uri);
           } catch (e) {
             debugPrint('[AuthWrapper] getSessionFromUrl error: $e');
+            if (hasActiveSession &&
+                (AuthWrapper._pendingOAuthLinkError == null ||
+                    AuthWrapper._pendingOAuthLinkError!.isEmpty)) {
+              AuthWrapper._pendingOAuthLinkError = e is AuthException
+                  ? e.message
+                  : '$e';
+            }
           }
         }
       }

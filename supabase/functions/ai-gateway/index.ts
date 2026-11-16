@@ -225,6 +225,19 @@ async function executeAiGatewayRequest(
   if (focus !== 'all' && FOCUS_DIRECTIVES[focus]) {
     messages[0].content += '\n' + FOCUS_DIRECTIVES[focus];
   }
+  const responseStyle = body.response_style === 'concise' || body.response_style === 'detailed'
+    ? body.response_style
+    : 'balanced';
+  if (responseStyle === 'concise') {
+    messages[0].content += '\nRESPONSE DEPTH: Keep the reply concise and executive — high signal density, short bullets, and compact visual cards.';
+  } else if (responseStyle === 'detailed') {
+    messages[0].content += '\nRESPONSE DEPTH: Provide thorough institutional-depth analysis with comprehensive comparisons, scenarios, risks, and rich visual cards.';
+  }
+  if (body.citations_style === 'footnotes') {
+    messages[0].content += '\nCITATIONS FORMAT: Prefer numbered footnote markers [1], [2] in prose with a markdown Sources footnote section at the end.';
+  } else if (body.citations_style === 'inline') {
+    messages[0].content += '\nCITATIONS FORMAT: Prefer inline clickable [Source Title](https://...) links directly alongside supported claims.';
+  }
   const toolkit = body.trader_toolkit === 'selected' || body.trader_toolkit === 'auto'
     ? body.trader_toolkit : undefined;
   if (Array.isArray(body.messages)) {
