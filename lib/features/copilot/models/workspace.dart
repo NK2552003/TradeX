@@ -33,6 +33,7 @@ class CopilotMessage {
   List<Json> get sources => records(json['sources']);
   List<Json> get artifacts => records(json['artifacts']);
   List<Json> get activity => records(json['activity']);
+  List<Json> get attachments => records(json['attachments']);
   bool get isUser => role == 'user';
 }
 

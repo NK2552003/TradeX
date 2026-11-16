@@ -5,6 +5,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/markdown_kit/markdown_kit.dart';
 
 import '../models/trader_skill.dart';
 import '../models/workspace.dart';
@@ -45,12 +46,17 @@ class CopilotComposer extends StatefulWidget {
     this.onFocusChanged,
     this.profileId,
     this.attachments = const [],
+    this.attachmentItems = const [],
     this.enabled = true,
     this.busy = false,
     this.attaching = false,
     this.canResearch = true,
     this.onStop,
     this.onVoice,
+    this.onAttachImage,
+    this.onTakePhoto,
+    this.onAttachDropzone,
+    this.onAttachUrl,
     this.onConnectWorkspace,
     this.voiceActive = false,
     this.compactHeight = false,
@@ -68,11 +74,18 @@ class CopilotComposer extends StatefulWidget {
   final List<Specialist> profiles;
   final String? profileId;
   final List<String> attachments;
+  final List<AppAiAttachment> attachmentItems;
   final CopilotPromptMode mode;
   final bool enabled, busy, attaching, canResearch, voiceActive;
   final bool compactHeight;
   final VoidCallback? onResearchFormats;
-  final VoidCallback? onStop, onVoice, onConnectWorkspace;
+  final VoidCallback? onStop,
+      onVoice,
+      onAttachImage,
+      onTakePhoto,
+      onAttachDropzone,
+      onAttachUrl,
+      onConnectWorkspace;
 
   @override
   State<CopilotComposer> createState() => _CopilotComposerState();
@@ -397,44 +410,22 @@ class _CopilotComposerState extends State<CopilotComposer> {
                         size: UiSize.xs,
                       ),
                     ),
-                  if (widget.attachments.isNotEmpty)
+                  if (widget.attachmentItems.isNotEmpty ||
+                      widget.attachments.isNotEmpty)
                     Padding(
                       padding: EdgeInsets.only(
                         bottom: context.sp(theme.spacing.xs),
                       ),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (
-                              var i = 0;
-                              i < widget.attachments.length;
-                              i++
-                            ) ...[
-                              if (i > 0) UiGap.h(theme.spacing.xs),
-                              ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxWidth:
-                                      box.maxWidth -
-                                      context.sp(theme.spacing.xl),
-                                ),
-                                child: UiButton(
-                                  label: widget.attachments[i],
-                                  icon: Icons.attach_file,
-                                  trailingIcon: Icons.close,
-                                  tooltip: 'Remove ${widget.attachments[i]}',
-                                  variant: UiVariant.soft,
-                                  size: UiSize.xs,
-                                  rounded: true,
-                                  onPressed: _editable
-                                      ? () => widget.onRemoveAttachment(i)
-                                      : null,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
+                      child: _ComposerAttachmentStrip(
+                        items: widget.attachmentItems.isNotEmpty
+                            ? widget.attachmentItems
+                            : <AppAiAttachment>[
+                                for (final String name in widget.attachments)
+                                  AppAiAttachment(name: name),
+                              ],
+                        maxWidth: box.maxWidth - context.sp(theme.spacing.xl),
+                        editable: _editable,
+                        onRemove: widget.onRemoveAttachment,
                       ),
                     ),
                   Shortcuts(
@@ -565,4 +556,189 @@ class _CopilotComposerState extends State<CopilotComposer> {
       },
     ),
   );
+}
+
+class _ComposerAttachmentStrip extends StatelessWidget {
+  const _ComposerAttachmentStrip({
+    required this.items,
+    required this.maxWidth,
+    required this.editable,
+    required this.onRemove,
+  });
+
+  final List<AppAiAttachment> items;
+  final double maxWidth;
+  final bool editable;
+  final ValueChanged<int> onRemove;
+
+  static IconData _iconFor(AppAiAttachmentKind kind) => switch (kind) {
+    AppAiAttachmentKind.image => Icons.image_outlined,
+    AppAiAttachmentKind.pdf => Icons.picture_as_pdf_outlined,
+    AppAiAttachmentKind.code => Icons.code_rounded,
+    AppAiAttachmentKind.data => Icons.table_chart_outlined,
+    AppAiAttachmentKind.audio => Icons.audiotrack_outlined,
+    AppAiAttachmentKind.workspace => Icons.hub_outlined,
+    AppAiAttachmentKind.link => Icons.link_rounded,
+    AppAiAttachmentKind.text => Icons.article_outlined,
+    AppAiAttachmentKind.file => Icons.attach_file_rounded,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final List<String> imageUrls = items
+        .where((AppAiAttachment a) => a.isImage && a.previewUrl != null)
+        .map((AppAiAttachment a) => a.previewUrl!)
+        .toList();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          for (int i = 0; i < items.length; i++) ...<Widget>[
+            if (i > 0) UiGap.h(theme.spacing.xs),
+            if (items[i].isImage && items[i].previewUrl != null)
+              Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  GestureDetector(
+                    onTap: () => showUiLightbox(
+                      context,
+                      imageUrls: imageUrls,
+                      initialIndex: imageUrls
+                          .indexOf(items[i].previewUrl!)
+                          .clamp(0, imageUrls.length - 1),
+                      caption: items[i].name,
+                    ),
+                    child: Tooltip(
+                      message: items[i].name,
+                      child: Container(
+                        width: context.sz(58),
+                        height: context.sz(58),
+                        decoration: BoxDecoration(
+                          borderRadius: context.radius(theme.radii.md),
+                          border: Border.all(
+                            color: theme.colors.borderStrong,
+                            width: theme.borders.hairline,
+                          ),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: UiRemoteImage(
+                          url: items[i].previewUrl,
+                          fit: BoxFit.cover,
+                          semanticLabel: items[i].name,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (editable)
+                    Positioned(
+                      top: -context.sz(4),
+                      right: -context.sz(4),
+                      child: UiInteractive(
+                        tooltip: 'Remove ${items[i].name}',
+                        onTap: () => onRemove(i),
+                        builder: (BuildContext ctx, UiInteractiveState _) =>
+                            Container(
+                              width: ctx.sz(20),
+                              height: ctx.sz(20),
+                              decoration: BoxDecoration(
+                                color: theme.colors.overlay,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: theme.colors.surface,
+                                  width: 1.5,
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: ctx.sz(12),
+                                color: theme.colors.onPrimary,
+                              ),
+                            ),
+                      ),
+                    ),
+                ],
+              )
+            else
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: maxWidth > 120 ? maxWidth : 240,
+                ),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.xs),
+                    vertical: context.sp(4),
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colors.surfaceMuted,
+                    borderRadius: context.radius(theme.radii.pill),
+                    border: Border.all(
+                      color: theme.colors.border,
+                      width: theme.borders.hairline,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (items[i].kind == AppAiAttachmentKind.link &&
+                          items[i].previewUrl != null)
+                        AppSiteLogo(
+                          url: items[i].previewUrl,
+                          label: items[i].name,
+                          size: 16,
+                        )
+                      else
+                        Icon(
+                          _iconFor(items[i].kind),
+                          size: context.sz(14),
+                          color: theme.colors.primary,
+                        ),
+                      UiGap.h(theme.spacing.xxs),
+                      Flexible(
+                        child: Text(
+                          items[i].name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.uiText.caption.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (items[i].subtitle != null) ...<Widget>[
+                        UiGap.h(theme.spacing.xxs),
+                        Text(
+                          items[i].subtitle!,
+                          maxLines: 1,
+                          style: context.uiText.caption.copyWith(
+                            fontSize: context.fs(10),
+                            color: theme.colors.foregroundSubtle,
+                          ),
+                        ),
+                      ],
+                      if (editable) ...<Widget>[
+                        UiGap.h(theme.spacing.xxs),
+                        UiInteractive(
+                          tooltip: 'Remove ${items[i].name}',
+                          onTap: () => onRemove(i),
+                          builder: (BuildContext ctx, UiInteractiveState _) =>
+                              Icon(
+                                Icons.close_rounded,
+                                size: ctx.sz(14),
+                                color: theme.colors.foregroundMuted,
+                              ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
 }

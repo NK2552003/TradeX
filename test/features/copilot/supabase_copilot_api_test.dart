@@ -478,4 +478,65 @@ void main() {
       );
     },
   );
+
+  test(
+    'user message persists lightweight _ui attachment previews while stripping UI metadata from ai-gateway payload',
+    () async {
+      final fixture = HostedFixture();
+      addTearDown(fixture.api.dispose);
+      final thread = await fixture.api.action({
+        'action': 'thread.create',
+        'specialistId': 'analyst',
+      });
+      await fixture.api.run(thread['id'] as String, {
+        'prompt': 'Analyze this chart and strategy script',
+        'attachments': [
+          {
+            'type': 'input_image',
+            'filename': 'chart.png',
+            'image_url': 'data:image/png;base64,QUJD',
+            '_ui': {
+              'name': 'chart.png',
+              'kind': 'image',
+              'mimeType': 'image/png',
+              'previewUrl': 'data:image/png;base64,QUJD',
+              'sizeBytes': 3,
+            },
+          },
+          {
+            'type': 'input_text',
+            'filename': 'alpha.py',
+            'text': 'Attachment alpha.py:\nprint(1)',
+            '_ui': {
+              'name': 'alpha.py',
+              'kind': 'code',
+              'subtitle': 'PY',
+              'sizeBytes': 8,
+            },
+          },
+        ],
+      }).toList();
+
+      final request = fixture.requests.singleWhere(
+        (r) => r.url.path.endsWith('ai-gateway'),
+      );
+      final payload = jsonDecode(request.body) as Map;
+      final sentAtts = records(payload['attachments']);
+      expect(sentAtts.length, 2);
+      expect(sentAtts[0]['type'], 'input_image');
+      expect(sentAtts[0].containsKey('_ui'), isFalse);
+      expect(sentAtts[0].containsKey('filename'), isFalse);
+      expect(sentAtts[1]['type'], 'input_text');
+      expect(sentAtts[1].containsKey('_ui'), isFalse);
+
+      final workspace = await fixture.api.getWorkspace();
+      final messages = records(workspace['threads'][0]['messages']);
+      final savedAtts = records(messages[0]['attachments']);
+      expect(savedAtts.length, 2);
+      expect(savedAtts[0]['kind'], 'image');
+      expect(savedAtts[0]['previewUrl'], 'data:image/png;base64,QUJD');
+      expect(savedAtts[1]['name'], 'alpha.py');
+      expect(savedAtts[1]['kind'], 'code');
+    },
+  );
 }

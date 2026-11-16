@@ -728,4 +728,367 @@ Searching filings…
       });
     }
   });
+
+  group('Real Site Logos, 11 More Perplexity Cards, Inline Media & User Attachments', () {
+    const String morePerplexityAnswer = '''
+Full Perplexity-grade research bundle for NVIDIA [NVIDIA Investor Relations](https://investor.nvidia.com/overview) and [SEC EDGAR](https://www.sec.gov/edgar).
+
+![NVDA Chart]($_tinyPngDataUrl)
+
+```links
+{
+  "title": "Primary Research Links",
+  "results": [
+    {"title": "NVIDIA Q4 FY25 CFO Commentary", "url": "https://investor.nvidia.com/q4-cfo", "snippet": "Blackwell architecture ramped faster than internal guidance.", "publishedAt": "Feb 26, 2026"},
+    {"title": "SEC Form 10-K Annual Report", "url": "https://www.sec.gov/ix?doc=/nvda-10k.htm", "snippet": "Complete risk factors and data center segment breakdown."}
+  ]
+}
+```
+
+```video
+{
+  "title": "GTC Keynote: Blackwell Ultra & Rubin Roadmap",
+  "channel": "NVIDIA Official",
+  "duration": "1:12:40",
+  "views": "2.4M views",
+  "publishedAt": "Mar 18, 2026",
+  "url": "https://www.youtube.com/watch?v=nvda-gtc",
+  "thumbnail": "$_tinyPngDataUrl",
+  "chapters": [
+    {"time": "00:14:20", "label": "Blackwell Ultra NVL72"},
+    {"time": "00:42:10", "label": "Dynamo Inference OS"}
+  ]
+}
+```
+
+```market_pulse
+{
+  "title": "Global Market Snapshot",
+  "asOf": "Live Session",
+  "url": "https://www.reuters.com/markets",
+  "items": [
+    {"label": "S&P 500", "value": "5,982.40", "change": "+0.84%", "positive": true},
+    {"label": "NASDAQ 100", "value": "21,140.15", "change": "+1.32%", "positive": true},
+    {"label": "VIX", "value": "14.20", "change": "-4.1%", "positive": true}
+  ]
+}
+```
+
+```earnings_calendar
+{
+  "title": "Upcoming AI & Semi Catalysts",
+  "events": [
+    {"ticker": "NVDA", "name": "NVIDIA Q1 Release", "date": "May 28", "time": "AMC", "estimate": "EPS \$0.89", "status": "Confirmed", "url": "https://investor.nvidia.com"},
+    {"ticker": "AVGO", "name": "Broadcom Earnings", "date": "Jun 05", "time": "AMC", "estimate": "EPS \$1.54", "status": "Scheduled", "url": "https://www.broadcom.com"}
+  ]
+}
+```
+
+```scenarios
+{
+  "title": "12-Month Return Distribution",
+  "scenarios": [
+    {"label": "Bull Case", "probability": 35, "target": "\$185", "upside": "+33%", "sentiment": "bullish", "drivers": "Sovereign AI clusters + GB300 ramp"},
+    {"label": "Base Case", "probability": 50, "target": "\$160", "upside": "+15%", "sentiment": "neutral", "drivers": "Steady hyperscaler capex"},
+    {"label": "Bear Case", "probability": 15, "target": "\$110", "upside": "-21%", "sentiment": "bearish", "drivers": "Digestive pause or export tightening"}
+  ]
+}
+```
+
+```backtest
+{
+  "title": "Momentum Pullback Backtest",
+  "strategy": "20-EMA Institutional Pullback",
+  "period": "2021 - 2026",
+  "totalReturn": "+184.2%",
+  "cagr": "+23.4%",
+  "sharpe": "1.92",
+  "maxDrawdown": "-11.8%",
+  "winRate": "64%",
+  "equityCurve": [
+    {"label": "2021", "value": 100},
+    {"label": "2022", "value": 118},
+    {"label": "2023", "value": 164},
+    {"label": "2024", "value": 229},
+    {"label": "2025", "value": 284}
+  ]
+}
+```
+
+```portfolio
+{
+  "title": "Core AI & Hedge Sleeve",
+  "totalValue": "\$250,000",
+  "rebalanceNote": "Quarterly threshold band +/-3%",
+  "holdings": [
+    {"label": "Semiconductors", "ticker": "NVDA", "weight": 35, "value": "\$87,500", "change": "+4.2%"},
+    {"label": "Cloud Platform", "ticker": "MSFT", "weight": 25, "value": "\$62,500", "change": "+1.1%"},
+    {"label": "T-Bills Hedge", "ticker": "SGOV", "weight": 40, "value": "\$100,000", "change": "+0.02%"}
+  ]
+}
+```
+
+```filing
+{
+  "title": "Form 10-K Annual Filing Highlights",
+  "issuer": "NVIDIA Corporation",
+  "ticker": "NVDA",
+  "form": "10-K",
+  "filedDate": "Feb 26, 2026",
+  "period": "FY2026",
+  "url": "https://www.sec.gov/edgar/nvda-10k",
+  "highlights": [
+    "Data Center represented 88% of consolidated revenue.",
+    "Operating cash flow reached \$64.1B for the fiscal year."
+  ]
+}
+```
+
+```wiki
+{
+  "title": "Gross Margin Durability",
+  "category": "Financial Metric",
+  "url": "https://www.investopedia.com/terms/g/grossmargin.asp",
+  "summary": "Measures pricing power and manufacturing efficiency after direct cost of goods sold.",
+  "relatedTopics": ["Operating leverage", "COGS absorption"]
+}
+```
+
+```risk_plan
+{
+  "title": "Breakout Execution Plan",
+  "ticker": "NVDA",
+  "bias": "Bullish Pullback",
+  "accountSize": "\$100,000",
+  "riskPercent": "1.0% (\$1,000)",
+  "entry": "\$135.50 - \$137.00",
+  "stopLoss": "\$130.00",
+  "targets": ["\$148.00 (1.8R)", "\$158.00 (3.4R)"],
+  "positionSize": "165 shares",
+  "rrRatio": "2.6R",
+  "invalidation": "Daily close below \$129.80 on rising volume."
+}
+```
+
+```workflow
+{
+  "title": "Pre-Earnings Due Diligence",
+  "steps": [
+    {"title": "Pull primary 10-Q footnotes", "detail": "Verify inventory days and purchase commitments."},
+    {"title": "Compare implied volatility", "detail": "Check front-month straddle pricing vs realized earnings moves."},
+    {"title": "Size position to max risk", "detail": "Cap gap risk inside 1% account equity limit."}
+  ]
+}
+```
+''';
+
+    test('SiteLogoResolver extracts clean domains and maps tickers to official domains', () {
+      expect(
+        SiteLogoResolver.extractDomain('https://www.reuters.com/markets/nvda'),
+        'reuters.com',
+      );
+      expect(SiteLogoResolver.domainForTicker(r'$NVDA'), 'nvidia.com');
+      expect(SiteLogoResolver.domainForTicker('RELIANCE'), 'ril.com');
+      expect(SiteLogoResolver.domainForTicker('BTC'), 'bitcoin.org');
+      expect(
+        SiteLogoResolver.resolveLogoUrl(url: 'https://investor.nvidia.com/q4'),
+        'https://www.google.com/s2/favicons?domain=investor.nvidia.com&sz=64',
+      );
+      expect(
+        SiteLogoResolver.resolveLogoUrl(ticker: 'AAPL', size: 128),
+        'https://www.google.com/s2/favicons?domain=apple.com&sz=128',
+      );
+    });
+
+    testWidgets(
+      'renders all 11 additional Perplexity cards, site logos, inline media, and interactive workflow/risk callbacks',
+      (WidgetTester tester) async {
+        String? tappedUrl;
+        String? prompted;
+
+        await tester.binding.setSurfaceSize(const Size(1024, 3200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          _wrapTestWidget(
+            AppAiMessageBubble(
+              message: const AppAiMessage(
+                id: 'more-1',
+                role: AppAiRole.assistant,
+                body: morePerplexityAnswer,
+                mode: 'research',
+                focus: 'finance',
+              ),
+              minimal: true,
+              onOpenRef: (_) {},
+              onSourceTap: (url) => tappedUrl = url,
+              onFollowUpTap: (q) => prompted = q,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AppSiteLogo), findsAtLeastNWidgets(4));
+        expect(find.byType(AppSiteLinkChip), findsAtLeastNWidgets(2));
+        expect(find.byType(PerplexityLinksCard), findsOneWidget);
+        expect(find.byType(PerplexityVideoCard), findsOneWidget);
+        expect(find.byType(PerplexityPulseCard), findsOneWidget);
+        expect(find.byType(PerplexityScheduleCard), findsOneWidget);
+        expect(find.byType(PerplexityScenarioMatrixCard), findsOneWidget);
+        expect(find.byType(PerplexityBacktestCard), findsOneWidget);
+        expect(find.byType(PerplexityPortfolioCard), findsOneWidget);
+        expect(find.byType(PerplexityDocumentCard), findsOneWidget);
+        expect(find.byType(PerplexityWikiCard), findsOneWidget);
+        expect(find.byType(PerplexityRiskPlanCard), findsOneWidget);
+        expect(find.byType(PerplexityWorkflowCard), findsOneWidget);
+
+        // Tap video card and site link chip
+        final videoTitle = find.descendant(
+          of: find.byType(PerplexityVideoCard),
+          matching: find.text('GTC Keynote: Blackwell Ultra & Rubin Roadmap'),
+        ).last;
+        await tester.ensureVisible(videoTitle);
+        await tester.tap(videoTitle);
+        await tester.pump();
+        expect(tappedUrl, 'https://www.youtube.com/watch?v=nvda-gtc');
+
+        await tester.ensureVisible(find.byType(AppSiteLinkChip).first);
+        await tester.tap(find.byType(AppSiteLinkChip).first);
+        await tester.pump();
+
+        // Advance interactive UiStepper step in PerplexityWorkflowCard
+        expect(find.text('Step 1/3'), findsOneWidget);
+        final step2 = find
+            .descendant(
+              of: find.byType(PerplexityWorkflowCard),
+              matching: find.text('2'),
+            )
+            .first;
+        await tester.ensureVisible(step2);
+        await tester.tap(step2);
+        await tester.pump();
+        expect(find.text('Step 2/3'), findsOneWidget);
+        expect(
+          find.text(
+            'Check front-month straddle pricing vs realized earnings moves.',
+          ),
+          findsOneWidget,
+        );
+
+        // Tap related topic chip on Wiki card
+        await tester.ensureVisible(find.text('Operating leverage'));
+        await tester.tap(find.text('Operating leverage'));
+        await tester.pump();
+        expect(prompted, contains('Operating leverage'));
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'renders user image, web link, and typed file attachments inside AppAiMessageBubble and opens lightbox',
+      (WidgetTester tester) async {
+        String? tappedLink;
+        await tester.binding.setSurfaceSize(const Size(640, 900));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          _wrapTestWidget(
+            AppAiMessageBubble(
+              message: const AppAiMessage(
+                id: 'u-att-1',
+                role: AppAiRole.user,
+                body: 'Analyze my chart screenshot, filing link, and script.',
+                attachmentItems: <AppAiAttachment>[
+                  AppAiAttachment(
+                    name: 'nvda_breakout.png',
+                    kind: AppAiAttachmentKind.image,
+                    previewUrl: _tinyPngDataUrl,
+                    mimeType: 'image/png',
+                  ),
+                  AppAiAttachment(
+                    name: 'NVIDIA Q4 Release',
+                    kind: AppAiAttachmentKind.link,
+                    previewUrl: 'https://investor.nvidia.com/q4',
+                    subtitle: 'investor.nvidia.com',
+                  ),
+                  AppAiAttachment(
+                    name: 'strategy.py',
+                    kind: AppAiAttachmentKind.code,
+                    subtitle: 'PY',
+                  ),
+                  AppAiAttachment(
+                    name: '10k.pdf',
+                    kind: AppAiAttachmentKind.pdf,
+                    subtitle: 'PDF',
+                  ),
+                ],
+              ),
+              onSourceTap: (url) => tappedLink = url,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('nvda_breakout.png'), findsOneWidget);
+        expect(find.text('NVIDIA Q4 Release'), findsOneWidget);
+        expect(find.text('strategy.py'), findsOneWidget);
+        expect(find.text('10k.pdf'), findsOneWidget);
+
+        // Tap link chip
+        await tester.tap(find.text('NVIDIA Q4 Release'));
+        await tester.pump();
+        expect(tappedLink, 'https://investor.nvidia.com/q4');
+
+        // Tap image attachment to open UiLightbox
+        await tester.tap(find.text('nvda_breakout.png'));
+        await tester.pumpAndSettle();
+        expect(find.byType(UiLightbox), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    for (final ({String label, Size size, double scale}) vp in const [
+      (label: '320px narrow @1.5x text', size: Size(320, 844), scale: 1.5),
+      (label: '390px mobile @1.0x text', size: Size(390, 844), scale: 1.0),
+      (label: '768px tablet @1.0x text', size: Size(768, 1024), scale: 1.0),
+      (label: '1280px desktop @1.0x text', size: Size(1280, 900), scale: 1.0),
+    ]) {
+      testWidgets('renders all 11 more Perplexity cards without overflow on ${vp.label}', (
+        WidgetTester tester,
+      ) async {
+        await tester.binding.setSurfaceSize(vp.size);
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final prevOnError = FlutterError.onError;
+        final List<String> layoutErrors = <String>[];
+        FlutterError.onError = (FlutterErrorDetails details) {
+          layoutErrors.add('${details.exceptionAsString()}\n${details.informationCollector?.call().map((d) => d.toString()).join('\n') ?? ''}');
+        };
+        try {
+          await tester.pumpWidget(
+            _wrapTestWidget(
+              AppAiMessageBubble(
+                message: const AppAiMessage(
+                  id: 'more-overflow',
+                  role: AppAiRole.assistant,
+                  body: morePerplexityAnswer,
+                  mode: 'research',
+                  focus: 'finance',
+                ),
+                minimal: true,
+                onOpenRef: (_) {},
+                onSourceTap: (_) {},
+                onFollowUpTap: (_) {},
+              ),
+              textScale: vp.scale,
+            ),
+          );
+          await tester.pumpAndSettle();
+        } finally {
+          FlutterError.onError = prevOnError;
+        }
+        expect(layoutErrors, isEmpty, reason: layoutErrors.join('\n---\n'));
+      });
+    }
+  });
 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/copilot/presentation/chat_pane.dart';
 
@@ -462,6 +463,114 @@ void main() {
       expect(reply, contains('```kpi'));
       expect(reply, contains('Trade Journal & Execution Review'));
 
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
+    'supports image thumbnail attachments, Attach URL dialog, Dropzone dialog, and ResearchWelcome quick actions',
+    (tester) async {
+      size(tester, 1024);
+      final pngBytes = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+      );
+      final picker = _Picker()
+        ..files = [
+          PlatformFile(
+            name: 'breakout.png',
+            size: pngBytes.length,
+            bytes: pngBytes,
+          ),
+          PlatformFile(
+            name: 'strategy.py',
+            size: 14,
+            bytes: Uint8List.fromList(utf8.encode('print("alpha")')),
+          ),
+        ];
+      FilePicker.platform = picker;
+      final controller = _RecordingController()..accept = true;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: CopilotChatPane(controller: controller)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // ResearchWelcome quick action chip fills/sends research prompt
+      expect(find.text('Company dossier'), findsOneWidget);
+
+      // Attach PNG + PY via '+' button
+      await tester.tap(find.byTooltip('Attach files'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('breakout.png'), findsOneWidget);
+      expect(find.text('strategy.py'), findsOneWidget);
+
+      // Tap image thumbnail in composer strip to inspect UiLightbox
+      await tester.tap(find.byTooltip('breakout.png'));
+      await tester.pumpAndSettle();
+      expect(find.byType(UiLightbox), findsOneWidget);
+      final closeTooltip = find.byTooltip('Close');
+      if (closeTooltip.evaluate().isNotEmpty) {
+        await tester.tap(closeTooltip.first);
+      } else {
+        Navigator.of(tester.element(find.byType(UiLightbox))).pop();
+      }
+      await tester.pumpAndSettle();
+
+      // Open Composer actions -> Attach web link or image URL
+      final menu = find.byWidgetPredicate(
+        (w) => w is UiDropdownMenu && w.semanticLabel == 'Composer actions',
+      );
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Attach web link or image URL'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Attach web link or image URL'), findsOneWidget);
+      await tester.enterText(
+        find.descendant(
+          of: find.widgetWithText(UiInput, 'URL'),
+          matching: find.byType(TextField),
+        ),
+        'https://investor.nvidia.com/q4',
+      );
+      await tester.pump();
+      await tester.enterText(
+        find.descendant(
+          of: find.widgetWithText(UiInput, 'Label (optional)'),
+          matching: find.byType(TextField),
+        ),
+        'NVDA IR Q4',
+      );
+      await tester.tap(find.widgetWithText(UiButton, 'Attach'));
+      await tester.pumpAndSettle();
+      expect(find.text('NVDA IR Q4'), findsOneWidget);
+
+      // Open Dropzone dialog via Composer actions
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Drop files or screenshots'));
+      await tester.pumpAndSettle();
+      expect(find.byType(UiDropzone), findsOneWidget);
+      await tester.tap(find.widgetWithText(UiButton, 'Done'));
+      await tester.pumpAndSettle();
+
+      // Send all 3 attachments cleanly
+      await tester.tap(
+        find.byWidgetPredicate(
+          (w) => w is UiButton && w.label == 'Send message',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(controller.sends, 1);
+      expect(controller.files.length, 3);
+      expect(controller.files[0]['type'], 'input_image');
+      expect(controller.files[1]['text'], contains('print("alpha")'));
+      expect(controller.files[2]['text'], contains('https://investor.nvidia.com/q4'));
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
       controller.dispose();
     },
   );

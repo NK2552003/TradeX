@@ -141,11 +141,16 @@ class AgentRunner {
             'role': 'user',
             'content': [
               {'type': 'input_text', 'text': value},
-              ...?attachments,
+              if (attachments != null)
+                for (final att in attachments) _gatewayAttachment(att),
             ],
           },
         ];
       }
+      final savedAttachments = <Json>[
+        if (!resume && attachments != null)
+          for (final att in attachments) _attachmentSummary(att),
+      ];
       await store.change(owner, (workspace) {
         final current = recordById(workspace, 'threads', threadId);
         current['status'] = 'running';
@@ -156,6 +161,7 @@ class AgentRunner {
             'id': newId(),
             'role': 'user',
             'body': prompt!.trim(),
+            if (savedAttachments.isNotEmpty) 'attachments': savedAttachments,
             'createdAt': now(),
             'status': 'complete',
           });
@@ -474,6 +480,43 @@ class AgentRunner {
       _finished.remove(client)?.complete();
       client.close();
     }
+  }
+
+  static Json _gatewayAttachment(Json att) {
+    final type = textOf(att, 'type');
+    if (type == 'input_image') {
+      return {'type': 'input_image', 'image_url': textOf(att, 'image_url')};
+    }
+    if (type == 'input_file') {
+      return {
+        'type': 'input_file',
+        'filename': textOf(att, 'filename'),
+        'file_data': textOf(att, 'file_data'),
+      };
+    }
+    return {'type': 'input_text', 'text': textOf(att, 'text')};
+  }
+
+  static Json _attachmentSummary(Json att) {
+    final ui = att['_ui'];
+    if (ui is Map) return Map<String, dynamic>.from(ui);
+    final type = textOf(att, 'type');
+    if (type == 'input_image') {
+      final url = textOf(att, 'image_url');
+      return {
+        'name': textOf(att, 'filename', 'Image'),
+        'kind': 'image',
+        if (url.isNotEmpty) 'previewUrl': url,
+      };
+    }
+    if (type == 'input_file') {
+      return {
+        'name': textOf(att, 'filename', 'Document.pdf'),
+        'kind': 'pdf',
+        'mimeType': 'application/pdf',
+      };
+    }
+    return {'name': textOf(att, 'filename', 'Attachment'), 'kind': 'text'};
   }
 
   Future<void> _finish(

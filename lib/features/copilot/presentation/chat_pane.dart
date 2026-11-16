@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kReleaseMode;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -15,6 +16,7 @@ import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/data/app_session.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/markdown_kit/markdown_kit.dart';
 import 'package:tradex/core/utils/attachment_compression_service.dart';
 
 import '../data/copilot_controller.dart';
@@ -51,11 +53,95 @@ class CopilotChatPane extends StatefulWidget {
   State<CopilotChatPane> createState() => _CopilotChatPaneState();
 }
 
+class _DraftAttachment {
+  const _DraftAttachment({
+    required this.name,
+    required this.input,
+    required this.ui,
+  });
+
+  final String name;
+  final Json input;
+  final AppAiAttachment ui;
+}
+
 class _CopilotChatPaneState extends State<CopilotChatPane> {
+  static const int _maxAttachments = 4;
+  static const int _maxFileBytes = 6000000;
+  static const int _maxCombinedPayloadBytes = 11000000;
+  static const List<String> _imageExtensions = [
+    'png',
+    'jpg',
+    'jpeg',
+    'webp',
+    'gif',
+    'bmp',
+    'heic',
+    'heif',
+  ];
+  static const List<String> _dataExtensions = [
+    'csv',
+    'tsv',
+    'json',
+    'yaml',
+    'yml',
+    'xml',
+    'toml',
+  ];
+  static const List<String> _codeExtensions = [
+    'py',
+    'dart',
+    'js',
+    'ts',
+    'tsx',
+    'jsx',
+    'sql',
+    'sh',
+    'html',
+    'css',
+    'pine',
+  ];
+  static const List<String> _supportedExtensions = [
+    'png',
+    'jpg',
+    'jpeg',
+    'webp',
+    'gif',
+    'bmp',
+    'heic',
+    'heif',
+    'pdf',
+    'txt',
+    'md',
+    'markdown',
+    'rtf',
+    'log',
+    'svg',
+    'csv',
+    'tsv',
+    'json',
+    'yaml',
+    'yml',
+    'xml',
+    'toml',
+    'py',
+    'dart',
+    'js',
+    'ts',
+    'tsx',
+    'jsx',
+    'sql',
+    'sh',
+    'html',
+    'css',
+    'pine',
+  ];
+
   final _composer = TextEditingController();
-  final List<({String name, Json input})> _attachments = [];
+  final List<_DraftAttachment> _attachments = [];
   bool _attaching = false;
   String? _optimisticPrompt;
+  List<AppAiAttachment> _optimisticAttachments = const [];
   CopilotPromptMode _mode = CopilotPromptMode.auto;
   CopilotSearchFocus _focus = CopilotSearchFocus.all;
   CopilotController get controller => widget.controller;
@@ -72,6 +158,181 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
     super.dispose();
   }
 
+  static String? _extensionOf(String filename, [String? explicitExtension]) {
+    final cleaned = (explicitExtension ?? '').trim().toLowerCase();
+    if (cleaned.isNotEmpty) return cleaned;
+    final dot = filename.lastIndexOf('.');
+    if (dot < 0 || dot >= filename.length - 1) return null;
+    return filename.substring(dot + 1).toLowerCase();
+  }
+
+  static AppAiAttachmentKind _kindForExtension(String? extension) {
+    if (extension == null) return AppAiAttachmentKind.text;
+    if (_imageExtensions.contains(extension)) return AppAiAttachmentKind.image;
+    if (extension == 'pdf') return AppAiAttachmentKind.pdf;
+    if (_dataExtensions.contains(extension)) return AppAiAttachmentKind.data;
+    if (_codeExtensions.contains(extension)) return AppAiAttachmentKind.code;
+    return AppAiAttachmentKind.text;
+  }
+
+  static Json _uiMetaJson(AppAiAttachment ui) => {
+    'name': ui.name,
+    'kind': ui.kind.name,
+    if (ui.mimeType != null) 'mimeType': ui.mimeType,
+    if (ui.previewUrl != null) 'previewUrl': ui.previewUrl,
+    if (ui.subtitle != null) 'subtitle': ui.subtitle,
+    if (ui.sizeBytes != null) 'sizeBytes': ui.sizeBytes,
+  };
+
+  static Json _attachUiMeta(Json input, AppAiAttachment ui) => {
+    ...input,
+    '_ui': _uiMetaJson(ui),
+  };
+
+  static List<AppAiAttachment> _parseUiAttachments(CopilotMessage message) {
+    return message.attachments.map((raw) {
+      final kindName = textOf(raw, 'kind', 'file');
+      final kind = AppAiAttachmentKind.values.firstWhere(
+        (k) => k.name == kindName,
+        orElse: () => AppAiAttachmentKind.file,
+      );
+      final sizeRaw = raw['sizeBytes'];
+      final sizeBytes = sizeRaw is int ? sizeRaw : int.tryParse('$sizeRaw');
+      final mimeType = textOf(raw, 'mimeType');
+      final previewUrl = textOf(raw, 'previewUrl');
+      final subtitle = textOf(raw, 'subtitle');
+      return AppAiAttachment(
+        name: textOf(raw, 'name', 'Attachment'),
+        kind: kind,
+        mimeType: mimeType.isEmpty ? null : mimeType,
+        previewUrl: previewUrl.isEmpty ? null : previewUrl,
+        subtitle: subtitle.isEmpty ? null : subtitle,
+        sizeBytes: sizeBytes,
+      );
+    }).toList();
+  }
+
+  Future<_DraftAttachment> _buildDraftFromBytes(
+    Uint8List bytes,
+    String filename, {
+    String? extension,
+  }) async {
+    if (bytes.length > _maxFileBytes) {
+      throw const FormatException('Each file must be under 6 MB.');
+    }
+    final ext = _extensionOf(filename, extension);
+    if (_imageExtensions.contains(ext)) {
+      String mimeType = switch (ext) {
+        'png' => 'image/png',
+        'jpg' || 'jpeg' => 'image/jpeg',
+        'gif' => 'image/gif',
+        'webp' => 'image/webp',
+        _ => 'image/png',
+      };
+      Uint8List payloadBytes = bytes;
+      final bool isStandardWebFormat =
+          ext == 'png' || ext == 'jpg' || ext == 'jpeg' || ext == 'webp';
+      if (ext != 'gif' &&
+          (!isStandardWebFormat ||
+              bytes.length > AttachmentCompressionService.defaultMaxSizeBytes)) {
+        try {
+          final compressed =
+              await AttachmentCompressionService.compressAttachment(
+                bytes: bytes,
+                filename: filename,
+              );
+          if (compressed.bytes.isNotEmpty) {
+            payloadBytes = compressed.bytes;
+            mimeType = compressed.mimeType;
+          }
+        } catch (_) {
+          // Preserve raw image bytes if compression fails in test or odd encoders.
+        }
+      }
+      final dataUrl = 'data:$mimeType;base64,${base64Encode(payloadBytes)}';
+      final ui = AppAiAttachment(
+        name: filename,
+        kind: AppAiAttachmentKind.image,
+        mimeType: mimeType,
+        previewUrl: dataUrl,
+        sizeBytes: payloadBytes.length,
+      );
+      return _DraftAttachment(
+        name: filename,
+        input: _attachUiMeta({
+          'type': 'input_image',
+          'filename': filename,
+          'image_url': dataUrl,
+        }, ui),
+        ui: ui,
+      );
+    }
+    if (ext == 'pdf') {
+      final ui = AppAiAttachment(
+        name: filename,
+        kind: AppAiAttachmentKind.pdf,
+        mimeType: 'application/pdf',
+        subtitle: 'PDF document',
+        sizeBytes: bytes.length,
+      );
+      return _DraftAttachment(
+        name: filename,
+        input: _attachUiMeta({
+          'type': 'input_file',
+          'filename': filename,
+          'file_data': 'data:application/pdf;base64,${base64Encode(bytes)}',
+        }, ui),
+        ui: ui,
+      );
+    }
+    final text = utf8.decode(bytes);
+    if (text.length > 80000) {
+      throw const FormatException(
+        'Text attachments are limited to 80,000 characters.',
+      );
+    }
+    final kind = _kindForExtension(ext);
+    final label = ext != null ? ext.toUpperCase() : 'TEXT';
+    final ui = AppAiAttachment(
+      name: filename,
+      kind: kind,
+      subtitle: label,
+      sizeBytes: bytes.length,
+    );
+    return _DraftAttachment(
+      name: filename,
+      input: _attachUiMeta({
+        'type': 'input_text',
+        'filename': filename,
+        'text': 'Attachment $filename:\n$text',
+      }, ui),
+      ui: ui,
+    );
+  }
+
+  void _commitAdditions(List<_DraftAttachment> additions) {
+    if (additions.isEmpty) return;
+    if (_attachments.length + additions.length > _maxAttachments) {
+      throw const FormatException(
+        'Attach up to four files, each under 6 MB.',
+      );
+    }
+    final totalBytes = utf8
+        .encode(
+          jsonEncode([
+            ..._attachments.map((a) => a.input),
+            ...additions.map((a) => a.input),
+          ]),
+        )
+        .length;
+    if (totalBytes > _maxCombinedPayloadBytes) {
+      throw const FormatException(
+        'These files exceed the combined upload limit. Attach fewer or smaller files.',
+      );
+    }
+    setState(() => _attachments.addAll(additions));
+  }
+
   Future<void> _attach() async {
     if (_attaching || controller.generating) return;
     setState(() => _attaching = true);
@@ -80,80 +341,29 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
         withData: true,
         allowMultiple: true,
         type: FileType.custom,
-        allowedExtensions: [
-          'png',
-          'jpg',
-          'jpeg',
-          'webp',
-          'pdf',
-          'txt',
-          'md',
-          'csv',
-          'json',
-        ],
+        allowedExtensions: _supportedExtensions,
       );
       if (!mounted || picked == null) return;
-      final additions = <({String name, Json input})>[];
+      final additions = <_DraftAttachment>[];
       for (final file in picked.files) {
-        if (_attachments.length + additions.length >= 4 ||
-            file.size > 6000000) {
+        if (_attachments.length + additions.length >= _maxAttachments ||
+            file.size > _maxFileBytes) {
           throw const FormatException(
             'Attach up to four files, each under 6 MB.',
           );
         }
         final bytes = file.bytes ?? await file.xFile.readAsBytes();
         if (!mounted) return;
-        if (bytes.length > 6000000) {
-          throw const FormatException('Each file must be under 6 MB.');
-        }
-        final extension = file.extension?.toLowerCase();
-        final Json input;
-        if (['png', 'jpg', 'jpeg', 'webp'].contains(extension)) {
-          final compressed =
-              await AttachmentCompressionService.compressAttachment(
-                bytes: bytes,
-                filename: file.name,
-              );
-          if (!mounted) return;
-          input = {
-            'type': 'input_image',
-            'image_url':
-                'data:${compressed.mimeType};base64,${base64Encode(compressed.bytes)}',
-          };
-        } else if (extension == 'pdf') {
-          input = {
-            'type': 'input_file',
-            'filename': file.name,
-            'file_data': 'data:application/pdf;base64,${base64Encode(bytes)}',
-          };
-        } else {
-          final text = utf8.decode(bytes);
-          if (text.length > 80000) {
-            throw const FormatException(
-              'Text attachments are limited to 80,000 characters.',
-            );
-          }
-          input = {
-            'type': 'input_text',
-            'text': 'Attachment ${file.name}:\n$text',
-          };
-        }
-        additions.add((name: file.name, input: input));
-      }
-      final totalBytes = utf8
-          .encode(
-            jsonEncode([
-              ..._attachments.map((a) => a.input),
-              ...additions.map((a) => a.input),
-            ]),
-          )
-          .length;
-      if (totalBytes > 11000000) {
-        throw const FormatException(
-          'These files exceed the combined upload limit. Attach fewer or smaller files.',
+        additions.add(
+          await _buildDraftFromBytes(
+            bytes,
+            file.name,
+            extension: file.extension,
+          ),
         );
+        if (!mounted) return;
       }
-      setState(() => _attachments.addAll(additions));
+      _commitAdditions(additions);
     } catch (error) {
       if (mounted) {
         UiToast.error(
@@ -165,6 +375,379 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
     } finally {
       if (mounted) setState(() => _attaching = false);
     }
+  }
+
+  Future<void> _attachImage() async {
+    if (_attaching || controller.generating) return;
+    setState(() => _attaching = true);
+    try {
+      List<XFile> images = const [];
+      try {
+        images = await ImagePicker().pickMultiImage(
+          limit: _maxAttachments - _attachments.length,
+        );
+      } catch (_) {
+        // Fallback cleanly to image file picker on desktop/unsupported targets.
+      }
+      if (!mounted) return;
+      if (images.isEmpty) {
+        final picked = await FilePicker.platform.pickFiles(
+          withData: true,
+          allowMultiple: true,
+          type: FileType.custom,
+          allowedExtensions: _imageExtensions,
+        );
+        if (!mounted || picked == null) return;
+        final additions = <_DraftAttachment>[];
+        for (final file in picked.files) {
+          if (_attachments.length + additions.length >= _maxAttachments ||
+              file.size > _maxFileBytes) {
+            throw const FormatException(
+              'Attach up to four files, each under 6 MB.',
+            );
+          }
+          final bytes = file.bytes ?? await file.xFile.readAsBytes();
+          if (!mounted) return;
+          additions.add(
+            await _buildDraftFromBytes(
+              bytes,
+              file.name,
+              extension: file.extension,
+            ),
+          );
+          if (!mounted) return;
+        }
+        _commitAdditions(additions);
+        return;
+      }
+      final additions = <_DraftAttachment>[];
+      for (final image in images) {
+        if (_attachments.length + additions.length >= _maxAttachments) {
+          throw const FormatException(
+            'Attach up to four files, each under 6 MB.',
+          );
+        }
+        final bytes = await image.readAsBytes();
+        if (!mounted) return;
+        final name = image.name.isNotEmpty ? image.name : 'chart_image.png';
+        additions.add(await _buildDraftFromBytes(bytes, name));
+        if (!mounted) return;
+      }
+      _commitAdditions(additions);
+    } catch (error) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Could not attach image',
+          message: '$error',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _attaching = false);
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    if (_attaching || controller.generating) return;
+    setState(() => _attaching = true);
+    try {
+      final photo = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+      );
+      if (!mounted || photo == null) return;
+      final bytes = await photo.readAsBytes();
+      if (!mounted) return;
+      final name = photo.name.isNotEmpty ? photo.name : 'camera_capture.jpg';
+      final draft = await _buildDraftFromBytes(bytes, name);
+      if (!mounted) return;
+      _commitAdditions([draft]);
+    } catch (error) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: kIsWeb ? 'Camera unavailable' : 'Could not capture photo',
+          message: '$error',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _attaching = false);
+    }
+  }
+
+  Future<void> _attachUrlDialog() async {
+    if (controller.generating) return;
+    final urlController = TextEditingController();
+    final labelController = TextEditingController();
+    bool asImage = false;
+    String? errorText;
+    try {
+      await UiDialog.present<void>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setModalState) {
+            final raw = urlController.text.trim();
+            final uri = Uri.tryParse(raw);
+            final validHttps =
+                uri != null &&
+                (uri.scheme == 'https' || uri.scheme == 'http') &&
+                uri.host.isNotEmpty;
+            final lowerPath = uri?.path.toLowerCase() ?? '';
+            final looksLikeImage =
+                lowerPath.endsWith('.png') ||
+                lowerPath.endsWith('.jpg') ||
+                lowerPath.endsWith('.jpeg') ||
+                lowerPath.endsWith('.webp') ||
+                lowerPath.endsWith('.gif');
+            final effectiveAsImage = asImage || looksLikeImage;
+            return UiDialog(
+              title: 'Attach web link or image URL',
+              description:
+                  'Analyze any webpage, earnings release, or hosted chart screenshot directly in Copilot.',
+              icon: Icons.add_link_rounded,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  UiToggleGroup<bool>(
+                    value: effectiveAsImage,
+                    onChanged: (value) => setModalState(() => asImage = value),
+                    options: const [
+                      UiToggleOption(
+                        value: false,
+                        label: 'Web link',
+                        icon: Icons.public_rounded,
+                      ),
+                      UiToggleOption(
+                        value: true,
+                        label: 'Image URL',
+                        icon: Icons.image_outlined,
+                      ),
+                    ],
+                  ),
+                  UiGap.v(context.ui.spacing.sm),
+                  UiInput(
+                    controller: urlController,
+                    label: 'URL',
+                    hintText: effectiveAsImage
+                        ? 'https://example.com/chart.png'
+                        : 'https://investor.nvidia.com/...',
+                    errorText: errorText,
+                    leading: validHttps
+                        ? AppSiteLogo(url: raw, size: context.sz(20))
+                        : Icon(
+                            Icons.link_rounded,
+                            size: context.sz(18),
+                            color: context.ui.colors.foregroundMuted,
+                          ),
+                    onChanged: (_) => setModalState(() => errorText = null),
+                  ),
+                  UiGap.v(context.ui.spacing.sm),
+                  UiInput(
+                    controller: labelController,
+                    label: 'Label (optional)',
+                    hintText: 'Q4 Earnings release / NVDA daily chart',
+                  ),
+                  if (effectiveAsImage && validHttps) ...[
+                    UiGap.v(context.ui.spacing.sm),
+                    ClipRRect(
+                      borderRadius: context.radius(context.ui.radii.md),
+                      child: UiRemoteImage(
+                        url: raw,
+                        height: 120,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                UiButton(
+                  label: 'Cancel',
+                  variant: UiVariant.ghost,
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                ),
+                UiButton(
+                  label: 'Attach',
+                  icon: Icons.attach_file_rounded,
+                  onPressed: () {
+                    final url = urlController.text.trim();
+                    final parsed = Uri.tryParse(url);
+                    if (parsed == null ||
+                        (parsed.scheme != 'https' && parsed.scheme != 'http') ||
+                        parsed.host.isEmpty) {
+                      setModalState(
+                        () => errorText = 'Enter a valid http(s):// URL.',
+                      );
+                      return;
+                    }
+                    if (_attachments.length >= _maxAttachments) {
+                      setModalState(
+                        () => errorText = 'Maximum 4 attachments per prompt.',
+                      );
+                      return;
+                    }
+                    final host = SiteLogoResolver.extractDomain(url) ?? parsed.host;
+                    final customLabel = labelController.text.trim();
+                    final displayName = customLabel.isNotEmpty
+                        ? customLabel
+                        : (effectiveAsImage ? 'Image ($host)' : host);
+                    final ui = effectiveAsImage
+                        ? AppAiAttachment(
+                            name: displayName,
+                            kind: AppAiAttachmentKind.image,
+                            previewUrl: url,
+                            subtitle: host,
+                          )
+                        : AppAiAttachment(
+                            name: displayName,
+                            kind: AppAiAttachmentKind.link,
+                            previewUrl: url,
+                            subtitle: host,
+                          );
+                    final input = effectiveAsImage
+                        ? _attachUiMeta({
+                            'type': 'input_image',
+                            'filename': displayName,
+                            'image_url': url,
+                          }, ui)
+                        : _attachUiMeta({
+                            'type': 'input_text',
+                            'filename': displayName,
+                            'text': 'Referenced URL ($displayName): $url',
+                          }, ui);
+                    _commitAdditions([
+                      _DraftAttachment(name: displayName, input: input, ui: ui),
+                    ]);
+                    Navigator.of(dialogContext).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    } finally {
+      urlController.dispose();
+      labelController.dispose();
+    }
+  }
+
+  Future<void> _showDropzoneDialog() async {
+    if (controller.generating) return;
+    await UiDialog.present<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final previews = _attachments
+              .map((a) => a.ui.previewUrl)
+              .whereType<String>()
+              .where((u) => u.isNotEmpty)
+              .toList();
+          return UiDialog(
+            title: 'Attach images, charts & research files',
+            description:
+                'Drop chart screenshots, PDFs, CSV datasets, or code files for instant multimodal analysis.',
+            icon: Icons.upload_file_rounded,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                UiDropzone(
+                  title: 'Drop or choose files & screenshots',
+                  message:
+                      'PNG, JPG, WebP, GIF, PDF, CSV, JSON, Markdown, Python, Pine',
+                  uploading: _attaching,
+                  previewUrls: previews,
+                  onPick: () async {
+                    await _attach();
+                    if (context.mounted) setModalState(() {});
+                  },
+                  onFilesDropped: (items) {
+                    for (final item in items) {
+                      final trimmed = item.trim();
+                      if (_attachments.length >= _maxAttachments) break;
+                      if (trimmed.startsWith('http://') ||
+                          trimmed.startsWith('https://') ||
+                          trimmed.startsWith('data:image/')) {
+                        final ui = AppAiAttachment(
+                          name: trimmed.startsWith('data:image/')
+                              ? 'Dropped image'
+                              : (SiteLogoResolver.extractDomain(trimmed) ?? 'Link'),
+                          kind: AppAiAttachmentKind.image,
+                          previewUrl: trimmed,
+                        );
+                        _commitAdditions([
+                          _DraftAttachment(
+                            name: ui.name,
+                            input: _attachUiMeta({
+                              'type': 'input_image',
+                              'filename': ui.name,
+                              'image_url': trimmed,
+                            }, ui),
+                            ui: ui,
+                          ),
+                        ]);
+                      }
+                    }
+                    if (context.mounted) setModalState(() {});
+                  },
+                  onRemove: (url) {
+                    setState(() {
+                      _attachments.removeWhere((a) => a.ui.previewUrl == url);
+                    });
+                    setModalState(() {});
+                  },
+                ),
+                UiGap.v(context.ui.spacing.sm),
+                Wrap(
+                  spacing: context.sp(context.ui.spacing.xs),
+                  runSpacing: context.sp(context.ui.spacing.xs),
+                  children: [
+                    UiButton(
+                      label: 'Photos',
+                      size: UiSize.sm,
+                      variant: UiVariant.soft,
+                      icon: Icons.photo_library_outlined,
+                      onPressed: () async {
+                        await _attachImage();
+                        if (context.mounted) setModalState(() {});
+                      },
+                    ),
+                    UiButton(
+                      label: 'Files / PDF',
+                      size: UiSize.sm,
+                      variant: UiVariant.soft,
+                      icon: Icons.description_outlined,
+                      onPressed: () async {
+                        await _attach();
+                        if (context.mounted) setModalState(() {});
+                      },
+                    ),
+                    UiButton(
+                      label: 'Link / Image URL',
+                      size: UiSize.sm,
+                      variant: UiVariant.outline,
+                      icon: Icons.add_link_rounded,
+                      onPressed: () async {
+                        Navigator.of(dialogContext).pop();
+                        await _attachUrlDialog();
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              UiButton(
+                label: 'Done',
+                onPressed: () => Navigator.of(dialogContext).pop(),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _send(String prompt) async {
@@ -181,9 +764,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
       return;
     }
     final previousDraft = _composer.text;
-    final savedAttachments = List<({String name, Json input})>.from(
-      _attachments,
-    );
+    final savedAttachments = List<_DraftAttachment>.from(_attachments);
     final attachments = savedAttachments.map((a) => a.input).toList();
 
     // Clear composer and attachments immediately on Enter/Send for snappy UX.
@@ -191,6 +772,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
     setState(() {
       _attachments.clear();
       _optimisticPrompt = trimmed;
+      _optimisticAttachments = savedAttachments.map((a) => a.ui).toList();
     });
 
     final accepted = await controller.sendPrompt(
@@ -205,7 +787,10 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
     );
     if (!mounted) return;
     if (accepted) {
-      setState(() => _optimisticPrompt = null);
+      setState(() {
+        _optimisticPrompt = null;
+        _optimisticAttachments = const [];
+      });
       if (controller.voiceAutoSpeak &&
           !widget.voiceActive &&
           widget.onSpeakMessage != null) {
@@ -225,6 +810,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
       );
       setState(() {
         _optimisticPrompt = null;
+        _optimisticAttachments = const [];
         if (_attachments.isEmpty && savedAttachments.isNotEmpty) {
           _attachments.addAll(savedAttachments);
         }
@@ -319,6 +905,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                     .where((e) => e.isNotEmpty)
                     .toList() ??
                 const <String>[],
+            attachmentItems: _parseUiAttachments(message),
             focus: textOf(message.json, 'focus').isEmpty
                 ? null
                 : textOf(message.json, 'focus'),
@@ -341,6 +928,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
             id: '__optimistic_user__',
             role: AppAiRole.user,
             body: _optimisticPrompt!,
+            attachmentItems: _optimisticAttachments,
           ),
         );
       }
@@ -490,6 +1078,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                   busy: controller.generating || thread?.status == 'running',
                   attaching: _attaching,
                   attachments: _attachments.map((a) => a.name).toList(),
+                  attachmentItems: _attachments.map((a) => a.ui).toList(),
                   profiles: controller.workspace.specialists,
                   profileId: controller.specialist?.id,
                   mode: _mode,
@@ -518,6 +1107,26 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                           controller.workspace.setup['attachments'] == false
                       ? null
                       : _attach,
+                  onAttachImage:
+                      controller.isAiQuotaBlocked ||
+                          controller.workspace.setup['attachments'] == false
+                      ? null
+                      : _attachImage,
+                  onTakePhoto:
+                      controller.isAiQuotaBlocked ||
+                          controller.workspace.setup['attachments'] == false
+                      ? null
+                      : _takePhoto,
+                  onAttachDropzone:
+                      controller.isAiQuotaBlocked ||
+                          controller.workspace.setup['attachments'] == false
+                      ? null
+                      : _showDropzoneDialog,
+                  onAttachUrl:
+                      controller.isAiQuotaBlocked ||
+                          controller.workspace.setup['attachments'] == false
+                      ? null
+                      : _attachUrlDialog,
                   onRemoveAttachment: (i) =>
                       setState(() => _attachments.removeAt(i)),
                   onStop: controller.stop,
@@ -526,14 +1135,23 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                     context,
                     onAttach: (CopilotConnectedItem item) {
                       if (!mounted) return;
+                      final displayName = '${item.category.label}: ${item.title}';
+                      final ui = AppAiAttachment(
+                        name: displayName,
+                        kind: AppAiAttachmentKind.workspace,
+                        subtitle: item.category.label,
+                      );
                       setState(() {
-                        if (_attachments.length >= 4) {
+                        if (_attachments.length >= _maxAttachments) {
                           _attachments.removeAt(0);
                         }
-                        _attachments.add((
-                          name: '${item.category.label}: ${item.title}',
-                          input: item.toAttachmentJson(),
-                        ));
+                        _attachments.add(
+                          _DraftAttachment(
+                            name: displayName,
+                            input: _attachUiMeta(item.toAttachmentJson(), ui),
+                            ui: ui,
+                          ),
+                        );
                       });
                     },
                   ),

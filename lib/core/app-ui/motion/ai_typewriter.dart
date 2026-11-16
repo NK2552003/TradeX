@@ -1,13 +1,28 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
-/// Tune the reveal cadence here. API chunks never restart this queue.
-const aiTypingCharacterInterval = Duration(milliseconds: 25);
+/// Frame-aligned reveal cadence (~60fps) matching real AI token streaming.
+/// API chunks never restart this queue.
+const aiTypingCharacterInterval = Duration(milliseconds: 16);
+
+/// Minimum graphemes revealed per frame tick (~312 chars/sec baseline).
+const int aiTypingMinGraphemesPerTick = 5;
+
+/// Target ticks to absorb buffered backlogs so long answers stay brisk (~1–2s).
+const int aiTypingCatchUpTicks = 22;
 
 class AiTypewriter extends ChangeNotifier {
-  AiTypewriter({this.interval = aiTypingCharacterInterval});
+  AiTypewriter({
+    this.interval = aiTypingCharacterInterval,
+    this.minGraphemesPerTick = aiTypingMinGraphemesPerTick,
+    this.catchUpDivisor = aiTypingCatchUpTicks,
+  });
+
   final Duration interval;
+  final int minGraphemesPerTick;
+  final int catchUpDivisor;
   Timer? _timer;
   String _target = '';
   final List<String> _queue = [];
@@ -59,12 +74,21 @@ class AiTypewriter extends ChangeNotifier {
     _shown = _shown.clamp(0, _queue.length);
     _visibleUnits = _queue.take(_shown).fold(0, (n, c) => n + c.length);
     _timer ??= Timer.periodic(interval, (_) {
-      if (!isTyping) {
+      final int remaining = _queue.length - _shown;
+      if (remaining <= 0) {
         _timer?.cancel();
         _timer = null;
         return;
       }
-      _visibleUnits += _queue[_shown++].length;
+      final int adaptiveStep = catchUpDivisor > 0
+          ? (remaining / catchUpDivisor).ceil()
+          : minGraphemesPerTick;
+      final int step = math
+          .max(minGraphemesPerTick, adaptiveStep)
+          .clamp(1, remaining);
+      for (int i = 0; i < step; i++) {
+        _visibleUnits += _queue[_shown++].length;
+      }
       notifyListeners();
       if (!isTyping) {
         _timer?.cancel();

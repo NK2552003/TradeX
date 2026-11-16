@@ -30,6 +30,8 @@ class UiRemoteImage extends StatelessWidget {
     this.maxWidth,
     this.semanticLabel,
     this.errorIcon = Icons.broken_image_outlined,
+    this.placeholder,
+    this.fallback,
   });
 
   final String? url;
@@ -41,6 +43,8 @@ class UiRemoteImage extends StatelessWidget {
   /// Describes the picture to a screen reader. Leave null for decoration.
   final String? semanticLabel;
   final IconData errorIcon;
+  final Widget? placeholder;
+  final Widget? fallback;
 
   /// Calculates target physical pixel width capped at 2x device pixel ratio.
   static int? resolveCacheWidth(
@@ -122,8 +126,10 @@ class UiRemoteImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String? src = url?.trim();
+    final Widget resolvedFallback =
+        fallback ?? _Panel(icon: errorIcon);
     if (src == null || src.isEmpty) {
-      return const _Panel(icon: Icons.image_not_supported_outlined);
+      return fallback ?? const _Panel(icon: Icons.image_not_supported_outlined);
     }
     if (src.startsWith('data:image/')) {
       try {
@@ -134,10 +140,10 @@ class UiRemoteImage extends StatelessWidget {
           fit: fit,
           cacheWidth: resolveCacheWidth(context, logicalWidth: width ?? maxWidth),
           semanticLabel: semanticLabel,
-          errorBuilder: (_, _, _) => _Panel(icon: errorIcon),
+          errorBuilder: (_, _, _) => resolvedFallback,
         );
       } on FormatException {
-        return _Panel(icon: errorIcon);
+        return resolvedFallback;
       }
     }
     return LayoutBuilder(
@@ -174,13 +180,17 @@ class UiRemoteImage extends StatelessWidget {
                 bool wasSynchronouslyLoaded,
               ) {
                 if (wasSynchronouslyLoaded) return child;
-                return _ImageFade(shown: frame != null, child: child);
+                return _ImageFade(
+                  shown: frame != null,
+                  placeholder: placeholder,
+                  child: child,
+                );
               },
           loadingBuilder:
               (BuildContext lCtx, Widget child, ImageChunkEvent? progress) =>
-                  progress == null ? child : const _Panel(),
+                  progress == null ? child : (placeholder ?? const _Panel()),
           errorBuilder: (BuildContext eCtx, Object _, StackTrace? _) =>
-              _Panel(icon: errorIcon),
+              resolvedFallback,
         );
       },
     );
@@ -189,18 +199,26 @@ class UiRemoteImage extends StatelessWidget {
 
 /// Cross-fades the decoded picture over the loading panel.
 class _ImageFade extends StatelessWidget {
-  const _ImageFade({required this.shown, required this.child});
+  const _ImageFade({
+    required this.shown,
+    required this.child,
+    this.placeholder,
+  });
 
   final bool shown;
   final Widget child;
+  final Widget? placeholder;
 
   @override
-  Widget build(BuildContext context) => AnimatedOpacity(
-    opacity: shown ? 1 : 0,
-    duration: context.ui.motion.fast,
-    curve: Curves.easeOut,
-    child: shown ? child : const _Panel(),
-  );
+  Widget build(BuildContext context) {
+    if (!shown && placeholder != null) return placeholder!;
+    return AnimatedOpacity(
+      opacity: shown ? 1 : 0,
+      duration: context.ui.motion.fast,
+      curve: Curves.easeOut,
+      child: shown ? child : const _Panel(),
+    );
+  }
 }
 
 /// The neutral stand-in shown while loading and when loading fails.

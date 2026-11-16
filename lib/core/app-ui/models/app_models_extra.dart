@@ -40,6 +40,41 @@ class AppAiSource {
   final String snippet;
 }
 
+/// Classification for an attachment carried on an [AppAiMessage].
+enum AppAiAttachmentKind {
+  image,
+  pdf,
+  text,
+  code,
+  data,
+  audio,
+  workspace,
+  link,
+  file,
+}
+
+/// Rich attachment preview metadata rendered inside AI chat bubbles.
+@immutable
+class AppAiAttachment {
+  const AppAiAttachment({
+    required this.name,
+    this.kind = AppAiAttachmentKind.file,
+    this.mimeType,
+    this.previewUrl,
+    this.subtitle,
+    this.sizeBytes,
+  });
+
+  final String name;
+  final AppAiAttachmentKind kind;
+  final String? mimeType;
+  final String? previewUrl;
+  final String? subtitle;
+  final int? sizeBytes;
+
+  bool get isImage => kind == AppAiAttachmentKind.image;
+}
+
 /// Author of a message in the AI assistant thread.
 enum AppAiRole { user, assistant, system }
 
@@ -57,6 +92,7 @@ class AppAiMessage {
     this.followUps = const <String>[],
     this.steps = const <String>[],
     this.attachments = const <String>[],
+    this.attachmentItems = const <AppAiAttachment>[],
     this.mode,
     this.focus,
   });
@@ -72,6 +108,7 @@ class AppAiMessage {
   final List<String> followUps;
   final List<String> steps;
   final List<String> attachments;
+  final List<AppAiAttachment> attachmentItems;
   final String? mode;
   final String? focus;
 }

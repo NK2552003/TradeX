@@ -7,6 +7,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 
 import '../markdown_preview.dart';
 import '../perplexity_parser.dart';
+import '../site_logo.dart';
 
 class ResearchAnswerTools extends StatelessWidget {
   const ResearchAnswerTools({
@@ -180,6 +181,12 @@ class _AnswerInspectorState extends State<_AnswerInspector> {
                 padding: EdgeInsets.symmetric(vertical: context.sp(spacing.xs)),
                 child: UiCard(
                   variant: UiCardVariant.outlined,
+                  leading: AppSiteLogo(
+                    url: source.url,
+                    domain: source.domain,
+                    label: source.title,
+                    size: 24,
+                  ),
                   title: '[${source.index}] ${source.title}',
                   subtitle: source.domain,
                   child: Column(

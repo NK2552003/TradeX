@@ -786,13 +786,13 @@ class UnifiedAiService {
     final paragraphs = fullText.split('\n');
     for (final p in paragraphs) {
       final words = p.split(' ');
-      for (int i = 0; i < words.length; i += 4) {
-        final chunk = words.skip(i).take(4).join(' ');
+      for (int i = 0; i < words.length; i += 6) {
+        final chunk = words.skip(i).take(6).join(' ');
         yield (i == 0 ? '' : ' ') + chunk;
-        await Future<void>.delayed(const Duration(milliseconds: 30));
+        await Future<void>.delayed(const Duration(milliseconds: 10));
       }
       yield '\n';
-      await Future<void>.delayed(const Duration(milliseconds: 40));
+      await Future<void>.delayed(const Duration(milliseconds: 12));
     }
   }
 

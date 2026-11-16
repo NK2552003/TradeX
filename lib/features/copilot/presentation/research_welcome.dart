@@ -17,6 +17,46 @@ class ResearchWelcome extends StatelessWidget {
   final VoidCallback onFormats;
   final VoidCallback onSkills;
 
+  static const List<({String label, IconData icon, String prompt})>
+  _quickActions = [
+    (
+      label: 'Company dossier',
+      icon: Icons.apartment_rounded,
+      prompt:
+          'Build a live Perplexity-style company research dossier on NVDA with valuation, catalysts, official links, and bull/bear scenarios.',
+    ),
+    (
+      label: 'Compare peers',
+      icon: Icons.compare_arrows_rounded,
+      prompt:
+          'Compare NVDA vs AMD vs AVGO on valuation, margin expansion, AI data-center revenue mix, and forward scenario probabilities.',
+    ),
+    (
+      label: 'Portfolio allocation',
+      icon: Icons.pie_chart_outline_rounded,
+      prompt:
+          'Analyze a balanced AI, semiconductor, and index hedge portfolio allocation with backtest drawdown metrics and sizing rules.',
+    ),
+    (
+      label: 'SEC filing brief',
+      icon: Icons.description_outlined,
+      prompt:
+          'Summarize the latest 10-K / 10-Q SEC filings, risk factors, and capital allocation commitments with direct filing links.',
+    ),
+    (
+      label: 'Earnings calendar',
+      icon: Icons.event_note_outlined,
+      prompt:
+          'Show upcoming mega-cap earnings schedule, implied moves, consensus EPS expectations, and recent market pulse.',
+    ),
+    (
+      label: 'Execution playbook',
+      icon: Icons.playlist_add_check_rounded,
+      prompt:
+          'Build a step-by-step pre-trade risk plan and execution workflow with entry zones, invalidation stop, and position sizing.',
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
@@ -76,6 +116,22 @@ class ResearchWelcome extends StatelessWidget {
                 variant: UiVariant.ghost,
                 onPressed: onSkills,
               ),
+            ],
+          ),
+          UiGap.v(theme.spacing.md),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
+            children: [
+              for (final action in _quickActions)
+                UiButton(
+                  label: action.label,
+                  icon: action.icon,
+                  size: UiSize.sm,
+                  variant: UiVariant.outline,
+                  onPressed: () => onPrompt(action.prompt),
+                ),
             ],
           ),
           UiGap.v(theme.spacing.xl),

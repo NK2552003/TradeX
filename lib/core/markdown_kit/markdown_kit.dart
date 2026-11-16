@@ -16,6 +16,8 @@ export 'math_syntax.dart';
 export 'perplexity_card_block.dart';
 export 'perplexity_domain_cards.dart';
 export 'perplexity_extended_cards.dart';
+export 'perplexity_more_cards.dart';
 export 'perplexity_parser.dart';
 export 'scrollable_table.dart';
+export 'site_logo.dart';
 export 'ticker_syntax.dart';

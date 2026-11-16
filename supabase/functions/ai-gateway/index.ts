@@ -2,6 +2,12 @@ import { freshnessInstructions, needsFreshResearch, RESEARCH_PANEL_PROTOCOL } fr
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 import { generateResponses, type ProviderResult } from './responses.ts';
+import {
+  buildProviderMessages,
+  type GatewayAttachment as Attachment,
+  type GatewayMessage as Message,
+  validAttachment,
+} from './attachments.ts';
 
 const cors = {
   'Content-Type': 'application/json',
@@ -11,26 +17,9 @@ const cors = {
 };
 const reply = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: cors });
-type Message = { role: 'user' | 'assistant' | 'system'; content: string };
 type Dependencies = { fetch?: typeof fetch; env?: (name: string) => string | undefined };
 
 const bearer = (value: string) => String.fromCharCode(66, 101, 97, 114, 101, 114) + ' ' + value;
-const validAttachment = (item: unknown): boolean => {
-  if (!item || typeof item !== 'object') return false;
-  const value = item as Record<string, unknown>;
-  if (value.type === 'input_text') {
-    return typeof value.text === 'string' && value.text.length <= 80000;
-  }
-  if (value.type === 'input_image') {
-    return typeof value.image_url === 'string' &&
-      /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value.image_url);
-  }
-  return value.type === 'input_file' &&
-    typeof value.filename === 'string' &&
-    value.filename.toLowerCase().endsWith('.pdf') &&
-    typeof value.file_data === 'string' &&
-    /^data:application\/pdf;base64,[A-Za-z0-9+/=]+$/.test(value.file_data);
-};
 function tokenCount(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
 }
@@ -38,6 +27,7 @@ function tokenCount(value: unknown): number | undefined {
 async function generate(
   messages: Message[], maxTokens: number, temperature: number,
   env: (name: string) => string | undefined, send: typeof fetch,
+  attachments: Attachment[] = [],
 ): Promise<ProviderResult> {
   const candidates = [
     { provider: 'openrouter', key: env('OPENROUTER_API_KEY'), model: env('OPENROUTER_MODEL') || 'openrouter/free', url: 'https://openrouter.ai/api/v1/chat/completions' },
@@ -53,21 +43,22 @@ async function generate(
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       let body: Record<string, unknown>;
       const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n');
+      const providerMessages = buildProviderMessages(candidate.provider, messages, attachments);
       if (candidate.provider === 'gemini') {
         url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(candidate.model)}:generateContent`;
         headers['x-goog-api-key'] = candidate.key;
         body = {
-          contents: messages.filter((m) => m.role !== 'system').map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+          contents: providerMessages,
           systemInstruction: { parts: [{ text: system }] },
           generationConfig: { maxOutputTokens: maxTokens, temperature },
         };
       } else if (candidate.provider === 'anthropic') {
         headers['x-api-key'] = candidate.key;
         headers['anthropic-version'] = '2023-06-01';
-        body = { model: candidate.model, system, messages: messages.filter((m) => m.role !== 'system'), max_tokens: maxTokens, temperature };
+        body = { model: candidate.model, system, messages: providerMessages, max_tokens: maxTokens, temperature };
       } else {
         headers.Authorization = bearer(candidate.key);
-        body = { model: candidate.model, messages, max_tokens: maxTokens, temperature };
+        body = { model: candidate.model, messages: providerMessages, max_tokens: maxTokens, temperature };
       }
 
       const response = await send(url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
@@ -110,9 +101,21 @@ Perplexity Card & Citation Response Protocol:
   • screener: {"title","universe","columns":[...],"rows":[{"ticker","values":[...],"signal":"bullish|bearish|neutral"}]}
   • sentiment: {"ticker","score":0..100,"label","putCallRatio","shortInterest","retailFlow","institutionalFlow","drivers":[...]}
   • product / place: {"name","category","rating","price","location","summary","specs":[{"label","value"}],"pros":[...],"cons":[...],"url"}
-  • media: {"title","items":[{"url","caption","source","type":"chart|image|video"}]}
+  • media: {"title","items":[{"url","caption","sourceUrl","type":"chart|image|video"}]}
+  • links / web_results: {"title","items":[{"title","url","snippet","badge","publishedAt","imageUrl"}]}
+  • video / youtube / podcast: {"title","items":[{"title","url","thumbnail","channel","duration","publishedAt","chapters":[...]}]}
+  • market_pulse / indices / commodities / fx / weather: {"title","subtitle","value","changePercent","sparkline":[...],"url","items":[{"label","ticker","value","change"}]}
+  • earnings_calendar / schedule / scoreboard: {"title","subtitle","events":[{"date","ticker","event","estimate","status"}]}
+  • scenarios / probabilities / poll: {"title","subtitle","scenarios":[{"name","probability","target","upside","summary","triggers":[...]}]}
+  • backtest / quant: {"title","subtitle","netReturn","winRate","sharpe","profitFactor","maxDrawdown","trades","equityCurve":[...],"breakdown":[{"period","return","winRate"}]}
+  • portfolio / allocation / holdings: {"title","totalValue","holdings":[{"ticker","name","weight","action"}]}
+  • filing / document / paper / transcript: {"title","filingType","issuer","ticker","date","url","summary","highlights":[...],"risk"}
+  • wiki / definition: {"title","subtitle","summary","imageUrl","url","facts":[{"label","value"}],"related":[...]}
+  • risk_plan / sizing: {"title","accountSize","riskPct","maxLoss","positionSize","stopDistance","targets":[{"label","price","profit"}],"invalidation"}
+  • workflow / playbook: {"title","steps":[{"title","tag","detail","tip"}]}
   • formula / research_steps: {"title","expression","variables":[{"symbol","meaning","value"}],"example","result"} and {"steps":[{"title","detail","source"}]}
   • chart / candle / kpi / bar / line / donut / mermaid for quantitative series or workflows.
+- Include real url / websiteUrl / imageUrl / thumbnail fields whenever verified from sources so domain favicons and images display richly.
 - When helpful on exploratory queries, finish with a fenced \`\`\`followups JSON array of 3-4 sharp next questions: ["Question 1?", "Question 2?", "Question 3?"].`;
 
 const FOCUS_DIRECTIVES: Record<string, string> = {
@@ -261,13 +264,14 @@ async function executeAiGatewayRequest(
   try {
     const researchedAt = new Date().toISOString();
     const openAiKey = env('OPENAI_API_KEY') ?? env('OPEN_AI_KEY');
-    const result = mode !== 'auto' || attachments.length > 0 || ((body.allow_web_search === true || toolkit) && !!openAiKey)
+    const useOpenAiResponses = mode !== 'auto' || (!!openAiKey && (attachments.length > 0 || body.allow_web_search === true || !!toolkit));
+    const result = useOpenAiResponses
       ? openAiKey
         ? await generateResponses(messages, attachments, mode, env('OPENAI_MODEL') || 'gpt-4o', openAiKey, send, body.allow_web_search === true, toolkit)
-        : (() => { throw new Error('OpenAI is required for web search and file attachments.'); })()
+        : (() => { throw new Error('OpenAI is required for web search.'); })()
       : await generate(messages,
         typeof body.max_tokens === 'number' ? Math.max(128, Math.min(4096, Math.floor(body.max_tokens))) : 3584,
-        typeof body.temperature === 'number' ? Math.max(0, Math.min(1, body.temperature)) : 0.3, env, send);
+        typeof body.temperature === 'number' ? Math.max(0, Math.min(1, body.temperature)) : 0.3, env, send, attachments as Attachment[]);
     const { data: access, error: accessError } = await account.rpc('get_my_admin_access');
     if (accessError || access?.status !== 'active' || access?.features?.ai !== true) throw new Error('AI access is no longer available for this account.');
     const { error: finishError } = await service.rpc('finish_ai_request', {

@@ -6,7 +6,9 @@ import 'chart_block.dart';
 import 'research/research_panel.dart';
 import 'perplexity_domain_cards.dart';
 import 'perplexity_extended_cards.dart';
+import 'perplexity_more_cards.dart';
 import 'perplexity_parser.dart';
+import 'site_logo.dart';
 
 /// Polymorphic renderer for Perplexity-style structured fenced blocks in
 /// markdown replies (`company`, `person`, `news`, `compare`, `timeline`,
@@ -221,6 +223,86 @@ class PerplexityCardBlock extends StatelessWidget {
       case 'gallery':
       case 'images':
         return PerplexityMediaCard(data: data, onTapUrl: onTapUrl);
+      case 'links':
+      case 'web_results':
+      case 'bookmarks':
+      case 'resources':
+      case 'citations':
+        return PerplexityLinksCard(
+          data: data,
+          onTapUrl: onTapUrl,
+          onOpenRef: onOpenRef,
+        );
+      case 'video':
+      case 'videos':
+      case 'youtube':
+      case 'podcast':
+      case 'webinar':
+      case 'stream':
+        return PerplexityVideoCard(data: data, onTapUrl: onTapUrl);
+      case 'weather':
+      case 'market_pulse':
+      case 'indices':
+      case 'commodities':
+      case 'fx':
+      case 'snapshot':
+        return PerplexityPulseCard(
+          data: data,
+          onTapUrl: onTapUrl,
+          onOpenRef: onOpenRef,
+        );
+      case 'scoreboard':
+      case 'match':
+      case 'event_schedule':
+      case 'earnings_calendar':
+      case 'schedule':
+        return PerplexityScheduleCard(data: data, onOpenRef: onOpenRef);
+      case 'scenarios':
+      case 'probabilities':
+      case 'poll':
+      case 'distribution':
+      case 'sensitivity':
+        return PerplexityScenarioMatrixCard(data: data);
+      case 'backtest':
+      case 'strategy_stats':
+      case 'performance':
+      case 'quant':
+        return PerplexityBacktestCard(data: data);
+      case 'portfolio':
+      case 'allocation':
+      case 'holdings':
+      case 'weights':
+      case 'rebalance':
+        return PerplexityPortfolioCard(data: data, onOpenRef: onOpenRef);
+      case 'filing':
+      case 'sec_filing':
+      case 'document':
+      case 'report':
+      case 'paper':
+      case 'transcript':
+        return PerplexityDocumentCard(
+          data: data,
+          onTapUrl: onTapUrl,
+          onPromptTap: onPromptTap,
+        );
+      case 'wiki':
+      case 'encyclopedia':
+      case 'definition':
+      case 'define':
+        return PerplexityWikiCard(
+          data: data,
+          onTapUrl: onTapUrl,
+          onPromptTap: onPromptTap,
+        );
+      case 'risk_plan':
+      case 'sizing':
+      case 'execution':
+        return PerplexityRiskPlanCard(data: data);
+      case 'workflow':
+      case 'playbook':
+      case 'tutorial':
+      case 'guide':
+        return PerplexityWorkflowCard(data: data);
       case 'formula':
       case 'calculation':
       case 'math_card':
@@ -310,6 +392,24 @@ class PerplexityCardBlock extends StatelessWidget {
         data.containsKey('entities') ||
         data.containsKey('quadrants')) {
       return 'compare';
+    }
+    if (data.containsKey('scenarios') || data.containsKey('cases')) {
+      return 'scenarios';
+    }
+    if (data.containsKey('equityCurve') || data.containsKey('profitFactor')) {
+      return 'backtest';
+    }
+    if (data.containsKey('holdings') || data.containsKey('allocations')) {
+      return 'portfolio';
+    }
+    if (data.containsKey('filingType') || data.containsKey('form')) {
+      return 'filing';
+    }
+    if (data.containsKey('videoUrl') || data.containsKey('videos')) {
+      return 'video';
+    }
+    if (data.containsKey('accountSize') && data.containsKey('riskPct')) {
+      return 'risk_plan';
     }
     if (data.containsKey('facts')) return 'factbox';
     if (data.containsKey('quote')) return 'quote';
@@ -528,13 +628,20 @@ class _FactBoxCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (imageUrl != null) ...<Widget>[
-              ClipRRect(
-                borderRadius: context.radius(theme.radii.md),
-                child: UiRemoteImage(
-                  url: imageUrl,
-                  height: context.sz(148),
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+              GestureDetector(
+                onTap: () => UiLightbox.show(
+                  context,
+                  mediaUrl: imageUrl,
+                  caption: title,
+                ),
+                child: ClipRRect(
+                  borderRadius: context.radius(theme.radii.md),
+                  child: UiRemoteImage(
+                    url: imageUrl,
+                    height: context.sz(148),
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               UiGap.v(theme.spacing.md),
@@ -578,17 +685,16 @@ class _FactBoxCard extends StatelessWidget {
                   for (final Map<String, dynamic> link in links.take(3))
                     if (PerplexityCardDataUtils.str(link, ['url', 'href']) !=
                         null)
-                      UiButton(
-                        label:
-                            PerplexityCardDataUtils.str(link, [
-                              'label',
-                              'title',
-                            ]) ??
-                            'Source',
-                        icon: Icons.open_in_new_rounded,
-                        size: UiSize.xs,
-                        variant: UiVariant.ghost,
-                        onPressed: onTapUrl == null
+                      AppSiteLinkChip(
+                        url: PerplexityCardDataUtils.str(link, [
+                          'url',
+                          'href',
+                        ])!,
+                        title: PerplexityCardDataUtils.str(link, [
+                          'label',
+                          'title',
+                        ]),
+                        onTap: onTapUrl == null
                             ? null
                             : () => onTapUrl!(
                                 PerplexityCardDataUtils.str(link, [
@@ -837,12 +943,10 @@ class _QuoteCard extends StatelessWidget {
                       size: UiSize.xs,
                     ),
                   if (url != null && onTapUrl != null)
-                    UiButton(
-                      label: 'Source',
-                      icon: Icons.open_in_new_rounded,
-                      size: UiSize.xs,
-                      variant: UiVariant.ghost,
-                      onPressed: () => onTapUrl!(url),
+                    AppSiteLinkChip(
+                      url: url,
+                      title: SiteLogoResolver.extractDomain(url) ?? 'Source',
+                      onTap: () => onTapUrl!(url),
                     ),
                 ],
               ),
@@ -949,12 +1053,10 @@ class _GenericResearchCard extends StatelessWidget {
             if (url != null && onTapUrl != null)
               Align(
                 alignment: Alignment.centerLeft,
-                child: UiButton(
-                  label: 'Open source',
-                  icon: Icons.open_in_new_rounded,
-                  size: UiSize.xs,
-                  variant: UiVariant.ghost,
-                  onPressed: () => onTapUrl!(url),
+                child: AppSiteLinkChip(
+                  url: url,
+                  title: SiteLogoResolver.extractDomain(url) ?? 'Open source',
+                  onTap: () => onTapUrl!(url),
                 ),
               ),
           ],

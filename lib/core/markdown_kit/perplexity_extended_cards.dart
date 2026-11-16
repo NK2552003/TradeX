@@ -4,7 +4,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 
 import 'research/research_metrics.dart';
-
+import 'site_logo.dart';
 import 'perplexity_domain_cards.dart';
 
 Widget? _tickerBadge(String? rawTicker, PerplexityOpenRefCallback? onOpenRef) {
@@ -211,11 +211,13 @@ class PerplexityEarningsCard extends StatelessWidget {
         accentColor: statusIntent.color(context),
         title: title,
         subtitle: date,
-        leading: Icon(
-          Icons.assessment_outlined,
-          size: context.sz(theme.sizes.iconMd),
-          color: statusIntent.color(context),
-        ),
+        leading: ticker != null
+            ? AppSiteLogo(ticker: ticker, label: company ?? ticker, size: 28, circular: true)
+            : Icon(
+                Icons.assessment_outlined,
+                size: context.sz(theme.sizes.iconMd),
+                color: statusIntent.color(context),
+              ),
         trailing: Wrap(
           spacing: context.sp(theme.spacing.xs),
           children: <Widget>[
@@ -508,11 +510,13 @@ class PerplexityFinancialsCard extends StatelessWidget {
         accentColor: theme.colors.primary,
         title: title,
         subtitle: subtitle,
-        leading: Icon(
-          Icons.account_balance_outlined,
-          size: context.sz(theme.sizes.iconMd),
-          color: theme.colors.primary,
-        ),
+        leading: ticker != null
+            ? AppSiteLogo(ticker: ticker, label: title, size: 28, circular: true)
+            : Icon(
+                Icons.account_balance_outlined,
+                size: context.sz(theme.sizes.iconMd),
+                color: theme.colors.primary,
+              ),
         trailing: _tickerBadge(ticker, onOpenRef),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -798,11 +802,13 @@ class PerplexityRatingsCard extends StatelessWidget {
           consensus,
         ).color(context),
         title: title,
-        leading: Icon(
-          Icons.star_half_rounded,
-          size: context.sz(theme.sizes.iconMd),
-          color: theme.colors.primary,
-        ),
+        leading: ticker != null
+            ? AppSiteLogo(ticker: ticker, label: title, size: 28, circular: true)
+            : Icon(
+                Icons.star_half_rounded,
+                size: context.sz(theme.sizes.iconMd),
+                color: theme.colors.primary,
+              ),
         trailing: Wrap(
           spacing: context.sp(theme.spacing.xs),
           children: <Widget>[
@@ -1285,9 +1291,10 @@ class PerplexityMediaCard extends StatelessWidget {
                     padding: EdgeInsets.all(context.sp(theme.spacing.md)),
 
                     density: UiDensity.compact,
-                    onTap: () => UiLightbox.show(
+                    onTap: () => showUiLightbox(
                       context,
-                      mediaUrl: entries[i].url,
+                      imageUrls: entries.map((e) => e.url).toList(),
+                      initialIndex: i,
                       caption: entries[i].caption.isEmpty
                           ? null
                           : entries[i].caption,
@@ -1313,6 +1320,32 @@ class PerplexityMediaCard extends StatelessWidget {
                             style: context.uiText.caption.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
+                          ),
+                        ],
+                        if (entries[i].sourceUrl != null &&
+                            entries[i].sourceUrl!.isNotEmpty) ...<Widget>[
+                          UiGap.v(theme.spacing.xxs),
+                          Row(
+                            children: <Widget>[
+                              AppSiteLogo(
+                                url: entries[i].sourceUrl,
+                                size: 14,
+                              ),
+                              UiGap.h(theme.spacing.xxs),
+                              Expanded(
+                                child: Text(
+                                  SiteLogoResolver.extractDomain(
+                                        entries[i].sourceUrl,
+                                      ) ??
+                                      'Source',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.uiText.caption.copyWith(
+                                    color: theme.colors.foregroundSubtle,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ],
@@ -1495,6 +1528,12 @@ class PerplexityProductPlaceCard extends StatelessWidget {
       'competitors',
     ]);
     final String? url = PerplexityCardDataUtils.str(data, ['url', 'website']);
+    final String? imageUrl = PerplexityCardDataUtils.str(data, [
+      'imageUrl',
+      'thumbnail',
+      'logoUrl',
+      'image',
+    ]);
     final bool isPlace = tag == 'place' || tag == 'location';
 
     return Padding(
@@ -1506,11 +1545,20 @@ class PerplexityProductPlaceCard extends StatelessWidget {
         accentColor: theme.colors.primary,
         title: title,
         subtitle: category,
-        leading: Icon(
-          isPlace ? Icons.location_on_outlined : Icons.inventory_2_outlined,
-          size: context.sz(theme.sizes.iconMd),
-          color: theme.colors.primary,
-        ),
+        leading: url != null
+            ? AppSiteLogo(
+                url: url,
+                explicitLogoUrl: imageUrl,
+                label: title,
+                size: 26,
+              )
+            : Icon(
+                isPlace
+                    ? Icons.location_on_outlined
+                    : Icons.inventory_2_outlined,
+                size: context.sz(theme.sizes.iconMd),
+                color: theme.colors.primary,
+              ),
         trailing: Wrap(
           spacing: context.sp(theme.spacing.xs),
           children: <Widget>[
@@ -1569,14 +1617,12 @@ class PerplexityProductPlaceCard extends StatelessWidget {
                         ),
                       ),
                   if (url != null && onTapUrl != null)
-                    UiButton(
-                      label: PerplexityCardDataUtils.domainOf(url).isEmpty
+                    AppSiteLinkChip(
+                      url: url,
+                      title: PerplexityCardDataUtils.domainOf(url).isEmpty
                           ? 'Visit site'
                           : PerplexityCardDataUtils.domainOf(url),
-                      icon: Icons.open_in_new_rounded,
-                      size: UiSize.xs,
-                      variant: UiVariant.ghost,
-                      onPressed: () => onTapUrl!(url),
+                      onTap: () => onTapUrl!(url),
                     ),
                 ],
               ),

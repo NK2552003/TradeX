@@ -205,9 +205,9 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (message.pending && displayedBody.isEmpty)
-            Text('Preparing your answer…', style: context.uiText.caption)
+            const UiTypingIndicator(label: 'Thinking & researching…')
           else if (mine)
-            _buildUserMessageText(context, theme)
+            _buildUserMessageContent(context, theme)
           else ...<Widget>[
             if (showPerplexityChrome) ...<Widget>[
               _PerplexityAnswerHeader(
@@ -267,6 +267,18 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
                 ),
                 UiGap.v(theme.spacing.md),
               ],
+              if (meta != null && meta.media.isNotEmpty) ...<Widget>[
+                _PerplexityInlineMediaStrip(
+                  media: meta.media,
+                  onViewAll: () {
+                    final int idx = availableTabs.indexOf(
+                      _PerplexityTabKind.media,
+                    );
+                    if (idx >= 0) setState(() => _answerTab = idx);
+                  },
+                ),
+                UiGap.v(theme.spacing.md),
+              ],
               RichMarkdownPreview(
                 data: meta?.cleanMarkdown ?? displayedBody,
                 emptyPlaceholder: '',
@@ -276,10 +288,33 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
                     !MediaQuery.disableAnimationsOf(context),
                 onOpenRef: widget.onOpenRef,
                 onPromptTap: widget.onFollowUpTap,
-                imageResolver: (BuildContext ctx, Uri uri) => ClipRRect(
-                  borderRadius: ctx.radius(ctx.ui.radii.md),
-                  child: UiRemoteImage(url: uri.toString(), fit: BoxFit.cover),
-                ),
+                imageResolver: (BuildContext ctx, Uri uri) {
+                  final String rawUrl = uri.toString();
+                  final List<String> allUrls = (meta?.media ?? const [])
+                      .map((PerplexityMediaItem m) => m.url)
+                      .toList();
+                  final int tappedIdx = allUrls.indexOf(rawUrl);
+                  return MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () => showUiLightbox(
+                        ctx,
+                        imageUrls: allUrls.isNotEmpty ? allUrls : <String>[rawUrl],
+                        initialIndex: tappedIdx >= 0 ? tappedIdx : 0,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: ctx.sz(320)),
+                        child: ClipRRect(
+                          borderRadius: ctx.radius(ctx.ui.radii.md),
+                          child: UiRemoteImage(
+                            url: rawUrl,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
                 onTapLink: (String text, String? href, String title) {
                   if (href != null &&
                       (href.startsWith('https://') ||
@@ -292,13 +327,16 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
             if (isAnimatingStream && !MediaQuery.disableAnimationsOf(context))
               Row(
                 children: [
-                  if (!_typewriter.skipped)
+                  const UiTypingIndicator(),
+                  if (!_typewriter.skipped) ...<Widget>[
+                    UiGap.h(theme.spacing.xs),
                     UiButton(
                       label: 'Skip',
                       variant: UiVariant.ghost,
                       size: UiSize.xs,
                       onPressed: _typewriter.skip,
                     ),
+                  ],
                 ],
               ),
           ],
@@ -437,6 +475,175 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
   static final RegExp _tickerRegex = RegExp(
     r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)',
   );
+
+  Widget _buildUserMessageContent(BuildContext context, UiTheme theme) {
+    final List<AppAiAttachment> richAttachments =
+        widget.message.attachmentItems.isNotEmpty
+        ? widget.message.attachmentItems
+        : <AppAiAttachment>[
+            for (final String name in widget.message.attachments)
+              AppAiAttachment(name: name),
+          ];
+    final List<AppAiAttachment> imageAttachments = richAttachments
+        .where((AppAiAttachment a) => a.isImage && a.previewUrl != null)
+        .toList();
+    final List<AppAiAttachment> otherAttachments = richAttachments
+        .where((AppAiAttachment a) => !(a.isImage && a.previewUrl != null))
+        .toList();
+    final Widget textWidget = _buildUserMessageText(context, theme);
+
+    if (richAttachments.isEmpty) return textWidget;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (imageAttachments.isNotEmpty) ...<Widget>[
+          Wrap(
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
+            children: <Widget>[
+              for (int i = 0; i < imageAttachments.length; i++)
+                GestureDetector(
+                  onTap: () => showUiLightbox(
+                    context,
+                    imageUrls: imageAttachments
+                        .map((AppAiAttachment a) => a.previewUrl!)
+                        .toList(),
+                    initialIndex: i,
+                    caption: imageAttachments[i].name,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: context.radius(theme.radii.md),
+                    child: SizedBox(
+                      width: context.sz(imageAttachments.length == 1 ? 180 : 108),
+                      height: context.sz(
+                        imageAttachments.length == 1 ? 124 : 84,
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: <Widget>[
+                          UiRemoteImage(
+                            url: imageAttachments[i].previewUrl,
+                            fit: BoxFit.cover,
+                            semanticLabel: imageAttachments[i].name,
+                          ),
+                          Positioned(
+                            left: context.sp(4),
+                            right: context.sp(4),
+                            bottom: context.sp(4),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: context.sp(6),
+                                vertical: context.sp(2),
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.62),
+                                borderRadius: context.radius(theme.radii.sm),
+                              ),
+                              child: Text(
+                                imageAttachments[i].name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.uiText.caption.copyWith(
+                                  fontSize: context.fs(10),
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          UiGap.v(theme.spacing.xs),
+        ],
+        if (otherAttachments.isNotEmpty) ...<Widget>[
+          Wrap(
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
+            children: <Widget>[
+              for (final AppAiAttachment att in otherAttachments)
+                if (att.kind == AppAiAttachmentKind.link &&
+                    att.previewUrl != null)
+                  AppSiteLinkChip(
+                    url: att.previewUrl!,
+                    title: att.name,
+                    onTap: widget.onSourceTap == null
+                        ? null
+                        : () => widget.onSourceTap!(att.previewUrl!),
+                  )
+                else
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.sp(theme.spacing.xs),
+                      vertical: context.sp(4),
+                    ),
+                    decoration: BoxDecoration(
+                      color: widget.minimal
+                          ? theme.colors.surface
+                          : theme.colors.onPrimary.withValues(alpha: 0.14),
+                      borderRadius: context.radius(theme.radii.md),
+                      border: Border.all(
+                        color: widget.minimal
+                            ? theme.colors.border
+                            : theme.colors.onPrimary.withValues(alpha: 0.25),
+                        width: theme.borders.hairline,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          _attachmentIcon(att.kind),
+                          size: context.sz(14),
+                          color: widget.minimal
+                              ? theme.colors.primary
+                              : theme.colors.onPrimary,
+                        ),
+                        UiGap.h(theme.spacing.xxs),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: context.sz(180),
+                          ),
+                          child: Text(
+                            att.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.uiText.caption.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: widget.minimal
+                                  ? theme.colors.foreground
+                                  : theme.colors.onPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+            ],
+          ),
+          UiGap.v(theme.spacing.xs),
+        ],
+        if (widget.message.body.trim().isNotEmpty) textWidget,
+      ],
+    );
+  }
+
+  static IconData _attachmentIcon(AppAiAttachmentKind kind) => switch (kind) {
+    AppAiAttachmentKind.image => Icons.image_outlined,
+    AppAiAttachmentKind.pdf => Icons.picture_as_pdf_outlined,
+    AppAiAttachmentKind.code => Icons.code_rounded,
+    AppAiAttachmentKind.data => Icons.table_chart_outlined,
+    AppAiAttachmentKind.audio => Icons.audiotrack_outlined,
+    AppAiAttachmentKind.workspace => Icons.hub_outlined,
+    AppAiAttachmentKind.link => Icons.link_rounded,
+    AppAiAttachmentKind.text => Icons.article_outlined,
+    AppAiAttachmentKind.file => Icons.attach_file_rounded,
+  };
 
   Widget _buildUserMessageText(BuildContext context, UiTheme theme) {
     final TextStyle baseStyle = context.uiText.body.copyWith(
@@ -863,6 +1070,125 @@ class _PerplexityCardsDeckView extends StatelessWidget {
   }
 }
 
+class _PerplexityInlineMediaStrip extends StatelessWidget {
+  const _PerplexityInlineMediaStrip({
+    required this.media,
+    required this.onViewAll,
+  });
+
+  final List<PerplexityMediaItem> media;
+  final VoidCallback onViewAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final List<String> allUrls = media.map((m) => m.url).toList();
+    final List<PerplexityMediaItem> preview = media.take(5).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: context.sp(theme.spacing.xs),
+          runSpacing: context.sp(theme.spacing.xxs),
+          children: <Widget>[
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  Icons.collections_outlined,
+                  size: context.sz(14),
+                  color: theme.colors.foregroundSubtle,
+                ),
+                UiGap.h(theme.spacing.xs),
+                Flexible(
+                  child: Text(
+                    'Images & Visuals',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.label.copyWith(
+                      color: theme.colors.foregroundSubtle,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            UiButton(
+              label: 'Gallery (${media.length})',
+              variant: UiVariant.link,
+              size: UiSize.xs,
+              onPressed: onViewAll,
+            ),
+          ],
+        ),
+        UiGap.v(theme.spacing.xxs),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: <Widget>[
+              for (int i = 0; i < preview.length; i++) ...<Widget>[
+                GestureDetector(
+                  onTap: () => showUiLightbox(
+                    context,
+                    imageUrls: allUrls,
+                    initialIndex: i,
+                    caption: preview[i].caption.isEmpty
+                        ? null
+                        : preview[i].caption,
+                  ),
+                  child: SizedBox(
+                    width: context.sz(138),
+                    height: context.sz(90),
+                    child: ClipRRect(
+                      borderRadius: context.radius(theme.radii.md),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: <Widget>[
+                          UiRemoteImage(
+                            url: preview[i].url,
+                            fit: BoxFit.cover,
+                          ),
+                          if (preview[i].caption.isNotEmpty)
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: context.sp(6),
+                                  vertical: context.sp(3),
+                                ),
+                                color: Colors.black.withValues(alpha: 0.58),
+                                child: Text(
+                                  preview[i].caption,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.uiText.caption.copyWith(
+                                    fontSize: context.fs(10),
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (i < preview.length - 1) UiGap.h(theme.spacing.xs),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _PerplexityMediaGalleryView extends StatelessWidget {
   const _PerplexityMediaGalleryView({required this.media, this.onSourceTap});
 
@@ -872,6 +1198,7 @@ class _PerplexityMediaGalleryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final List<String> allUrls = media.map((m) => m.url).toList();
     return LayoutBuilder(
       builder: (BuildContext ctx, BoxConstraints constraints) {
         final double gap = ctx.sp(theme.spacing.sm);
@@ -886,16 +1213,17 @@ class _PerplexityMediaGalleryView extends StatelessWidget {
           spacing: gap,
           runSpacing: gap,
           children: <Widget>[
-            for (final PerplexityMediaItem item in media)
+            for (int i = 0; i < media.length; i++)
               SizedBox(
                 width: cardW,
                 child: UiCard(
                   variant: UiCardVariant.outlined,
                   density: UiDensity.compact,
-                  onTap: () => UiLightbox.show(
+                  onTap: () => showUiLightbox(
                     ctx,
-                    mediaUrl: item.url,
-                    caption: item.caption.isEmpty ? null : item.caption,
+                    imageUrls: allUrls,
+                    initialIndex: i,
+                    caption: media[i].caption.isEmpty ? null : media[i].caption,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -904,30 +1232,36 @@ class _PerplexityMediaGalleryView extends StatelessWidget {
                       ClipRRect(
                         borderRadius: ctx.radius(theme.radii.sm),
                         child: UiRemoteImage(
-                          url: item.url,
+                          url: media[i].url,
                           height: ctx.sz(116),
                           width: double.infinity,
                         ),
                       ),
-                      if (item.caption.isNotEmpty ||
-                          item.domain.isNotEmpty) ...<Widget>[
+                      if (media[i].caption.isNotEmpty ||
+                          media[i].domain.isNotEmpty) ...<Widget>[
                         UiGap.v(theme.spacing.xs),
-                        if (item.caption.isNotEmpty)
+                        if (media[i].caption.isNotEmpty)
                           Text(
-                            item.caption,
+                            media[i].caption,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: ctx.uiText.caption.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                        if (item.domain.isNotEmpty) ...<Widget>[
+                        if (media[i].domain.isNotEmpty) ...<Widget>[
                           UiGap.v(theme.spacing.xxs),
                           Row(
                             children: <Widget>[
+                              AppSiteLogo(
+                                url: media[i].sourceUrl,
+                                domain: media[i].domain,
+                                size: 14,
+                              ),
+                              UiGap.h(theme.spacing.xxs),
                               Expanded(
                                 child: Text(
-                                  item.domain,
+                                  media[i].domain,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: ctx.uiText.caption.copyWith(
@@ -935,13 +1269,14 @@ class _PerplexityMediaGalleryView extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              if (item.sourceUrl.isNotEmpty &&
+                              if (media[i].sourceUrl.isNotEmpty &&
                                   onSourceTap != null)
                                 UiIconButton(
                                   icon: Icons.open_in_new_rounded,
                                   size: UiSize.xs,
                                   tooltip: 'Open source',
-                                  onPressed: () => onSourceTap!(item.sourceUrl),
+                                  onPressed: () =>
+                                      onSourceTap!(media[i].sourceUrl),
                                 ),
                             ],
                           ),
@@ -996,6 +1331,20 @@ class _PerplexityRewriteMenu extends StatelessWidget {
             'Reframe your previous answer as a structured Bull vs. Bear comparison and key risks checklist.',
           ),
         ),
+        UiMenuItem(
+          label: 'Visual cards & scenario matrix',
+          icon: Icons.dashboard_customize_outlined,
+          onPressed: () => onSelect(
+            'Restructure your previous answer using rich Perplexity visual cards, a scenario probability matrix, and a concise summary.',
+          ),
+        ),
+        UiMenuItem(
+          label: 'Actionable execution playbook',
+          icon: Icons.route_outlined,
+          onPressed: () => onSelect(
+            'Turn your previous answer into a step-by-step execution workflow and risk plan.',
+          ),
+        ),
       ],
       child: UiButton(
         label: 'Rewrite',
@@ -1043,11 +1392,15 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
                   color: theme.colors.foregroundSubtle,
                 ),
                 UiGap.h(theme.spacing.xs),
-                Text(
-                  'Sources',
-                  style: context.uiText.label.copyWith(
-                    color: theme.colors.foregroundSubtle,
-                    fontWeight: FontWeight.w600,
+                Flexible(
+                  child: Text(
+                    'Sources',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.label.copyWith(
+                      color: theme.colors.foregroundSubtle,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -1081,11 +1434,11 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
                       children: <Widget>[
                         Row(
                           children: <Widget>[
-                            UiBadge(
-                              label: '${preview[i].index}',
-                              size: UiSize.sm,
-                              variant: UiBadgeVariant.solid,
-                              intent: UiIntent.primary,
+                            AppSiteLogo(
+                              url: preview[i].url,
+                              domain: preview[i].domain,
+                              label: preview[i].title,
+                              size: 16,
                             ),
                             UiGap.h(theme.spacing.xs),
                             Expanded(
@@ -1099,6 +1452,13 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
                                   color: theme.colors.foregroundSubtle,
                                 ),
                               ),
+                            ),
+                            UiGap.h(theme.spacing.xxs),
+                            UiBadge(
+                              label: '${preview[i].index}',
+                              size: UiSize.xs,
+                              variant: UiBadgeVariant.soft,
+                              intent: UiIntent.primary,
                             ),
                           ],
                         ),
@@ -1212,6 +1572,13 @@ class _PerplexitySourcesListView extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                AppSiteLogo(
+                  url: sources[i].url,
+                  domain: sources[i].domain,
+                  label: sources[i].title,
+                  size: 22,
+                ),
+                UiGap.h(theme.spacing.xs),
                 UiBadge(
                   label: '${sources[i].index}',
                   size: UiSize.sm,

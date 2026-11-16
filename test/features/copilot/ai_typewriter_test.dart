@@ -9,7 +9,7 @@ void main() {
   testWidgets('incoming chunks extend the queue without resetting progress', (
     tester,
   ) async {
-    final writer = AiTypewriter();
+    final writer = AiTypewriter(minGraphemesPerTick: 1, catchUpDivisor: 0);
     addTearDown(writer.dispose);
     writer.reset('Hello', animate: true);
     expect(writer.visibleText, '');
@@ -23,6 +23,25 @@ void main() {
     expect(writer.visibleText, 'Hello world');
     expect(writer.isTyping, isFalse);
   });
+  testWidgets(
+    'default typewriter matches fast real-AI streaming speed and adaptive catch-up',
+    (tester) async {
+      final writer = AiTypewriter();
+      addTearDown(writer.dispose);
+      final longAnswer = List.filled(50, 'Strong earnings momentum across AI infra. ').join();
+      writer.reset(longAnswer, animate: true);
+      expect(writer.visibleText, '');
+      await tester.pump(aiTypingCharacterInterval);
+      expect(
+        writer.visibleText.length,
+        greaterThanOrEqualTo(aiTypingMinGraphemesPerTick),
+      );
+      expect(writer.visibleText.length, lessThan(longAnswer.length));
+      await tester.pump(const Duration(milliseconds: 1600));
+      expect(writer.visibleText, longAnswer);
+      expect(writer.isTyping, isFalse);
+    },
+  );
   testWidgets('skip flushes queued content and subsequent chunks immediately', (
     tester,
   ) async {
@@ -38,7 +57,7 @@ void main() {
   testWidgets('reduced motion reveals instantly and graphemes remain whole', (
     tester,
   ) async {
-    final writer = AiTypewriter();
+    final writer = AiTypewriter(minGraphemesPerTick: 1, catchUpDivisor: 0);
     addTearDown(writer.dispose);
     writer.reset('👩🏽‍💻éX', animate: true);
     await tester.pump(aiTypingCharacterInterval);
@@ -66,7 +85,11 @@ void main() {
     'markdown and code reveal progressively, Skip finishes, cursor disappears',
     (tester) async {
       const body =
-          '## Analysis\n\n**Clear evidence**\n\n```dart\nprint("hello");\n```';
+          '## Deep Quantitative Analysis\n\n'
+          '**Clear institutional accumulation evidence** across semiconductor supply chains and hyperscaler capital expenditure revisions.\n\n'
+          '- Data center revenue expanded +78% YoY with resilient gross margins.\n'
+          '- Forward guidance exceeded consensus estimates across every segment.\n\n'
+          '```dart\nprint("hello");\n```';
       Future<void> render({required bool pending, bool reduced = false}) =>
           tester.pumpWidget(
             MaterialApp(
@@ -90,7 +113,7 @@ void main() {
             ),
           );
       await render(pending: true);
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 48));
       expect(find.byType(AiTypingCursor), findsOneWidget);
       final preview = tester.widget<RichMarkdownPreview>(
         find.byType(RichMarkdownPreview),
@@ -172,17 +195,23 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      Future<void> advanceFrames(Duration total) async {
+        const step = Duration(milliseconds: 50);
+        final ticks = (total.inMilliseconds / step.inMilliseconds).ceil();
+        for (int i = 0; i < ticks; i++) {
+          await tester.pump(step);
+        }
+      }
+
+      await advanceFrames(const Duration(milliseconds: 300));
       final list = find.byType(ListView);
       final scroll = tester.widget<ListView>(list).controller!;
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pumpAndSettle();
+      await advanceFrames(const Duration(milliseconds: 2200));
       expect(scroll.position.extentAfter, lessThan(5));
       await tester.drag(list, const Offset(0, 300));
-      await tester.pumpAndSettle();
+      await advanceFrames(const Duration(milliseconds: 300));
       final readingOffset = scroll.offset;
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pumpAndSettle();
+      await advanceFrames(const Duration(milliseconds: 2200));
       expect(scroll.offset, closeTo(readingOffset, 1));
       await tester.pumpWidget(const SizedBox.shrink());
     },

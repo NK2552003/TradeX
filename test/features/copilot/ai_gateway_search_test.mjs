@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {
+  buildProviderMessages,
+  parseDataUrl,
+  validAttachment,
+} from '../../../supabase/functions/ai-gateway/attachments.ts';
 import { freshnessInstructions, needsFreshResearch } from '../../../supabase/functions/ai-gateway/research-policy.ts';
 import { generateResponses } from '../../../supabase/functions/ai-gateway/responses.ts';
 
@@ -157,4 +162,52 @@ test('latest requests cannot override disabled search', async () => {
     assert.match(request.instructions, /If live tools are unavailable/);
     return Response.json(answer);
   }, false);
+});
+
+test('validAttachment accepts data images (png/jpeg/webp/gif), https image URLs, PDFs, and bounded text', () => {
+  assert.equal(validAttachment({ type: 'input_image', image_url: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' }), true);
+  assert.equal(validAttachment({ type: 'input_image', image_url: 'data:image/webp;base64,AAAA' }), true);
+  assert.equal(validAttachment({ type: 'input_image', image_url: 'https://charts.example.com/nvda.png' }), true);
+  assert.equal(validAttachment({ type: 'input_image', image_url: 'http://insecure.example.com/a.png' }), false);
+  assert.equal(
+    validAttachment({ type: 'input_file', filename: '10k.pdf', file_data: 'data:application/pdf;base64,JVBERi0x' }),
+    true,
+  );
+  assert.equal(validAttachment({ type: 'input_text', text: 'AAPL,185.2' }), true);
+  assert.deepEqual(parseDataUrl('data:image/png;base64,QUJD'), { mimeType: 'image/png', data: 'QUJD' });
+});
+
+test('buildProviderMessages formats multimodal attachments for Gemini, Anthropic, and OpenAI/OpenRouter', () => {
+  const history = [
+    { role: 'system', content: 'You are TradeX Copilot.' },
+    { role: 'user', content: 'Analyze this chart and PDF' },
+  ];
+  const atts = [
+    { type: 'input_image', image_url: 'data:image/png;base64,QUJD' },
+    { type: 'input_image', image_url: 'https://cdn.example.com/setup.png' },
+    { type: 'input_file', filename: 'report.pdf', file_data: 'data:application/pdf;base64,UERGFQ==' },
+    { type: 'input_text', text: 'Ticker: NVDA' },
+  ];
+
+  const gemini = buildProviderMessages('gemini', history, atts);
+  assert.equal(gemini.length, 1);
+  assert.equal(gemini[0].role, 'user');
+  assert.deepEqual(gemini[0].parts[1], { inlineData: { mimeType: 'image/png', data: 'QUJD' } });
+  assert.equal(gemini[0].parts[2].text, 'Image URL: https://cdn.example.com/setup.png');
+  assert.deepEqual(gemini[0].parts[3], { inlineData: { mimeType: 'application/pdf', data: 'UERGFQ==' } });
+  assert.equal(gemini[0].parts[4].text, 'Ticker: NVDA');
+
+  const claude = buildProviderMessages('anthropic', history, atts);
+  assert.equal(claude.length, 1);
+  assert.equal(claude[0].content[1].type, 'image');
+  assert.equal(claude[0].content[1].source.type, 'base64');
+  assert.equal(claude[0].content[2].source.type, 'url');
+  assert.equal(claude[0].content[3].type, 'document');
+  assert.equal(claude[0].content[4].text, 'Ticker: NVDA');
+
+  const openai = buildProviderMessages('openrouter', history, atts);
+  assert.equal(openai.length, 2);
+  assert.equal(openai[1].content[1].type, 'image_url');
+  assert.equal(openai[1].content[2].image_url.url, 'https://cdn.example.com/setup.png');
+  assert.match(openai[1].content[3].text, /report\.pdf/);
 });

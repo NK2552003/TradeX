@@ -178,7 +178,7 @@ class SupabaseCopilotApi extends CopilotApi {
           .toList();
       final instructions = StringBuffer(textOf(specialist, 'instructions'))
         ..write(
-          '\nAnswer using supplied context. Use web search when available for current information and cite sources. Never claim to have searched without tool results. Report code execution only when the Python tool returns results. Do not claim to schedule work or save documents. Offer document drafts in your reply.\nPresent rich Perplexity-style structured research using cited [Source](url) links, fenced visual cards (company, person, news, compare, timeline, setup, verdict, factbox, faq, checklist, quote, earnings, financials, macro, ratings, screener, sentiment, product, media, formula, research_steps, chart, kpi), and a trailing followups JSON array.',
+          '\nAnswer using supplied context. Use web search when available for current information and cite sources. Never claim to have searched without tool results. Report code execution only when the Python tool returns results. Do not claim to schedule work or save documents. Offer document drafts in your reply.\nPresent rich Perplexity-style structured research using cited [Source](url) links, real source URLs/websiteUrl/imageUrl fields so logos and images render, fenced visual cards (company, person, news, links, video, market_pulse, earnings_calendar, scenarios, backtest, portfolio, filing, wiki, risk_plan, workflow, compare, timeline, setup, verdict, factbox, faq, checklist, quote, earnings, financials, macro, ratings, screener, sentiment, product, media, formula, research_steps, chart, kpi), and a trailing followups JSON array.',
         );
       if (responseStyle == 'concise') {
         instructions.write(
@@ -221,11 +221,19 @@ class SupabaseCopilotApi extends CopilotApi {
         );
       }
       final stamp = now();
+      final rawAttachments = records(body['attachments']);
+      final savedAttachments = <Json>[
+        for (final att in rawAttachments) _attachmentSummary(att),
+      ];
+      final gatewayAttachments = <Json>[
+        for (final att in rawAttachments) _gatewayAttachment(att),
+      ];
       (thread['messages'] as List).addAll([
         {
           'id': newId(),
           'role': 'user',
           'body': prompt,
+          if (savedAttachments.isNotEmpty) 'attachments': savedAttachments,
           'status': 'complete',
           'createdAt': stamp,
         },
@@ -259,7 +267,7 @@ class SupabaseCopilotApi extends CopilotApi {
         'response_style': responseStyle,
         'citations_style': citationsStyle,
         'max_tokens': responseStyle == 'concise' ? 1800 : 4096,
-        'attachments': records(body['attachments']),
+        'attachments': gatewayAttachments,
         'messages': messages
             .skip(messages.length > 40 ? messages.length - 40 : 0)
             .toList(),
@@ -382,6 +390,48 @@ class SupabaseCopilotApi extends CopilotApi {
     } finally {
       if (identical(_stops[runKey], stopped)) _stops.remove(runKey);
     }
+  }
+
+  static Json _gatewayAttachment(Json att) {
+    final type = textOf(att, 'type');
+    if (type == 'input_image') {
+      return {'type': 'input_image', 'image_url': textOf(att, 'image_url')};
+    }
+    if (type == 'input_file') {
+      return {
+        'type': 'input_file',
+        'filename': textOf(att, 'filename'),
+        'file_data': textOf(att, 'file_data'),
+      };
+    }
+    return {'type': 'input_text', 'text': textOf(att, 'text')};
+  }
+
+  static Json _attachmentSummary(Json att) {
+    final ui = att['_ui'];
+    if (ui is Map) {
+      return Map<String, dynamic>.from(ui);
+    }
+    final type = textOf(att, 'type');
+    if (type == 'input_image') {
+      final url = textOf(att, 'image_url');
+      return {
+        'name': textOf(att, 'filename', 'Image'),
+        'kind': 'image',
+        if (url.isNotEmpty) 'previewUrl': url,
+      };
+    }
+    if (type == 'input_file') {
+      return {
+        'name': textOf(att, 'filename', 'Document.pdf'),
+        'kind': 'pdf',
+        'mimeType': 'application/pdf',
+      };
+    }
+    return {
+      'name': textOf(att, 'filename', 'Attachment'),
+      'kind': 'text',
+    };
   }
 
   static Iterable<String> _streamChunks(String text) sync* {

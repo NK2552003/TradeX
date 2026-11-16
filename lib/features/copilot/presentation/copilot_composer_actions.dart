@@ -41,6 +41,17 @@ class _ComposerActions extends StatelessWidget {
                     ? config.onAttach
                     : null,
               ),
+              if (!compact && config.onAttachImage != null)
+                UiIconButton(
+                  icon: Icons.add_photo_alternate_outlined,
+                  tooltip: 'Attach image',
+                  variant: UiVariant.outline,
+                  size: btnSize,
+                  rounded: true,
+                  onPressed: editable && !config.attaching
+                      ? config.onAttachImage
+                      : null,
+                ),
               if (!compact && config.onConnectWorkspace != null)
                 UiButton(
                   label: 'Connect',
@@ -137,6 +148,34 @@ class _ComposerActions extends StatelessWidget {
               UiDropdownMenu(
                 semanticLabel: 'Composer actions',
                 actions: [
+                  if (config.onAttachImage != null)
+                    UiMenuItem(
+                      label: 'Upload image / screenshot',
+                      icon: Icons.add_photo_alternate_outlined,
+                      enabled: editable && !config.attaching,
+                      onPressed: config.onAttachImage!,
+                    ),
+                  if (config.onTakePhoto != null)
+                    UiMenuItem(
+                      label: 'Take photo',
+                      icon: Icons.photo_camera_outlined,
+                      enabled: editable && !config.attaching,
+                      onPressed: config.onTakePhoto!,
+                    ),
+                  if (config.onAttachDropzone != null)
+                    UiMenuItem(
+                      label: 'Drop files or screenshots',
+                      icon: Icons.cloud_upload_outlined,
+                      enabled: editable && !config.attaching,
+                      onPressed: config.onAttachDropzone!,
+                    ),
+                  if (config.onAttachUrl != null)
+                    UiMenuItem(
+                      label: 'Attach web link or image URL',
+                      icon: Icons.add_link_rounded,
+                      enabled: editable && !config.attaching,
+                      onPressed: config.onAttachUrl!,
+                    ),
                   if (config.onConnectWorkspace != null)
                     UiMenuItem(
                       label: 'Connect workspace (Notes, Journal, Strategy)',

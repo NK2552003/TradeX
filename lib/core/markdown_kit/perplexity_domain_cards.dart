@@ -6,6 +6,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 
 import 'research/research_metrics.dart';
+import 'site_logo.dart';
 
 /// Shared callbacks passed from [RichMarkdownPreview] / [RichCodeBlockBuilder]
 /// down into interactive Perplexity cards.
@@ -269,7 +270,14 @@ class PerplexityCompanyCard extends StatelessWidget {
         accentColor: priceIntent.color(context),
         title: name,
         subtitle: subtitleParts.isEmpty ? null : subtitleParts,
-        leading: UiAvatar(name: name, imageUrl: logoUrl, size: UiSize.md),
+        leading: AppSiteLogo(
+          url: websiteUrl,
+          explicitLogoUrl: logoUrl,
+          ticker: ticker,
+          label: name,
+          size: 40,
+          circular: true,
+        ),
         trailing: ticker.isEmpty
             ? null
             : UiBadge(
@@ -567,15 +575,12 @@ class PerplexityCompanyCard extends StatelessWidget {
                       ),
                     ),
                   if (websiteUrl != null && onTapUrl != null)
-                    UiButton(
-                      label:
-                          PerplexityCardDataUtils.domainOf(websiteUrl).isEmpty
+                    AppSiteLinkChip(
+                      url: websiteUrl,
+                      title: PerplexityCardDataUtils.domainOf(websiteUrl).isEmpty
                           ? 'Website'
                           : PerplexityCardDataUtils.domainOf(websiteUrl),
-                      icon: Icons.public,
-                      size: UiSize.xs,
-                      variant: UiVariant.ghost,
-                      onPressed: () => onTapUrl!(websiteUrl),
+                      onTap: () => onTapUrl!(websiteUrl),
                     ),
                 ],
               ),
@@ -938,13 +943,39 @@ class PerplexityPersonCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                UiAvatar(
-                  name: name,
-                  imageUrl: avatarUrl,
-                  size: UiSize.lg,
-                  backgroundColor: theme.colors.info.withValues(alpha: 0.14),
-                  textColor: theme.colors.info,
-                ),
+                if (avatarUrl != null && avatarUrl.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => UiLightbox.show(
+                      context,
+                      mediaUrl: avatarUrl,
+                      caption: name,
+                    ),
+                    child: ClipOval(
+                      child: SizedBox(
+                        width: context.sz(theme.sizes.avatarLg),
+                        height: context.sz(theme.sizes.avatarLg),
+                        child: UiRemoteImage(
+                          url: avatarUrl,
+                          fit: BoxFit.cover,
+                          fallback: UiAvatar(
+                            name: name,
+                            size: UiSize.lg,
+                            backgroundColor: theme.colors.info.withValues(
+                              alpha: 0.14,
+                            ),
+                            textColor: theme.colors.info,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  UiAvatar(
+                    name: name,
+                    size: UiSize.lg,
+                    backgroundColor: theme.colors.info.withValues(alpha: 0.14),
+                    textColor: theme.colors.info,
+                  ),
                 UiGap.h(theme.spacing.md),
                 Expanded(
                   child: Column(
@@ -1115,17 +1146,16 @@ class PerplexityPersonCard extends StatelessWidget {
                   for (final Map<String, dynamic> link in links.take(3))
                     if (PerplexityCardDataUtils.str(link, ['url', 'href']) !=
                         null)
-                      UiButton(
-                        label:
-                            PerplexityCardDataUtils.str(link, [
-                              'label',
-                              'title',
-                            ]) ??
-                            'Source',
-                        icon: Icons.open_in_new_rounded,
-                        size: UiSize.xs,
-                        variant: UiVariant.ghost,
-                        onPressed: onTapUrl == null
+                      AppSiteLinkChip(
+                        url: PerplexityCardDataUtils.str(link, [
+                          'url',
+                          'href',
+                        ])!,
+                        title: PerplexityCardDataUtils.str(link, [
+                          'label',
+                          'title',
+                        ]),
+                        onTap: onTapUrl == null
                             ? null
                             : () => onTapUrl!(
                                 PerplexityCardDataUtils.str(link, [
@@ -1284,13 +1314,20 @@ class _NewsArticleItem extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (imageUrl != null) ...<Widget>[
-            ClipRRect(
-              borderRadius: context.radius(theme.radii.md),
-              child: UiRemoteImage(
-                url: imageUrl,
-                height: context.sz(112),
-                width: double.infinity,
-                fit: BoxFit.cover,
+            GestureDetector(
+              onTap: () => UiLightbox.show(
+                context,
+                mediaUrl: imageUrl,
+                caption: headline,
+              ),
+              child: ClipRRect(
+                borderRadius: context.radius(theme.radii.md),
+                child: UiRemoteImage(
+                  url: imageUrl,
+                  height: context.sz(112),
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             UiGap.v(theme.spacing.sm),
@@ -1300,6 +1337,13 @@ class _NewsArticleItem extends StatelessWidget {
             runSpacing: context.sp(theme.spacing.xxs),
             crossAxisAlignment: WrapCrossAlignment.center,
             children: <Widget>[
+              if (url != null || sourceDomain.isNotEmpty)
+                AppSiteLogo(
+                  url: url,
+                  domain: sourceDomain,
+                  label: effectivePublisher,
+                  size: 16,
+                ),
               UiBadge(
                 label: effectivePublisher,
                 variant: UiBadgeVariant.soft,

@@ -190,6 +190,59 @@ class PerplexityBlockTags {
     'media',
     'gallery',
     'images',
+    'links',
+    'web_results',
+    'bookmarks',
+    'resources',
+    'citations',
+    'video',
+    'videos',
+    'youtube',
+    'podcast',
+    'webinar',
+    'stream',
+    'weather',
+    'market_pulse',
+    'indices',
+    'commodities',
+    'fx',
+    'snapshot',
+    'scoreboard',
+    'match',
+    'event_schedule',
+    'earnings_calendar',
+    'schedule',
+    'scenarios',
+    'probabilities',
+    'poll',
+    'distribution',
+    'sensitivity',
+    'backtest',
+    'strategy_stats',
+    'performance',
+    'quant',
+    'portfolio',
+    'allocation',
+    'holdings',
+    'weights',
+    'rebalance',
+    'filing',
+    'sec_filing',
+    'document',
+    'report',
+    'paper',
+    'transcript',
+    'wiki',
+    'encyclopedia',
+    'definition',
+    'define',
+    'risk_plan',
+    'sizing',
+    'execution',
+    'workflow',
+    'playbook',
+    'tutorial',
+    'guide',
     'formula',
     'calculation',
     'math_card',
@@ -296,6 +349,51 @@ class PerplexityBlockTags {
       'leaderboard' => 'Screener & Movers',
       'sentiment' || 'options_flow' || 'social_pulse' => 'Sentiment & Flow',
       'media' || 'gallery' || 'images' => 'Media Gallery',
+      'links' ||
+      'web_results' ||
+      'bookmarks' ||
+      'resources' ||
+      'citations' => 'Web Sources',
+      'video' ||
+      'videos' ||
+      'youtube' ||
+      'podcast' ||
+      'webinar' ||
+      'stream' => 'Videos & Briefings',
+      'weather' ||
+      'market_pulse' ||
+      'indices' ||
+      'commodities' ||
+      'fx' ||
+      'snapshot' => 'Live Pulse',
+      'scoreboard' ||
+      'match' ||
+      'event_schedule' ||
+      'earnings_calendar' ||
+      'schedule' => 'Calendar & Schedule',
+      'scenarios' ||
+      'probabilities' ||
+      'poll' ||
+      'distribution' ||
+      'sensitivity' => 'Scenario Matrix',
+      'backtest' ||
+      'strategy_stats' ||
+      'performance' ||
+      'quant' => 'Backtest Telemetry',
+      'portfolio' ||
+      'allocation' ||
+      'holdings' ||
+      'weights' ||
+      'rebalance' => 'Portfolio Breakdown',
+      'filing' ||
+      'sec_filing' ||
+      'document' ||
+      'report' ||
+      'paper' ||
+      'transcript' => 'Document Filing',
+      'wiki' || 'encyclopedia' || 'definition' || 'define' => 'Knowledge Card',
+      'risk_plan' || 'sizing' || 'execution' => 'Risk Plan',
+      'workflow' || 'playbook' || 'tutorial' || 'guide' => 'Playbook Guide',
       'formula' || 'calculation' || 'math_card' => 'Formula Breakdown',
       'research_steps' || 'search_steps' || 'search_log' => 'Research Steps',
       'research_panel' => 'Research Brief',
@@ -319,7 +417,15 @@ class PerplexityAnswerParser {
     r'^ {0,3}(`{3,}|~{3,})\s*([A-Za-z0-9_\-]+)?.*$',
   );
   static final RegExp _mdImageRegex = RegExp(
-    r'!\[([^\]]*)\]\((https?://[^\s\)]+)\)',
+    r'!\[([^\]]*)\]\(((?:https?://|data:image/)[^\s\)]+)\)',
+  );
+  static final RegExp _htmlImageRegex = RegExp(
+    r'''<img\b[^>]*\bsrc=['"]((?:https?://|data:image/)[^'"]+)['"][^>]*>''',
+    caseSensitive: false,
+  );
+  static final RegExp _htmlAltRegex = RegExp(
+    r'''\balt=['"]([^'"]*)['"]''',
+    caseSensitive: false,
   );
   static final RegExp _mdLinkRegex = RegExp(
     r'(?<!!)\[([^\]]+)\]\((https?://[^\s\)]+)\)',
@@ -385,10 +491,19 @@ class PerplexityAnswerParser {
       final String line = lines[i];
       final RegExpMatch? openMatch = _fenceOpenRegex.firstMatch(line);
       if (openMatch == null) {
-        // Extract inline markdown images from ordinary prose lines.
+        // Extract inline markdown and HTML images from ordinary prose lines.
         for (final RegExpMatch imgMatch in _mdImageRegex.allMatches(line)) {
           final String alt = (imgMatch.group(1) ?? '').trim();
           final String url = (imgMatch.group(2) ?? '').trim();
+          if (_isMediaUrl(url)) {
+            mediaCandidates.add(_MediaCandidate(url: url, caption: alt));
+          }
+        }
+        for (final RegExpMatch htmlImg in _htmlImageRegex.allMatches(line)) {
+          final String url = (htmlImg.group(1) ?? '').trim();
+          final String alt =
+              (_htmlAltRegex.firstMatch(htmlImg.group(0) ?? '')?.group(1) ?? '')
+                  .trim();
           if (_isMediaUrl(url)) {
             mediaCandidates.add(_MediaCandidate(url: url, caption: alt));
           }
@@ -583,7 +698,6 @@ class PerplexityAnswerParser {
           ? rawMediaUrl
           : _cleanUrl(rawMediaUrl);
       if (!_isMediaUrl(normalizedUrl)) continue;
-      if (uniqueMedia.containsKey(normalizedUrl)) continue;
       final Uri? srcUri = m.sourceUrl.trim().isNotEmpty
           ? Uri.tryParse(m.sourceUrl.trim())
           : null;
@@ -592,6 +706,25 @@ class PerplexityAnswerParser {
           : (_isHttpUrl(normalizedUrl)
                 ? _domainOf(Uri.tryParse(normalizedUrl), '')
                 : 'Embedded image');
+      final PerplexityMediaItem? existing = uniqueMedia[normalizedUrl];
+      if (existing != null) {
+        final bool enrichSource =
+            existing.sourceUrl.isEmpty && m.sourceUrl.trim().isNotEmpty;
+        if (enrichSource ||
+            (existing.caption.isEmpty && m.caption.trim().isNotEmpty)) {
+          uniqueMedia[normalizedUrl] = PerplexityMediaItem(
+            url: normalizedUrl,
+            caption: enrichSource && m.caption.trim().isNotEmpty
+                ? m.caption.trim()
+                : (existing.caption.isNotEmpty
+                      ? existing.caption
+                      : m.caption.trim()),
+            sourceUrl: enrichSource ? m.sourceUrl.trim() : existing.sourceUrl,
+            domain: enrichSource ? domain : existing.domain,
+          );
+        }
+        continue;
+      }
       uniqueMedia[normalizedUrl] = PerplexityMediaItem(
         url: normalizedUrl,
         caption: m.caption.trim(),
@@ -895,6 +1028,10 @@ class PerplexityAnswerParser {
       'logo_url',
       'thumbnail',
       'poster',
+      'cover',
+      'banner',
+      'screenshot',
+      'chartImage',
       'image',
     ]) {
       addMediaCandidate(
@@ -940,6 +1077,14 @@ class PerplexityAnswerParser {
       'media',
       'images',
       'rows',
+      'results',
+      'bookmarks',
+      'videos',
+      'events',
+      'holdings',
+      'positions',
+      'scenarios',
+      'links',
     ]) {
       final dynamic items = map[listKey];
       if (items is List) {
