@@ -37,5 +37,19 @@ class AdSenseSetupTest(unittest.TestCase):
                 module.prepare_adsense(self.root, {'ADSENSE_PUBLISHER_ID': value})
         self.assertFalse((self.root / 'web/ads.txt').exists())
 
+    def test_repo_index_loads_first_party_adsense_bridge_and_markers(self):
+        repo_index = (ROOT / 'web/index.html').read_text()
+        self.assertIn('<script src="adsense.js"></script>', repo_index)
+        self.assertIn(module.START, repo_index)
+        self.assertIn(module.END, repo_index)
+        (self.root / 'web/index.html').write_text(repo_index)
+        self.assertTrue(
+            module.prepare_adsense(self.root, {'ADSENSE_PUBLISHER_ID': 'ca-pub-1234567890123456'})
+        )
+        self.assertIn(
+            'name="google-adsense-account" content="ca-pub-1234567890123456"',
+            (self.root / 'web/index.html').read_text(),
+        )
+
 
 if __name__ == '__main__': unittest.main()

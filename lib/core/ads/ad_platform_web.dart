@@ -1,8 +1,12 @@
 import 'dart:convert';
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'package:flutter/widgets.dart';
 import 'package:web/web.dart' as web;
 import 'ad_config.dart';
+
+@JS('globalThis.AlphaJournalAds')
+external JSObject? get _adsBridge;
 
 @JS('AlphaJournalAds.configure')
 external void _configure(JSString json);
@@ -21,11 +25,36 @@ external void _mount(
 );
 @JS('AlphaJournalAds.unmount')
 external void _unmount(JSObject element);
-void configureAds(AdConfig config) =>
+
+bool _hasBridgeMethod(String method) {
+  try {
+    final JSObject? bridge = _adsBridge;
+    return bridge != null && bridge.has(method);
+  } catch (_) {
+    return false;
+  }
+}
+
+void configureAds(AdConfig config) {
+  if (!_hasBridgeMethod('configure')) return;
+  try {
     _configure(jsonEncode(config.toJson()).toJS);
-void updateAdAccess(Map<String, Object> access) =>
+  } catch (_) {}
+}
+
+void updateAdAccess(Map<String, Object> access) {
+  if (!_hasBridgeMethod('updateAccess')) return;
+  try {
     _access(jsonEncode(access).toJS);
-void suspendAds() => _suspend();
+  } catch (_) {}
+}
+
+void suspendAds() {
+  if (!_hasBridgeMethod('suspend')) return;
+  try {
+    _suspend();
+  } catch (_) {}
+}
 Widget adPlatformView({
   required AdPlacement placement,
   required int occurrence,
@@ -68,21 +97,33 @@ class _AdViewState extends State<_AdView> {
     onElementCreated: (element) {
       final div = element as web.HTMLDivElement;
       _element = div;
-      _mount(
-        div,
-        widget.placement.id.toJS,
-        widget.width.toJS,
-        widget.height.toJS,
-        ((JSString status) {
-          if (mounted) widget.onState(status.toDart);
-        }).toJS,
-        widget.instanceId.toJS,
-      );
+      if (!_hasBridgeMethod('mount')) {
+        if (mounted) widget.onState('error');
+        return;
+      }
+      try {
+        _mount(
+          div,
+          widget.placement.id.toJS,
+          widget.width.toJS,
+          widget.height.toJS,
+          ((JSString status) {
+            if (mounted) widget.onState(status.toDart);
+          }).toJS,
+          widget.instanceId.toJS,
+        );
+      } catch (_) {
+        if (mounted) widget.onState('error');
+      }
     },
   );
   @override
   void dispose() {
-    if (_element != null) _unmount(_element!);
+    if (_element != null && _hasBridgeMethod('unmount')) {
+      try {
+        _unmount(_element!);
+      } catch (_) {}
+    }
     super.dispose();
   }
 }
