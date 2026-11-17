@@ -17,12 +17,14 @@ class AccountAccessGate extends StatefulWidget {
     required this.onAccess,
     required this.builder,
     this.onLogout,
+    this.loadTimeout = const Duration(seconds: 12),
   });
   final AccountAccessRepository repository;
   final String destination;
   final ValueChanged<AccountAccess> onAccess;
   final WidgetBuilder builder;
   final VoidCallback? onLogout;
+  final Duration loadTimeout;
 
   @override
   State<AccountAccessGate> createState() => _AccountAccessGateState();
@@ -90,7 +92,13 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
     final generation = ++_generation;
     setState(() => _loading = true);
     try {
-      final access = await widget.repository.load();
+      final access = await widget.repository.load().timeout(
+        widget.loadTimeout,
+        onTimeout: () => throw TimeoutException(
+          'Account access verification timed out.',
+          widget.loadTimeout,
+        ),
+      );
       if (!mounted || generation != _generation) return;
       _consecutiveFailures = 0;
       widget.onAccess(access);

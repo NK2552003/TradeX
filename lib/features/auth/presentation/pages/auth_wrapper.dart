@@ -1,20 +1,22 @@
-import 'package:tradex/core/config/cross_subdomain_storage.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/core/navigation/customer_routes.dart';
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/billing/revenuecat_billing.dart';
+import 'package:tradex/core/config/cross_subdomain_storage.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/config/startup_ready.dart';
-import 'package:tradex/core/security/private_message_service.dart';
-import 'package:tradex/core/billing/revenuecat_billing.dart';
 import 'package:tradex/core/data/session_trader.dart';
+import 'package:tradex/core/linking/link_graph.dart';
+import 'package:tradex/core/navigation/customer_routes.dart';
+import 'package:tradex/core/security/private_message_service.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
+import 'package:tradex/features/auth/data/repositories/supabase_auth_otp_repository.dart';
 import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
@@ -29,7 +31,6 @@ import 'package:tradex/features/auth/presentation/pages/login_page.dart';
 import 'package:tradex/features/auth/presentation/pages/otp_verification_page.dart';
 import 'package:tradex/features/auth/presentation/pages/signup_page.dart';
 import 'package:tradex/features/auth/presentation/pages/splash_screen.dart';
-import 'package:tradex/features/auth/data/repositories/supabase_auth_otp_repository.dart';
 import 'package:tradex/features/auth/presentation/pages/subscription_pricing_page.dart';
 
 /// Central Auth Wrapper controlling the dynamic navigation flow across:
@@ -73,6 +74,7 @@ class AuthWrapper extends StatefulWidget {
     _pendingOAuthLinkError = null;
     return error;
   }
+
   final AuthRepository? authRepository;
 
   @override
@@ -80,6 +82,8 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
+  static const Duration _sessionRestoreTimeout = Duration(seconds: 15);
+
   late AuthSessionState _sessionState;
   late final AuthRepository _authRepository;
   bool _isAuthLoading = true;
@@ -92,6 +96,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   String? _oauthErrorNotice;
   int _restoreGeneration = 0;
   StreamSubscription<AuthState>? _authSubscription;
+  Timer? _restoreTimeoutTimer;
 
   @override
   void initState() {
@@ -156,6 +161,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   @override
   void dispose() {
+    _restoreTimeoutTimer?.cancel();
     _authSubscription?.cancel();
     super.dispose();
   }
@@ -292,9 +298,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
         (userMeta['name'] as String?) ??
         (email.isNotEmpty ? email.split('@').first : 'Trader');
     final avatar =
-        (userMeta['avatar_url'] as String?) ??
-        (userMeta['picture'] as String?);
-    final referralSuffix = user.id.replaceAll('-', '').substring(0, 6).toUpperCase();
+        (userMeta['avatar_url'] as String?) ?? (userMeta['picture'] as String?);
+    final referralSuffix = user.id
+        .replaceAll('-', '')
+        .substring(0, 6)
+        .toUpperCase();
     var handle = _sanitizeOAuthHandle(user);
 
     for (final useUniqueSuffix in const <bool>[false, true]) {
@@ -337,6 +345,17 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _restoreActiveSession() async {
     final int gen = ++_restoreGeneration;
+    final restoreTimeout = Timer(_sessionRestoreTimeout, () {
+      if (!mounted || gen != _restoreGeneration) return;
+      debugPrint(
+        '[AuthWrapper] Session restoration exceeded '
+        '${_sessionRestoreTimeout.inSeconds}s; returning to sign in.',
+      );
+      _restoreGeneration++;
+      _resolveTo(AuthStage.login);
+    });
+    _restoreTimeoutTimer?.cancel();
+    _restoreTimeoutTimer = restoreTimeout;
     try {
       // 0. On Web, if URL contains OAuth callback code or access token, exchange it first:
       if (kIsWeb && SupabaseConfig.isConfigured) {
@@ -411,17 +430,17 @@ class _AuthWrapperState extends State<AuthWrapper> {
             unawaited(RevenueCatBilling.identify(signedInId));
             unawaited(PrivateMessageService.instance.warmFromCache());
 
-            // Valid active Supabase session confirmed: fetch profile, or ignore
-            // stale cached profile if a different account just signed in.
-            UserProfileModel? profile = await _authRepository.getProfile(
-              user.id,
-            );
+            // Prefer the profile already paired with this exact Supabase user.
+            // A deployment should not block a returning user on a fresh profile
+            // request when the access gate will immediately revalidate status.
+            final storedProfile = await AuthSessionStorage.getStoredProfile();
             if (!mounted || gen != _restoreGeneration) return;
+            UserProfileModel? profile = storedProfile?.id == user.id
+                ? storedProfile
+                : null;
             if (profile == null) {
-              final storedProfile = await AuthSessionStorage.getStoredProfile();
-              if (storedProfile?.id == user.id) {
-                profile = storedProfile;
-              }
+              profile = await _authRepository.getProfile(user.id);
+              if (!mounted || gen != _restoreGeneration) return;
             }
 
             // Provision DB profile cleanly for brand-new Google OAuth users
@@ -429,11 +448,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
             profile ??= await _ensureOAuthUserProfile(client, user);
             if (!mounted || gen != _restoreGeneration) return;
 
-            final affProfile = profile.role == UserRole.affiliate
+            final storedAffiliateProfile =
+                await AuthSessionStorage.getStoredAffiliateProfile();
+            if (!mounted || gen != _restoreGeneration) return;
+            final affProfile = storedAffiliateProfile?.id == user.id
+                ? storedAffiliateProfile
+                : profile.role == UserRole.affiliate
                 ? await _authRepository.getAffiliateProfile(user.id)
-                : await AuthSessionStorage.getStoredAffiliateProfile().then(
-                    (stored) => stored?.id == user.id ? stored : null,
-                  );
+                : null;
             if (!mounted || gen != _restoreGeneration) return;
 
             // Synchronize process-wide services
@@ -452,6 +474,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               affiliateProfile: affProfile,
               token: client.auth.currentSession?.accessToken,
             );
+            if (!mounted || gen != _restoreGeneration) return;
 
             final bool isAdminAccount =
                 profile.role == UserRole.userAdmin ||
@@ -500,6 +523,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
             if (lastDest != null && lastDest.isNotEmpty) {
               _initialAppDestination = lastDest;
             }
+            if (!mounted || gen != _restoreGeneration) return;
 
             _authenticatedProfile = profile;
             _authenticatedAffProfile = affProfile;
@@ -513,12 +537,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
       // 2. Persistent Local Storage Fallback (offline mode / local mock store)
       final storedProfile = await AuthSessionStorage.getStoredProfile();
+      if (!mounted || gen != _restoreGeneration) return;
       if (storedProfile != null) {
         final token = await AuthSessionStorage.getStoredToken();
+        if (!mounted || gen != _restoreGeneration) return;
         if (token != null ||
             (!SupabaseConfig.isConfigured && CustomerDataPolicy.allowDemo)) {
           final affProfile =
               await AuthSessionStorage.getStoredAffiliateProfile();
+          if (!mounted || gen != _restoreGeneration) return;
 
           SupabaseAuthBackendService.instance.setCurrentProfile(
             storedProfile,
@@ -532,7 +559,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
           final workspaceRole = await AuthSessionStorage.workspaceRoleFor(
             storedProfile,
           );
+          if (!mounted || gen != _restoreGeneration) return;
           final lastDest = await AuthSessionStorage.getLastDestination();
+          if (!mounted || gen != _restoreGeneration) return;
           if (lastDest != null && lastDest.isNotEmpty) {
             _initialAppDestination = lastDest;
           }
@@ -549,6 +578,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       // 3. No active or valid session found -> redirect to login (or onboarding on fresh install)
       final hasSeenOnboarding =
           await AuthSessionStorage.hasCompletedOnboarding();
+      if (!mounted || gen != _restoreGeneration) return;
       final targetStage = widget.initialStage != AuthStage.splash
           ? widget.initialStage
           : hasSeenOnboarding
@@ -558,7 +588,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
       _resolveTo(targetStage);
     } catch (e) {
       debugPrint('[AuthWrapper] _restoreActiveSession caught error: $e');
+      if (!mounted || gen != _restoreGeneration) return;
       _resolveTo(AuthStage.login);
+    } finally {
+      restoreTimeout.cancel();
+      if (identical(_restoreTimeoutTimer, restoreTimeout)) {
+        _restoreTimeoutTimer = null;
+      }
     }
   }
 
@@ -605,10 +641,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       null,
       affiliateProfile: null,
     );
-    AuthBackendService.instance.setCurrentProfile(
-      null,
-      affiliateProfile: null,
-    );
+    AuthBackendService.instance.setCurrentProfile(null, affiliateProfile: null);
     CrossSubdomainState.removeFlag('ax_silent_nav');
     final nextRole =
         preservedRole ??
@@ -911,11 +944,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
                       !isAffiliateUser)
                   ? 'affiliate_application'
                   : (host.startsWith('affiliate.') &&
-                          requestedDest == 'affiliate_application' &&
-                          isAffiliateUser &&
-                          Uri.base.path == '/')
-                      ? 'overview'
-                      : requestedDest;
+                        requestedDest == 'affiliate_application' &&
+                        isAffiliateUser &&
+                        Uri.base.path == '/')
+                  ? 'overview'
+                  : requestedDest;
 
               return AppScaffold(
                 userRole: _sessionState.role,

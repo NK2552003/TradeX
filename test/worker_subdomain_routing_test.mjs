@@ -5,10 +5,47 @@ import worker, {
   canonicalSubdomainHost,
   isAlphajournalHost,
   logWorkerEvent,
+  runtimeCacheControl,
   resolvePageSeo,
   resolvePublicStorageUrl,
   resolveRedirectUrl,
 } from '../worker/index.js';
+
+test('Flutter runtime files always revalidate across deployments', async () => {
+  assert.equal(
+    runtimeCacheControl('/main.dart.js'),
+    'no-cache, max-age=0, must-revalidate',
+  );
+  assert.equal(
+    runtimeCacheControl('/main.dart.js_12.part.js'),
+    'no-cache, max-age=0, must-revalidate',
+  );
+  assert.equal(runtimeCacheControl('/assets/logo.svg'), null);
+
+  for (const pathname of [
+    '/main.dart.js',
+    '/main.dart.js_1.part.js',
+    '/flutter_bootstrap.js',
+    '/flutter_service_worker.js',
+  ]) {
+    const response = await worker.fetch(
+      new Request(`https://app.alphajournal.in${pathname}`),
+      {
+        ASSETS: {
+          fetch: async () =>
+            new Response('runtime', {
+              headers: {
+                'content-type': 'application/javascript',
+                'Cache-Control': 'public, max-age=604800',
+              },
+            }),
+        },
+      },
+    );
+    assert.match(response.headers.get('Cache-Control'), /must-revalidate/);
+    assert.doesNotMatch(response.headers.get('Cache-Control'), /604800/);
+  }
+});
 
 test('recognizes apex and subdomains', () => {
   assert.equal(isAlphajournalHost('alphajournal.in'), true);

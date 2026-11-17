@@ -143,4 +143,26 @@ void main() {
     expect(find.byType(LoginPage), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets('stalled session restoration exits the splash screen', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final previous = SharedPreferencesStorePlatform.instance;
+    final delayed = DelayedPreferences();
+    SharedPreferencesStorePlatform.instance = delayed;
+    addTearDown(() => SharedPreferencesStorePlatform.instance = previous);
+
+    await tester.pumpWidget(const MaterialApp(home: AuthWrapper()));
+    expect(find.byType(SplashScreen), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 16));
+    await tester.pump();
+
+    expect(find.byType(SplashScreen), findsNothing);
+    expect(find.byType(LoginPage), findsOneWidget);
+
+    delayed.ready.complete();
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }

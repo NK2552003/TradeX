@@ -97,4 +97,33 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+
+  testWidgets('a stalled access request becomes a retryable error', (
+    tester,
+  ) async {
+    final repository = _Access();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AccountAccessGate(
+          repository: repository,
+          destination: 'workspace',
+          onAccess: (_) {},
+          loadTimeout: const Duration(seconds: 1),
+          builder: (_) => const Text('TRADER_WORKSPACE'),
+        ),
+      ),
+    );
+
+    expect(find.byType(UiSkeleton), findsWidgets);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+
+    expect(find.byType(UiSkeleton), findsNothing);
+    expect(find.text('Verification Interrupted'), findsOneWidget);
+    expect(find.text('Retry Handshake'), findsOneWidget);
+    expect(find.text('TRADER_WORKSPACE'), findsNothing);
+
+    repository.ready.completeError(StateError('late failure'));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }

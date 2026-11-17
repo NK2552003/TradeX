@@ -15,6 +15,14 @@ const STATIC_EXT = /\.[a-zA-Z0-9]{1,8}$/;
 
 const ASSET_PREFIXES = ['/assets/', '/canvaskit/', '/icons/', '/.well-known/'];
 const NEUTRAL_PREFIXES = ['/auth/', '/r/', '/join/', '/help'];
+const FLUTTER_RUNTIME_PATH = /^\/main\.dart\.js(?:_\d+\.part\.js)?$/;
+const FRESH_RUNTIME_PATHS = new Set([
+  '/flutter.js',
+  '/flutter_bootstrap.js',
+  '/flutter_service_worker.js',
+  '/manifest.json',
+  '/version.json',
+]);
 
 const COMMUNITY_PREFIXES = ['/community', '/p/', '/post/', '/posts/'];
 const AFFILIATE_SEGMENTS = new Set([
@@ -97,6 +105,28 @@ const escXml = (s) =>
 export function isAlphajournalHost(hostname) {
   const host = String(hostname || '').toLowerCase();
   return host === ROOT_DOMAIN || host.endsWith(`.${ROOT_DOMAIN}`);
+}
+
+export function runtimeCacheControl(pathname) {
+  if (FLUTTER_RUNTIME_PATH.test(pathname)) {
+    return 'no-cache, max-age=0, must-revalidate';
+  }
+  if (FRESH_RUNTIME_PATHS.has(pathname)) {
+    return 'no-cache, no-store, must-revalidate';
+  }
+  return null;
+}
+
+function withRuntimeCacheHeaders(response, pathname) {
+  const cacheControl = runtimeCacheControl(pathname);
+  if (!cacheControl) return response;
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', cacheControl);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 export function canonicalSubdomainHost(url) {
@@ -639,7 +669,10 @@ export default {
       });
     }
 
-    const page = await env.ASSETS.fetch(request);
+    const page = withRuntimeCacheHeaders(
+      await env.ASSETS.fetch(request),
+      url.pathname,
+    );
     const ct = page.headers.get('content-type') || '';
     if (!ct.includes('text/html') && !POST_PATH.test(url.pathname) && !HANDLE_PATH.test(url.pathname)) {
       return page;

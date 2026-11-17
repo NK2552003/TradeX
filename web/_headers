@@ -17,7 +17,16 @@
   Cache-Control: no-cache, no-store, must-revalidate
 
 /main.dart.js
-  Cache-Control: public, max-age=300, stale-while-revalidate=604800
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/main.dart.js_*.part.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/flutter.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/flutter_service_worker.js
+  Cache-Control: no-cache, no-store, must-revalidate
 
 /app_install.js
   Cache-Control: public, max-age=300, stale-while-revalidate=86400

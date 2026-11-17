@@ -278,6 +278,27 @@
       color: var(--muted);
       animation: aj-pulse 2.5s ease-in-out infinite alternate;
     }
+    .startup-recovery {
+      width: min(420px, calc(100vw - 48px));
+      padding: 28px;
+      border: 1px solid color-mix(in srgb, var(--fg) 18%, transparent);
+      border-radius: 20px;
+      background: color-mix(in srgb, var(--bg) 88%, var(--fg) 12%);
+      font-family: "Noto Sans", system-ui, sans-serif;
+      text-align: center;
+    }
+    .startup-recovery h2 { margin: 0 0 10px; font-size: 20px; }
+    .startup-recovery p { margin: 0; color: var(--muted); line-height: 1.5; }
+    .startup-recovery button {
+      margin-top: 20px;
+      padding: 11px 18px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--fg);
+      color: var(--bg);
+      cursor: pointer;
+      font: 600 14px/1 "Noto Sans", system-ui, sans-serif;
+    }
     @keyframes aj-pulse { from { opacity: 0.4; } to { opacity: 1; } }
     @media (prefers-reduced-motion: reduce) {
       .soon, .band, .g { animation: none; }
@@ -328,7 +349,51 @@
         word.replaceChildren(fragment);
       }
 
+      const startupReloadKey = 'aj_startup_reload_v1';
+      const workerCleanupKey = 'aj_flutter_worker_cleanup_v1';
+      let startupWatchdog;
+
+      function clearRecoveryFlag(name) {
+        try { sessionStorage.removeItem(name); } catch (_) {}
+      }
+
+      function hasRecoveryFlag(name) {
+        try { return sessionStorage.getItem(name) === '1'; } catch (_) { return false; }
+      }
+
+      function setRecoveryFlag(name) {
+        try { sessionStorage.setItem(name, '1'); } catch (_) {}
+      }
+
+      function showStartupRecovery() {
+        const splash = document.getElementById('splash-loader');
+        if (!splash) return;
+        splash.innerHTML =
+          '<section class="startup-recovery" role="alert">' +
+          '<h2>Update could not finish loading</h2>' +
+          '<p>Your session is safe. Reload to fetch the current app release.</p>' +
+          '<button type="button" id="startup-retry">Reload app</button>' +
+          '</section>';
+        document.getElementById('startup-retry')?.addEventListener('click', function() {
+          clearRecoveryFlag(startupReloadKey);
+          window.location.reload();
+        });
+      }
+
+      function recoverStartup() {
+        if (!document.getElementById('splash-loader')) return;
+        if (!hasRecoveryFlag(startupReloadKey)) {
+          setRecoveryFlag(startupReloadKey);
+          window.location.reload();
+          return;
+        }
+        showStartupRecovery();
+      }
+
       function hideSplash() {
+        clearTimeout(startupWatchdog);
+        clearRecoveryFlag(startupReloadKey);
+        clearRecoveryFlag(workerCleanupKey);
         var splash = document.getElementById('splash-loader');
         if (splash && splash.style.opacity !== '0') {
           splash.style.opacity = '0';
@@ -340,6 +405,14 @@
       // Flutter calls this after authentication AND account access resolve.
       // A first frame or a timer alone can expose intermediate loading screens.
       window.alphajournalReady = hideSplash;
+      startupWatchdog = setTimeout(recoverStartup, 30000);
+      window.addEventListener('error', function(event) {
+        const target = event.target;
+        if (target?.tagName === 'SCRIPT' &&
+            /(?:flutter_bootstrap|main\.dart)\.js/.test(target.src || '')) {
+          recoverStartup();
+        }
+      }, true);
     })();
   </script>
   <script src="app_install.js"></script>
