@@ -1,7 +1,6 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_moderation_list_page.dart';
@@ -47,13 +46,13 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 4, vsync: this)
+      ..addListener(_onDataChanged);
     widget.repository.addListener(_onDataChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _loadLeaderboard(_leaderboardPeriod);
-      if (!widget.repository.hasLoadedFollows &&
-          !widget.repository.isLoading) {
+      if (!widget.repository.hasLoadedFollows && !widget.repository.isLoading) {
         widget.repository.fetchFromSupabase();
       }
     });
@@ -69,7 +68,7 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   }
 
   Future<void> _refreshNetwork() async {
-    if (_refreshing) return;
+    if (_refreshing || widget.repository.isLoading) return;
     setState(() => _refreshing = true);
     try {
       await widget.repository.fetchFromSupabase();
@@ -86,7 +85,35 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     super.dispose();
   }
 
-  void _onDataChanged() => setState(() {});
+  void _onDataChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didUpdateWidget(covariant CommunityFollowView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      oldWidget.repository.removeListener(_onDataChanged);
+      widget.repository.addListener(_onDataChanged);
+    }
+  }
+
+  Widget _networkState(Widget child) {
+    if (widget.repository.isLoading && !widget.repository.hasLoadedFollows) {
+      return UiSkeleton.settingsList(showHeader: false, rows: 6);
+    }
+    if (widget.repository.refreshError != null &&
+        !widget.repository.isLoading) {
+      return UiEmptyState(
+        icon: Icons.cloud_off_outlined,
+        title: 'Could not refresh your network',
+        message: 'Check your connection and try again.',
+        actionLabel: 'Retry',
+        onActionPressed: _refreshNetwork,
+      );
+    }
+    return child;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,6 +125,16 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
       children: <Widget>[
         // Full width top bar tab toggle across the centered panel
         _buildTopBar(context, theme, isMobile),
+        if ((_refreshing || widget.repository.isLoading) &&
+            widget.repository.hasLoadedFollows)
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              'Refreshing network…',
+              textAlign: TextAlign.center,
+              style: context.uiText.caption,
+            ),
+          ),
 
         // Sub-Tab Content Views (trader cards centered at maxWidth 700px beneath the bar)
         Expanded(
@@ -107,9 +144,15 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
                 ? const NeverScrollableScrollPhysics()
                 : null,
             children: <Widget>[
-              _CommunityKeepAliveTab(child: _buildSuggestedTab()),
-              _CommunityKeepAliveTab(child: _buildFollowingTab()),
-              _CommunityKeepAliveTab(child: _buildFollowersTab()),
+              _CommunityKeepAliveTab(
+                child: _networkState(_buildSuggestedTab()),
+              ),
+              _CommunityKeepAliveTab(
+                child: _networkState(_buildFollowingTab()),
+              ),
+              _CommunityKeepAliveTab(
+                child: _networkState(_buildFollowersTab()),
+              ),
               _CommunityKeepAliveTab(child: _buildLeaderboardTab()),
             ],
           ),
@@ -132,140 +175,47 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     );
   }
 
-  /// Floating capsule bar with frosted glass, hairline border, soft glow indicator,
-  /// matching the Feed top floating bar design.
   Widget _buildFloatingBar(BuildContext context, UiTheme theme, bool isMobile) {
-    return Container(
-      height: context.sz(44),
-      decoration: BoxDecoration(
-        borderRadius: context.radius(theme.radii.pill),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.24),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+    return UiTabs(
+      tabs: _tabLabels,
+      selectedIndex: _tabController.index,
+      onChanged: _tabController.animateTo,
+      variant: UiTabsVariant.pill,
+      scrollable: true,
+      showPanel: false,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          UiIconButton(
+            icon: Icons.refresh_rounded,
+            size: UiSize.sm,
+            tooltip: _refreshing || widget.repository.isLoading
+                ? 'Refreshing...'
+                : 'Refresh Network',
+            onPressed: _refreshing || widget.repository.isLoading
+                ? null
+                : _refreshNetwork,
           ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
+          UiIconButton(
+            icon: Icons.shield_outlined,
+            size: UiSize.sm,
+            tooltip: 'Muted & Blocked Accounts',
+            onPressed: () {
+              showSettingsSideSheet<void>(
+                context,
+                title: 'Muted & Blocked Accounts',
+                subtitle: 'Review restricted and muted trader profiles',
+                desktopWidthRatio: 0.44,
+                maxWidth: 620,
+                minDesktopWidth: 460,
+                child: CommunityModerationListPage(
+                  repository: widget.repository,
+                  isEmbedded: true,
+                ),
+              );
+            },
           ),
         ],
-      ),
-      child: ClipRRect(
-        borderRadius: context.radius(theme.radii.pill),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-            decoration: BoxDecoration(
-              color: theme.colors.surface.withValues(alpha: 0.88),
-              borderRadius: context.radius(theme.radii.pill),
-              border: Border.all(
-                color: theme.colors.border.withValues(alpha: 0.7),
-                width: theme.borders.hairline,
-              ),
-            ),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: TabBar(
-                    controller: _tabController,
-                    isScrollable: isMobile,
-                    tabAlignment: isMobile
-                        ? TabAlignment.start
-                        : TabAlignment.fill,
-                    padding: EdgeInsets.zero,
-                    labelPadding: EdgeInsets.symmetric(
-                      horizontal: context.sp(
-                        isMobile ? theme.spacing.sm : theme.spacing.md,
-                      ),
-                    ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    splashBorderRadius: context.radius(theme.radii.pill),
-                    overlayColor: WidgetStateProperty.resolveWith<Color?>((
-                      states,
-                    ) {
-                      if (states.contains(WidgetState.selected)) {
-                        return Colors.transparent;
-                      }
-                      if (states.contains(WidgetState.hovered)) {
-                        return theme.colors.primary.withValues(alpha: 0.08);
-                      }
-                      return null;
-                    }),
-                    indicator: BoxDecoration(
-                      color: theme.colors.primary.withValues(alpha: 0.16),
-                      borderRadius: context.radius(theme.radii.pill),
-                      border: Border.all(
-                        color: theme.colors.primary.withValues(alpha: 0.4),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: theme.colors.primary.withValues(alpha: 0.12),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    dividerColor: Colors.transparent,
-                    labelColor: theme.colors.primary,
-                    unselectedLabelColor: theme.colors.foregroundMuted,
-                    labelStyle: context.uiText.bodyStrong.copyWith(
-                      fontSize: context.fs(isMobile ? 12.5 : 13.5),
-                      fontWeight: FontWeight.w600,
-                    ),
-                    unselectedLabelStyle: context.uiText.body.copyWith(
-                      fontSize: context.fs(isMobile ? 12.5 : 13.5),
-                      fontWeight: FontWeight.w500,
-                    ),
-                    tabs: _tabLabels.map((label) {
-                      return Tab(
-                        height: context.sz(34),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: Text(label),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                Container(
-                  height: context.sz(18),
-                  width: theme.borders.hairline,
-                  color: theme.colors.border.withValues(alpha: 0.6),
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                ),
-                UiIconButton(
-                  icon: Icons.refresh_rounded,
-                  size: UiSize.xs,
-                  tooltip: _refreshing ? 'Refreshing...' : 'Refresh Network',
-                  onPressed: _refreshing ? null : _refreshNetwork,
-                ),
-                UiIconButton(
-                  icon: Icons.shield_outlined,
-                  size: UiSize.xs,
-                  tooltip: 'Muted & Blocked Accounts',
-                  onPressed: () {
-                    showSettingsSideSheet<void>(
-                      context,
-                      title: 'Muted & Blocked Accounts',
-                      subtitle: 'Review restricted and muted trader profiles',
-                      desktopWidthRatio: 0.44,
-                      maxWidth: 620,
-                      minDesktopWidth: 460,
-                      child: CommunityModerationListPage(
-                        repository: widget.repository,
-                        isEmbedded: true,
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -297,7 +247,8 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final traders = widget.repository.allKnownAuthors.where((t) {
-      final isF = t.isFollowing || widget.repository.followedAuthorIds.contains(t.id);
+      final isF =
+          t.isFollowing || widget.repository.followedAuthorIds.contains(t.id);
       if (!isF) return false;
       if (_effectiveQuery.isEmpty) return true;
       final q = _effectiveQuery.toLowerCase();
@@ -312,9 +263,16 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
           padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
           child: UiEmptyState(
             icon: Icons.person_add_disabled_outlined,
-            title: 'Not following anyone yet',
-            message:
-                'Browse the suggested traders tab to build your trading network.',
+            title: _effectiveQuery.isNotEmpty
+                ? 'No matching traders'
+                : 'Not following anyone yet',
+            message: _effectiveQuery.isNotEmpty
+                ? 'Try another name, handle, or trading style.'
+                : 'Browse suggested traders to build your trading network.',
+            actionLabel: _effectiveQuery.isEmpty ? 'Browse traders' : null,
+            onActionPressed: _effectiveQuery.isEmpty
+                ? () => _tabController.animateTo(0)
+                : null,
           ),
         ),
       );
@@ -340,10 +298,14 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     }).toList();
 
     if (traders.isEmpty) {
-      return const UiEmptyState(
+      return UiEmptyState(
         icon: Icons.people_outline_rounded,
-        title: 'No followers yet',
-        message: 'People who follow your profile will appear here.',
+        title: _effectiveQuery.isNotEmpty
+            ? 'No matching traders'
+            : 'No followers yet',
+        message: _effectiveQuery.isNotEmpty
+            ? 'Try another name, handle, or trading style.'
+            : 'People who follow your profile will appear here.',
       );
     }
     return _buildTraderList(traders, isMobile, theme, topPadding: topPadding);
@@ -356,7 +318,9 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   Widget _buildLeaderboardTab() {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final rawEntries = widget.repository.leaderboardForPeriod(_leaderboardPeriod);
+    final rawEntries = widget.repository.leaderboardForPeriod(
+      _leaderboardPeriod,
+    );
     final query = _effectiveQuery.toLowerCase();
     final entries = query.isEmpty
         ? rawEntries
@@ -408,9 +372,7 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
         ),
         const UiDivider(),
         if (_loadingLeaderboard && entries.isEmpty)
-          Expanded(
-            child: UiSkeleton.settingsList(showHeader: false, rows: 6),
-          )
+          Expanded(child: UiSkeleton.settingsList(showHeader: false, rows: 6))
         else if (entries.isEmpty)
           Expanded(
             child: Center(

@@ -208,9 +208,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         _liveFollowers = repo.followersCount;
       } else if (widget.author != null) {
         _isFollowing = repo.isFollowing(widget.author!.id);
-        final match = repo.suggestedTraders
-            .where((a) => a.id == widget.author!.id)
-            .firstOrNull;
+        final match = repo.authorById(widget.author!.id);
         _liveFollowers = match?.followers ?? widget.author!.followers;
         _liveFollowing = match?.following ?? widget.author!.following;
       }
@@ -288,9 +286,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         _liveFollowers = repo.followersCount;
       } else if (widget.author != null) {
         _isFollowing = repo.isFollowing(widget.author!.id);
-        final match = repo.suggestedTraders
-            .where((a) => a.id == widget.author!.id)
-            .firstOrNull;
+        final match = repo.authorById(widget.author!.id);
         if (match != null) {
           _liveFollowers = match.followers;
           _liveFollowing = match.following;
@@ -443,15 +439,18 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
       }
 
       if (effectiveUserId.isNotEmpty) {
+        int? fetchedFollowers;
+        int? fetchedFollowing;
+        bool? fetchedFollowState;
         try {
-          _liveFollowers = await client
+          fetchedFollowers = await client
               .from('community_follows')
               .count()
               .eq('following_id', effectiveUserId);
         } catch (_) {}
 
         try {
-          _liveFollowing = await client
+          fetchedFollowing = await client
               .from('community_follows')
               .count()
               .eq('follower_id', effectiveUserId);
@@ -465,9 +464,20 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                 .eq('follower_id', currentAuthUser.id)
                 .eq('following_id', effectiveUserId)
                 .maybeSingle();
-            _isFollowing = isFollowRes != null;
+            fetchedFollowState = isFollowRes != null;
           } catch (_) {}
         }
+
+        if (!mounted) return;
+        _liveFollowers = fetchedFollowers ?? _liveFollowers;
+        _liveFollowing = fetchedFollowing ?? _liveFollowing;
+        _isFollowing = fetchedFollowState ?? _isFollowing;
+        widget.repository?.syncAuthorFollowStats(
+          effectiveUserId,
+          followers: fetchedFollowers,
+          following: fetchedFollowing,
+          isFollowing: fetchedFollowState,
+        );
 
         try {
           _livePostsCount = await client

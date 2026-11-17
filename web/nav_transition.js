@@ -59,6 +59,71 @@
     },
   };
 
+  var TRADER_SIDEBAR_SECTIONS = [
+    {
+      title: 'WORKSPACE',
+      items: [
+        {
+          id: 'workspace',
+          label: 'Writing Desk',
+          icon: 'edit_note',
+          hasChevron: true,
+          subItems: [
+            { id: 'journal', label: 'Journal' },
+            { id: 'strategies', label: 'Strategies' },
+            { id: 'notes', label: 'Notes' },
+          ],
+        },
+        { id: 'calculators', label: 'Calculators', icon: 'calc' },
+      ],
+    },
+    {
+      title: 'CONNECT & INTELLIGENCE',
+      items: [
+        {
+          id: 'community',
+          label: 'Community',
+          icon: 'forum',
+          hasChevron: true,
+          subItems: [
+            { id: 'community_feed', label: 'Feed' },
+            { id: 'community_explore', label: 'Explore' },
+            { id: 'community_network', label: 'Network' },
+            { id: 'community_profile', label: 'My Profile' },
+            { id: 'community_bookmarks', label: 'Bookmarks' },
+          ],
+        },
+        { id: 'messages', label: 'Messages', icon: 'chat' },
+        { id: 'ai_copilot', label: 'AI Assistant', icon: 'spark' },
+      ],
+    },
+    {
+      title: 'MARKETS',
+      items: [
+        {
+          id: 'market',
+          label: 'Market Intelligence',
+          icon: 'globe',
+          hasChevron: true,
+          subItems: [
+            { id: 'market', label: 'Overview' },
+            { id: 'market_news', label: 'News' },
+            { id: 'market_movers', label: 'Gainers & Losers' },
+            { id: 'market_instruments', label: 'Instruments' },
+            { id: 'market_screeners', label: 'Screeners' },
+            { id: 'market_coverage', label: 'Data coverage' },
+          ],
+        },
+      ],
+    },
+    {
+      title: 'ACCOUNT',
+      items: [
+        { id: 'settings', label: 'Settings', icon: 'settings', hasChevron: true },
+      ],
+    },
+  ];
+
   var DOCKS = {
     trader: {
       centerIcon: 'grid',
@@ -70,44 +135,7 @@
         { id: 'calculators', label: 'Calculators', icon: 'calc' },
         { id: 'settings', label: 'Settings', icon: 'settings' },
       ],
-      sections: [
-        {
-          title: 'WORKSPACE',
-          items: [
-            {
-              id: 'workspace',
-              label: 'Writing Desk',
-              icon: 'edit_note',
-              subItems: [
-                { id: 'journal', label: 'Journal' },
-                { id: 'strategies', label: 'Strategies' },
-                { id: 'notes', label: 'Notes' },
-              ],
-            },
-            { id: 'calculators', label: 'Calculators', icon: 'calc' },
-          ],
-        },
-        {
-          title: 'CONNECT & INTELLIGENCE',
-          items: [
-            { id: 'community', label: 'Community', icon: 'forum', hasChevron: true },
-            { id: 'messages', label: 'Messages', icon: 'chat' },
-            { id: 'ai_copilot', label: 'AI Assistant', icon: 'spark' },
-          ],
-        },
-        {
-          title: 'MARKETS',
-          items: [
-            { id: 'market', label: 'Market Intelligence', icon: 'globe', hasChevron: true },
-          ],
-        },
-        {
-          title: 'ACCOUNT',
-          items: [
-            { id: 'settings', label: 'Settings', icon: 'settings', hasChevron: true },
-          ],
-        },
-      ],
+      sections: TRADER_SIDEBAR_SECTIONS,
     },
     community: {
       centerIcon: 'apps',
@@ -119,31 +147,7 @@
         { id: 'community_network', label: 'Network', icon: 'users' },
         { id: 'community_profile', label: 'Profile', icon: 'user' },
       ],
-      sections: [
-        {
-          title: 'COMMUNITY',
-          items: [
-            { id: 'community_feed', label: 'Feed', icon: 'feed' },
-            { id: 'community_explore', label: 'Explore', icon: 'compass' },
-            { id: 'community_network', label: 'Network', icon: 'users' },
-            { id: 'community_profile', label: 'Profile', icon: 'user' },
-          ],
-        },
-        {
-          title: 'WORKSPACE',
-          items: [
-            { id: 'workspace', label: 'Writing Desk', icon: 'edit_note' },
-            { id: 'market', label: 'Market Intelligence', icon: 'globe' },
-            { id: 'messages', label: 'Messages', icon: 'chat' },
-          ],
-        },
-        {
-          title: 'ACCOUNT',
-          items: [
-            { id: 'settings', label: 'Settings', icon: 'settings', hasChevron: true },
-          ],
-        },
-      ],
+      sections: TRADER_SIDEBAR_SECTIONS,
     },
     affiliate: {
       centerIcon: 'grid',
@@ -437,6 +441,9 @@
     if (seg === 'community_profile' || seg === 'profile' || seg.indexOf('@') === 0) {
       return 'community_profile';
     }
+    if (seg === 'community_bookmarks' || seg === 'bookmarks') {
+      return 'community_bookmarks';
+    }
     if (seg === 'community_feed') {
       return 'community_feed';
     }
@@ -510,6 +517,7 @@
       else if (lbl === 'explore') key = 'community_explore';
       else if (lbl === 'network') key = 'community_network';
       else if (lbl === 'profile') key = 'community_profile';
+      else if (lbl === 'bookmarks') key = 'community_bookmarks';
       else if (lbl === 'community' || lbl === 'feed') key = 'community_feed';
       else if (lbl === 'partner hub') key = 'partner_hub';
       else if (lbl === 'admin console') key = 'admin_console';
@@ -595,6 +603,16 @@
         centerActive: false,
         centerRouteIcon: null,
         activeNavId: 'community_profile',
+      },
+      community_bookmarks: {
+        topTitle: 'Community / Bookmarks',
+        label: 'Bookmarks',
+        subtitle: 'Saved setups, posts & market discussions',
+        layoutKind: 'community',
+        activeSlot: 0,
+        centerActive: false,
+        centerRouteIcon: null,
+        activeNavId: 'community_bookmarks',
       },
       market: {
         topTitle: 'Markets / Overview',
@@ -851,12 +869,13 @@
       '.aj-side-item.is-active svg{color:var(--aj-primary);}',
       '.aj-side-item-label{display:none;}',
       '@media(min-width:1024px){.aj-side-item-label{display:inline;}}',
-      '.aj-side-chev{display:none;color:var(--aj-fg-subtle);font-size:calc(12 * var(--aj-text-scale) * var(--aj-unit));}',
-      '@media(min-width:1024px){.aj-side-chev{display:inline;}}',
-      '.aj-side-subwrap{display:none;flex-direction:column;gap:2px;padding-left:26px;margin-top:2px;}',
+      '.aj-side-chev{display:none;color:var(--aj-fg-subtle);align-items:center;justify-content:center;}',
+      '.aj-side-chev.is-open{transform:rotate(90deg);}',
+      '@media(min-width:1024px){.aj-side-chev{display:inline-flex;}}',
+      '.aj-side-subwrap{display:none;flex-direction:column;gap:2px;margin:2px 0 4px 12px;padding-left:10px;border-left:2px solid var(--aj-border);}',
       '@media(min-width:1024px){.aj-side-subwrap{display:flex;}}',
-      '.aj-side-sub{height:29px;padding:0 8px;border-radius:8px;display:flex;align-items:center;font-size:calc(13 * var(--aj-text-scale) * var(--aj-unit));font-weight:500;color:var(--aj-fg-muted);}',
-      '.aj-side-sub.is-active{background:var(--aj-primary-soft);color:var(--aj-fg);font-weight:600;}',
+      '.aj-side-sub{height:29px;padding:0 8px;border-radius:8px;display:flex;align-items:center;font-size:calc(13 * var(--aj-text-scale) * var(--aj-unit));font-weight:500;color:var(--aj-fg-muted);border:1px solid transparent;}',
+      '.aj-side-sub.is-active{background:var(--aj-primary-soft);color:var(--aj-fg);border:1px solid var(--aj-primary-border);font-weight:600;}',
       '.aj-side-foot{display:none;padding:6px 8px;border-radius:10px;align-items:center;gap:9px;border:1px solid var(--aj-border);background:rgba(255,255,255,0.02);}',
       '.aj-light .aj-side-foot{background:rgba(255,255,255,0.65);}',
       '@media(min-width:1024px){.aj-side-foot{display:flex;}}',
@@ -951,6 +970,7 @@
 
     var paths = {
       menu: ['M4 7h16M4 12h16M4 17h10'],
+      chevron_right: ['M9 6l6 6-6 6'],
       swap_vert: ['M8 9l4-4 4 4', 'M8 15l4 4 4-4'],
       dashboard: [
         'M4 5a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5Z',
@@ -1570,8 +1590,9 @@
         left.appendChild(lblEl);
         itemEl.appendChild(left);
         if (navItem.hasChevron) {
-          var chev = el(doc, 'span', 'aj-side-chev');
-          chev.textContent = (activeNav || subActive) && navItem.subItems ? '⌄' : '›';
+          var isOpen = Boolean((activeNav || subActive) && navItem.subItems);
+          var chev = el(doc, 'span', 'aj-side-chev' + (isOpen ? ' is-open' : ''));
+          chev.appendChild(svgIcon(doc, 'chevron_right', 14));
           itemEl.appendChild(chev);
         }
         secWrap.appendChild(itemEl);
@@ -1580,10 +1601,12 @@
           var subWrap = el(doc, 'div', 'aj-side-subwrap');
           for (var si = 0; si < navItem.subItems.length; si++) {
             var sub = navItem.subItems[si];
+            var subSelected =
+              sub.id === spec.activeNavId || (activeNav && si === 0);
             var subEl = el(
               doc,
               'div',
-              'aj-side-sub' + (sub.id === spec.activeNavId ? ' is-active' : '')
+              'aj-side-sub' + (subSelected ? ' is-active' : '')
             );
             subEl.textContent = sub.label;
             subWrap.appendChild(subEl);

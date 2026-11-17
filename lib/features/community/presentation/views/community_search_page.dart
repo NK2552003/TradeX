@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// Both unified libraries are required by the project UI contract.
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
@@ -35,37 +38,67 @@ class CommunitySearchPage extends StatefulWidget {
 }
 
 class _CommunitySearchPageState extends State<CommunitySearchPage> {
-  late final TextEditingController _controller;
   String _query = '';
-  int _selectedCategory = 0; // 0: All, 1: Posts, 2: Traders, 3: Tickers
-  final List<String> _recentSearches = [
-    'NIFTY',
-    'BANKNIFTY',
-    'Crypto Breakouts',
-    'Options Scalp',
-  ];
+  int _selectedCategory = 0; // All, Posts, Traders
+  final List<String> _recentSearches = [];
 
   @override
   void initState() {
     super.initState();
     _query = widget.initialQuery;
-    _controller = TextEditingController(text: _query);
+    widget.repository.addListener(_onRepositoryChanged);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    widget.repository.removeListener(_onRepositoryChanged);
     super.dispose();
   }
 
-  void _onSearch(String val) {
+  @override
+  void didUpdateWidget(covariant CommunitySearchPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      oldWidget.repository.removeListener(_onRepositoryChanged);
+      widget.repository.addListener(_onRepositoryChanged);
+    }
+  }
+
+  void _onRepositoryChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onSearch(String value) => setState(() => _query = value);
+
+  void _rememberSearch(String value) {
+    final term = value.trim();
+    if (term.isEmpty) return;
     setState(() {
-      _query = val;
-      if (val.isNotEmpty && !_recentSearches.contains(val)) {
-        _recentSearches.insert(0, val);
-        if (_recentSearches.length > 6) _recentSearches.removeLast();
-      }
+      _recentSearches.removeWhere(
+        (item) => item.toLowerCase() == term.toLowerCase(),
+      );
+      _recentSearches.insert(0, term);
+      if (_recentSearches.length > 6) _recentSearches.removeLast();
     });
+  }
+
+  void _openPost(CommunityPost post) {
+    _rememberSearch(_query);
+    if (widget.onPostTap != null) {
+      widget.onPostTap!(post);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CommunityPostDetailView(
+          post: post,
+          repository: widget.repository,
+          currentUser: widget.currentUser ?? widget.repository.currentAuthor,
+          onAuthorTap: widget.onAuthorTap,
+          onOpenRef: widget.onOpenRef,
+        ),
+      ),
+    );
   }
 
   @override
@@ -88,6 +121,7 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
         leading: UiIconButton(
           icon: Icons.arrow_back,
           variant: UiVariant.ghost,
+          tooltip: 'Back',
           onPressed: () => widget.onBack != null
               ? widget.onBack!()
               : Navigator.of(context).pop(),
@@ -96,10 +130,8 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
           value: _query,
           hintText: 'Search community, tickers, traders...',
           onChanged: _onSearch,
-          onClear: () {
-            _controller.clear();
-            setState(() => _query = '');
-          },
+          onSubmitted: _rememberSearch,
+          onClear: () => _onSearch(''),
         ),
       ),
       body: Center(
@@ -136,106 +168,50 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
   }
 
   Widget _buildRecentSearches() {
-    final colors = context.ui.colors;
+    final theme = context.ui;
     return ListView(
-      padding: EdgeInsets.all(context.sp(16)),
+      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: context.sp(theme.spacing.sm),
           children: [
-            Text(
-              'Recent Searches',
-              style: context.uiText.subheading.copyWith(
-                fontWeight: FontWeight.w700,
-                color: colors.foreground,
+            Text('Recent Searches', style: context.uiText.subheading),
+            if (_recentSearches.isNotEmpty)
+              UiButton(
+                label: 'Clear all',
+                variant: UiVariant.ghost,
+                size: UiSize.sm,
+                onPressed: () => setState(() => _recentSearches.clear()),
               ),
-            ),
-            UiButton(
-              label: 'Clear all',
-              variant: UiVariant.ghost,
-              size: UiSize.sm,
-              onPressed: () => setState(() => _recentSearches.clear()),
-            ),
           ],
         ),
-        SizedBox(height: context.sp(12)),
-        Wrap(
-          spacing: context.sp(8),
-          runSpacing: context.sp(8),
-          children: _recentSearches.map((term) {
-            return InkWell(
-              onTap: () {
-                _controller.text = term;
-                _onSearch(term);
-              },
-              borderRadius: BorderRadius.circular(context.sz(20)),
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(12),
-                  vertical: context.sp(8),
+        UiGap.v(theme.spacing.sm),
+        if (_recentSearches.isEmpty)
+          const UiEmptyState(
+            icon: Icons.search,
+            title: 'Search your community',
+            message:
+                'Find posts by keyword, ticker, or trader. Submitted searches appear here during this visit.',
+          )
+        else
+          Wrap(
+            spacing: context.sp(theme.spacing.sm),
+            runSpacing: context.sp(theme.spacing.sm),
+            children: [
+              for (final term in _recentSearches)
+                UiButton(
+                  label: term,
+                  icon: Icons.history,
+                  variant: UiVariant.outline,
+                  onPressed: () {
+                    _onSearch(term);
+                    _rememberSearch(term);
+                  },
                 ),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: BorderRadius.circular(context.sz(20)),
-                  border: Border.all(color: colors.border),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.history,
-                      size: context.sz(14),
-                      color: colors.foregroundMuted,
-                    ),
-                    SizedBox(width: context.sp(6)),
-                    Text(
-                      term,
-                      style: context.uiText.caption.copyWith(
-                        color: colors.foreground,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        SizedBox(height: context.sp(28)),
-        Text(
-          'Trending Topics Today',
-          style: context.uiText.subheading.copyWith(
-            fontWeight: FontWeight.w700,
-            color: colors.foreground,
+            ],
           ),
-        ),
-        SizedBox(height: context.sp(12)),
-        ...['#NIFTY50', '#Budget2026', '#CryptoRally', '#OptionsOI'].map((tag) {
-          return ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              Icons.trending_up,
-              color: colors.primary,
-              size: context.sz(20),
-            ),
-            title: Text(
-              tag,
-              style: context.uiText.body.copyWith(
-                fontWeight: FontWeight.w600,
-                color: colors.foreground,
-              ),
-            ),
-            subtitle: Text(
-              'Over 1,200 traders discussing',
-              style: context.uiText.caption.copyWith(
-                color: colors.foregroundMuted,
-              ),
-            ),
-            onTap: () {
-              _controller.text = tag;
-              _onSearch(tag);
-            },
-          );
-        }),
       ],
     );
   }
@@ -244,11 +220,20 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
     List<CommunityPost> posts,
     List<CommunityAuthor> traders,
   ) {
-    if (posts.isEmpty && traders.isEmpty) {
+    final isEmpty = switch (_selectedCategory) {
+      1 => posts.isEmpty,
+      2 => traders.isEmpty,
+      _ => posts.isEmpty && traders.isEmpty,
+    };
+    if (isEmpty) {
       return Center(
         child: UiEmptyState(
           icon: Icons.search_off,
-          title: 'No results found for "$_query"',
+          title: switch (_selectedCategory) {
+            1 => 'No matching posts',
+            2 => 'No matching traders',
+            _ => 'No results found for "$_query"',
+          },
           message:
               'Try checking your spelling or searching for a different keyword or symbol.',
         ),
@@ -258,18 +243,9 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
     if (_selectedCategory == 1) {
       return CommunityFeedList(
         posts: posts,
-        onPostTap: (post) {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => CommunityPostDetailView(
-                post: post,
-                repository: widget.repository,
-                currentUser: widget.repository.currentAuthor,
-                onOpenRef: widget.onOpenRef,
-              ),
-            ),
-          );
-        },
+        onPostTap: _openPost,
+        repository: widget.repository,
+        currentUser: widget.currentUser ?? widget.repository.currentAuthor,
         onAuthorTap: widget.onAuthorTap,
         onOpenRef: widget.onOpenRef,
       );
@@ -285,7 +261,9 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
           return CommunityTraderCard(
             trader: author,
             onTap: () => widget.onAuthorTap?.call(author),
-            onFollow: () => widget.repository.toggleFollow(author.id),
+            onFollow: author.id == widget.repository.currentAuthor.id
+                ? null
+                : () => widget.repository.toggleFollow(author.id),
           );
         },
       );
@@ -322,7 +300,9 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
                   child: CommunityTraderCard(
                     trader: author,
                     onTap: () => widget.onAuthorTap?.call(author),
-                    onFollow: () => widget.repository.toggleFollow(author.id),
+                    onFollow: author.id == widget.repository.currentAuthor.id
+                        ? null
+                        : () => widget.repository.toggleFollow(author.id),
                   ),
                 ),
               ),
@@ -347,24 +327,7 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
           ),
           ...posts.map(
             (post) => InkWell(
-              onTap: () {
-                if (widget.onPostTap != null) {
-                  widget.onPostTap!(post);
-                } else {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => CommunityPostDetailView(
-                        post: post,
-                        repository: widget.repository,
-                        currentUser:
-                            widget.currentUser ??
-                            widget.repository.currentAuthor,
-                        onOpenRef: widget.onOpenRef,
-                      ),
-                    ),
-                  );
-                }
-              },
+              onTap: () => _openPost(post),
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: context.sp(16),
@@ -383,18 +346,25 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
                               size: UiSize.xs,
                             ),
                             SizedBox(width: context.sp(8)),
-                            Text(
-                              post.author.displayName,
-                              style: context.uiText.label.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: colors.foreground,
-                              ),
-                            ),
-                            SizedBox(width: context.sp(4)),
-                            Text(
-                              post.author.handle,
-                              style: context.uiText.caption.copyWith(
-                                color: colors.foregroundMuted,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    post.author.displayName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: context.uiText.label,
+                                  ),
+                                  Text(
+                                    post.author.displayHandle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: context.uiText.caption.copyWith(
+                                      color: colors.foregroundMuted,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],

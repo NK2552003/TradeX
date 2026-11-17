@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 
@@ -98,9 +99,7 @@ class CommunityTraderCard extends StatelessWidget {
                               ),
                             ),
                             if (trader.verified) ...<Widget>[
-                              SizedBox(
-                                width: context.sp(theme.spacing.xxs),
-                              ),
+                              SizedBox(width: context.sp(theme.spacing.xxs)),
                               Icon(
                                 Icons.verified_rounded,
                                 color: verifiedColor,
@@ -127,8 +126,7 @@ class CommunityTraderCard extends StatelessWidget {
                                 UserRole.customer) ...<Widget>[
                               UiBadge(
                                 label: trader.roleBadgeText,
-                                intent:
-                                    trader.userRole == UserRole.userAdmin
+                                intent: trader.userRole == UserRole.userAdmin
                                     ? UiIntent.danger
                                     : UiIntent.warning,
                                 variant: UiBadgeVariant.solid,
@@ -196,8 +194,7 @@ class CommunityTraderCard extends StatelessWidget {
                 ),
                 if (showWinRate && trader.winRate != null) ...<Widget>[
                   UiBadge(
-                    label:
-                        '${trader.winRate!.toStringAsFixed(0)}% Win Rate',
+                    label: '${trader.winRate!.toStringAsFixed(0)}% Win Rate',
                     intent: UiIntent.success,
                     variant: UiBadgeVariant.soft,
                     size: UiSize.xs,
@@ -367,6 +364,15 @@ class CommunityTraderRow extends StatelessWidget {
                 ),
               ],
             ],
+          ),
+
+          UiGap.v(theme.spacing.xxs),
+          Text(
+            '${uiCompactNumber(trader.followers)} Followers · '
+            '${uiCompactNumber(trader.following)} Following',
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
 
           if (showBio && trader.bio != null) ...<Widget>[

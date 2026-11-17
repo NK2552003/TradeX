@@ -200,6 +200,9 @@ class SubdomainCookieCodec {
         seg.startsWith('@')) {
       key = 'community_profile';
       label = 'Profile';
+    } else if (seg == 'community_bookmarks' || seg == 'bookmarks') {
+      key = 'community_bookmarks';
+      label = 'Bookmarks';
     } else if (seg == 'community_feed') {
       key = 'community_feed';
       label = 'Community';

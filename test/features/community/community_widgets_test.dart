@@ -509,7 +509,8 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('Recent Searches'), findsOneWidget);
-        expect(find.text('NIFTY'), findsWidgets);
+        expect(find.text('Search your community'), findsOneWidget);
+        expect(find.text('NIFTY'), findsNothing);
       },
     );
 

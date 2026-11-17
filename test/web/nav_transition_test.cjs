@@ -617,3 +617,89 @@ test('subdomain switcher loader respects latest cookie, SharedPreferences fallba
     '16px',
   );
 });
+
+test('clicking Community renders full Trader sidebar with expanded Community sub-tree (Feed, Explore, Network, My Profile, Bookmarks)', () => {
+  const env = createFakeDom({
+    url: 'https://app.alphajournal.in/workspace',
+    cookies: 'ax_sb_auth.n=1; ax_theme_mode=dark',
+  });
+  env.api.initHead();
+
+  const veil = env.api.startOutgoing('https://community.alphajournal.in/community');
+  assert.ok(veil);
+
+  const sectionTitles = env.document
+    .querySelectorAll('.aj-side-sec-title')
+    .map((n) => n.textContent);
+  assert.deepEqual(sectionTitles, [
+    'WORKSPACE',
+    'CONNECT & INTELLIGENCE',
+    'MARKETS',
+    'ACCOUNT',
+  ]);
+
+  const activeItems = env.document
+    .querySelectorAll('.aj-side-item')
+    .filter((n) => n.classList.contains('is-active'))
+    .map((n) => n.querySelectorAll('.aj-side-item-label')[0].textContent);
+  assert.deepEqual(activeItems, ['Community']);
+
+  const openChevs = env.document
+    .querySelectorAll('.aj-side-chev')
+    .filter((n) => n.classList.contains('is-open'));
+  assert.equal(openChevs.length, 1);
+
+  const subLabels = env.document
+    .querySelectorAll('.aj-side-sub')
+    .map((n) => n.textContent);
+  assert.deepEqual(subLabels, [
+    'Feed',
+    'Explore',
+    'Network',
+    'My Profile',
+    'Bookmarks',
+  ]);
+
+  const activeSubs = env.document
+    .querySelectorAll('.aj-side-sub')
+    .filter((n) => n.classList.contains('is-active'))
+    .map((n) => n.textContent);
+  assert.deepEqual(activeSubs, ['Feed']);
+
+  const styleEl = env.document.getElementById('aj-transition-styles');
+  assert.ok(styleEl.textContent.includes('border-left:2px solid var(--aj-border)'));
+  assert.ok(
+    styleEl.textContent.includes(
+      '.aj-side-sub.is-active{background:var(--aj-primary-soft);color:var(--aj-fg);border:1px solid var(--aj-primary-border);font-weight:600;}',
+    ),
+  );
+
+  // Also verify mountIncoming on community.alphajournal.in/community renders the exact same tree
+  const incomingEnv = createFakeDom({
+    url: 'https://community.alphajournal.in/community',
+    cookies: 'ax_sb_auth.n=1; ax_theme_mode=dark; ax_silent_nav=1|community_feed|Community',
+  });
+  incomingEnv.api.initHead();
+  incomingEnv.api.mountIncoming();
+
+  assert.deepEqual(
+    incomingEnv.document
+      .querySelectorAll('.aj-side-sec-title')
+      .map((n) => n.textContent),
+    ['WORKSPACE', 'CONNECT & INTELLIGENCE', 'MARKETS', 'ACCOUNT'],
+  );
+  assert.deepEqual(
+    incomingEnv.document
+      .querySelectorAll('.aj-side-item')
+      .filter((n) => n.classList.contains('is-active'))
+      .map((n) => n.querySelectorAll('.aj-side-item-label')[0].textContent),
+    ['Community'],
+  );
+  assert.deepEqual(
+    incomingEnv.document
+      .querySelectorAll('.aj-side-sub')
+      .filter((n) => n.classList.contains('is-active'))
+      .map((n) => n.textContent),
+    ['Feed'],
+  );
+});

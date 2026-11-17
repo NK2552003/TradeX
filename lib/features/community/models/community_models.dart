@@ -78,6 +78,7 @@ class CommunityAuthor {
     bool? isFollowing,
     int? followers,
     int? following,
+    int? postsCount,
     String? subscriptionTier,
     AppTier? tier,
     bool? verified,
@@ -102,7 +103,7 @@ class CommunityAuthor {
         primaryMarket: primaryMarket,
         joinedDate: joinedDate,
         mutualFollowers: mutualFollowers,
-        postsCount: postsCount,
+        postsCount: postsCount ?? this.postsCount,
         referralCode: referralCode,
         channelHandle: channelHandle,
         audienceReach: audienceReach,
@@ -609,6 +610,7 @@ class CommunityPost {
   static const Object _postSentinel = Object();
 
   CommunityPost copyWith({
+    CommunityAuthor? author,
     String? body,
     int? likes,
     int? comments,
@@ -639,7 +641,7 @@ class CommunityPost {
     String? moderationStatus,
   }) => CommunityPost(
     id: id,
-    author: author,
+    author: author ?? this.author,
     body: body ?? this.body,
     createdAt: createdAt,
     isPinned: isPinned ?? this.isPinned,

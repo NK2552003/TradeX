@@ -114,6 +114,10 @@ void main() {
       '1|community_profile|Profile',
     );
     expect(
+      SubdomainCookieCodec.silentNavValueForUrl('https://community.alphajournal.in/community_bookmarks'),
+      '1|community_bookmarks|Bookmarks',
+    );
+    expect(
       SubdomainCookieCodec.silentNavValueForUrl('https://app.alphajournal.in/market'),
       '1|market|Markets',
     );
