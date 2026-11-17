@@ -103,6 +103,84 @@ class AssetMarketRepository {
     }
   }
 
+  static const List<String> _knownSectors = <String>[
+    'Technology',
+    'Financial Services',
+    'Healthcare',
+    'Consumer Cyclical',
+    'Industrials',
+    'Communication Services',
+    'Energy',
+    'Consumer Defensive',
+    'Basic Materials',
+    'Real Estate',
+    'Utilities',
+    'Finance',
+  ];
+
+  Future<Map<String, int>> _loadSectorCounts(int maxTotal) async {
+    if (maxTotal <= 0) return const <String, int>{};
+    try {
+      final counts = await Future.wait<int>([
+        for (final sector in _knownSectors)
+          _database
+              .from('stock_fundamentals')
+              .count(CountOption.exact)
+              .eq('sector', sector)
+              .catchError((_) => 0),
+      ]);
+      final out = <String, int>{};
+      for (var i = 0; i < _knownSectors.length; i++) {
+        final c = counts[i];
+        if (c > 0 && c <= maxTotal) {
+          out[_knownSectors[i]] = c;
+        }
+      }
+      return out;
+    } catch (_) {
+      return const <String, int>{};
+    }
+  }
+
+  Future<Map<String, dynamic>?> _loadChangeDistribution(
+    int totalQuotes,
+    double bestGain,
+    double worstLoss,
+  ) async {
+    if (totalQuotes <= 0) return null;
+    try {
+      final counts = await Future.wait<int>([
+        _database.from('stock_quotes').count(CountOption.exact).gt('change_pct', 0).catchError((_) => 0),
+        _database.from('stock_quotes').count(CountOption.exact).lt('change_pct', 0).catchError((_) => 0),
+        _database.from('stock_quotes').count(CountOption.exact).lt('change_pct', -5).catchError((_) => 0),
+        _database.from('stock_quotes').count(CountOption.exact).gte('change_pct', -5).lt('change_pct', -2).catchError((_) => 0),
+        _database.from('stock_quotes').count(CountOption.exact).gte('change_pct', -2).lt('change_pct', 0).catchError((_) => 0),
+        _database.from('stock_quotes').count(CountOption.exact).gte('change_pct', 0).lt('change_pct', 2).catchError((_) => 0),
+        _database.from('stock_quotes').count(CountOption.exact).gte('change_pct', 2).lt('change_pct', 5).catchError((_) => 0),
+        _database.from('stock_quotes').count(CountOption.exact).gte('change_pct', 5).catchError((_) => 0),
+      ]);
+      final binSum = counts.skip(2).fold<int>(0, (a, b) => a + b);
+      if (binSum == 0 || binSum > totalQuotes * 2) return null;
+      return <String, dynamic>{
+        'total': totalQuotes,
+        'gainers_count': counts[0],
+        'losers_count': counts[1],
+        'best_gain': bestGain,
+        'worst_loss': worstLoss,
+        'bins': <String, int>{
+          '< -5%': counts[2],
+          '-5 to -2%': counts[3],
+          '-2 to 0%': counts[4],
+          '0 to 2%': counts[5],
+          '2 to 5%': counts[6],
+          '> 5%': counts[7],
+        },
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> _fetchNewsPage({
     int offset = 0,
     int limit = 25,
@@ -1129,6 +1207,14 @@ class AssetMarketRepository {
         : (fundCount > 0 ? fundCount : enriched.length);
     final effectiveUniverse =
         universeCount > 0 ? universeCount : effectiveQuotes;
+    final bestGain = ranked.isNotEmpty ? ranked.first.changePercent : 0.0;
+    final worstLoss = ranked.isNotEmpty ? ranked.last.changePercent : 0.0;
+    final metaFutures = await Future.wait<dynamic>([
+      _loadSectorCounts(fundCount),
+      _loadChangeDistribution(quoteCount, bestGain, worstLoss),
+    ]);
+    final sectorCounts = metaFutures[0] as Map<String, int>;
+    final changeDist = metaFutures[1] as Map<String, dynamic>?;
     final manifest = <String, dynamic>{
       'generated_at': DateTime.now().toUtc().toIso8601String(),
       'data_source': 'supabase_live',
@@ -1138,6 +1224,9 @@ class AssetMarketRepository {
       'history_count': fundCount > 0 ? fundCount : effectiveQuotes,
       'source_history_count': effectiveUniverse,
       'news_count': newsCount > 0 ? newsCount : articles.length,
+      'market_counts': <String, int>{'US': effectiveQuotes},
+      if (sectorCounts.isNotEmpty) 'sector_counts': sectorCounts,
+      'change_distribution': ?changeDist,
     };
 
     return MarketSnapshot(

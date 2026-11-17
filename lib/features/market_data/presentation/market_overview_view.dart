@@ -35,15 +35,37 @@ class MarketOverviewView extends StatelessWidget {
         (snapshot.manifest['quote_count'] as num? ?? snapshot.instruments.length);
     final sectors = <String, num>{};
     final markets = <String, num>{};
-    for (final q in snapshot.instruments) {
-      markets.update(
-        q.market.isEmpty ? 'Other' : q.market,
-        (n) => n + 1,
-        ifAbsent: () => 1,
-      );
-      final sector = '${q.raw['sector'] ?? ''}'.trim();
-      if (sector.isNotEmpty) {
-        sectors.update(sector, (n) => n + 1, ifAbsent: () => 1);
+    final manifestMarkets = snapshot.manifest['market_counts'];
+    if (manifestMarkets is Map && manifestMarkets.isNotEmpty) {
+      for (final e in manifestMarkets.entries) {
+        if (e.value is num && (e.value as num) > 0) {
+          markets['${e.key}'] = e.value as num;
+        }
+      }
+    }
+    final manifestSectors = snapshot.manifest['sector_counts'];
+    if (manifestSectors is Map && manifestSectors.isNotEmpty) {
+      for (final e in manifestSectors.entries) {
+        if (e.value is num && (e.value as num) > 0) {
+          sectors['${e.key}'] = e.value as num;
+        }
+      }
+    }
+    if (markets.isEmpty || sectors.isEmpty) {
+      for (final q in snapshot.instruments) {
+        if (manifestMarkets is! Map || manifestMarkets.isEmpty) {
+          markets.update(
+            q.market.isEmpty ? 'Other' : q.market,
+            (n) => n + 1,
+            ifAbsent: () => 1,
+          );
+        }
+        if (manifestSectors is! Map || manifestSectors.isEmpty) {
+          final sector = '${q.raw['sector'] ?? ''}'.trim();
+          if (sector.isNotEmpty) {
+            sectors.update(sector, (n) => n + 1, ifAbsent: () => 1);
+          }
+        }
       }
     }
 
@@ -60,7 +82,11 @@ class MarketOverviewView extends StatelessWidget {
           MarketSectorHeatmapCard(instruments: snapshot.instruments),
           UiGap.v(context.ui.spacing.lg),
 
-          MarketChangeDistribution(instruments: snapshot.instruments),
+          MarketChangeDistribution(
+            instruments: snapshot.instruments,
+            distribution:
+                snapshot.manifest['change_distribution'] as Map<String, dynamic>?,
+          ),
           UiGap.v(context.ui.spacing.md),
 
           // Session Leaders — Top Gainer & Loser

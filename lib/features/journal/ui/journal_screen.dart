@@ -846,6 +846,8 @@ class JournalScreenState extends State<JournalScreen> {
       return RecordOpeningBanner(
         title: 'Opening journal entry...',
         subtitle: 'Fetching trade details and chart setup',
+        badgeLabel: 'Journal',
+        icon: Icons.menu_book_rounded,
         onBack: widget.onReturnToOrigin ?? _backToIndex,
       );
     }

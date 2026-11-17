@@ -106,13 +106,16 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
     }
   }
 
-  Future<void> _loadMoreNews(MarketSnapshot snapshot) async {
+  Future<void> _loadMoreNews(
+    MarketSnapshot snapshot, {
+    bool forceFetch = false,
+  }) async {
     if (_loadingMore) return;
     _loadingMore = true;
     try {
       if (_repo.usesDatabase &&
           !_newsExhausted &&
-          _newsLimit >= snapshot.articles.length) {
+          (forceFetch || _newsLimit >= snapshot.articles.length)) {
         final more = await _repo.loadMoreNews(
           offset: snapshot.articles.length,
           limit: 20,
@@ -337,7 +340,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
           selectedTopic: _topic,
           limit: _newsLimit,
           pageSize: 10,
-          onMore: () => _loadMoreNews(snapshot),
+          onMore: () => _loadMoreNews(snapshot, forceFetch: true),
         ),
         2 => MarketMoversView(
           snapshot: filtered,
@@ -436,7 +439,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
                               Text(
                                 snapshot.manifest['data_source'] ==
                                         'supabase_live'
-                                    ? 'Live Database · ${snapshot.instruments.length} Quotes & Analytics'
+                                    ? 'Live Database · ${snapshot.manifest['quote_count'] ?? snapshot.instruments.length} Quotes & Analytics'
                                     : 'Snapshot ${marketSnapshotDate(snapshot.manifest)} · Analytics & Research',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

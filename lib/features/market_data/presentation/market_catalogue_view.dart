@@ -13,9 +13,13 @@ class MarketQuoteResults extends StatefulWidget {
     super.key,
     required this.quotes,
     required this.onInstrument,
+    this.mobilePageSize = 20,
+    this.showMobileSort = true,
   });
   final List<MarketInstrument> quotes;
   final ValueChanged<MarketInstrument> onInstrument;
+  final int mobilePageSize;
+  final bool showMobileSort;
   @override
   State<MarketQuoteResults> createState() => _MarketQuoteResultsState();
 }
@@ -52,25 +56,30 @@ class _MarketQuoteResultsState extends State<MarketQuoteResults> {
         if (_sort == 'change') {
           quotes.sort((a, b) => b.changePercent.compareTo(a.changePercent));
         }
-        final count = (quotes.length / 20).ceil();
+        final count = (quotes.length / widget.mobilePageSize).ceil();
         final page = _page.clamp(0, count - 1);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            UiSelect<String>(
-              value: _sort,
-              options: const [
-                UiOption(label: 'Default order', value: 'default'),
-                UiOption(label: 'Symbol A–Z', value: 'symbol'),
-                UiOption(label: 'Highest change', value: 'change'),
-              ],
-              onChanged: (value) => setState(() {
-                _sort = value;
-                _page = 0;
-              }),
-            ),
-            UiGap.v(context.ui.spacing.sm),
-            for (final quote in quotes.skip(page * 20).take(20)) ...[
+            if (widget.showMobileSort) ...[
+              UiSelect<String>(
+                value: _sort,
+                options: const [
+                  UiOption(label: 'Default order', value: 'default'),
+                  UiOption(label: 'Symbol A–Z', value: 'symbol'),
+                  UiOption(label: 'Highest change', value: 'change'),
+                ],
+                onChanged: (value) => setState(() {
+                  _sort = value;
+                  _page = 0;
+                }),
+              ),
+              UiGap.v(context.ui.spacing.sm),
+            ],
+            for (final quote
+                in quotes
+                    .skip(page * widget.mobilePageSize)
+                    .take(widget.mobilePageSize)) ...[
               MarketQuoteRow(
                 quote: quote,
                 onTap: () => widget.onInstrument(quote),
@@ -327,6 +336,8 @@ class _MarketCatalogueViewState extends State<MarketCatalogueView> {
               MarketQuoteResults(
                 quotes: visibleQuotes,
                 onInstrument: widget.onInstrument,
+                mobilePageSize: _isLazyDatabase ? 30 : 20,
+                showMobileSort: !_isLazyDatabase,
               ),
               if (_isLazyDatabase && pageCount > 1) ...[
                 UiGap.v(context.ui.spacing.sm),

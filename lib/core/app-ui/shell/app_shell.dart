@@ -1319,15 +1319,18 @@ class _AppNavTileState extends State<AppNavTile> {
   @override
   void didUpdateWidget(AppNavTile oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final bool selectedSubItem =
-        widget.item.subItems?.any(
-          (AppNavItem item) => item.id == widget.selectedId,
-        ) ??
-        false;
-    if (oldWidget.selectedId != widget.selectedId &&
-        selectedSubItem &&
-        !_expanded) {
-      _expanded = true;
+    if (oldWidget.selectedId != widget.selectedId) {
+      final bool selectedSubItem =
+          widget.item.subItems?.any(
+            (AppNavItem item) => item.id == widget.selectedId,
+          ) ??
+          false;
+      final bool selectedParentWithSubs =
+          widget.item.id == widget.selectedId &&
+          (widget.item.subItems?.isNotEmpty ?? false);
+      if ((selectedSubItem || selectedParentWithSubs) && !_expanded) {
+        _expanded = true;
+      }
     }
   }
 
@@ -1488,7 +1491,9 @@ class _AppNavTileState extends State<AppNavTile> {
                             onTap: () => widget.onSelect(sub.id),
                             builder: (BuildContext ctx, UiInteractiveState s) {
                               final bool subSelected =
-                                  sub.id == widget.selectedId;
+                                  sub.id == widget.selectedId ||
+                                  (widget.item.id == widget.selectedId &&
+                                      sub == widget.item.subItems!.first);
                               return AnimatedContainer(
                                 duration: theme.motion.fast,
                                 margin: EdgeInsets.only(

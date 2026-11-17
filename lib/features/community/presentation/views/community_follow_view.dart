@@ -50,7 +50,12 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     _tabController = TabController(length: 4, vsync: this);
     widget.repository.addListener(_onDataChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadLeaderboard(_leaderboardPeriod);
+      if (!mounted) return;
+      _loadLeaderboard(_leaderboardPeriod);
+      if (!widget.repository.hasLoadedFollows &&
+          !widget.repository.isLoading) {
+        widget.repository.fetchFromSupabase();
+      }
     });
   }
 

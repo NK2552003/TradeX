@@ -18,6 +18,7 @@ import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/core/config/startup_ready.dart';
 import 'package:tradex/features/auth/auth.dart';
 import 'package:tradex/core/widgets/not_found_page.dart';
+import 'package:tradex/core/widgets/record_unavailable.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 
 class TradeXApp extends StatefulWidget {
@@ -180,7 +181,14 @@ class _TradeXAppState extends State<TradeXApp> {
         }
         return NoTransitionPage(
           key: ValueKey('redirect-$targetUrl'),
-          child: const SizedBox.shrink(),
+          child: Scaffold(
+            body: RecordOpeningBanner(
+              title: 'Switching workspace...',
+              subtitle: 'Connecting to ${initialRedirect.host}',
+              badgeLabel: 'Subdomain',
+              icon: Icons.swap_horiz_rounded,
+            ),
+          ),
         );
       }
     }

@@ -328,9 +328,14 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
                   vertical: context.sp(theme.spacing.sm),
                 ),
                 children: [
-                  _trendsCard(context, theme, _trendsFor(kExploreTabs[0])),
-                  UiGap.v(theme.spacing.md),
-                  _whoToFollowCard(context, theme),
+                  if (widget.repository.isLoading &&
+                      widget.repository.forYouPosts.isEmpty) ...[
+                    _skeletons(context, theme),
+                  ] else ...[
+                    _trendsCard(context, theme, _trendsFor(kExploreTabs[0])),
+                    UiGap.v(theme.spacing.md),
+                    _whoToFollowCard(context, theme),
+                  ],
                 ],
               ),
             ),
@@ -387,7 +392,12 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
     final trends = _trendsFor(spec);
     final posts = isTrending ? const <CommunityPost>[] : _postsFor(spec);
     final wire = _wireFor(spec);
-    final loading = repo.isLoading && repo.forYouPosts.isEmpty;
+    final loading =
+        (repo.isLoading && repo.forYouPosts.isEmpty) ||
+        (_loadingPublicRecords &&
+            repo.forYouPosts.isEmpty &&
+            trends.isEmpty &&
+            wire.isEmpty);
     final hasError = repo.refreshError != null && repo.forYouPosts.isEmpty;
 
     Widget header(BuildContext _) {
@@ -526,9 +536,52 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
 
   Widget _skeletons(BuildContext context, UiTheme theme) => Column(
     key: const ValueKey('explore-loading'),
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      for (var i = 0; i < 5; i++) ...[
-        const UiSkeleton(height: 56),
+      UiSkeleton.card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            UiSkeleton.heading(width: 140),
+            UiGap.v(theme.spacing.md),
+            for (var i = 0; i < 4; i++) ...[
+              UiSkeleton.text(width: 110, height: 11),
+              UiGap.v(theme.spacing.xxs),
+              UiSkeleton.text(width: 180, height: 15),
+              UiGap.v(theme.spacing.sm),
+            ],
+          ],
+        ),
+      ),
+      UiGap.v(theme.spacing.md),
+      for (var i = 0; i < 3; i++) ...[
+        UiSkeleton.card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  UiSkeleton.avatar(size: 36),
+                  UiGap.h(theme.spacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        UiSkeleton.text(width: 130, height: 13),
+                        UiGap.v(theme.spacing.xxs),
+                        UiSkeleton.text(width: 90, height: 11),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              UiGap.v(theme.spacing.sm),
+              UiSkeleton.text(width: double.infinity, height: 13),
+              UiGap.v(theme.spacing.xs),
+              UiSkeleton.text(width: 240, height: 13),
+            ],
+          ),
+        ),
         UiGap.v(theme.spacing.sm),
       ],
     ],

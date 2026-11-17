@@ -572,6 +572,12 @@ class _MarketNewsViewState extends State<MarketNewsView> {
     final endIndex = (startIndex + pageSize).clamp(0, articles.length);
     final pageArticles =
         articles.isEmpty ? <MarketArticle>[] : articles.sublist(startIndex, endIndex);
+    final int manifestNewsCount = widget.selectedTopic == 'all'
+        ? (widget.snapshot.manifest['news_count'] as num? ?? 0).toInt()
+        : 0;
+    final int totalStories = manifestNewsCount > articles.length
+        ? manifestNewsCount
+        : articles.length;
 
     // Prepare popular editorial articles for right rail matching Image 3 from topics
     final popularArticles = (widget.snapshot.topics['popular'] ??
@@ -800,7 +806,7 @@ class _MarketNewsViewState extends State<MarketNewsView> {
                     runSpacing: context.sp(context.ui.spacing.sm),
                     children: [
                       Text(
-                        'Showing ${startIndex + 1}–$endIndex of ${articles.length} stories · Page ${page + 1} of $count',
+                        'Showing ${startIndex + 1}–$endIndex of $totalStories stories · Page ${page + 1} of $count',
                         style: context.uiText.caption.copyWith(
                           color: context.ui.colors.foregroundMuted,
                         ),
@@ -808,7 +814,12 @@ class _MarketNewsViewState extends State<MarketNewsView> {
                       UiPagination(
                         page: page,
                         pageCount: count,
-                        onPageChanged: (newPage) => setState(() => _page = newPage),
+                        onPageChanged: (newPage) {
+                          setState(() => _page = newPage);
+                          if (newPage >= count - 1) {
+                            widget.onMore?.call();
+                          }
+                        },
                       ),
                     ],
                   ),

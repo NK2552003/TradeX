@@ -57,6 +57,7 @@ class CommunityRepository extends ChangeNotifier {
   bool _subscribedToRealtime = false;
   bool _isLoading = false;
   bool _isLoadingMore = false;
+  bool _hasLoadedFollows = false;
   bool _hasMorePosts = true;
   int _loadedPostRows = 0;
   RealtimeChannel? _realtimeChannel;
@@ -66,6 +67,7 @@ class CommunityRepository extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
+  bool get hasLoadedFollows => _hasLoadedFollows;
   bool get hasMorePosts => _hasMorePosts;
   RealtimeChannel? get realtimeChannel => _realtimeChannel;
 
@@ -725,6 +727,7 @@ class CommunityRepository extends ChangeNotifier {
                   (followingCountByAuthor[follower] ?? 0) + 1;
             }
           }
+          _hasLoadedFollows = true;
         } catch (e) {
           debugPrint('[CommunityRepository] Error fetching scoped community_follows: $e');
           try {
@@ -1627,6 +1630,9 @@ class CommunityRepository extends ChangeNotifier {
       _suggestedTraders.any((a) => a.id == authorId && a.isFollowing);
 
   int get followingCount {
+    if (_hasLoadedFollows) {
+      return _followedAuthorIds.length;
+    }
     final direct = _followedAuthorIds.length;
     final suggested = _suggestedTraders.where((t) => t.isFollowing).length;
     final override = _currentAuthorOverride?.following ?? 0;
@@ -1634,6 +1640,9 @@ class CommunityRepository extends ChangeNotifier {
   }
 
   int get followersCount {
+    if (_hasLoadedFollows) {
+      return _followerAuthorIds.length;
+    }
     final direct = _followerAuthorIds.length;
     final override = _currentAuthorOverride?.followers ?? 0;
     return math.max(direct, override);
@@ -1694,10 +1703,14 @@ class CommunityRepository extends ChangeNotifier {
   }
 
   void updateCurrentAuthor(CommunityAuthor author) {
-    if (_currentAuthorOverride?.id != author.id ||
+    final bool idChanged = _currentAuthorOverride?.id != author.id;
+    if (idChanged ||
         _currentAuthorOverride?.handle != author.handle ||
         _currentAuthorOverride?.displayName != author.displayName) {
       _currentAuthorOverride = author;
+      if (idChanged && _isUuid(author.id) && !_hasLoadedFollows && !_isLoading) {
+        unawaited(fetchFromSupabase());
+      }
       Future<void>.microtask(notifyListeners);
     }
   }

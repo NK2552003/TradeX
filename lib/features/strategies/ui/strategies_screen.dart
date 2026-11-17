@@ -1534,6 +1534,8 @@ class StrategiesScreenState extends State<StrategiesScreen> {
       return RecordOpeningBanner(
         title: 'Opening strategy...',
         subtitle: 'Fetching playbook rules and performance metrics',
+        badgeLabel: 'Strategy',
+        icon: Icons.psychology_outlined,
         onBack: widget.onReturnToOrigin ?? _backToIndex,
       );
     }

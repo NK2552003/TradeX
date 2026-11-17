@@ -70,20 +70,47 @@ class MarketDistributionCard extends StatelessWidget {
 }
 
 class MarketChangeDistribution extends StatelessWidget {
-  const MarketChangeDistribution({super.key, required this.instruments});
+  const MarketChangeDistribution({
+    super.key,
+    required this.instruments,
+    this.distribution,
+  });
   final List<MarketInstrument> instruments;
+  final Map<String, dynamic>? distribution;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
+    final distBins = distribution?['bins'];
+    final bool useGlobal = distBins is Map && distBins.isNotEmpty;
+
     final gainers = instruments.where((q) => q.changePercent > 0).toList();
     final losers = instruments.where((q) => q.changePercent < 0).toList();
-    final bestGain = gainers.isEmpty
-        ? 0.0
-        : gainers.map((q) => q.changePercent).reduce((a, b) => a > b ? a : b);
-    final worstLoss = losers.isEmpty
-        ? 0.0
-        : losers.map((q) => q.changePercent).reduce((a, b) => a < b ? a : b);
+    final int gainersCount = useGlobal
+        ? (distribution!['gainers_count'] as num? ?? gainers.length).toInt()
+        : gainers.length;
+    final int losersCount = useGlobal
+        ? (distribution!['losers_count'] as num? ?? losers.length).toInt()
+        : losers.length;
+    final int totalCount = useGlobal
+        ? (distribution!['total'] as num? ?? instruments.length).toInt()
+        : instruments.length;
+    final double bestGain = useGlobal
+        ? (distribution!['best_gain'] as num?)?.toDouble() ??
+              (gainers.isEmpty
+                  ? 0.0
+                  : gainers.map((q) => q.changePercent).reduce((a, b) => a > b ? a : b))
+        : (gainers.isEmpty
+              ? 0.0
+              : gainers.map((q) => q.changePercent).reduce((a, b) => a > b ? a : b));
+    final double worstLoss = useGlobal
+        ? (distribution!['worst_loss'] as num?)?.toDouble() ??
+              (losers.isEmpty
+                  ? 0.0
+                  : losers.map((q) => q.changePercent).reduce((a, b) => a < b ? a : b))
+        : (losers.isEmpty
+              ? 0.0
+              : losers.map((q) => q.changePercent).reduce((a, b) => a < b ? a : b));
 
     final bins = <String, int>{
       '< -5%': 0,
@@ -93,20 +120,26 @@ class MarketChangeDistribution extends StatelessWidget {
       '2 to 5%': 0,
       '> 5%': 0,
     };
-    for (final q in instruments) {
-      final v = q.changePercent;
-      final key = v < -5
-          ? '< -5%'
-          : v < -2
-          ? '-5 to -2%'
-          : v < 0
-          ? '-2 to 0%'
-          : v < 2
-          ? '0 to 2%'
-          : v < 5
-          ? '2 to 5%'
-          : '> 5%';
-      bins[key] = bins[key]! + 1;
+    if (useGlobal) {
+      for (final key in bins.keys) {
+        bins[key] = (distBins[key] as num? ?? 0).toInt();
+      }
+    } else {
+      for (final q in instruments) {
+        final v = q.changePercent;
+        final key = v < -5
+            ? '< -5%'
+            : v < -2
+            ? '-5 to -2%'
+            : v < 0
+            ? '-2 to 0%'
+            : v < 2
+            ? '0 to 2%'
+            : v < 5
+            ? '2 to 5%'
+            : '> 5%';
+        bins[key] = bins[key]! + 1;
+      }
     }
 
     Widget statItem(String label, String value, Color color) {
@@ -168,8 +201,8 @@ class MarketChangeDistribution extends StatelessWidget {
                   spacing: context.sp(theme.spacing.sm),
                   runSpacing: context.sp(theme.spacing.xs),
                   children: [
-                    statItem('TOP GAINERS', '${gainers.length}', theme.colors.bullish),
-                    statItem('TOP LOSERS', '${losers.length}', theme.colors.bearish),
+                    statItem('TOP GAINERS', '$gainersCount', theme.colors.bullish),
+                    statItem('TOP LOSERS', '$losersCount', theme.colors.bearish),
                     statItem(
                       'BEST GAIN',
                       '+${bestGain.toStringAsFixed(2)}%',
@@ -186,9 +219,9 @@ class MarketChangeDistribution extends StatelessWidget {
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  Expanded(child: statItem('TOP GAINERS', '${gainers.length}', theme.colors.bullish)),
+                  Expanded(child: statItem('TOP GAINERS', '$gainersCount', theme.colors.bullish)),
                   verticalDivider(),
-                  Expanded(child: statItem('TOP LOSERS', '${losers.length}', theme.colors.bearish)),
+                  Expanded(child: statItem('TOP LOSERS', '$losersCount', theme.colors.bearish)),
                   verticalDivider(),
                   Expanded(
                     child: statItem(
@@ -216,8 +249,8 @@ class MarketChangeDistribution extends StatelessWidget {
         UiCard(
           title: 'Daily change distribution',
           subtitle:
-              '${instruments.length} quoted instruments · percentage change',
-          child: instruments.isEmpty
+              '$totalCount quoted instruments · percentage change',
+          child: totalCount == 0
               ? const UiEmptyState(title: 'No quotes in this snapshot')
               : UiBarChart(
                   height: 230,

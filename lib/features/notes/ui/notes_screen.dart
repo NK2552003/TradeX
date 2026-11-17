@@ -1502,6 +1502,8 @@ class NotesScreenState extends State<NotesScreen> {
       return RecordOpeningBanner(
         title: 'Opening note...',
         subtitle: 'Fetching research note and linked records',
+        badgeLabel: 'Note',
+        icon: Icons.note_alt_outlined,
         onBack: widget.onReturnToOrigin ?? _backToList,
       );
     }

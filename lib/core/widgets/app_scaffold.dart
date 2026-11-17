@@ -1005,6 +1005,12 @@ class _AppScaffoldState extends State<AppScaffold> {
             ) !=
             null) {
       AuthSessionStorage.saveLastDestination(id);
+      setState(() {
+        _selectedId = id;
+        _activeSubpageTitle = null;
+        _activeSubpageIcon = null;
+        _activeSubpageOnBack = null;
+      });
       widget.onDestinationChanged?.call(id);
       return;
     }
@@ -1358,6 +1364,12 @@ class _AppScaffoldState extends State<AppScaffold> {
         ),
         _ => UiSkeleton.settingsDetail(sections: 3),
       };
+    }
+    if (id == 'market' || id.startsWith('market_')) {
+      return UiSkeleton.market();
+    }
+    if (id == 'community' || id.startsWith('community_')) {
+      return UiSkeleton.community();
     }
     return switch (id) {
       'overview' => UiSkeleton.dashboard(),
