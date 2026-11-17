@@ -92,7 +92,7 @@ class _PublicWorkspaceAttachmentState extends State<PublicWorkspaceAttachment>
     if (!mounted || signature == _sourceSignature) return;
     _sourceSignature = signature;
     setState(() {
-      if (isPublic != true) {
+      if (isPublic == false) {
         _future = Future.value(null);
       } else {
         _reload();

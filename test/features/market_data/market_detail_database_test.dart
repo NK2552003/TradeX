@@ -161,4 +161,113 @@ void main() {
       },
     );
   }
+
+  test('snapshot scopes quotes, fundamentals and screeners to market_universe', () async {
+    final client = SupabaseClient(
+      'https://example.test',
+      'test-key',
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+      httpClient: MockClient((request) async {
+        final table = request.url.pathSegments.last;
+        final rows = switch (table) {
+          'market_universe' => [
+            {
+              'ticker': 'AAPL',
+              'display_symbol': 'AAPL',
+              'rank': 1,
+              'name': 'Apple Inc.',
+              'exchange': 'NASDAQ',
+              'sector': 'Technology',
+              'market_cap': 5180000000000,
+            },
+          ],
+          'tickers' => [
+            {'ticker': 'AAPL', 'name': 'Apple Inc.', 'market': 'US'},
+            {'ticker': 'RELIANCE.NS', 'name': 'Reliance', 'market': 'IN'},
+          ],
+          'stock_quotes' => [
+            {'ticker': 'AAPL', 'price': 250, 'previous_close': 245, 'change_pct': 2.0, 'volume': 100},
+            {'ticker': 'RELIANCE.NS', 'price': 3000, 'previous_close': 2950, 'change_pct': 1.7, 'volume': 200},
+          ],
+          'stock_fundamentals' => [
+            {'ticker': 'AAPL', 'sector': 'Technology'},
+            {'ticker': 'RELIANCE.NS', 'sector': 'Energy'},
+          ],
+          'screener_categories' => [
+            {'id': 1, 'name': 'top_gainers', 'category_type': 'GLOBAL'},
+          ],
+          'screener_results' => [
+            {'category_id': 1, 'ticker': 'AAPL', 'rank': 1, 'price': 250, 'change_pct': 2.0},
+            {'category_id': 1, 'ticker': 'RELIANCE.NS', 'rank': 2, 'price': 3000, 'change_pct': 1.7},
+          ],
+          _ => [],
+        };
+        return http.Response(
+          jsonEncode(rows),
+          200,
+          headers: {'content-type': 'application/json'},
+          request: request,
+        );
+      }),
+    );
+    addTearDown(client.dispose);
+    final repo = AssetMarketRepository(client: client);
+    final snap = await repo.snapshot();
+    expect(snap.instruments.map((e) => e.symbol).toList(), ['AAPL']);
+    expect(snap.screeners['top_gainers']?.map((e) => e.symbol).toList(), ['AAPL']);
+  });
+
+  test('detail normalizes SQL tables and forwards stock_details options/news/snapshot', () async {
+    final client = SupabaseClient(
+      'https://example.test',
+      'test-key',
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+      httpClient: MockClient((request) async {
+        final table = request.url.pathSegments.last;
+        final rows = switch (table) {
+          'tickers' => [{'ticker': 'AAPL', 'name': 'Apple Inc.', 'market': 'US'}],
+          'stock_quotes' => [_quote],
+          'stock_fundamentals' => [{'ticker': 'AAPL', 'sector': 'Technology'}],
+          'analyst_recommendations' => [
+            {'ticker': 'AAPL', 'period': '0m', 'strong_buy': 10, 'buy': 20, 'hold': 5, 'sell': 1, 'strong_sell': 0},
+          ],
+          'holders' => [
+            {'ticker': 'AAPL', 'holder_type': 'institutional', 'holder_name': 'Vanguard', 'shares': 1000, 'pct_out': 0.09},
+          ],
+          'dividends' => [
+            {'ticker': 'AAPL', 'ex_date': '2026-11-01', 'amount': 0.25},
+          ],
+          'stock_details' => [
+            {
+              'detail': {
+                'ticker': 'AAPL',
+                'options': {
+                  'expirations': ['2026-12-18'],
+                  'chains': {'2026-12-18': {'calls': [{'strike': 250, 'openInterest': 500}], 'puts': []}},
+                },
+                'news': [{'title': 'Apple headline', 'link': 'https://example.test/n'}],
+                'snapshot': {'source': 'yahoo', 'sections_available': 5},
+                'availability': {'options': {'available': true, 'count': 1}},
+              },
+            },
+          ],
+          _ => [],
+        };
+        return http.Response(
+          jsonEncode(rows),
+          200,
+          headers: {'content-type': 'application/json'},
+          request: request,
+        );
+      }),
+    );
+    addTearDown(client.dispose);
+    final detail = await AssetMarketRepository(client: client).detail('AAPL');
+    expect((detail['recommendations'] as List).first['strongBuy'], 10);
+    expect((detail['holders']['institutional_holders'] as List).first['Holder'], 'Vanguard');
+    expect((detail['dividends_and_splits']['dividends'] as List).first['date'], '2026-11-01');
+    expect((detail['options']['chains'] as Map).containsKey('2026-12-18'), isTrue);
+    expect((detail['news'] as List).first['title'], 'Apple headline');
+    expect(detail['snapshot']['sections_available'], 5);
+  });
 }

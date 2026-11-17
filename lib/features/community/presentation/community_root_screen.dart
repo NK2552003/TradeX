@@ -817,6 +817,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       onAuthorTap: _openAuthorProfile,
       onOpenRef: widget.onOpenRef,
       onTagTap: _handleTagTap,
+      onSearchTap: _openSearchPage,
       searchQuery: widget.searchQuery,
     ),
     // 2 — Network

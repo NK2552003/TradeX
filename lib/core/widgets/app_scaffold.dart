@@ -174,8 +174,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   bool _aiRepoWasConnected = false;
   final GlobalKey<MessagesRootScreenState> _messagesKey =
       GlobalKey<MessagesRootScreenState>();
-  final GlobalKey<CopilotScreenState> _aiKey =
-      GlobalKey<CopilotScreenState>();
+  final GlobalKey<CopilotScreenState> _aiKey = GlobalKey<CopilotScreenState>();
   String _messagesQuery = '';
   String _aiQuery = '';
   String? _aiInitialPrompt;
@@ -190,8 +189,8 @@ class _AppScaffoldState extends State<AppScaffold> {
       UserRole.customer => true,
       UserRole.affiliate =>
         live.role == UserRole.userAdmin ||
-        live.role == UserRole.affiliate ||
-        (live.affiliateApproved && live.allows('affiliate')),
+            live.role == UserRole.affiliate ||
+            (live.affiliateApproved && live.allows('affiliate')),
       UserRole.userAdmin => live.role == UserRole.userAdmin,
     };
   }
@@ -324,14 +323,18 @@ class _AppScaffoldState extends State<AppScaffold> {
     _aiRepo.addListener(_onAiRepoChanged);
     AiSettingsRepositoryImpl.instance
         .getSettings(copilotController: _aiRepo)
-        .catchError((Object _) => AiSettingsRepositoryImpl.instance.cachedSettings);
+        .catchError(
+          (Object _) => AiSettingsRepositoryImpl.instance.cachedSettings,
+        );
   }
 
   void _onAiRepoChanged() {
     if (_aiRepoWasConnected == _aiRepo.connected) return;
     _aiRepoWasConnected = _aiRepo.connected;
     if (_aiRepo.connected) {
-      unawaited(AiSettingsRepositoryImpl.instance.syncCopilotWorkspace(_aiRepo));
+      unawaited(
+        AiSettingsRepositoryImpl.instance.syncCopilotWorkspace(_aiRepo),
+      );
     }
   }
 
@@ -448,7 +451,8 @@ class _AppScaffoldState extends State<AppScaffold> {
     // A post opened in Explore/Profile/Bookmarks updates the browser URL to
     // community_feed. That echo must not remount the feed and its open panel.
     final request = widget.initialOpenRequest;
-    final isOpenPostEcho = _isCommunityFeature &&
+    final isOpenPostEcho =
+        _isCommunityFeature &&
         widget.initialDestination == 'community_feed' &&
         request?.kind == AppLinkKind.communityPost &&
         _linkRequest?.kind == request?.kind &&
@@ -876,20 +880,23 @@ class _AppScaffoldState extends State<AppScaffold> {
     return switch (role) {
       UserRole.customer =>
         const <String>{
-          'journal',
-          'notes',
-          'strategies',
-          'calculators',
-          'community',
-        }.contains(id) ||
-        id.startsWith('community_'),
-      UserRole.affiliate =>
-        const <String>{'referrals', 'marketing', 'payouts'}.contains(id),
+              'journal',
+              'notes',
+              'strategies',
+              'calculators',
+              'community',
+            }.contains(id) ||
+            id.startsWith('community_'),
+      UserRole.affiliate => const <String>{
+        'referrals',
+        'marketing',
+        'payouts',
+      }.contains(id),
       UserRole.userAdmin =>
         id == 'admin_console' ||
-        id == 'affiliate_reviews' ||
-        id.startsWith('admin_') ||
-        id.startsWith('org_'),
+            id == 'affiliate_reviews' ||
+            id.startsWith('admin_') ||
+            id.startsWith('org_'),
     };
   }
 
@@ -1711,8 +1718,9 @@ class _AppScaffoldState extends State<AppScaffold> {
     'admin_notes' => _DeferredFeatureView(
       libraryId: 'admin_records',
       loadLibrary: deferred_admin_records.loadLibrary,
-      builder: (BuildContext _) =>
-          deferred_admin_records.AdminRecordsPage(resource: AdminResource.notes),
+      builder: (BuildContext _) => deferred_admin_records.AdminRecordsPage(
+        resource: AdminResource.notes,
+      ),
     ),
     'admin_journal' => _DeferredFeatureView(
       libraryId: 'admin_records',
@@ -2161,8 +2169,7 @@ class _AppScaffoldState extends State<AppScaffold> {
         AdEligibility.publicDestination(
           _selectedId,
           publicRecord:
-              _selectedId == 'notes' &&
-              (_linkRequest?.publicContext ?? false),
+              _selectedId == 'notes' && (_linkRequest?.publicContext ?? false),
         );
     final bool adsEligible =
         !widget.showDevelopmentRoleSwitcher &&
@@ -2220,9 +2227,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                             ? _updateMessagesQuery
                             : (_isAiFeature ? _updateAiQuery : null))),
             searchTargetKey: _isWritingFeature ? _workspaceSearchKey : null,
-            headerActions: <Widget>[
-              _buildHeaderRoleSwitcherAction(),
-            ],
+            headerActions: <Widget>[_buildHeaderRoleSwitcherAction()],
             onSettings: () => _go('settings'),
             onAi: () => _go('ai_copilot'),
             onNotifications: _openNotificationsOverlay,
@@ -2281,6 +2286,7 @@ class _AppScaffoldState extends State<AppScaffold> {
         canPop:
             _activeSubpageOnBack == null &&
             !_showAffiliateApplication &&
+            _linkedOrigins.isEmpty &&
             _destinationHistory.isEmpty,
         onPopInvokedWithResult: (bool didPop, Object? result) {
           if (didPop) return;

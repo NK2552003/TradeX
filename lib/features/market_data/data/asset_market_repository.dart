@@ -50,42 +50,107 @@ class AssetMarketRepository {
     },
   );
 
-  Future<dynamic> _readFromDatabase(String path) async {
-    final SupabaseClient client = _database;
-    if (path == 'tickers/universe') {
-      final rows = await client
-          .from('tickers')
-          .select('ticker, name, market, exchange, currency, asset_type')
-          .order('ticker', ascending: true)
-          .limit(2000);
-      return (rows as List)
+  Future<List<Map<String, dynamic>>> _fetchPaged(
+    Future<dynamic> Function(int from, int to) fetchPage, {
+    int pageSize = 1000,
+    int maxRows = 5000,
+  }) async {
+    final out = <Map<String, dynamic>>[];
+    for (var offset = 0; offset < maxRows; offset += pageSize) {
+      final to = (offset + pageSize - 1).clamp(offset, maxRows - 1);
+      final raw = await fetchPage(offset, to);
+      final page = (raw as List? ?? const <dynamic>[])
           .whereType<Map>()
           .map((r) => Map<String, dynamic>.from(r))
           .toList();
+      out.addAll(page);
+      if (page.length < pageSize) break;
+    }
+    return out;
+  }
+
+  Future<Set<String>?> _loadUniverseSet(SupabaseClient client) async {
+    try {
+      final rows = await _fetchPaged(
+        (from, to) => client
+            .from('market_universe')
+            .select('ticker')
+            .order('rank', ascending: true)
+            .range(from, to),
+      );
+      if (rows.isEmpty) return null;
+      return {
+        for (final r in rows)
+          if ('${r['ticker'] ?? ''}'.isNotEmpty) '${r['ticker']}',
+      };
+    } on PostgrestException catch (error) {
+      if (error.code == 'PGRST205' || error.code == '42P01') return null;
+      rethrow;
+    }
+  }
+
+  Future<dynamic> _readFromDatabase(String path) async {
+    final SupabaseClient client = _database;
+    if (path == 'tickers/universe') {
+      try {
+        final universeRows = await _fetchPaged(
+          (from, to) => client
+              .from('market_universe')
+              .select('ticker, display_symbol, rank, name, exchange, sector, market_cap')
+              .order('rank', ascending: true)
+              .range(from, to),
+        );
+        if (universeRows.isNotEmpty) {
+          return [
+            for (final r in universeRows)
+              <String, dynamic>{
+                ...r,
+                'market': 'US',
+                'currency': 'USD',
+              },
+          ];
+        }
+      } on PostgrestException catch (error) {
+        if (error.code != 'PGRST205' && error.code != '42P01') rethrow;
+      }
+      return _fetchPaged(
+        (from, to) => client
+            .from('tickers')
+            .select('ticker, name, market, exchange, currency, asset_type')
+            .order('ticker', ascending: true)
+            .range(from, to),
+      );
     }
     if (path == 'quotes') {
-      final rows = await client
-          .from('stock_quotes')
-          .select(
-            'ticker, price, previous_close, day_high, day_low, volume, change_pct, updated_at',
-          )
-          .limit(2000);
-      final tickersRows = await client
-          .from('tickers')
-          .select('ticker, name, market, currency')
-          .limit(2000);
+      final allowed = await _loadUniverseSet(client);
+      final rows = await _fetchPaged(
+        (from, to) => client
+            .from('stock_quotes')
+            .select(
+              'ticker, price, previous_close, day_high, day_low, volume, change_pct, updated_at',
+            )
+            .order('ticker', ascending: true)
+            .range(from, to),
+      );
+      final tickersRows = await _fetchPaged(
+        (from, to) => client
+            .from('tickers')
+            .select('ticker, name, market, currency')
+            .order('ticker', ascending: true)
+            .range(from, to),
+      );
       final metaByTicker = <String, Map<String, dynamic>>{
-        for (final t in (tickersRows as List).whereType<Map>())
-          '${t['ticker']}': Map<String, dynamic>.from(t),
+        for (final t in tickersRows) '${t['ticker']}': t,
       };
       final map = <String, Map<String, dynamic>>{};
-      for (final raw in (rows as List).whereType<Map>()) {
+      for (final raw in rows) {
         final symbol = '${raw['ticker'] ?? ''}';
         if (symbol.isEmpty) continue;
+        if (allowed != null && !allowed.contains(symbol)) continue;
         final meta = metaByTicker[symbol] ?? const <String, dynamic>{};
         map[symbol] = <String, dynamic>{
           ...meta,
-          ...Map<String, dynamic>.from(raw),
+          ...raw,
           'ticker': symbol,
           'name': meta['name'] ?? symbol,
           'market':
@@ -100,16 +165,21 @@ class AssetMarketRepository {
       return map;
     }
     if (path == 'fundamentals') {
-      final rows = await client
-          .from('stock_fundamentals')
-          .select(
-            'ticker, market_cap, pe_ratio, sector, industry, dividend_yield, beta, fifty_two_week_high, fifty_two_week_low',
-          )
-          .limit(2000);
+      final allowed = await _loadUniverseSet(client);
+      final rows = await _fetchPaged(
+        (from, to) => client
+            .from('stock_fundamentals')
+            .select(
+              'ticker, market_cap, pe_ratio, sector, industry, dividend_yield, beta, fifty_two_week_high, fifty_two_week_low',
+            )
+            .order('ticker', ascending: true)
+            .range(from, to),
+      );
       return <String, Map<String, dynamic>>{
-        for (final r in (rows as List).whereType<Map>())
-          if ('${r['ticker'] ?? ''}'.isNotEmpty)
-            '${r['ticker']}': Map<String, dynamic>.from(r),
+        for (final r in rows)
+          if ('${r['ticker'] ?? ''}'.isNotEmpty &&
+              (allowed == null || allowed.contains('${r['ticker']}')))
+            '${r['ticker']}': r,
       };
     }
     if (path == 'all_news' || path == 'news') {
@@ -153,6 +223,7 @@ class AssetMarketRepository {
       ];
     }
     if (path == 'screeners') {
+      final allowed = await _loadUniverseSet(client);
       final cats = await client
           .from('screener_categories')
           .select('id, name, category_type')
@@ -169,6 +240,8 @@ class AssetMarketRepository {
       };
       final out = <String, Map<String, dynamic>>{};
       for (final r in (results as List).whereType<Map>()) {
+        final ticker = '${r['ticker'] ?? ''}';
+        if (allowed != null && !allowed.contains(ticker)) continue;
         final catName = catNameById[r['category_id']];
         if (catName == null) continue;
         final bucket = out.putIfAbsent(
@@ -776,56 +849,179 @@ class AssetMarketRepository {
       }
     } catch (_) {}
 
+    final storedDetail = results[8] is Map && (results[8] as Map)['detail'] is Map
+        ? Map<String, dynamic>.from((results[8] as Map)['detail'] as Map)
+        : <String, dynamic>{};
+
+    // Merge company news from stock_details.detail['news'] and global all_news.
+    final seenNewsKeys = <String>{};
+    final mergedNews = <Map<String, dynamic>>[];
+    void addNewsItem(Map<String, dynamic> item) {
+      final link = '${item['link'] ?? ''}';
+      final title = '${item['title'] ?? ''}';
+      final key = link.isNotEmpty ? link : title;
+      if (key.isEmpty || !seenNewsKeys.add(key)) return;
+      mergedNews.add(item);
+    }
+
+    for (final raw in (storedDetail['news'] as List? ?? const <dynamic>[]).whereType<Map>()) {
+      addNewsItem(Map<String, dynamic>.from(raw));
+    }
+    for (final item in companyNews) {
+      addNewsItem(item);
+    }
+
+    final storedQuote = storedDetail['quote'] is Map
+        ? Map<String, dynamic>.from(storedDetail['quote'] as Map)
+        : const <String, dynamic>{};
     final mergedQuote = <String, dynamic>{
+      ...storedQuote,
       ...tickerRow,
       ...quoteRow,
       'ticker': symbol,
-      'price': quoteRow['price'] ?? 0.0,
-      'name': tickerRow['name'] ?? fundRow['name'] ?? symbol,
+      'price': quoteRow['price'] ?? storedQuote['price'] ?? 0.0,
+      'name': tickerRow['name'] ?? fundRow['name'] ?? storedQuote['name'] ?? symbol,
       'market':
           tickerRow['market'] ??
+          storedQuote['market'] ??
           (symbol.endsWith('.NS')
               ? 'IN'
               : (symbol.endsWith('-USD') ? 'CRYPTO' : 'US')),
       'currency':
-          tickerRow['currency'] ?? (symbol.endsWith('.NS') ? 'INR' : 'USD'),
+          tickerRow['currency'] ??
+          storedQuote['currency'] ??
+          (symbol.endsWith('.NS') ? 'INR' : 'USD'),
     };
 
-    final storedDetail = results[8] is Map ? (results[8] as Map)['detail'] : null;
-    final storedSummary = storedDetail is Map ? storedDetail['summary'] : null;
+    final storedSummary = storedDetail['summary'] is Map
+        ? Map<String, dynamic>.from(storedDetail['summary'] as Map)
+        : const <String, dynamic>{};
     final mergedSummary = <String, dynamic>{
-      if (storedSummary is Map) ...Map<String, dynamic>.from(storedSummary),
-      'name': tickerRow['name'] ?? symbol,
+      ...storedSummary,
+      'name': tickerRow['name'] ?? storedSummary['name'] ?? symbol,
       'market': mergedQuote['market'],
-      'exchange': tickerRow['exchange'],
+      'exchange': tickerRow['exchange'] ?? storedSummary['exchange'],
       'currency': mergedQuote['currency'],
       ...fundRow,
     };
+
+    final storedChart = storedDetail['chart'] is Map
+        ? Map<String, dynamic>.from(storedDetail['chart'] as Map)
+        : const <String, dynamic>{};
+    final chartData = historyRows.isNotEmpty
+        ? historyRows
+        : (storedChart['data'] as List? ?? const <dynamic>[])
+            .whereType<Map>()
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList();
+
+    final normalizedDividends = [
+      for (final r in dividendRows)
+        <String, dynamic>{
+          ...r,
+          'date': r['date'] ?? r['ex_date'],
+        },
+    ];
+    final normalizedSplits = [
+      for (final r in splitRows)
+        <String, dynamic>{
+          ...r,
+          'date': r['date'] ?? r['split_date'],
+        },
+    ];
+    final storedActions = storedDetail['dividends_and_splits'] is Map
+        ? Map<String, dynamic>.from(storedDetail['dividends_and_splits'] as Map)
+        : const <String, dynamic>{};
+    final mergedDividends = normalizedDividends.isNotEmpty
+        ? normalizedDividends
+        : (storedActions['dividends'] as List? ?? const <dynamic>[])
+            .whereType<Map>()
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList();
+    final mergedSplits = normalizedSplits.isNotEmpty
+        ? normalizedSplits
+        : (storedActions['splits'] as List? ?? const <dynamic>[])
+            .whereType<Map>()
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList();
+
+    final normalizedRecs = [
+      for (final r in analystRows)
+        <String, dynamic>{
+          ...r,
+          'strongBuy': r['strongBuy'] ?? r['strong_buy'] ?? 0,
+          'buy': r['buy'] ?? 0,
+          'hold': r['hold'] ?? 0,
+          'sell': r['sell'] ?? 0,
+          'strongSell': r['strongSell'] ?? r['strong_sell'] ?? 0,
+        },
+    ];
+    final mergedRecs = normalizedRecs.isNotEmpty
+        ? normalizedRecs
+        : (storedDetail['recommendations'] as List? ?? const <dynamic>[])
+            .whereType<Map>()
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList();
+
+    Map<String, dynamic> normalizeHolder(Map<String, dynamic> r) => <String, dynamic>{
+      ...r,
+      if (r['Holder'] == null && r['holder_name'] != null) 'Holder': r['holder_name'],
+      if (r['pctHeld'] == null && r['pct_out'] != null) 'pctHeld': r['pct_out'],
+      if (r['Shares'] == null && r['shares'] != null) 'Shares': r['shares'],
+      if (r['Value'] == null && r['value'] != null) 'Value': r['value'],
+      if (r['Date Reported'] == null && r['date_reported'] != null)
+        'Date Reported': r['date_reported'],
+    };
+    final normalizedHolders = holderRows.map(normalizeHolder).toList();
+    final storedHolders = storedDetail['holders'] is Map
+        ? Map<String, dynamic>.from(storedDetail['holders'] as Map)
+        : const <String, dynamic>{};
+    final mergedHolders = normalizedHolders.isNotEmpty
+        ? <String, dynamic>{
+            'major_holders': normalizedHolders
+                .where((h) => '${h['holder_type']}' == 'major')
+                .toList(),
+            'institutional_holders': normalizedHolders
+                .where((h) => '${h['holder_type']}'.contains('institution'))
+                .toList(),
+            'mutual_fund_holders': normalizedHolders
+                .where((h) => '${h['holder_type']}'.contains('mutual'))
+                .toList(),
+          }
+        : storedHolders;
+
+    final mergedOptions = storedDetail['options'] is Map
+        ? Map<String, dynamic>.from(storedDetail['options'] as Map)
+        : const <String, dynamic>{'expirations': <dynamic>[], 'chains': <String, dynamic>{}};
 
     final res = <String, dynamic>{
       'ticker': symbol,
       'market': mergedQuote['market'],
       'quote': mergedQuote,
       'summary': mergedSummary,
-      'chart': <String, dynamic>{'ticker': symbol, 'data': historyRows},
-      'news': companyNews,
-      'analyst_recommendations': analystRows,
-      'holders': <String, dynamic>{
-        'institutional': holderRows
-            .where((h) => '${h['holder_type']}'.contains('institution'))
-            .toList(),
-        'mutual_fund': holderRows
-            .where((h) => '${h['holder_type']}'.contains('mutual'))
-            .toList(),
-        'all': holderRows,
+      'chart': <String, dynamic>{
+        ...storedChart,
+        'ticker': symbol,
+        'data': chartData,
       },
+      'news': mergedNews.take(15).toList(),
+      'recommendations': mergedRecs,
+      'analyst_recommendations': mergedRecs,
+      'holders': mergedHolders,
       'dividends_and_splits': <String, dynamic>{
-        'dividends': dividendRows,
-        'splits': splitRows,
+        'dividends': mergedDividends,
+        'splits': mergedSplits,
       },
-      'options': const <String, dynamic>{'chains': <String, dynamic>{}},
+      'options': mergedOptions,
+      if (storedDetail['universe'] != null) 'universe': storedDetail['universe'],
+      if (storedDetail['availability'] != null)
+        'availability': storedDetail['availability'],
+      if (storedDetail['snapshot'] != null) 'snapshot': storedDetail['snapshot'],
       'data_source': 'supabase_live',
-      'fetched_at': quoteRow['updated_at'] ?? fundRow['updated_at'],
+      'fetched_at':
+          quoteRow['updated_at'] ??
+          fundRow['updated_at'] ??
+          storedDetail['updated_at'],
     };
     _detailCache[symbol] = res;
     return res;

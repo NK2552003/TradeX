@@ -210,10 +210,12 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
       context,
       reference: ref,
       isPublic: _note.isPublic,
-      onPublish: _canEdit ? () async {
-        await _toggleVisibility();
-        if (mounted && _note.isPublic) await _shareNote();
-      } : null,
+      onPublish: _canEdit
+          ? () async {
+              await _toggleVisibility();
+              if (mounted && _note.isPublic) await _shareNote();
+            }
+          : null,
       onExportPdf: _exportPdf,
     );
   }

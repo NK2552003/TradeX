@@ -1,3 +1,4 @@
+import 'package:tradex/core/widgets/record_unavailable.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
@@ -158,9 +159,47 @@ class JournalScreenState extends State<JournalScreen> {
   GlobalKey<JournalEditorScreenState> _editorKey =
       GlobalKey<JournalEditorScreenState>();
 
+  bool _revalidatingPublicRecord = false;
+
+  /// True while a deep-linked record is being fetched, so the list/dashboard
+  /// is never flashed before the record opens.
+  bool _resolvingRequest = false;
+
+  Future<void> _revalidatePublicRecord(String id) async {
+    if (_revalidatingPublicRecord) return;
+    _revalidatingPublicRecord = true;
+    try {
+      final record = await _repo.getById(id);
+      if (!mounted || !_isPublicContext || _linkedRecord?.id != id) return;
+      setState(() {
+        if (record == null || !record.isPublic) {
+          _accessError = 'This record is private, deleted, or unavailable.';
+        } else {
+          _linkedRecord = record;
+          _accessError = null;
+        }
+      });
+    } catch (_) {
+      if (mounted && _isPublicContext) {
+        setState(
+          () => _accessError =
+              'Could not verify this record. Please reopen it to retry.',
+        );
+      }
+    } finally {
+      _revalidatingPublicRecord = false;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    final AppLinkOpenRequest? initialRequest = widget.openRequest;
+    _resolvingRequest =
+        initialRequest != null &&
+        initialRequest.id.isNotEmpty &&
+        initialRequest.id.isNotEmpty &&
+        initialRequest.kind == AppLinkKind.journal;
     _sub = _repo.watchAll().listen(
       (List<AppTrade> entries) {
         if (!mounted) return;
@@ -171,7 +210,7 @@ class JournalScreenState extends State<JournalScreen> {
                 .where((record) => record.id == _linkedRecord!.id)
                 .firstOrNull;
             if (latest != null) _linkedRecord = latest;
-            if (_isPublicContext && (latest == null || !latest.isPublic)) {
+            if (_isPublicContext && latest != null && !latest.isPublic) {
               _accessError = 'This record is no longer public.';
             }
           }
@@ -184,6 +223,9 @@ class JournalScreenState extends State<JournalScreen> {
             _selectedMonth = DateTime(newest.year, newest.month);
           }
         });
+        if (_isPublicContext && _linkedRecord != null) {
+          unawaited(_revalidatePublicRecord(_linkedRecord!.id));
+        }
       },
       onError: (Object error) {
         if (!mounted) return;
@@ -209,7 +251,11 @@ class JournalScreenState extends State<JournalScreen> {
   void didUpdateWidget(JournalScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     final AppLinkOpenRequest? request = widget.openRequest;
-    if (request != null && request != oldWidget.openRequest) _apply(request);
+    if (request != null && request != oldWidget.openRequest) {
+      if (request.id.isNotEmpty && request.kind == AppLinkKind.journal)
+        _resolvingRequest = true;
+      _apply(request);
+    }
     if (oldWidget.onSubpageChanged != widget.onSubpageChanged) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _announce());
     }
@@ -264,7 +310,8 @@ class JournalScreenState extends State<JournalScreen> {
   };
 
   AppTrade? get _active {
-    if (_linkedRecord != null && _linkedRecord!.id == _activeId) return _linkedRecord;
+    if (_linkedRecord != null && _linkedRecord!.id == _activeId)
+      return _linkedRecord;
     final AppTrade? draft = _draft;
     if (draft != null) return draft;
     final String? id = _activeId;
@@ -400,6 +447,16 @@ class JournalScreenState extends State<JournalScreen> {
   }
 
   Future<void> _apply(AppLinkOpenRequest request) async {
+    try {
+      await _applyRequest(request);
+    } finally {
+      if (mounted && _resolvingRequest) {
+        setState(() => _resolvingRequest = false);
+      }
+    }
+  }
+
+  Future<void> _applyRequest(AppLinkOpenRequest request) async {
     if (request.kind != AppLinkKind.journal) return;
     if (request.id.isEmpty) {
       if (request.editWriting) {
@@ -783,15 +840,16 @@ class JournalScreenState extends State<JournalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_resolvingRequest &&
+        _accessError == null &&
+        _view == _JournalView.list) {
+      return const UiSkeleton(width: double.infinity, height: 240);
+    }
     if (_accessError != null) {
-      return UiEmptyState(
-        title: 'Record unavailable',
-        message: _accessError,
-        action: UiButton(label: 'Back', onPressed: _backToIndex),
-      );
+      return RecordUnavailable(message: _accessError!, onBack: _backToIndex);
     }
     final AppTrade? active = _active;
-    
+
     if (_view == _JournalView.editor && active != null) {
       return PopScope(
         canPop: false,

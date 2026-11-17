@@ -194,7 +194,8 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                   UiTableColumn(
                     header: 'Company',
                     flex: 2,
-                    cell: (c, r) => Text(quotes[r['ticker']]?.name ?? '—'),
+                    cell: (c, r) =>
+                        Text(quotes[r['ticker']]?.name ?? '${r['name'] ?? '—'}'),
                   ),
                   UiTableColumn(
                     header: 'Availability',

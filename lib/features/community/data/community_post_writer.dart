@@ -75,6 +75,29 @@ class CommunityPostWriter {
     }
   }
 
+  static Map<String, dynamic> candleAttachment(
+    String postId,
+    CommunityTradeSetup setup,
+  ) => {
+    'post_id': postId,
+    'kind': 'chart_candles',
+    'ref_id': setup.ticker,
+    'title': setup.candlesFromImage
+        ? 'Image-derived candles (approximate)'
+        : 'Candlestick Chart Data',
+    'url': jsonEncode([
+      for (final candle in setup.candles)
+        {
+          'time': candle.time.toIso8601String(),
+          'open': candle.open,
+          'high': candle.high,
+          'low': candle.low,
+          'close': candle.close,
+          'volume': candle.volume,
+        },
+    ]),
+  };
+
   Future<void> writeChildren(CommunityPost post) async {
     final setup = post.tradeSetup;
     if (setup != null) {
@@ -101,30 +124,21 @@ class CommunityPostWriter {
         'target1': double.tryParse(setup.target ?? ''),
       }, onConflict: 'post_id');
       if (setup.candles.isNotEmpty) {
-        await client.from('community_post_attachments').insert({
-          'post_id': post.id,
-          'kind': 'chart_candles',
-          'ref_id': setup.ticker,
-          'title': 'Candlestick Chart Data',
-          'url': jsonEncode([
-            for (final c in setup.candles)
-              {
-                'time': c.time.toIso8601String(),
-                'open': c.open,
-                'high': c.high,
-                'low': c.low,
-                'close': c.close,
-                'volume': c.volume,
-              },
-          ]),
-        });
+        await client
+            .from('community_post_attachments')
+            .insert(candleAttachment(post.id, setup));
       }
     }
     if (post.effectiveImageUrls.isNotEmpty) {
       await client.from('community_post_attachments').insert([
         for (final url in post.effectiveImageUrls.toSet())
-          {'post_id': post.id, 'kind': 'image', 'ref_id': url,
-           'url': url, 'title': 'Chart image'},
+          {
+            'post_id': post.id,
+            'kind': 'image',
+            'ref_id': url,
+            'url': url,
+            'title': 'Chart image',
+          },
       ]);
     }
     final attachment = post.attachment;

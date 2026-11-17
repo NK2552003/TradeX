@@ -30,7 +30,14 @@ import json
 import os
 from asset_runtime import DATA_DIR as ASSET_DIR, read_json, write_json, merge_news
 
-import yfinance as yf
+try:
+    import yfinance as yf
+except ImportError:
+    class _YfStub:
+        def download(self, *a, **kw): raise RuntimeError('yfinance not installed')
+        def screen(self, *a, **kw): raise RuntimeError('yfinance not installed')
+        def Ticker(self, *a, **kw): raise RuntimeError('yfinance not installed')
+    yf = _YfStub()
 
 DB_ENABLED = bool(os.environ.get("DATABASE_URL"))
 if DB_ENABLED:

@@ -1,3 +1,6 @@
+import 'package:tradex/core/config/supabase_config.dart';
+import '../../data/community_chart_detector.dart';
+import 'community_chart_review.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/features/community/data/workspace_attachment_service.dart';
@@ -64,8 +67,10 @@ class CommunityComposerCard extends StatefulWidget {
     this.compact = false,
     this.isDrawerTile = false,
     this.writingAssistant,
+    this.chartDetector,
   });
 
+  final CommunityChartDetector? chartDetector;
   final ComposerMode initialMode;
   final CommunityWritingAssistant? writingAssistant;
   final CommunityAuthor author;
@@ -237,6 +242,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     if (p.tradeSetup != null) {
       _activeMode = ComposerMode.tradeSetup;
       final ts = p.tradeSetup!;
+      _candlesFromImage = ts.candlesFromImage;
       if (ts.candles.isNotEmpty) {
         _setupCandlesCtrl.text = const JsonEncoder.withIndent('  ').convert([
           for (final c in ts.candles)
@@ -378,9 +384,6 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     if (t.isEmpty || _tickers.contains(t)) return;
     setState(() {
       _tickers.add(t);
-      if (!_body.contains('\$$t')) {
-        _bodyCtrl.text = _body.isEmpty ? '\$$t ' : '$_body \$$t ';
-      }
     });
   }
 
@@ -393,10 +396,39 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     if (t.isEmpty || _tags.contains(t)) return;
     setState(() {
       _tags.add(t);
-      if (!_body.contains('#$t')) {
-        _bodyCtrl.text = _body.isEmpty ? '#$t ' : '$_body #$t ';
-      }
     });
+  }
+
+  void _formatMarkdown(UiEditorAction action) {
+    final selection = _bodyCtrl.selection;
+    final start = selection.isValid ? selection.start : _bodyCtrl.text.length;
+    final end = selection.isValid ? selection.end : start;
+    final selected = _bodyCtrl.text.substring(start, end);
+    final (before, after, placeholder) = switch (action) {
+      UiEditorAction.bold => ('**', '**', 'bold text'),
+      UiEditorAction.italic => ('*', '*', 'italic text'),
+      UiEditorAction.heading => ('## ', '', 'Heading'),
+      UiEditorAction.bulletList => ('- ', '', 'List item'),
+      UiEditorAction.quote => ('> ', '', 'Quote'),
+      UiEditorAction.link => ('[', '](https://)', 'link text'),
+      _ => ('', '', ''),
+    };
+    final block = [
+      UiEditorAction.heading,
+      UiEditorAction.bulletList,
+      UiEditorAction.quote,
+    ].contains(action);
+    final prefix = block && start > 0 && _bodyCtrl.text[start - 1] != '\n'
+        ? '\n$before'
+        : before;
+    final content = selected.isEmpty ? placeholder : selected;
+    _bodyCtrl.value = TextEditingValue(
+      text: _bodyCtrl.text.replaceRange(start, end, '$prefix$content$after'),
+      selection: TextSelection(
+        baseOffset: start + prefix.length,
+        extentOffset: start + prefix.length + content.length,
+      ),
+    );
   }
 
   void _applyTemplate(String templateText) {
@@ -441,11 +473,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     };
     setState(() => _aiBusy = true);
     try {
-      final suggestion = await (widget.writingAssistant ?? CommunityWritingAssistant()).suggest(
-        action: action,
-        draft: original,
-        setup: originalSetup,
-      );
+      final suggestion =
+          await (widget.writingAssistant ?? CommunityWritingAssistant())
+              .suggest(action: action, draft: original, setup: originalSetup);
       if (!mounted) return;
       final apply = await UiDialog.show<bool>(
         context,
@@ -545,6 +575,77 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     }
   }
 
+  final Map<String, CommunityChartDetection> _chartSuggestions = {};
+  bool _candlesFromImage = false;
+  String? _chartDetectionError;
+
+  Future<void> _inspectChartImage(String image) async {
+    if (widget.chartDetector == null && !SupabaseConfig.isConfigured) return;
+    setState(() {
+      _preparingLabel = 'Reading chart details…';
+      _chartDetectionError = null;
+    });
+    try {
+      final detection = await (widget.chartDetector ?? CommunityChartDetector())
+          .detect(image);
+      if (!mounted || !_imageUrls.contains(image)) return;
+      if (detection.isChart) {
+        setState(() => _chartSuggestions[image] = detection);
+      }
+    } catch (_) {
+      if (mounted && _imageUrls.contains(image)) {
+        setState(
+          () => _chartDetectionError =
+              'Chart detection is unavailable. Your image is attached; you can enter the setup manually.',
+        );
+      }
+    }
+  }
+
+  void _applyDetectedChart(String image, CommunityChartDetection detection) {
+    setState(() {
+      final fields = <String, TextEditingController>{
+        'ticker': _setupTickerCtrl,
+        'entry': _setupEntryCtrl,
+        'stopLoss': _setupSlCtrl,
+        'target': _setupTargetCtrl,
+      };
+      final currentTicker = _setupTickerCtrl.text.trim().toUpperCase();
+      final detectedTicker = detection.setup['ticker'];
+      if (currentTicker.isNotEmpty &&
+          detectedTicker != null &&
+          currentTicker != detectedTicker) {
+        _chartDetectionError =
+            'This chart is for $detectedTicker. Clear the existing setup before importing a different symbol.';
+        return;
+      }
+      final emptyExecution =
+          _setupEntryCtrl.text.trim().isEmpty &&
+          _setupSlCtrl.text.trim().isEmpty &&
+          _setupTargetCtrl.text.trim().isEmpty;
+      for (final field in fields.entries) {
+        if (field.value.text.trim().isEmpty &&
+            detection.setup[field.key] != null) {
+          field.value.text = detection.setup[field.key]!;
+        }
+      }
+      if (emptyExecution && detection.setup['side'] != null) {
+        _tradeSetupSide = detection.setup['side']!;
+      }
+      if (_setupCandlesCtrl.text.trim().isEmpty &&
+          detection.candles.isNotEmpty) {
+        _setupCandlesCtrl.text = detection.candleJson;
+        _candlesFromImage = true;
+      }
+      if (detectedTicker != null && !_tickers.contains(detectedTicker)) {
+        _tickers.add(detectedTicker);
+      }
+      _activeMode = ComposerMode.tradeSetup;
+      _chartSuggestions.remove(image);
+      _chartDetectionError = null;
+    });
+  }
+
   bool _isUploadingChart = false;
 
   Future<void> _pickAndUploadChart() async {
@@ -579,6 +680,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             _preparedImages[preview] = image;
             _imageUrls.add(preview);
           });
+          await _inspectChartImage(preview);
         } catch (error) {
           if (!mounted) return;
           setState(() {
@@ -645,6 +747,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     setState(() {
       _imageUrls.remove(url);
       _preparedImages.remove(url);
+      _chartSuggestions.remove(url);
     });
   }
 
@@ -683,6 +786,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           ? null
           : _setupTargetCtrl.text.trim(),
       candles: _previewCandles,
+      candlesFromImage: _candlesFromImage,
       rMultiple: sameExecution ? previous.rMultiple : null,
       pnl: sameExecution ? previous.pnl : null,
       isWin: sameExecution ? previous.isWin : null,
@@ -772,11 +876,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       question: _pollQuestionCtrl.text.trim(),
       options: [
         for (int i = 0; i < validOptions.length; i++)
-          CommunityPollOption(
-            id: uuid.v4(),
-            text: validOptions[i],
-            votes: 0,
-          ),
+          CommunityPollOption(id: uuid.v4(), text: validOptions[i], votes: 0),
       ],
       expiresAt: DateTime.now().add(_pollDuration),
       allowMultiple: _pollAllowMultiple,
@@ -1110,6 +1210,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         _setupTargetCtrl.clear();
         _setupCatalystCtrl.clear();
         _setupCandlesCtrl.clear();
+        _candlesFromImage = false;
+        _chartSuggestions.clear();
+        _chartDetectionError = null;
         _candleError = null;
         _tradeSetupSide = 'LONG';
         _replyAudience = CommunityReplyAudience.everyone;
@@ -1224,6 +1327,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
     return UiCard(
       variant: UiCardVariant.surface,
+      borderless: true,
       borderRadius: cardBorderRadius,
       padding: EdgeInsets.fromLTRB(
         isMobile ? spacingSm : spacingMd,
@@ -1235,19 +1339,24 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          // Drawer Drag Handle on Mobile Bottom Sheet
-          if (asDrawerTile) ...<Widget>[
-            Center(
-              child: Container(
-                width: context.sz(36),
-                height: context.sz(4),
-                margin: EdgeInsets.only(bottom: spacingSm),
-                decoration: BoxDecoration(
-                  color: theme.colors.border.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(context.sz(2)),
+          if (widget.isDrawerTile) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.postToEdit == null ? 'Create post' : 'Edit post',
+                    style: context.uiText.subheading,
+                  ),
                 ),
-              ),
+                UiIconButton(
+                  icon: Icons.close_rounded,
+                  tooltip: 'Close composer',
+                  onPressed:
+                      widget.onClose ?? () => Navigator.of(context).maybePop(),
+                ),
+              ],
             ),
+            UiGap.v(spacingSm),
           ],
 
           // ---- Step 1: Clean Identity & Audience Header ----
@@ -1339,210 +1448,75 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   // ---------------------------------------------------------------------------
 
   Widget _buildIdentityHeader(UiTheme theme, bool isMobile) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            UiAvatar(
-              imageUrl: widget.author.avatarUrl,
-              name: widget.author.displayName,
-              size: isMobile ? UiSize.xs : UiSize.sm,
-              verified: false,
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            Expanded(
-              child: Row(
-                children: <Widget>[
-                  Flexible(
-                    child: Text(
-                      widget.author.displayName,
-                      style: context.uiText.bodyStrong.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: context.fs(13.5),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (widget.author.verified) ...<Widget>[
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.verified_rounded,
-                      size: context.sz(14),
-                      color: widget.author.verifiedColor(theme),
-                    ),
-                  ],
-                  SizedBox(width: context.sp(theme.spacing.xxs)),
-                  Builder(
-                    builder: (context) {
-                      final cleanHandle = widget.author.handle
-                          .replaceFirst(RegExp(r'^@+'), '')
-                          .trim();
-                      return Flexible(
-                        child: Text(
-                          '@$cleanHandle',
-                          style: context.uiText.caption.copyWith(
-                            color: theme.colors.foregroundMuted,
-                            fontSize: context.fs(12),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        UiAvatar(
+          imageUrl: widget.author.avatarUrl,
+          name: widget.author.displayName,
+          size: UiSize.sm,
+        ),
+        UiGap.h(context.sp(theme.spacing.sm)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.author.displayName,
+                style: context.uiText.bodyStrong,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Wrap(
+                spacing: context.sp(theme.spacing.xs),
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  UiDropdownMenu(
+                    items: [
+                      for (final audience in CommunityReplyAudience.values)
+                        UiMenuItem(
+                          label: audience == CommunityReplyAudience.everyone
+                              ? 'Everyone'
+                              : audience == CommunityReplyAudience.following
+                              ? 'Traders you follow'
+                              : 'Mentioned traders only',
+                          selected: _replyAudience == audience,
+                          onTap: () =>
+                              setState(() => _replyAudience = audience),
                         ),
-                      );
-                    },
+                    ],
+                    child: UiBadge(
+                      label: _replyAudience == CommunityReplyAudience.everyone
+                          ? 'Everyone can reply'
+                          : _replyAudience == CommunityReplyAudience.following
+                          ? 'Followed traders can reply'
+                          : 'Mentioned traders can reply',
+                      size: UiSize.xs,
+                      variant: UiBadgeVariant.outline,
+                    ),
                   ),
+                  if (widget.postToEdit != null)
+                    const UiBadge(label: 'Editing', size: UiSize.xs),
                 ],
               ),
-            ),
-          ],
-        ),
-        SizedBox(height: context.sp(theme.spacing.xs)),
-        Wrap(
-          spacing: context.sp(theme.spacing.xs),
-          runSpacing: context.sp(theme.spacing.xs),
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: <Widget>[
-            // Audience dropdown pill
-            UiDropdownMenu(
-              items: <UiMenuItem>[
-                UiMenuItem(
-                  label: 'Everyone',
-                  icon: Icons.public_rounded,
-                  selected: _replyAudience == CommunityReplyAudience.everyone,
-                  onTap: () => setState(
-                    () => _replyAudience = CommunityReplyAudience.everyone,
-                  ),
-                ),
-                UiMenuItem(
-                  label: 'Followed traders only',
-                  icon: Icons.people_outline_rounded,
-                  selected: _replyAudience == CommunityReplyAudience.following,
-                  onTap: () => setState(
-                    () => _replyAudience = CommunityReplyAudience.following,
-                  ),
-                ),
-                UiMenuItem(
-                  label: 'Mentioned traders only',
-                  icon: Icons.alternate_email_rounded,
-                  selected: _replyAudience == CommunityReplyAudience.mentioned,
-                  onTap: () => setState(
-                    () => _replyAudience = CommunityReplyAudience.mentioned,
-                  ),
-                ),
-              ],
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.xs),
-                  vertical: context.sp(theme.spacing.xxs),
-                ),
-                decoration: BoxDecoration(
-                  color: theme.colors.surfaceMuted,
-                  borderRadius: context.radius(theme.radii.pill),
-                  border: Border.all(color: theme.colors.border),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(
-                      _replyAudience == CommunityReplyAudience.everyone
-                          ? Icons.public_rounded
-                          : (_replyAudience == CommunityReplyAudience.following
-                                ? Icons.people_outline_rounded
-                                : Icons.alternate_email_rounded),
-                      size: context.sz(12),
-                      color: theme.colors.primary,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xxs)),
-                    Text(
-                      _replyAudience == CommunityReplyAudience.everyone
-                          ? 'Everyone'
-                          : (_replyAudience == CommunityReplyAudience.following
-                                ? 'Followed'
-                                : 'Mentioned'),
-                      style: context.uiText.caption.copyWith(
-                        fontSize: context.fs(11),
-                        fontWeight: FontWeight.w600,
-                        color: theme.colors.foreground,
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_drop_down_rounded,
-                      size: context.sz(14),
-                      color: theme.colors.foregroundMuted,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            // Live Preview Toggle Pill
-            InkWell(
-              onTap: () => setState(() => _isPreviewMode = !_isPreviewMode),
-              borderRadius: context.radius(theme.radii.pill),
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.xs),
-                  vertical: context.sp(theme.spacing.xxs),
-                ),
-                decoration: BoxDecoration(
-                  color: _isPreviewMode
-                      ? theme.colors.primary.withValues(alpha: 0.15)
-                      : theme.colors.surfaceMuted,
-                  borderRadius: context.radius(theme.radii.pill),
-                  border: Border.all(
-                    color: _isPreviewMode
-                        ? theme.colors.primary
-                        : theme.colors.border,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(
-                      _isPreviewMode
-                          ? Icons.edit_rounded
-                          : Icons.visibility_outlined,
-                      size: context.sz(12),
-                      color: _isPreviewMode
-                          ? theme.colors.primary
-                          : theme.colors.foregroundMuted,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xxs)),
-                    Text(
-                      _isPreviewMode ? 'Editing' : 'Preview',
-                      style: context.uiText.caption.copyWith(
-                        fontSize: context.fs(11),
-                        fontWeight: FontWeight.w600,
-                        color: _isPreviewMode
-                            ? theme.colors.primary
-                            : theme.colors.foregroundMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (widget.postToEdit != null) ...<Widget>[
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              UiBadge(
-                label: 'EDITING',
-                intent: UiIntent.primary,
-                variant: UiBadgeVariant.soft,
-                size: UiSize.xs,
-              ),
             ],
-            if (widget.onClose != null) ...<Widget>[
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              UiIconButton(
-                icon: Icons.close_rounded,
-                size: UiSize.xs,
-                tooltip: 'Close',
-                onPressed: widget.onClose,
-              ),
-            ],
-          ],
+          ),
         ),
+        UiButton(
+          label: _isPreviewMode ? 'Write' : 'Preview',
+          leadingIcon: _isPreviewMode
+              ? Icons.edit_outlined
+              : Icons.visibility_outlined,
+          variant: UiVariant.ghost,
+          size: UiSize.sm,
+          onPressed: () => setState(() => _isPreviewMode = !_isPreviewMode),
+        ),
+        if (widget.onClose != null && !widget.isDrawerTile)
+          UiIconButton(
+            icon: Icons.close_rounded,
+            tooltip: 'Close',
+            onPressed: widget.onClose,
+          ),
       ],
     );
   }
@@ -1748,11 +1722,22 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        // Textarea
+        UiEditorToolbar(
+          actions: const [
+            UiEditorAction.bold,
+            UiEditorAction.italic,
+            UiEditorAction.heading,
+            UiEditorAction.bulletList,
+            UiEditorAction.quote,
+            UiEditorAction.link,
+          ],
+          onAction: _formatMarkdown,
+        ),
+        UiGap.v(spacingXs),
         UiTextarea(
           controller: _bodyCtrl,
           hintText: _getHintForMode(),
-          rows: widget.compact ? 2 : (isMobile ? 2 : 3),
+          rows: widget.compact ? 2 : (isMobile ? 5 : 6),
           maxRows: 7,
           showCounter: false,
         ),
@@ -1778,8 +1763,36 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
         SizedBox(height: spacingXs),
 
-        // Unified Smart Intelligence Strip (AI Tools & Quick-Add Trending)
-        _buildUnifiedIntelligenceBar(theme, isMobile),
+        UiAccordion(
+          variant: UiAccordionVariant.ghost,
+          sections: [
+            UiAccordionSection(
+              title: 'Writing tools & tags',
+              leadingIcon: Icons.tune_rounded,
+              child: _buildUnifiedIntelligenceBar(theme, isMobile),
+            ),
+          ],
+        ),
+
+        if (_chartDetectionError != null) ...[
+          UiGap.v(spacingSm),
+          UiCallout(
+            title: 'Chart import',
+            message: _chartDetectionError!,
+            intent: UiIntent.warning,
+          ),
+        ],
+        for (final suggestion in _chartSuggestions.entries)
+          if (_imageUrls.contains(suggestion.key)) ...[
+            UiGap.v(spacingSm),
+            CommunityChartReview(
+              detection: suggestion.value,
+              onApply: () =>
+                  _applyDetectedChart(suggestion.key, suggestion.value),
+              onDismiss: () =>
+                  setState(() => _chartSuggestions.remove(suggestion.key)),
+            ),
+          ],
 
         // Active Badges Row: Sentiment, Conviction, Tickers, Tags
         _buildActiveBadgesRow(theme, spacingXs),
@@ -1832,8 +1845,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Row(
               children: [
@@ -1844,7 +1858,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                 ),
                 SizedBox(width: gapXs),
                 Text(
-                  'Live Feed Preview (How other traders will see this)',
+                  'Post preview',
                   style: context.uiText.caption.copyWith(
                     fontWeight: FontWeight.w600,
                     color: theme.colors.foregroundMuted,
@@ -2166,21 +2180,19 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           // Live Risk:Reward Visual Proportion Bar
           if (rrMetrics.isValid) ...[
             SizedBox(height: gap),
-            Container(
+            UiCard(
+              variant: UiCardVariant.subtle,
               padding: EdgeInsets.all(gapXs),
-              decoration: BoxDecoration(
-                color: theme.colors.surfaceMuted,
-                borderRadius: context.radius(theme.radii.sm),
-                border: Border.all(color: theme.colors.border),
-              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    spacing: gapXs,
+                    runSpacing: gapXs,
                     children: [
                       Text(
-                        'Risk: ${rrMetrics.riskPct.toStringAsFixed(2)}% (₹${rrMetrics.riskPoints.toStringAsFixed(2)})',
+                        'Risk: ${rrMetrics.riskPct.toStringAsFixed(2)}% (${rrMetrics.riskPoints.toStringAsFixed(2)} pts)',
                         style: context.uiText.caption.copyWith(
                           color: theme.colors.danger,
                           fontWeight: FontWeight.w600,
@@ -2188,7 +2200,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                         ),
                       ),
                       Text(
-                        'Reward: +${rrMetrics.rewardPct.toStringAsFixed(2)}% (₹${rrMetrics.rewardPoints.toStringAsFixed(2)})',
+                        'Reward: +${rrMetrics.rewardPct.toStringAsFixed(2)}% (${rrMetrics.rewardPoints.toStringAsFixed(2)} pts)',
                         style: context.uiText.caption.copyWith(
                           color: theme.colors.success,
                           fontWeight: FontWeight.w600,
@@ -2227,8 +2239,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             label: 'Candlestick data (optional)',
             hintText:
                 '[{"time":"2026-09-30T09:15:00+05:30","open":100,"high":105,"low":99,"close":103,"volume":1200}]',
-            helper:
-                'Paste OHLC candle data to display the chart. Price levels alone do not contain market candles.',
+            helper: _candlesFromImage
+                ? 'Approximate candles from an image. Verify prices and times against the original chart.'
+                : 'Paste OHLC data, or upload a chart under Chart & Vision.',
             rows: 3,
             maxRows: 6,
             showCounter: false,
@@ -2368,7 +2381,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                   ),
                   SizedBox(width: gapXs),
                   Text(
-                    'Chart Screenshot & Technical Vision',
+                    'Chart images',
                     style: context.uiText.label.copyWith(
                       fontWeight: FontWeight.w700,
                       color: theme.colors.foreground,
@@ -2388,7 +2401,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
           SizedBox(height: gapXs),
           Text(
-            'Upload or attach TradingView / broker chart screenshots to validate your thesis:',
+            'Upload a chart to detect its symbol, labeled trade levels and readable candles.',
             style: context.uiText.caption.copyWith(
               color: theme.colors.foregroundMuted,
             ),
@@ -2398,7 +2411,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           // Dropzone for upload
           UiDropzone(
             title: _isUploadingChart ? _preparingLabel : 'Attach chart images',
-            message: 'Select multiple images. Optimized before publishing.',
+            message:
+                'Chart details are detected automatically. Review before adding to your setup.',
             error: _attachmentError,
             icon: Icons.add_photo_alternate_outlined,
             uploading: _isUploadingChart || _submitting,
@@ -3150,6 +3164,16 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                       _tickers.clear();
                       _tags.clear();
                       _imageUrls.clear();
+                      _chartSuggestions.clear();
+                      _chartDetectionError = null;
+                      _candlesFromImage = false;
+                      _setupTickerCtrl.clear();
+                      _setupEntryCtrl.clear();
+                      _setupExitCtrl.clear();
+                      _setupSlCtrl.clear();
+                      _setupTargetCtrl.clear();
+                      _setupCandlesCtrl.clear();
+                      _setupCatalystCtrl.clear();
                       _preparedImages.clear();
                       _uploadedImages.clear();
                       _uploadBatchId = const Uuid().v4();
@@ -3217,47 +3241,12 @@ class _ModePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.ui;
-    final Color color = accentColor ?? theme.colors.primary;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: context.radius(theme.radii.pill),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.sm),
-          vertical: context.sp(theme.spacing.xxs),
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? color.withValues(alpha: 0.14)
-              : theme.colors.surfaceMuted,
-          borderRadius: context.radius(theme.radii.pill),
-          border: Border.all(
-            color: selected ? color : theme.colors.border,
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: context.sz(14),
-              color: selected ? color : theme.colors.foregroundMuted,
-            ),
-            SizedBox(width: context.sp(theme.spacing.xxs)),
-            Text(
-              label,
-              style: context.uiText.caption.copyWith(
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? color : theme.colors.foregroundMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return UiButton(
+      label: label,
+      leadingIcon: icon,
+      size: UiSize.sm,
+      variant: selected ? UiVariant.soft : UiVariant.ghost,
+      onPressed: onTap,
     );
   }
 }

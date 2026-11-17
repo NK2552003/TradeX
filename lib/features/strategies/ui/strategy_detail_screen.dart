@@ -535,10 +535,12 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
       context,
       reference: ref,
       isPublic: _strategy.isPublic,
-      onPublish: _canEdit ? () async {
-        await _toggleVisibility();
-        if (mounted && _strategy.isPublic) await _shareStrategy();
-      } : null,
+      onPublish: _canEdit
+          ? () async {
+              await _toggleVisibility();
+              if (mounted && _strategy.isPublic) await _shareStrategy();
+            }
+          : null,
       onExportPdf: _exportPdf,
     );
   }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live market sync using the existing Supabase schema; never deletes history.
+"""Live market sync for the ranked top-5000 ticker file; updates only, never deletes.
 
 Use --dry-run to fetch/validate without database access. Every run writes a JSON
 coverage report; incomplete upstream data and database failures exit nonzero.
@@ -18,8 +18,9 @@ import urllib.parse
 import urllib.request
 from zoneinfo import ZoneInfo
 
+import market_details
 from market_news import enrich_article, legacy_image, merge_articles, rss_articles, yahoo_article
-from market_universe import RETIRED_SYMBOLS, TARGET_TICKERS
+from market_universe import RETIRED_SYMBOLS, TARGET_TICKERS, UNIVERSE
 from market_selection import MAX_SYMBOLS, select_symbols, supported_symbol
 from market_verification import confirm_rows, row_key
 
@@ -96,27 +97,47 @@ class Database:
                 return rows
             rows.extend(page)
 
-    def prune_market_data(self):
-        """Remove market, news, and marketing rows before a full rebuild."""
+    def prune_market_data(self, valid_symbols=None):
+        """Smart cleanup: delete only out-of-universe tickers and expired history/news to reduce egress."""
+        chosen = set(valid_symbols or TARGET_TICKERS)
+        stored = [r['ticker'] for r in self.select('tickers', select='ticker', order='ticker')
+                  if r.get('ticker') and r['ticker'] not in chosen]
+        for start in range(0, len(stored), 100):
+            values = ','.join(json.dumps(t) for t in stored[start:start + 100])
+            self.call('DELETE', 'tickers', params={'ticker': f'in.({values})'}, prefer='return=minimal')
+        history_cutoff = (datetime.now(timezone.utc) - timedelta(days=65)).date().isoformat()
+        news_cutoff = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+        self.call('DELETE', 'stock_price_history', params={'date': f'lt.{history_cutoff}'}, prefer='return=minimal')
+        self.call('DELETE', 'news_articles', params={'published_at': f'lt.{news_cutoff}'}, prefer='return=minimal')
+        return {'removed_tickers': len(stored), 'history_cutoff': history_cutoff, 'news_cutoff': news_cutoff}
+
+    def clean_market_data(self):
+        """Wipe all Market Intelligence tables for a clean start."""
         for table, column, predicate in (
+            ('news_article_tickers', 'article_id', 'gt.0'),
             ('news_articles', 'id', 'gt.0'),
-            ('news_topics', 'id', 'gt.0'),
-            ('affiliate_assets', 'id', 'not.is.null'),
             ('screener_results', 'id', 'gt.0'),
             ('screener_categories', 'id', 'gt.0'),
-            ('stock_details', 'ticker', 'not.is.null'),
-            ('stock_fundamentals', 'ticker', 'not.is.null'),
-            ('stock_quotes', 'ticker', 'not.is.null'),
-            ('stock_price_history', 'ticker', 'not.is.null'),
+            ('market_universe', 'ticker', 'not.is.null'),
+            ('tickers', 'ticker', 'not.is.null'),
         ):
-            self.call('DELETE', table, params={column: predicate}, prefer='return=minimal')
+            try:
+                self.call('DELETE', table, params={column: predicate}, prefer='return=minimal')
+            except PipelineError:
+                pass
 
     def upsert(self, table, rows, conflict):
+        # Deduplicate by conflict key first so a single PostgREST batch never
+        # triggers ON CONFLICT DO UPDATE twice for the same row.
+        keys = conflict.split(',')
+        deduped = {}
+        for row in rows:
+            clean = {k: v for k, v in row.items() if v is not None}
+            deduped[row_key(clean, keys)] = clean
         # PostgREST bulk rows must have identical keys. Omit absent provider
         # fields so a sparse refresh cannot erase existing fundamentals/images.
         groups = defaultdict(list)
-        for row in rows:
-            clean = {k: v for k, v in row.items() if v is not None}
+        for clean in deduped.values():
             groups[tuple(sorted(clean))].append(clean)
         for group in groups.values():
             for start in range(0, len(group), 200):
@@ -162,6 +183,34 @@ class Database:
         self.verified[table] += len(expected)
 
 
+UNIVERSE_BY_TICKER = {row['ticker']: row for row in UNIVERSE}
+CONFLICT_KEYS = {
+    'stock_price_history': 'ticker,date', 'dividends': 'ticker,ex_date', 'stock_splits': 'ticker,split_date',
+    'analyst_recommendations': 'ticker,period', 'holders': 'ticker,holder_type,holder_name',
+}
+
+
+OPTIONAL_TABLES = {'dividends', 'stock_splits', 'analyst_recommendations', 'holders', 'market_universe'}
+
+
+def publish_universe(db, symbols, report):
+    """Upsert the ranked ticker file into market_universe; drop entries removed from the file."""
+    chosen = set(symbols)
+    rows = [{'ticker': r['ticker'], 'display_symbol': r['display_symbol'], 'rank': r['rank'], 'name': r['name'],
+             'exchange': r['exchange'], 'sector': r['sector'], 'market_cap': r['market_cap'], 'updated_at': now_iso()}
+            for r in UNIVERSE if r['ticker'] in chosen]
+    try:
+        db.upsert('market_universe', rows, 'ticker')
+        stale = [r['ticker'] for r in db.select('market_universe', select='ticker', order='ticker')
+                 if r['ticker'] not in chosen]
+        for start in range(0, len(stale), 100):
+            values = ','.join(json.dumps(t) for t in stale[start:start + 100])
+            db.call('DELETE', 'market_universe', params={'ticker': f'in.({values})'}, prefer='return=minimal')
+        report['universe'] = {'published': len(rows), 'removed': len(stale)}
+    except PipelineError as error:
+        report.setdefault('warnings', []).append(f'market_universe: {error}')
+
+
 def finite(value):
     return value if isinstance(value, (float, int)) and not isinstance(value, bool) and math.isfinite(value) else None
 
@@ -204,8 +253,9 @@ FUNDAMENTALS = {
 }
 
 
-def market_rows(symbol, chart, info):
+def market_rows(symbol, chart, info, sections=None, availability=None):
     meta = chart.get('meta') or {}
+    listed = UNIVERSE_BY_TICKER.get(symbol, {})
     bars = chart_bars(chart)
     timestamp = first_number(info.get('regularMarketTime'), meta.get('regularMarketTime'))
     price = first_number(info.get('regularMarketPrice'), meta.get('regularMarketPrice'))
@@ -214,10 +264,10 @@ def market_rows(symbol, chart, info):
     if previous is None and len(bars) >= 2:
         previous = bars[-2]['close']
     ticker = {k: v for k, v in {
-        'ticker': symbol, 'name': info.get('longName') or meta.get('longName') or meta.get('shortName'),
+        'ticker': symbol, 'name': info.get('longName') or meta.get('longName') or meta.get('shortName') or listed.get('name'),
         'market': 'IN' if symbol.endswith(('.NS', '.BO')) or symbol in ('^NSEI', '^NSEBANK', '^BSESN')
                   else ('CRYPTO' if meta.get('instrumentType') == 'CRYPTOCURRENCY' or symbol.endswith('-USD') else 'US'),
-        'exchange': info.get('exchange') or meta.get('exchangeName'),
+        'exchange': info.get('exchange') or meta.get('exchangeName') or listed.get('exchange'),
         'currency': info.get('currency') or meta.get('currency'),
         'asset_type': info.get('quoteType') or meta.get('instrumentType'), 'last_seen_at': now_iso(),
     }.items() if v is not None}
@@ -235,26 +285,42 @@ def market_rows(symbol, chart, info):
     for column in ('fifty_two_week_high', 'fifty_two_week_low'):
         fundamental[column] = first_number(fundamental[column], meta.get(FUNDAMENTALS[column]))
     for key in ('sector', 'industry'):
-        if info.get(key):
-            fundamental[key] = info[key][:50]
+        if info.get(key) or listed.get(key):
+            fundamental[key] = (info.get(key) or listed[key])[:50]
+    if 'market_cap' not in fundamental and listed.get('market_cap'):
+        fundamental['market_cap'] = listed['market_cap']
     fundamental = {k: v for k, v in fundamental.items() if v is not None}
     if fundamental:
         fundamental.update(ticker=symbol, updated_at=now_iso())
     summary = {**fundamental, **{k: info[v] for k, v in {
         'website': 'website', 'description': 'longBusinessSummary', 'employees': 'fullTimeEmployees',
         'country': 'country', 'city': 'city', 'address': 'address1', 'phone': 'phone',
+        'float_shares': 'floatShares', 'held_percent_insiders': 'heldPercentInsiders',
+        'held_percent_institutions': 'heldPercentInstitutions', 'short_ratio': 'shortRatio',
         'target_mean_price': 'targetMeanPrice', 'recommendation': 'recommendationKey',
+        'number_of_analyst_opinions': 'numberOfAnalystOpinions',
         'total_revenue': 'totalRevenue', 'profit_margins': 'profitMargins',
         'revenue_growth': 'revenueGrowth', 'earnings_growth': 'earningsGrowth',
         'total_cash': 'totalCash', 'total_debt': 'totalDebt', 'free_cashflow': 'freeCashflow',
-    }.items() if info.get(v) is not None}}
+    }.items() if info.get(v) is not None and (not isinstance(info.get(v), float) or math.isfinite(info.get(v)))}}
     summary.update({k: ticker[k] for k in ('name', 'exchange', 'currency') if k in ticker})
     detail = {'ticker': symbol, 'summary': summary, 'updated_at': now_iso()}
     if quote:
         detail['quote'] = quote
     if bars:
         detail['history'] = bars[-60:]
-    return {'ticker': ticker, 'quote': quote, 'fundamental': fundamental,
+    sections = sections or {}
+    detail.update(sections)
+    if bars:
+        detail['chart'] = {'period': '1mo', 'interval': '1d', 'data': bars[-60:]}
+    if listed:
+        detail['universe'] = {k: listed[k] for k in ('rank', 'display_symbol', 'exchange', 'sector') if listed.get(k)}
+    if availability is not None:
+        detail['availability'] = availability
+        detail['snapshot'] = {'source': 'yahoo', 'fetched_at': now_iso(),
+                              'sections_available': sum(1 for v in availability.values() if v.get('available'))}
+    extras = market_details.normalized_rows(symbol, sections, now_iso()) if sections else {}
+    return {'ticker': ticker, 'quote': quote, 'fundamental': fundamental, 'extras': extras,
             'history': [{'ticker': symbol, **bar, 'recorded_at': now_iso()} for bar in bars], 'detail': detail}
 
 
@@ -270,17 +336,22 @@ def fetch_symbol(symbol, scope, history_range=None):
             warnings.append('chart: symbol unavailable')
     except PipelineError as error:
         warnings.append(f'chart: {error}')
-    info = {}
+    info, sections, availability = {}, {}, None
     if chart and scope in ('all', 'quotes'):
         try:
             import yfinance as yf
             # yfinance handles Yahoo's cookie/crumb authentication for fundamentals.
-            info = yf.Ticker(symbol).get_info() or {}
+            handle = yf.Ticker(symbol)
+            info = handle.get_info() or {}
+            # Company news, options, dividends/splits, analysts and holders; each
+            # tab fails independently and never discards quote or history.
+            sections, availability, section_warnings = market_details.fetch_sections(handle)
+            warnings.extend(section_warnings)
         except Exception as error:
             warnings.append(f'fundamentals: {type(error).__name__}')
         if not info.get('longName') and not info.get('shortName'):
             warnings.append('Company profile unavailable')
-    rows = market_rows(symbol, chart, info)
+    rows = market_rows(symbol, chart, info, sections, availability)
     return rows, warnings
 
 
@@ -320,20 +391,55 @@ def sync_market(db, symbols, scope, workers, report):
     with ThreadPoolExecutor(max_workers=workers) as pool:
         for start in range(0, len(symbols), 50):
             batch = symbols[start:start + 50]
-            existing = {row['ticker']: row['detail'] for row in
-                        selected_rows(db, 'stock_details', batch, 'ticker,detail')} if db and scope in ('all', 'quotes') else {}
-            pending = {pool.submit(fetch_symbol, symbol, scope,
-                '1mo' if scope == 'all' and len(existing.get(symbol, {}).get('history', [])) >= 2 else None): symbol for symbol in batch}
+            known_quotes = {row['ticker']: row.get('updated_at') for row in
+                            selected_rows(db, 'stock_quotes', batch, 'ticker,updated_at')} if db and scope in ('all', 'history') else {}
+            pending = {pool.submit(fetch_symbol, symbol, scope, '2mo'): symbol for symbol in batch}
             writes = defaultdict(list)
+            ticker_news = {}
             completed = []
 
             def publish():
                 if db:
                     for table, values in writes.items():
-                        db.upsert(table, values, 'ticker,date' if table == 'stock_price_history' else 'ticker')
+                        if not values:
+                            continue
+                        try:
+                            db.upsert(table, values, CONFLICT_KEYS.get(table, 'ticker'))
+                        except PipelineError as error:
+                            if table in OPTIONAL_TABLES:
+                                report['warnings'].append(f'{table}: {error}')
+                            else:
+                                raise
+                    if ticker_news:
+                        try:
+                            by_link = {}
+                            for sym, items in ticker_news.items():
+                                for item in items[:MAX_NEWS_PER_TICKER]:
+                                    link = item.get('link')
+                                    if link and item.get('title'):
+                                        by_link[link] = {
+                                            'title': item['title'], 'summary': item.get('summary'),
+                                            'link': link, 'publisher': item.get('publisher'),
+                                            'thumbnail_url': item.get('thumbnail_url'),
+                                            'published_at': item.get('published_at') or now_iso(),
+                                        }
+                            if by_link:
+                                db.upsert('news_articles', list(by_link.values()), 'link')
+                                links_in = ','.join(json.dumps(k) for k in by_link)
+                                stored_articles = db.select('news_articles', select='id,link', link=f'in.({links_in})', order='id')
+                                id_by_link = {a['link']: a['id'] for a in stored_articles if a.get('id') and a.get('link')}
+                                pairs = [{'article_id': id_by_link[item['link']], 'ticker': sym}
+                                         for sym, items in ticker_news.items()
+                                         for item in items[:MAX_NEWS_PER_TICKER]
+                                         if item.get('link') in id_by_link]
+                                if pairs:
+                                    db.upsert('news_article_tickers', pairs, 'article_id,ticker')
+                        except PipelineError as error:
+                            report['warnings'].append(f'ticker_news: {error}')
                     for symbol in completed:
                         report['symbols'][symbol]['persisted'] = True
                 writes.clear()
+                ticker_news.clear()
                 completed.clear()
                 report['market'] = dict(counts)
                 report['confirmed_writes'] = dict(db.written) if db else {}
@@ -354,7 +460,8 @@ def sync_market(db, symbols, scope, workers, report):
                 report['symbols'][symbol] = {
                     'bars': len(history), 'latest_date': history[-1]['date'] if history else None,
                     'quote_time': quote['updated_at'] if quote else None,
-                    'fundamental_fields': max(0, len(rows['fundamental']) - 2), 'warnings': warnings, 'persisted': False}
+                    'fundamental_fields': max(0, len(rows['fundamental']) - 2), 'warnings': warnings, 'persisted': False,
+                    'sections': {k: v.get('count', 0) for k, v in (rows['detail'].get('availability') or {}).items()}}
                 errors = []
                 if scope in ('all', 'quotes', 'screeners'):
                     if not quote:
@@ -390,9 +497,14 @@ def sync_market(db, symbols, scope, workers, report):
                     if rows['fundamental']:
                         writes['stock_fundamentals'].append(rows['fundamental'])
                     writes['stock_details'].append({'ticker': symbol,
-                        'detail': merge_detail(existing.get(symbol), rows['detail']), 'fetched_at': now_iso()})
+                        'detail': rows['detail'], 'fetched_at': now_iso()})
+                    for table, extra in (rows.get('extras') or {}).items():
+                        writes[table].extend(extra)
+                    if rows['detail'].get('news'):
+                        ticker_news[symbol] = rows['detail']['news'][:MAX_NEWS_PER_TICKER]
                 if scope in ('all', 'history'):
-                    writes['stock_price_history'].extend(history)
+                    incremental = history[-5:] if known_quotes.get(symbol) else history
+                    writes['stock_price_history'].extend(incremental)
                 counts['quotes'] += int(quote is not None)
                 counts['history_rows'] += len(history)
                 counts['fundamentals'] += int(bool(rows['fundamental']))
@@ -411,9 +523,9 @@ def sync_screeners(db, quotes, report):
         'IN': [q for q in quotes if q['ticker'].endswith(('.NS', '.BO'))],
         'CRYPTO': [q for q in quotes if q['ticker'].endswith('-USD')],
     }
+    # The universe is the US top-5000 file, so only screeners it can fill are published.
     specs = [('top_gainers', 'US', 'change_pct', True), ('top_losers', 'US', 'change_pct', False),
-             ('most_active', 'US', 'volume', True), ('india_top_gainers', 'IN', 'change_pct', True),
-             ('india_top_losers', 'IN', 'change_pct', False), ('crypto_all', 'CRYPTO', 'volume', True)]
+             ('most_active', 'US', 'volume', True)]
     report['screeners'] = {}
     if not db:
         return
@@ -442,23 +554,20 @@ def sync_screeners(db, quotes, report):
         report['screeners'][name] = len(rows)
 
 
+MAX_NEWS_PER_TICKER = 15
+MAX_TOTAL_NEWS = MAX_NEWS_PER_TICKER * MAX_SYMBOLS
+
+
 def fetch_news(report):
     articles = []
-    queries = ['AAPL', 'NVDA', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'JPM',
-               'Federal Reserve', 'BTC-USD', 'ETH-USD', 'Sensex', 'Nifty', 'RELIANCE.NS', 'TCS.NS']
+    queries = [*TARGET_TICKERS[:20], 'Federal Reserve', 'US Stock Market', 'NASDAQ', 'NYSE']
     for query in queries:
         try:
-            data = request('https://query2.finance.yahoo.com/v1/finance/search?' + urllib.parse.urlencode({'q': query, 'newsCount': 8}))
-            articles.extend(a for item in data.get('news', []) if (a := yahoo_article(item)))
+            data = request('https://query2.finance.yahoo.com/v1/finance/search?' + urllib.parse.urlencode({'q': query, 'newsCount': MAX_NEWS_PER_TICKER}))
+            articles.extend(a for item in data.get('news', [])[:MAX_NEWS_PER_TICKER] if (a := yahoo_article(item)))
         except PipelineError as error:
             report['warnings'].append(f'Yahoo news {query}: {error}')
-    for publisher, url in [('Moneycontrol', 'https://www.moneycontrol.com/rss/MCtopnews.xml'),
-                           ('Economic Times', 'https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms')]:
-        try:
-            articles.extend(rss_articles(request(url, decode=False), publisher))
-        except Exception as error:
-            report['warnings'].append(f'{publisher} RSS: {type(error).__name__}')
-    return merge_articles(articles)
+    return merge_articles(articles)[:MAX_TOTAL_NEWS]
 
 
 def sync_news(db, workers, report):
@@ -499,11 +608,6 @@ def sync_news(db, workers, report):
 
 
 def run(args, report):
-    if not args.select_only and args.scope in ('all', 'quotes'):
-        try:
-            import yfinance  # noqa: F401
-        except ImportError:
-            raise PipelineError('Install scripts/requirements.txt before syncing company details') from None
     db = None if args.dry_run else Database()
     if args.symbols_file:
         symbols = json.loads(Path(args.symbols_file).read_text())
@@ -516,21 +620,22 @@ def run(args, report):
     elif args.scope == 'news':
         symbols = []
     else:
-        stored = db.select('stock_quotes', select='ticker,volume', order='ticker') if db else []
-        symbols = select_symbols(stored, args.max_symbols)
-        report['archived_symbols'] = sorted({r['ticker'] for r in stored} & RETIRED_SYMBOLS)
-        report['excluded_symbols'] = len({r['ticker'] for r in stored} - set(symbols))
-        report['selection'] = 'curated benchmarks, then reported volume descending'
-    if args.prune_market_data:
+        symbols = select_symbols(None, args.max_symbols)
+        report['selection'] = 'scripts/data/top-5000-tickers.md (market-cap rank); smart update & outdated cleanup'
+    if getattr(args, 'clean_start', False):
+        if not args.select_only:
+            raise PipelineError('--clean-start is only valid with --select-only')
+        if db:
+            db.clean_market_data()
+            report['clean_start'] = True
+    elif getattr(args, 'prune_market_data', False):
         if not args.select_only:
             raise PipelineError('--prune-market-data is only valid with --select-only')
-        db.prune_market_data()
-        report['pruned_tables'] = [
-            'news_articles', 'news_topics', 'affiliate_assets',
-            'screener_results', 'screener_categories',
-            'stock_details', 'stock_fundamentals', 'stock_quotes', 'stock_price_history',
-        ]
+        if db:
+            report['pruned_outdated'] = db.prune_market_data(symbols)
     if args.select_only:
+        if db:
+            publish_universe(db, symbols, report)
         Path(args.select_only).write_text(json.dumps(symbols) + '\n')
         report['requested_symbols'] = len(symbols)
         return
@@ -577,7 +682,9 @@ def main(argv=None):
     parser.add_argument('--symbols-file', help='Frozen ranked manifest shared by CI shards')
     parser.add_argument('--select-only', help='Write the ranked manifest without fetching providers')
     parser.add_argument('--prune-market-data', action='store_true',
-                        help='Delete pipeline-owned market/news rows before a full rebuild')
+                        help='Smartly delete only out-of-universe tickers and expired history/news')
+    parser.add_argument('--clean-start', action='store_true',
+                        help='Wipe all Market Intelligence tables before syncing from scratch')
     parser.add_argument('--shard-index', type=int, default=0)
     parser.add_argument('--shard-count', type=int, default=1)
     parser.add_argument('--market-only', action='store_true')

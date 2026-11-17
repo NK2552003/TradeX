@@ -17,7 +17,7 @@ class MarketSyncTests(unittest.TestCase):
     def args(self, scope):
         return Namespace(dry_run=True, symbols='AAPL', scope=scope, workers=1,
                          symbols_file=None, max_symbols=5000, select_only=None,
-                         prune_market_data=False, shard_index=0, shard_count=1,
+                         shard_index=0, shard_count=1,
                          market_only=False, finalize_market=False)
 
     def test_bars_require_real_complete_ohlc(self):
@@ -108,25 +108,21 @@ class MarketSyncTests(unittest.TestCase):
                 db.upsert('stock_quotes', [{'ticker': 'AAPL', 'price': 10}], 'ticker')
         self.assertEqual(dict(db.written), {})
 
-    def test_prune_market_data_deletes_pipeline_tables_without_tickers(self):
+    def test_smart_prune_market_data_deletes_only_outdated_rows(self):
         db = self.database()
-        with patch.object(db, 'call', return_value=None) as call:
-            db.prune_market_data()
+        with patch.object(db, 'select', return_value=[{'ticker': 'AAPL'}, {'ticker': 'OLD.NS'}]), \
+             patch.object(db, 'call', return_value=None) as call:
+            summary = db.prune_market_data(['AAPL'])
+        self.assertEqual(summary['removed_tickers'], 1)
         self.assertEqual(
             [(c.args[0], c.args[1]) for c in call.call_args_list],
             [
-                ('DELETE', 'news_articles'),
-                ('DELETE', 'news_topics'),
-                ('DELETE', 'affiliate_assets'),
-                ('DELETE', 'screener_results'),
-                ('DELETE', 'screener_categories'),
-                ('DELETE', 'stock_details'),
-                ('DELETE', 'stock_fundamentals'),
-                ('DELETE', 'stock_quotes'),
+                ('DELETE', 'tickers'),
                 ('DELETE', 'stock_price_history'),
+                ('DELETE', 'news_articles'),
             ],
         )
-        self.assertTrue(all(c.kwargs['prefer'] == 'return=minimal' for c in call.call_args_list))
+        self.assertEqual(call.call_args_list[0].kwargs['params'], {'ticker': 'in.("OLD.NS")'})
 
     def test_null_refresh_fields_do_not_erase_metadata(self):
         db = self.database()
@@ -181,9 +177,45 @@ class MarketSyncTests(unittest.TestCase):
                 pipeline.sync_screeners(db, quotes, report)
         self.assertEqual([c.args[0] for c in call.call_args_list], ['POST'])
 
-    def test_retired_listings_are_not_fetched_as_current_companies(self):
+    def test_universe_is_the_ticker_file(self):
+        self.assertEqual(len(pipeline.TARGET_TICKERS), 5000)
         self.assertFalse(set(pipeline.TARGET_TICKERS) & pipeline.RETIRED_SYMBOLS)
-        self.assertTrue({'XYZ', 'ETERNAL.NS', 'LTM.NS', 'TMCV.NS', 'TMPV.NS'} <= set(pipeline.TARGET_TICKERS))
+        self.assertEqual(pipeline.UNIVERSE_BY_TICKER['BRK-B']['display_symbol'], 'BRK/B')
+
+    def test_universe_publication_upserts_and_removes_only_config_rows(self):
+        db = MagicMock()
+        db.select.return_value = [{'ticker': 'AAPL'}, {'ticker': 'GONE'}]
+        report = {}
+        pipeline.publish_universe(db, ['AAPL', 'NVDA'], report)
+        self.assertEqual(db.upsert.call_args.args[0], 'market_universe')
+        self.assertEqual({r['ticker'] for r in db.upsert.call_args.args[1]}, {'AAPL', 'NVDA'})
+        deleted = [c for c in db.call.call_args_list if c.args[0] == 'DELETE']
+        self.assertEqual([c.args[1] for c in deleted], ['market_universe'])
+        self.assertEqual(report['universe'], {'published': 2, 'removed': 1})
+
+    def test_company_sections_fall_back_to_the_ticker_file(self):
+        rows = pipeline.market_rows('AAPL', {}, {})
+        self.assertEqual(rows['ticker']['name'], 'Apple Inc. Common Stock')
+        self.assertEqual(rows['fundamental']['sector'], 'Technology')
+
+    def test_detail_sections_flow_into_detail_and_normalized_rows(self):
+        sections = {
+            'recommendations': [{'period': '0m', 'strongBuy': 5, 'buy': 20, 'hold': 10, 'sell': 1, 'strongSell': 0}],
+            'dividends_and_splits': {'dividends': [{'date': '2025-02-10T00:00:00-05:00', 'amount': 0.25}],
+                                     'splits': [{'date': '2020-08-31T00:00:00-04:00', 'ratio': 4.0}]},
+            'holders': {'institutional_holders': [{'Holder': 'Vanguard', 'Shares': 1e9, 'pctHeld': 0.09,
+                                                    'Date Reported': '2025-06-30T00:00:00.000'}]},
+            'options': {'expirations': ['2026-12-18'], 'chains': {'2026-12-18': {'calls': [], 'puts': []}}},
+            'news': [{'title': 'x', 'link': 'https://e.test/x'}],
+        }
+        availability = {k: {'available': True, 'count': 1} for k in sections}
+        rows = pipeline.market_rows('AAPL', {}, {}, sections, availability)
+        self.assertEqual(set(sections) | {'availability', 'snapshot'}, set(rows['detail']) & (set(sections) | {'availability', 'snapshot'}))
+        extras = rows['extras']
+        self.assertEqual(extras['dividends'], [{'ticker': 'AAPL', 'ex_date': '2025-02-10', 'amount': 0.25}])
+        self.assertEqual(extras['stock_splits'][0]['split_date'], '2020-08-31')
+        self.assertEqual(extras['analyst_recommendations'][0]['strong_buy'], 5)
+        self.assertEqual(extras['holders'][0]['shares'], 1_000_000_000)
 
     def test_failure_produces_report_and_nonzero_exit(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(pipeline, 'load_env'), \

@@ -13,26 +13,22 @@ import prepare_client_config as config
 
 
 class SelectionTests(unittest.TestCase):
-    def test_cap_and_popularity_not_alphabetical_order(self):
-        stored = [{'ticker': f'T{i:05}', 'volume': i + 1} for i in range(6000)]
-        symbols = selection.select_symbols(stored)
+    def test_selection_is_exactly_the_ranked_ticker_file(self):
+        symbols = selection.select_symbols()
         self.assertEqual(len(symbols), 5000)
         self.assertEqual(len(set(symbols)), 5000)
-        self.assertIn('AAPL', symbols)
-        self.assertIn('T05999', symbols)
-        self.assertNotIn('T00000', symbols)
-        self.assertEqual(symbols, selection.select_symbols(list(reversed(stored))))
+        self.assertEqual(symbols[:3], ['AAPL', 'NVDA', 'MSFT'])
+        self.assertIn('BRK-B', symbols)
+        self.assertNotIn('BRK/B', symbols)
+        self.assertNotIn('RELIANCE.NS', symbols)
 
-    def test_retired_unsupported_and_unranked_listings_are_discarded(self):
-        stored = [{'ticker': s, 'volume': v} for s, v in [
-            ('AAC.U', 1e9), ('AAC.W', 1e9), ('SQ', 1e9), ('TEST', 10),
-            ('EMPTY', None), ('INF', float('inf')), ('NEGATIVE', -1)]]
-        selected = selection.select_symbols(stored)
-        self.assertIn('TEST', selected)
-        self.assertFalse(set(['AAC.U', 'AAC.W', 'SQ', 'EMPTY', 'INF', 'NEGATIVE']) & set(selected))
+    def test_stored_rows_never_widen_the_universe(self):
+        stored = [{'ticker': f'T{i:05}', 'volume': i + 1} for i in range(6000)]
+        self.assertEqual(selection.select_symbols(stored), selection.select_symbols())
+        self.assertEqual(selection.select_symbols(limit=10), selection.select_symbols()[:10])
 
     def test_shards_are_disjoint_complete_and_at_most_500(self):
-        symbols = selection.select_symbols([{'ticker': f'T{i}', 'volume': i + 1} for i in range(10000)])
+        symbols = selection.select_symbols()
         partitions = [symbols[i::10] for i in range(10)]
         self.assertTrue(all(len(p) <= 500 for p in partitions))
         self.assertEqual(sum(map(len, partitions)), len(set(s for p in partitions for s in p)))

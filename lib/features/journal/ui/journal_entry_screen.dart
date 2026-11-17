@@ -408,10 +408,12 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       context,
       reference: ref,
       isPublic: _entry.isPublic,
-      onPublish: _canEdit ? () async {
-        await _toggleVisibility();
-        if (mounted && _entry.isPublic) await _shareTrade();
-      } : null,
+      onPublish: _canEdit
+          ? () async {
+              await _toggleVisibility();
+              if (mounted && _entry.isPublic) await _shareTrade();
+            }
+          : null,
       onExportPdf: _exportPdf,
     );
   }
@@ -674,10 +676,10 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
 
     final String explicitTakeaway =
         (_entry.notes != null &&
-         _entry.notes!.trim().isNotEmpty &&
-         _entry.notes!.trim() != _entry.content.trim())
-            ? _entry.notes!.trim()
-            : '';
+            _entry.notes!.trim().isNotEmpty &&
+            _entry.notes!.trim() != _entry.content.trim())
+        ? _entry.notes!.trim()
+        : '';
 
     return UiCard(
       variant: UiCardVariant.ghost,

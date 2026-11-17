@@ -1,6 +1,5 @@
 """Bound the refresh universe before any provider calls; keep stored history."""
 import json
-import math
 
 from market_universe import RETIRED_SYMBOLS, TARGET_TICKERS
 
@@ -14,22 +13,13 @@ def supported_symbol(value):
     return symbol and symbol not in RETIRED_SYMBOLS and not symbol.endswith(('.U', '.W', '.WS'))
 
 
-def select_symbols(stored, limit=MAX_SYMBOLS):
-    """Curated benchmarks first, then descending reported trading volume.
+def select_symbols(stored=None, limit=MAX_SYMBOLS):
+    """The ranked ticker file, and nothing else.
 
-    Volume is a transparent popularity proxy, not a market-cap ranking. Ties
-    use the symbol for repeatable partitions across all CI workers.
+    `stored` is accepted for call-site compatibility but ignored: rows already in
+    the database never widen the universe and are never deleted by the sync.
     """
-    def volume(row):
-        value = row.get('volume')
-        return value if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value > 0 else 0
-
-    ranked = sorted(stored, key=lambda row: (-volume(row), row['ticker']))
     symbols = dict.fromkeys(s for s in TARGET_TICKERS if supported_symbol(s))
-    for row in ranked:
-        symbol = str(row['ticker']).strip().upper()
-        if supported_symbol(symbol) and volume(row):
-            symbols[symbol] = None
     return list(symbols)[:min(limit, MAX_SYMBOLS)]
 
 

@@ -1,3 +1,4 @@
+import 'package:tradex/core/widgets/record_unavailable.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
@@ -147,9 +148,46 @@ class NotesScreenState extends State<NotesScreen> {
   NoteEditorMode _editorMode = NoteEditorMode.write;
   bool _editorDetailsOnly = false;
 
+  bool _revalidatingPublicRecord = false;
+
+  /// True while a deep-linked record is being fetched, so the list/dashboard
+  /// is never flashed before the record opens.
+  bool _resolvingRequest = false;
+
+  Future<void> _revalidatePublicRecord(String id) async {
+    if (_revalidatingPublicRecord) return;
+    _revalidatingPublicRecord = true;
+    try {
+      final record = await _repo.getById(id);
+      if (!mounted || !_isPublicContext || _active?.id != id) return;
+      setState(() {
+        if (record == null || !record.isPublic) {
+          _accessError = 'This record is private, deleted, or unavailable.';
+        } else {
+          _active = record;
+          _accessError = null;
+        }
+      });
+    } catch (_) {
+      if (mounted && _isPublicContext) {
+        setState(
+          () => _accessError =
+              'Could not verify this record. Please reopen it to retry.',
+        );
+      }
+    } finally {
+      _revalidatingPublicRecord = false;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    final AppLinkOpenRequest? initialRequest = widget.openRequest;
+    _resolvingRequest =
+        initialRequest != null &&
+        initialRequest.id.isNotEmpty &&
+        initialRequest.id.isNotEmpty;
     _sub = _repo.watchAll().listen(
       (List<AppNote> notes) {
         if (!mounted) return;
@@ -159,7 +197,7 @@ class NotesScreenState extends State<NotesScreen> {
                 .where((note) => note.id == _active!.id)
                 .firstOrNull;
             if (latest != null) _active = latest;
-            if (_isPublicContext && (latest == null || !latest.isPublic)) {
+            if (_isPublicContext && latest != null && !latest.isPublic) {
               _accessError = 'This note is no longer public.';
             }
           }
@@ -168,6 +206,9 @@ class NotesScreenState extends State<NotesScreen> {
               .toList();
           _loading = false;
         });
+        if (_isPublicContext && _active != null) {
+          unawaited(_revalidatePublicRecord(_active!.id));
+        }
         if (widget.openRequest != null) _apply(widget.openRequest!);
       },
       onError: (Object error) {
@@ -199,10 +240,23 @@ class NotesScreenState extends State<NotesScreen> {
   void didUpdateWidget(NotesScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     final AppLinkOpenRequest? request = widget.openRequest;
-    if (request != null && request != oldWidget.openRequest) _apply(request);
+    if (request != null && request != oldWidget.openRequest) {
+      if (request.id.isNotEmpty) _resolvingRequest = true;
+      _apply(request);
+    }
   }
 
   Future<void> _apply(AppLinkOpenRequest request) async {
+    try {
+      await _applyRequest(request);
+    } finally {
+      if (mounted && _resolvingRequest) {
+        setState(() => _resolvingRequest = false);
+      }
+    }
+  }
+
+  Future<void> _applyRequest(AppLinkOpenRequest request) async {
     if (request == _appliedRequest) return;
     _isPublicContext = request.publicContext;
     if (request.editWriting && request.kind != AppLinkKind.note) {
@@ -1444,11 +1498,14 @@ class NotesScreenState extends State<NotesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_resolvingRequest && _accessError == null && _view == _NotesView.list) {
+      return const UiSkeleton(width: double.infinity, height: 240);
+    }
     if (_accessError != null) {
-      return UiEmptyState(
+      return RecordUnavailable(
         title: 'Note unavailable',
-        message: _accessError,
-        action: UiButton(label: 'Back', onPressed: _backToList),
+        message: _accessError!,
+        onBack: _backToList,
       );
     }
     if (_sourceWriting case final source?) {

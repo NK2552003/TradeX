@@ -41,7 +41,14 @@ from asset_runtime import DATA_DIR as ASSET_DIR, read_json, write_json, merge_ne
 import time
 from datetime import datetime, timedelta, timezone
 
-import yfinance as yf
+try:
+    import yfinance as yf
+except ImportError:
+    class _YfStub:
+        def download(self, *a, **kw): raise RuntimeError('yfinance not installed')
+        def screen(self, *a, **kw): raise RuntimeError('yfinance not installed')
+        def Ticker(self, *a, **kw): raise RuntimeError('yfinance not installed')
+    yf = _YfStub()
 
 # Optional Postgres backend — only imported/used if DATABASE_URL is set.
 DB_ENABLED = bool(os.environ.get("DATABASE_URL"))

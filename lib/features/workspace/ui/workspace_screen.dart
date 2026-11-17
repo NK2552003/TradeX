@@ -816,7 +816,8 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
             hint: 'Open in Copilot',
             onTap: () async {
               final skill = await pickTraderSkill(context);
-              if (mounted && skill != null) widget.onOpenTraderSkill?.call(skill);
+              if (mounted && skill != null)
+                widget.onOpenTraderSkill?.call(skill);
             },
           ),
       ],
@@ -963,12 +964,12 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                 onPressed: () => setState(() => _filterByDate = false),
               )
             : (_isToday && _searchQuery.isEmpty
-                ? UiButton(
-                    label: 'New note',
-                    leadingIcon: Icons.add_rounded,
-                    onPressed: _handleNewNote,
-                  )
-                : null),
+                  ? UiButton(
+                      label: 'New note',
+                      leadingIcon: Icons.add_rounded,
+                      onPressed: _handleNewNote,
+                    )
+                  : null),
       ),
       maxCards: 6,
       cards: <Widget>[
@@ -985,23 +986,22 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                       icon: Icons.share_rounded,
                       size: UiSize.xs,
                       intent: UiIntent.primary,
-                      onTap: () =>
-                          _openLinkedPost(AppLinkKind.note, note.id),
+                      onTap: () => _openLinkedPost(AppLinkKind.note, note.id),
                     ),
                   ]
                 : const <Widget>[],
-            footerEngagement:
-                _postService.isLinked(AppLinkKind.note, note.id)
+            footerEngagement: _postService.isLinked(AppLinkKind.note, note.id)
                 ? Builder(
                     builder: (BuildContext ctx) {
-                      final AppPostLinkInfo? link = _postService
-                          .getPrimaryLink(AppLinkKind.note, note.id);
+                      final AppPostLinkInfo? link = _postService.getPrimaryLink(
+                        AppLinkKind.note,
+                        note.id,
+                      );
                       return AppDeskEngagementRow(
                         isLinked: true,
                         likes: link?.likesCount ?? 0,
                         comments: link?.commentsCount ?? 0,
-                        onTap: () =>
-                            _openLinkedPost(AppLinkKind.note, note.id),
+                        onTap: () => _openLinkedPost(AppLinkKind.note, note.id),
                       );
                     },
                   )
@@ -1070,12 +1070,12 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                 onPressed: () => setState(() => _filterByDate = false),
               )
             : (_isToday && _searchQuery.isEmpty
-                ? UiButton(
-                    label: 'New trade',
-                    leadingIcon: Icons.add_chart_rounded,
-                    onPressed: _handleNewTrade,
-                  )
-                : null),
+                  ? UiButton(
+                      label: 'New trade',
+                      leadingIcon: Icons.add_chart_rounded,
+                      onPressed: _handleNewTrade,
+                    )
+                  : null),
       ),
       maxCards: 6,
       cards: <Widget>[
@@ -1179,12 +1179,12 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                 onPressed: () => setState(() => _filterByDate = false),
               )
             : (_isToday && _searchQuery.isEmpty
-                ? UiButton(
-                    label: 'New playbook',
-                    leadingIcon: Icons.add_rounded,
-                    onPressed: _handleNewPlaybook,
-                  )
-                : null),
+                  ? UiButton(
+                      label: 'New playbook',
+                      leadingIcon: Icons.add_rounded,
+                      onPressed: _handleNewPlaybook,
+                    )
+                  : null),
       ),
       maxCards: 6,
       cards: <Widget>[

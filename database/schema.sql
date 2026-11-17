@@ -3331,3 +3331,51 @@ CREATE POLICY copilot_workspace_owner ON public.copilot_workspaces
   FOR ALL TO authenticated
   USING ((SELECT auth.uid()) = user_id)
   WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- ===== Market universe (top 5000 ticker file) =====
+BEGIN;
+-- Market Intelligence covers exactly the ranked top-5000 ticker file
+-- (scripts/data/top-5000-tickers.md). The CI pipeline upserts this table; the app
+-- reads it to limit instruments, screeners, data coverage and overview to it.
+-- Existing market rows are kept; nothing here deletes data.
+
+CREATE TABLE IF NOT EXISTS public.market_universe (
+  ticker         VARCHAR(20) PRIMARY KEY,
+  display_symbol VARCHAR(20) NOT NULL,
+  rank           INTEGER NOT NULL CHECK (rank BETWEEN 1 AND 5000),
+  name           TEXT NOT NULL,
+  exchange       VARCHAR(20),
+  sector         VARCHAR(50),
+  market_cap     BIGINT,
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_market_universe_rank ON public.market_universe (rank);
+
+ALTER TABLE public.market_universe ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS market_universe_read ON public.market_universe;
+CREATE POLICY market_universe_read ON public.market_universe
+  FOR SELECT TO authenticated USING (true);
+GRANT SELECT ON public.market_universe TO authenticated;
+
+-- Detail tables are refreshed by upsert (update only). Collapse historic
+-- duplicates, then give each natural key a unique index PostgREST can target.
+DELETE FROM public.analyst_recommendations a
+  USING public.analyst_recommendations b
+  WHERE a.ticker = b.ticker AND a.period IS NOT DISTINCT FROM b.period AND a.id < b.id;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_analyst_recommendations_ticker_period
+  ON public.analyst_recommendations (ticker, period);
+
+DELETE FROM public.holders a
+  USING public.holders b
+  WHERE a.ticker = b.ticker AND a.holder_type IS NOT DISTINCT FROM b.holder_type
+    AND a.holder_name IS NOT DISTINCT FROM b.holder_name AND a.id < b.id;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_holders_ticker_type_name
+  ON public.holders (ticker, holder_type, holder_name);
+
+ALTER TABLE public.holders ALTER COLUMN holder_type TYPE VARCHAR(30);
+
+GRANT SELECT ON public.stock_details, public.dividends, public.stock_splits,
+  public.analyst_recommendations, public.holders, public.options_expirations,
+  public.options_contracts TO authenticated;
+COMMIT;

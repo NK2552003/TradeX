@@ -81,6 +81,13 @@ class CommunityTradeSetupTile extends StatelessWidget {
             },
           ),
 
+          if (setup.candlesFromImage && setup.candles.isNotEmpty)
+            const UiBadge(
+              label: 'Image-derived · approximate',
+              intent: UiIntent.warning,
+              size: UiSize.xs,
+            ),
+
           // Embedded Candlestick Chart
           if (setup.candles.isNotEmpty) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.sm)),

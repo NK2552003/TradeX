@@ -459,7 +459,10 @@ class CommunityRepository extends ChangeNotifier {
                   }
                 }
                 if (candles.isNotEmpty && setup != null) {
-                  setup = setup.copyWith(candles: candles);
+                  setup = setup.copyWith(
+                    candles: candles,
+                    candlesFromImage: title == 'Image-derived candles (approximate)',
+                  );
                 }
               }
             } catch (_) {}
@@ -3114,7 +3117,7 @@ class CommunityRepository extends ChangeNotifier {
                 .from('community_post_attachments')
                 .delete()
                 .eq('post_id', postId)
-                .neq('kind', 'image');
+                .inFilter('kind', ['note', 'journal', 'strategy']);
             await client.from('community_post_attachments').insert({
               'post_id': postId,
               'kind': attachment.source.kind.name,
@@ -3127,7 +3130,28 @@ class CommunityRepository extends ChangeNotifier {
                 .from('community_post_attachments')
                 .delete()
                 .eq('post_id', postId)
-                .neq('kind', 'image');
+                .inFilter('kind', ['note', 'journal', 'strategy']);
+          }
+          if (tradeSetup != null || clearTradeSetup) {
+            final existing = await client.from('community_post_attachments')
+                .select('id').eq('post_id', postId).eq('kind', 'chart_candles');
+            if (tradeSetup != null && tradeSetup.candles.isNotEmpty) {
+              final row = CommunityPostWriter.candleAttachment(postId, tradeSetup);
+              if (existing.isEmpty) {
+                await client.from('community_post_attachments').insert(row);
+              } else {
+                await client.from('community_post_attachments')
+                    .update(row).eq('id', existing.first['id']).eq('post_id', postId);
+                if (existing.length > 1) {
+                  await client.from('community_post_attachments').delete()
+                      .eq('post_id', postId).eq('kind', 'chart_candles')
+                      .inFilter('id', existing.skip(1).map((row) => row['id']).toList());
+                }
+              }
+            } else {
+              await client.from('community_post_attachments').delete()
+                  .eq('post_id', postId).eq('kind', 'chart_candles');
+            }
           }
         } catch (e) {
           debugPrint('[CommunityRepository] editPost Supabase error: $e');
@@ -3639,7 +3663,10 @@ class CommunityRepository extends ChangeNotifier {
                     }
                   }
                   if (candles.isNotEmpty && setup != null) {
-                    setup = setup.copyWith(candles: candles);
+                    setup = setup.copyWith(
+                    candles: candles,
+                    candlesFromImage: title == 'Image-derived candles (approximate)',
+                  );
                   }
                 }
               } catch (_) {}

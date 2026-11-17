@@ -174,7 +174,9 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
 
   @override
   void dispose() {
-    if (!_saving && (_sessionUploadedRefs.isNotEmpty || (_createdAsSilentDraftForAttachment && _isBlank))) {
+    if (!_saving &&
+        (_sessionUploadedRefs.isNotEmpty ||
+            (_createdAsSilentDraftForAttachment && _isBlank))) {
       _discardUncommittedAttachments(deleteBootstrapDraft: _isBlank);
     }
     _previewDebounce?.cancel();
@@ -364,7 +366,9 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
         _createdAsSilentDraftForAttachment = false;
         if (_sessionUploadedRefs.isNotEmpty) {
           final activeRefs = NoteAttachments.extractRefs(saved.content);
-          final abandoned = _sessionUploadedRefs.difference(activeRefs).toList();
+          final abandoned = _sessionUploadedRefs
+              .difference(activeRefs)
+              .toList();
           _sessionUploadedRefs.clear();
           for (final ref in abandoned) {
             unawaited(repo.deleteAttachment(ref).catchError((_) {}));

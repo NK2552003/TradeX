@@ -1,3 +1,4 @@
+import 'package:tradex/core/markdown_kit/markdown_preview.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -24,6 +25,25 @@ class CommunityHighlightedText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (RegExp(
+      r'(^|\n)\s*(#{1,6} |[-*] |\d+\. |>|```)|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\(',
+    ).hasMatch(text)) {
+      return RichMarkdownPreview(
+        data: text,
+        selectable: selectable,
+        onOpenRef: (ref) => onTagTap?.call(
+          ref.kind == AppLinkKind.ticker ? '\$${ref.id}' : ref.id,
+        ),
+        onTapLink: (label, href, title) {
+          if (href != null &&
+              (href.startsWith('https://') ||
+                  href.startsWith('http://') ||
+                  href.startsWith('tradex://'))) {
+            onTagTap?.call(href);
+          }
+        },
+      );
+    }
     final UiTheme theme = context.ui;
     final TextStyle effectiveStyle =
         (style ?? context.uiText.body.copyWith(height: 1.45)).copyWith(

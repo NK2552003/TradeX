@@ -186,6 +186,9 @@ void main() {
       );
       await tester.enterText(editor, 'Original draft');
       await tester.pump();
+      await tester.ensureVisible(find.text('Writing tools & tags'));
+      await tester.tap(find.text('Writing tools & tags'));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Polish Thesis'));
       await tester.tap(find.text('Polish Thesis'));
       await tester.pump();

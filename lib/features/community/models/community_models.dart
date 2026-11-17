@@ -167,6 +167,7 @@ class CommunityTradeSetup {
     this.pnl,
     this.isWin,
     this.candles = const <UiCandle>[],
+    this.candlesFromImage = false,
   });
 
   final String ticker;
@@ -181,6 +182,7 @@ class CommunityTradeSetup {
   final String? pnl;
   final bool? isWin;
   final List<UiCandle> candles;
+  final bool candlesFromImage;
 
   bool get isBullish => side.toUpperCase() == 'LONG';
 
@@ -195,6 +197,7 @@ class CommunityTradeSetup {
     String? pnl,
     bool? isWin,
     List<UiCandle>? candles,
+    bool? candlesFromImage,
   }) {
     return CommunityTradeSetup(
       ticker: ticker ?? this.ticker,
@@ -207,6 +210,7 @@ class CommunityTradeSetup {
       pnl: pnl ?? this.pnl,
       isWin: isWin ?? this.isWin,
       candles: candles ?? this.candles,
+      candlesFromImage: candlesFromImage ?? this.candlesFromImage,
     );
   }
 }

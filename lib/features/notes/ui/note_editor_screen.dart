@@ -167,7 +167,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   @override
   void dispose() {
-    if (!_saving && (_sessionUploadedRefs.isNotEmpty || (_createdAsSilentDraftForAttachment && _isBlank))) {
+    if (!_saving &&
+        (_sessionUploadedRefs.isNotEmpty ||
+            (_createdAsSilentDraftForAttachment && _isBlank))) {
       _discardUncommittedAttachments(deleteBootstrapDraft: _isBlank);
     }
     _graphSub?.cancel();
@@ -337,7 +339,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         _createdAsSilentDraftForAttachment = false;
         if (_sessionUploadedRefs.isNotEmpty) {
           final activeRefs = NoteAttachments.extractRefs(saved.content);
-          final abandoned = _sessionUploadedRefs.difference(activeRefs).toList();
+          final abandoned = _sessionUploadedRefs
+              .difference(activeRefs)
+              .toList();
           _sessionUploadedRefs.clear();
           for (final ref in abandoned) {
             unawaited(repo.deleteAttachment(ref).catchError((_) {}));
@@ -447,7 +451,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     if (_isBlank) {
       final wasBootstrap = _createdAsSilentDraftForAttachment;
       _discardUncommittedAttachments(deleteBootstrapDraft: true);
-      if (mounted) widget.onClose(_note.id.isEmpty || wasBootstrap ? null : _note);
+      if (mounted)
+        widget.onClose(_note.id.isEmpty || wasBootstrap ? null : _note);
       return;
     }
     final needsSave = _dirty && !_isBlank;
@@ -756,7 +761,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     }
     try {
       final String ref = widget.sourceDocument != null
-          ? await widget.sourceDocument!.upload(null, bytes: bytes, filename: filename)
+          ? await widget.sourceDocument!.upload(
+              null,
+              bytes: bytes,
+              filename: filename,
+            )
           : await NotesRepositoryScope.repository.uploadAttachment(
               owner.id,
               null,
