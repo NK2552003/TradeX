@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -66,9 +67,31 @@ class RichCodeBlockBuilder extends MarkdownElementBuilder {
     if (langKey == 'mermaid' || langKey == 'flowchart') {
       return _MermaidBlock(source: source.trim(), dark: dark);
     }
-    if (PerplexityBlockTags.perplexityCards.contains(langKey)) {
+    if (PerplexityBlockTags.followUpTags.contains(langKey)) {
+      final List<String> questions = PerplexityAnswerParser.parseFollowUps(
+        source.trim(),
+      );
+      if (questions.isNotEmpty) {
+        return _FollowUpsBlock(
+          questions: questions,
+          onPromptTap: onPromptTap,
+        );
+      }
+    }
+    if (PerplexityBlockTags.searchStepTags.contains(langKey)) {
+      final List<PerplexitySearchStep> steps =
+          PerplexityAnswerParser.parseSearchSteps(source.trim());
+      if (steps.isNotEmpty) {
+        return _SearchStepsBlock(steps: steps);
+      }
+    }
+    if (PerplexityBlockTags.perplexityCards.contains(langKey) ||
+        (!PerplexityBlockTags.chartAndDiagramTags.contains(langKey) &&
+            isStructuredPerplexityJson(source.trim()))) {
       return PerplexityCardBlock(
-        tag: langKey,
+        tag: PerplexityBlockTags.perplexityCards.contains(langKey)
+            ? langKey
+            : (isResearchPanelJson(source.trim()) ? 'research_panel' : 'card'),
         spec: source.trim(),
         onOpenRef: onOpenRef,
         onTapUrl: onTapUrl,
@@ -110,6 +133,77 @@ class RichCodeBlockBuilder extends MarkdownElementBuilder {
       displayLanguage: rawLang,
       dark: dark,
     );
+  }
+}
+
+/// Returns true when [raw] is a JSON object matching the [ResearchPanel]
+/// payload shape (`columns` + `rows`, or `format` with `summary`/`rows`),
+/// so AI responses or saved notes using ```` ```json ```` or bare fences
+/// render as a rich research table card instead of raw JSON.
+bool isResearchPanelJson(String raw) {
+  final String trimmed = raw.trim();
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return false;
+  try {
+    final dynamic decoded = jsonDecode(trimmed);
+    if (decoded is! Map) return false;
+    final bool hasTable =
+        decoded['columns'] is List &&
+        (decoded['columns'] as List).isNotEmpty &&
+        decoded['rows'] is List;
+    final bool hasFormat =
+        decoded['format'] is String &&
+        (decoded['summary'] is String ||
+            decoded['rows'] is List ||
+            decoded['evidence'] is List);
+    return hasTable || hasFormat;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Returns true when [raw] is a JSON object matching [ResearchPanel] or a
+/// structured [PerplexityCardBlock] domain schema, so ```` ```json ```` or
+/// untagged fences render as rich cards instead of raw JSON.
+bool isStructuredPerplexityJson(String raw) {
+  if (isResearchPanelJson(raw)) return true;
+  final String trimmed = raw.trim();
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return false;
+  try {
+    final dynamic decoded = jsonDecode(trimmed);
+    if (decoded is! Map) return false;
+    return decoded.containsKey('scenarios') ||
+        decoded.containsKey('cases') ||
+        (decoded.containsKey('entry') && decoded.containsKey('stopLoss')) ||
+        decoded.containsKey('leftItems') ||
+        decoded.containsKey('rightItems') ||
+        decoded.containsKey('entities') ||
+        decoded.containsKey('quadrants') ||
+        decoded.containsKey('equityCurve') ||
+        decoded.containsKey('profitFactor') ||
+        decoded.containsKey('holdings') ||
+        decoded.containsKey('allocations') ||
+        (decoded.containsKey('accountSize') && decoded.containsKey('riskPct')) ||
+        decoded.containsKey('indicators') ||
+        decoded.containsKey('releases') ||
+        decoded.containsKey('targetMean') ||
+        decoded.containsKey('upgrades') ||
+        decoded.containsKey('putCallRatio') ||
+        decoded.containsKey('fearGreed') ||
+        decoded.containsKey('formula') ||
+        decoded.containsKey('equation') ||
+        decoded.containsKey('marketCap') ||
+        decoded.containsKey('peRatio') ||
+        (decoded.containsKey('symbol') && decoded.containsKey('price')) ||
+        decoded.containsKey('netWorth') ||
+        decoded.containsKey('bio') ||
+        decoded.containsKey('articles') ||
+        decoded.containsKey('filingType') ||
+        decoded.containsKey('videoUrl') ||
+        decoded.containsKey('videos') ||
+        decoded.containsKey('facts') ||
+        decoded.containsKey('quote');
+  } catch (_) {
+    return false;
   }
 }
 
@@ -236,6 +330,113 @@ class _ChromeIconButton extends StatelessWidget {
 /// matches the rest of the app; only the token colors inside the code come
 /// from a dedicated syntax theme, since those need their own fixed palette
 /// to stay readable and distinguishable regardless of the accent color.
+class _FollowUpsBlock extends StatelessWidget {
+  const _FollowUpsBlock({required this.questions, this.onPromptTap});
+
+  final List<String> questions;
+  final ValueChanged<String>? onPromptTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      child: UiCard(
+        variant: UiCardVariant.subtle,
+        title: 'Related Questions',
+        child: Wrap(
+          spacing: context.sp(theme.spacing.xs),
+          runSpacing: context.sp(theme.spacing.xs),
+          children: <Widget>[
+            for (final String q in questions)
+              UiButton(
+                label: q,
+                leadingIcon: onPromptTap != null
+                    ? Icons.subdirectory_arrow_right_rounded
+                    : Icons.content_copy_outlined,
+                size: UiSize.xs,
+                variant: UiVariant.soft,
+                onPressed: () {
+                  if (onPromptTap != null) {
+                    onPromptTap!(q);
+                  } else {
+                    Clipboard.setData(ClipboardData(text: q));
+                    UiToast.info(
+                      context,
+                      title: 'Copied prompt',
+                      message: q,
+                    );
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchStepsBlock extends StatelessWidget {
+  const _SearchStepsBlock({required this.steps});
+
+  final List<PerplexitySearchStep> steps;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      child: UiAccordion(
+        sections: <UiAccordionSection>[
+          UiAccordionSection(
+            title: 'Research Steps (${steps.length})',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (int i = 0; i < steps.length; i++) ...<Widget>[
+                  if (i > 0) UiGap.v(theme.spacing.xs),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: context.sz(14),
+                        color: theme.colors.bullish,
+                      ),
+                      UiGap.h(theme.spacing.xs),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              steps[i].title,
+                              style: context.uiText.body.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (steps[i].detail.isNotEmpty)
+                              Text(
+                                steps[i].detail,
+                                style: context.uiText.caption.copyWith(
+                                  color: theme.colors.foregroundSubtle,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CodeBlock extends StatefulWidget {
   const _CodeBlock({
     required this.source,

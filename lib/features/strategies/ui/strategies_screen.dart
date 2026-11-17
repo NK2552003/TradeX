@@ -253,8 +253,9 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     super.didUpdateWidget(oldWidget);
     final AppLinkOpenRequest? request = widget.openRequest;
     if (request != null && request != oldWidget.openRequest) {
-      if (request.id.isNotEmpty && request.kind == AppLinkKind.strategy)
+      if (request.id.isNotEmpty && request.kind == AppLinkKind.strategy) {
         _resolvingRequest = true;
+      }
       _apply(request);
     }
     // The shell rebuilt with a new callback identity while a playbook is open, so
@@ -293,8 +294,9 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   }
 
   AppStrategy? get _active {
-    if (_linkedRecord != null && _linkedRecord!.id == _activeId)
+    if (_linkedRecord != null && _linkedRecord!.id == _activeId) {
       return _linkedRecord;
+    }
     final AppStrategy? draft = _draft;
     if (draft != null) return draft;
     final String? id = _activeId;

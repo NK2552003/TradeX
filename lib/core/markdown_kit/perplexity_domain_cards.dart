@@ -1238,7 +1238,8 @@ class PerplexityNewsCard extends StatelessWidget {
           largeColumns: 2,
           desktopColumns: 2,
           tabletColumns: 2,
-          equalHeight: true,
+          equalHeight: false,
+          intrinsicHeight: true,
           children: [
             for (final article in articles)
               _NewsArticleItem(
@@ -1308,6 +1309,7 @@ class _NewsArticleItem extends StatelessWidget {
     return UiCard(
       variant: UiCardVariant.outlined,
       density: UiDensity.compact,
+      hoverLift: false,
       onTap: url != null && onTapUrl != null ? () => onTapUrl!(url) : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1373,12 +1375,16 @@ class _NewsArticleItem extends StatelessWidget {
           UiGap.v(theme.spacing.xs),
           Text(
             headline,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: context.uiText.bodyStrong.copyWith(height: 1.4),
           ),
           if (summary != null) ...<Widget>[
             UiGap.v(theme.spacing.xxs),
             Text(
               summary,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: context.uiText.body.copyWith(
                 height: 1.5,
                 color: theme.colors.foregroundMuted,
@@ -1603,7 +1609,8 @@ class PerplexityComparisonCard extends StatelessWidget {
       largeColumns: 2,
       desktopColumns: 2,
       tabletColumns: 2,
-      equalHeight: true,
+      equalHeight: false,
+      intrinsicHeight: true,
       children: [
         if (leftItems.isNotEmpty)
           _buildSidePanel(

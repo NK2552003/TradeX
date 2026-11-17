@@ -124,11 +124,15 @@ class MessagesRepository extends ChangeNotifier {
         sharedRef: payload.ref,
       );
     } catch (e) {
-      _lockedRawPayloads[message.id] = (
-        rawBody: message.body,
-        senderId: sender,
-      );
-      debugPrint('[MessagesRepository] decrypt deferred for ${message.id}: $e');
+      if (e is! FormatException) {
+        _lockedRawPayloads[message.id] = (
+          rawBody: message.body,
+          senderId: sender,
+        );
+      }
+      if (_loggedDecryptFailures.add(message.id)) {
+        debugPrint('[MessagesRepository] decrypt deferred for ${message.id}: $e');
+      }
       final isUnlockedNow =
           decryptOverride != null ||
           PrivateMessageService.instance.isLocallyUnlockedFast;
@@ -152,6 +156,7 @@ class MessagesRepository extends ChangeNotifier {
   final Set<String> _typing = <String>{};
   final List<Timer> _pending = <Timer>[];
   final Map<String, String> _pinnedMessages = <String, String>{};
+  final Set<String> _loggedDecryptFailures = <String>{};
   final Map<String, Future<void>> _pendingThreadCreations =
       <String, Future<void>>{};
   final Map<String, String> _lastUploadedPathByUrl = <String, String>{};

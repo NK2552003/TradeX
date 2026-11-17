@@ -347,6 +347,16 @@ class _CopilotComposerState extends State<CopilotComposer> {
                       onPressed: () {},
                     ),
                   ),
+                  if (!compact &&
+                      widget.onResearchFormats != null &&
+                      !widget.compactHeight) ...[
+                    UiGap.h(theme.spacing.xs),
+                    ResearchRoutingHint(
+                      controller: widget.controller,
+                      onChoose: widget.onResearchFormats!,
+                      enabled: _editable && widget.enabled,
+                    ),
+                  ],
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerRight,
@@ -376,29 +386,17 @@ class _CopilotComposerState extends State<CopilotComposer> {
                   ),
                 ],
               ),
-              UiGap.v(
-                widget.compactHeight ? theme.spacing.xs : theme.spacing.sm,
-              ),
+              UiGap.v(theme.spacing.xs),
             ],
             UiCard(
               key: const ValueKey('copilot-composer-surface'),
               variant: UiCardVariant.elevated,
               borderRadius: context.radius(theme.radii.xl),
-              padding: EdgeInsets.all(
-                context.sp(
-                  widget.compactHeight ? theme.spacing.sm : theme.spacing.md,
-                ),
-              ),
+              padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (widget.onResearchFormats != null && !widget.compactHeight)
-                    ResearchRoutingHint(
-                      controller: widget.controller,
-                      onChoose: widget.onResearchFormats!,
-                      enabled: _editable && widget.enabled,
-                    ),
                   if (_dictating)
                     Padding(
                       padding: EdgeInsets.only(
@@ -460,8 +458,8 @@ class _CopilotComposerState extends State<CopilotComposer> {
                         hintText: compact
                             ? 'Ask a question or type / for skills…'
                             : 'Ask a question, attach a file, or type / for trader skills…',
-                        minLines: widget.compactHeight ? 1 : 2,
-                        maxLines: widget.compactHeight ? 2 : (compact ? 4 : 6),
+                        minLines: 1,
+                        maxLines: widget.compactHeight ? 2 : (compact ? 4 : 5),
                         maxLength: 24000,
                         variant: UiInputVariant.ghost,
                         readOnly: !widget.enabled || _submitting,
@@ -528,29 +526,18 @@ class _CopilotComposerState extends State<CopilotComposer> {
                 ],
               ),
             ),
-            UiGap.v(theme.spacing.xs),
-            Row(
-              children: [
-                if (!compact)
-                  Expanded(
-                    child: Text(
-                      'Enter or Ctrl/Cmd + Enter to send · Voice ready',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundSubtle,
-                      ),
-                    ),
-                  ),
-                Expanded(
-                  child: Text(
-                    '${value.text.characters.length} chars / $words words',
-                    textAlign: TextAlign.right,
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.foregroundSubtle,
-                    ),
+            if (value.text.isNotEmpty) ...[
+              UiGap.v(theme.spacing.xxs),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '${value.text.characters.length} chars / $words words',
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ],
         );
       },

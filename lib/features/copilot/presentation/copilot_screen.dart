@@ -165,7 +165,7 @@ class CopilotScreenState extends State<CopilotScreen> {
         child: Theme(
           data: theme.toThemeData(),
           child: Material(
-            color: theme.colors.background,
+            type: MaterialType.transparency,
             child: Builder(builder: _buildWorkspace),
           ),
         ),
@@ -302,9 +302,9 @@ class CopilotScreenState extends State<CopilotScreen> {
                   onPressed: widget.onOpenSettings,
                 ),
               if (!device.isTablet)
-                UiButton(
-                  label: device.isMobile ? 'Library' : 'Workspace',
+                UiIconButton(
                   icon: Icons.space_dashboard_outlined,
+                  tooltip: device.isMobile ? 'Library' : 'Workspace',
                   variant: _workspaceOpen ? UiVariant.soft : UiVariant.ghost,
                   size: UiSize.sm,
                   onPressed: () => _showWorkspace(!_workspaceOpen),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:tradex/core/app-ui/models/app_models.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/linking/link_graph.dart';
@@ -36,6 +37,7 @@ class RichMarkdownPreview extends StatelessWidget {
     this.onTapLink,
     this.onPromptTap,
     this.showTypingCursor = false,
+    this.maxCollapsedChars,
   });
 
   /// Raw markdown source.
@@ -65,10 +67,37 @@ class RichMarkdownPreview extends StatelessWidget {
   /// Called when an interactive Perplexity card action triggers a follow-up prompt.
   final ValueChanged<String>? onPromptTap;
 
+  /// Optional character limit for feed/card previews (Twitter/Instagram-style
+  /// "Show more" / "Show less" fold). When null, renders the full document.
+  final int? maxCollapsedChars;
+
   @override
   Widget build(BuildContext context) {
+    if (maxCollapsedChars != null &&
+        data.trim().length > maxCollapsedChars! &&
+        outlineController == null &&
+        !showTypingCursor) {
+      return _CollapsibleMarkdownPreview(
+        limit: maxCollapsedChars!,
+        data: data,
+        imageResolver: imageResolver,
+        emptyPlaceholder: emptyPlaceholder,
+        selectable: selectable,
+        shrinkWrap: shrinkWrap,
+        onOpenRef: onOpenRef,
+        onTapLink: onTapLink,
+        onPromptTap: onPromptTap,
+      );
+    }
     final bool dark = context.ui.brightness == Brightness.dark;
-    final content = data.trim().isEmpty ? emptyPlaceholder : data;
+    final String rawContent = data.trim().isEmpty ? emptyPlaceholder : data;
+    // Close any unclosed fenced code block before appending the typing cursor
+    // or running downstream passes — otherwise an in-flight streaming code
+    // block swallows both the cursor marker and `_ensureTrailingInlineContent`'s
+    // flush paragraph, triggering flutter_markdown's `_inlines.isEmpty` crash.
+    final String content = rawContent.contains('{')
+        ? _wrapBareResearchPanelJson(_closeUnclosedFence(rawContent))
+        : _closeUnclosedFence(rawContent);
     final endsWithFence = RegExp(
       r'(^|\n)\s*(`{3,}|~{3,})\s*$',
     ).hasMatch(content);
@@ -82,7 +111,9 @@ class RichMarkdownPreview extends StatelessWidget {
     // html_block.dart for how the placeholders are turned back into
     // widgets via the 'html_node' builder registered in [_markdownBody].
     final Map<String, HtmlNode> htmlRegistry = <String, HtmlNode>{};
-    final String htmlProcessed = renderSafeHtml(raw, htmlRegistry);
+    final String htmlProcessed = raw.contains('<')
+        ? renderSafeHtml(raw, htmlRegistry)
+        : raw;
     final String source = normalizeHeadingBoundaries(
       neutralizeDanglingCustomMarkers(htmlProcessed),
     );
@@ -90,7 +121,29 @@ class RichMarkdownPreview extends StatelessWidget {
 
     final MarkdownOutlineController? outline = outlineController;
     if (outline == null) {
-      return _body(context, source, styleSheet, dark, htmlRegistry);
+      final Widget rendered =
+          (!showTypingCursor && source.length > 2400)
+          ? _ProgressiveMarkdownChunks(
+              chunks: _splitIntoRenderChunks(source, maxChunkChars: 1200),
+              spacing: styleSheet.blockSpacing ?? 14,
+              chunkBuilder: (String chunk) => _body(
+                context,
+                chunk,
+                styleSheet,
+                dark,
+                htmlRegistry,
+              ),
+            )
+          : _body(
+              context,
+              source,
+              styleSheet,
+              dark,
+              htmlRegistry,
+            );
+      return selectable && SelectionContainer.maybeOf(context) == null
+          ? SelectionArea(child: rendered)
+          : rendered;
     }
 
     // Headings are rendered by flutter_markdown's own h1–h6 path (never by a
@@ -143,11 +196,14 @@ class RichMarkdownPreview extends StatelessWidget {
       outline.commit(collected, liveCacheIds);
     });
 
-    return Column(
+    final Widget column = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: children,
     );
+    return selectable && SelectionContainer.maybeOf(context) == null
+        ? SelectionArea(child: column)
+        : column;
   }
 
   Widget _body(
@@ -206,11 +262,14 @@ class RichMarkdownPreview extends StatelessWidget {
         htmlRegistry,
       );
     }
-    return Column(
+    final Widget column = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: children,
     );
+    return selectable && SelectionContainer.maybeOf(context) == null
+        ? SelectionArea(child: column)
+        : column;
   }
 
   Widget _markdownBody(
@@ -224,7 +283,10 @@ class RichMarkdownPreview extends StatelessWidget {
     return MarkdownBody(
       extensionSet: md.ExtensionSet.gitHubFlavored,
       shrinkWrap: shrinkWrap,
-      selectable: selectable,
+      // Selection is handled by a single outer [SelectionArea] rather than
+      // per-paragraph [SelectableText] widgets, which avoids heavy Web DOM
+      // overhead and blank-height layout glitches during streaming/scrolling.
+      selectable: false,
       data: _ensureTrailingInlineContent(source),
       inlineSyntaxes: <md.InlineSyntax>[
         if (showTypingCursor) TypingCursorSyntax(),
@@ -240,9 +302,7 @@ class RichMarkdownPreview extends StatelessWidget {
         'pre': RichCodeBlockBuilder(
           dark: dark,
           onOpenRef: onOpenRef,
-          onTapUrl: onTapLink == null
-              ? null
-              : (String url) => onTapLink!(url, url, ''),
+          onTapUrl: (String url) => _handleExternalTap(url, url, ''),
           onPromptTap: onPromptTap,
         ),
         'math_inline': MathInlineBuilder(),
@@ -283,7 +343,7 @@ class RichMarkdownPreview extends StatelessWidget {
             }
           }
         }
-        onTapLink?.call(text, href, title);
+        _handleExternalTap(text, href, title);
       },
 
       sizedImageBuilder: imageResolver == null
@@ -291,6 +351,18 @@ class RichMarkdownPreview extends StatelessWidget {
           : (MarkdownImageConfig config) => imageResolver!(context, config.uri),
       styleSheet: styleSheet,
     );
+  }
+
+  void _handleExternalTap(String text, String? href, String title) {
+    if (onTapLink != null) {
+      onTapLink!(text, href, title);
+      return;
+    }
+    if (href == null) return;
+    final Uri? uri = Uri.tryParse(href);
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+      launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   static MarkdownStyleSheet buildStyleSheet(BuildContext context) {
@@ -744,9 +816,267 @@ String _neutralizeSingleDollar(String text) {
 String _ensureTrailingInlineContent(String source) {
   if (source.trim().isEmpty) return source;
   if (markdownLeaksInlineStack(source)) {
-    return '${source.trimRight()}\n\n\u200B';
+    final String closed = _closeUnclosedFence(source.trimRight());
+    return '$closed\n\n\u200B';
   }
   return source;
+}
+
+/// Closes an unterminated CommonMark fenced code block (```` ``` ```` or `~~~`)
+/// at the end of [source] so trailing paragraphs/cursors are not swallowed into
+/// `<pre><code>`.
+String _closeUnclosedFence(String source) {
+  final RegExp openFencePattern = RegExp(r'^ {0,3}(`{3,}|~{3,})(.*)$');
+  final RegExp closeFencePattern = RegExp(r'^ {0,3}(`{3,}|~{3,})[ \t]*$');
+  String? openChar;
+  int openLen = 0;
+
+  for (final String line in source.split('\n')) {
+    if (openChar == null) {
+      final Match? m = openFencePattern.firstMatch(line);
+      if (m != null) {
+        final String fence = m.group(1)!;
+        final String info = m.group(2) ?? '';
+        // Backtick fence info strings cannot contain backticks in CommonMark.
+        if (fence[0] == '`' && info.contains('`')) continue;
+        openChar = fence[0];
+        openLen = fence.length;
+      }
+    } else {
+      final Match? m = closeFencePattern.firstMatch(line);
+      if (m != null) {
+        final String fence = m.group(1)!;
+        if (fence[0] == openChar && fence.length >= openLen) {
+          openChar = null;
+          openLen = 0;
+        }
+      }
+    }
+  }
+
+  if (openChar == null) return source;
+  final String prefix = source.endsWith('\n') ? source : '$source\n';
+  return '$prefix${openChar * openLen}';
+}
+
+/// Wraps standalone top-level bare JSON blocks (not already inside a fenced
+/// code block) that match the [ResearchPanel] schema into
+/// ```` ```research_panel ```` fences so saved notes or pasted AI outputs
+/// render identically to Copilot.
+String _wrapBareResearchPanelJson(String source) {
+  final List<String> lines = source.split('\n');
+  final List<String> out = <String>[];
+  bool inFence = false;
+  int i = 0;
+
+  while (i < lines.length) {
+    final String line = lines[i];
+    if (_fence.hasMatch(line)) {
+      inFence = !inFence;
+      out.add(line);
+      i++;
+      continue;
+    }
+    if (!inFence && line.trimLeft().startsWith('{')) {
+      int end = -1;
+      for (int j = i; j < lines.length; j++) {
+        if (j > i && _fence.hasMatch(lines[j])) break;
+        final String candidate = lines.sublist(i, j + 1).join('\n');
+        if (lines[j].trimRight().endsWith('}') &&
+            isStructuredPerplexityJson(candidate)) {
+          end = j;
+          break;
+        }
+      }
+      if (end != -1) {
+        final String candidate = lines.sublist(i, end + 1).join('\n');
+        final String fenceTag = isResearchPanelJson(candidate)
+            ? 'research_panel'
+            : 'card';
+        out
+          ..add('```$fenceTag')
+          ..addAll(lines.sublist(i, end + 1))
+          ..add('```');
+        i = end + 1;
+        continue;
+      }
+    }
+    out.add(line);
+    i++;
+  }
+  return out.join('\n');
+}
+
+/// Splits [source] at top-level blank lines outside fenced code blocks into
+/// chunks of roughly [maxChunkChars] so huge documents can render progressively
+/// without blocking a single frame.
+List<String> _splitIntoRenderChunks(
+  String source, {
+  int maxChunkChars = 1200,
+}) {
+  final List<String> lines = source.split('\n');
+  final List<String> chunks = <String>[];
+  final StringBuffer current = StringBuffer();
+  bool inFence = false;
+
+  for (int i = 0; i < lines.length; i++) {
+    final String line = lines[i];
+    if (_fence.hasMatch(line)) inFence = !inFence;
+    if (current.isNotEmpty) current.write('\n');
+    current.write(line);
+
+    if (!inFence && line.trim().isEmpty && current.length >= maxChunkChars) {
+      final String chunk = current.toString().trim();
+      if (chunk.isNotEmpty) chunks.add(chunk);
+      current.clear();
+    }
+  }
+  final String tail = current.toString().trim();
+  if (tail.isNotEmpty) chunks.add(tail);
+  return chunks.isEmpty ? <String>[source] : chunks;
+}
+
+class _ProgressiveMarkdownChunks extends StatefulWidget {
+  const _ProgressiveMarkdownChunks({
+    required this.chunks,
+    required this.spacing,
+    required this.chunkBuilder,
+  });
+
+  final List<String> chunks;
+  final double spacing;
+  final Widget Function(String chunk) chunkBuilder;
+
+  @override
+  State<_ProgressiveMarkdownChunks> createState() =>
+      _ProgressiveMarkdownChunksState();
+}
+
+class _ProgressiveMarkdownChunksState
+    extends State<_ProgressiveMarkdownChunks> {
+  static const int _initialChunks = 2;
+  static const int _chunksPerFrame = 2;
+
+  late int _visibleCount;
+  bool _scheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _visibleCount = widget.chunks.length.clamp(0, _initialChunks);
+    _scheduleNextBatch();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ProgressiveMarkdownChunks oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.chunks.length < _visibleCount) {
+      _visibleCount = widget.chunks.length;
+    }
+    _scheduleNextBatch();
+  }
+
+  void _scheduleNextBatch() {
+    if (_scheduled || _visibleCount >= widget.chunks.length) return;
+    _scheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduled = false;
+      if (!mounted || _visibleCount >= widget.chunks.length) return;
+      setState(() {
+        _visibleCount = (_visibleCount + _chunksPerFrame).clamp(
+          0,
+          widget.chunks.length,
+        );
+      });
+      _scheduleNextBatch();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        for (int i = 0; i < _visibleCount; i++) ...<Widget>[
+          if (i > 0) SizedBox(height: widget.spacing),
+          RepaintBoundary(child: widget.chunkBuilder(widget.chunks[i])),
+        ],
+      ],
+    );
+  }
+}
+
+class _CollapsibleMarkdownPreview extends StatefulWidget {
+  const _CollapsibleMarkdownPreview({
+    required this.limit,
+    required this.data,
+    required this.imageResolver,
+    required this.emptyPlaceholder,
+    required this.selectable,
+    required this.shrinkWrap,
+    required this.onOpenRef,
+    required this.onTapLink,
+    required this.onPromptTap,
+  });
+
+  final int limit;
+  final String data;
+  final Widget Function(BuildContext context, Uri uri)? imageResolver;
+  final String emptyPlaceholder;
+  final bool selectable;
+  final bool shrinkWrap;
+  final void Function(AppLinkRef ref)? onOpenRef;
+  final void Function(String text, String? href, String title)? onTapLink;
+  final ValueChanged<String>? onPromptTap;
+
+  @override
+  State<_CollapsibleMarkdownPreview> createState() =>
+      _CollapsibleMarkdownPreviewState();
+}
+
+class _CollapsibleMarkdownPreviewState
+    extends State<_CollapsibleMarkdownPreview> {
+  bool _expanded = false;
+
+  String _truncate(String input, int limit) {
+    if (input.length <= limit) return input;
+    int cut = input.lastIndexOf(RegExp(r'\s'), limit);
+    if (cut < (limit * 0.5).round()) cut = limit;
+    return '${input.substring(0, cut).trimRight()}…';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String effectiveData = _expanded
+        ? widget.data
+        : _truncate(widget.data, widget.limit);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        RichMarkdownPreview(
+          data: effectiveData,
+          imageResolver: widget.imageResolver,
+          emptyPlaceholder: widget.emptyPlaceholder,
+          selectable: widget.selectable,
+          shrinkWrap: widget.shrinkWrap,
+          onOpenRef: widget.onOpenRef,
+          onTapLink: widget.onTapLink,
+          onPromptTap: widget.onPromptTap,
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: UiButton(
+            label: _expanded ? 'Show less' : 'Show more',
+            variant: UiVariant.link,
+            size: UiSize.xs,
+            onPressed: () => setState(() => _expanded = !_expanded),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Two independent defenses against a heading silently absorbing text it

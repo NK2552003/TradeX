@@ -216,4 +216,256 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+  testWidgets(
+    'streaming unclosed code fences and trailing blocks do not trip _inlines.isEmpty',
+    (tester) async {
+      Future<void> pumpPreview(
+        String data, {
+        required bool streaming,
+      }) => tester.pumpWidget(
+        MaterialApp(
+          theme: UiTheme.dark().toThemeData(),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: RichMarkdownPreview(
+                data: data,
+                emptyPlaceholder: '',
+                selectable: !streaming,
+                showTypingCursor: streaming,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final samples = <String>[
+        'Analysis:\n```dart\nvoid main() {',
+        'Analysis:\n```chart\n{"type": "bar"',
+        'Analysis:\n~~~python\nprint("hi")',
+        'Analysis:\n````markdown\ninner ```',
+        '> ```dart\n> final x = 1;',
+        '- [ ] ',
+        'Summary\n\n---',
+        '| A | B |\n| --- | --- |\n| 1 | 2 |',
+        'Analysis:\n```dart\nvoid main() {}\n```',
+      ];
+
+      for (final sample in samples) {
+        await pumpPreview(sample, streaming: true);
+        expect(tester.takeException(), isNull);
+        await pumpPreview(sample, streaming: false);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+  testWidgets(
+    'research_panel JSON renders as ResearchPanel across research_panel, json, untagged, and bare forms',
+    (tester) async {
+      const jsonBody = '''{
+  "title": "Intel Bull/Bear Scenarios",
+  "summary": "Evaluating potential outcomes for Intel based on strategic and market conditions.",
+  "columns": ["Scenario", "Trigger", "Assumptions", "Consequence"],
+  "rows": [
+    [
+      "Bull Case",
+      "Successful 7nm and 5nm rollouts, demand surge in data centers",
+      "Growth in AI, cloud computing, and recovery in PC demand",
+      "Potential upside to \$50-\$60 range, driven by innovation and performance leadership"
+    ],
+    [
+      "Base Case",
+      "Steady improvements in process technology, stable demand",
+      "Managed competitive pressure and operational enhancements",
+      "Maintains current trajectory, target range \$40-\$45"
+    ]
+  ]
+}''';
+
+      for (final md in <String>[
+        '```research_panel\n$jsonBody\n```',
+        '```json\n$jsonBody\n```',
+        '```\n$jsonBody\n```',
+        jsonBody,
+      ]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: UiTheme.dark().toThemeData(),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: RichMarkdownPreview(data: md),
+              ),
+            ),
+          ),
+        );
+        expect(find.text('Intel Bull/Bear Scenarios'), findsOneWidget);
+        expect(find.text('Bull Case'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+  testWidgets(
+    'followups and research_steps blocks render as structured UI in RichMarkdownPreview',
+    (tester) async {
+      const md = '''
+Summary text.
+
+```research_steps
+[{"title": "Fetched Intel filings", "detail": "10-K & Q3 earnings"}]
+```
+
+```followups
+["Compare INTC vs AMD margins", "Show INTC capex breakdown"]
+```
+''';
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: UiTheme.dark().toThemeData(),
+          home: const Scaffold(
+            body: SingleChildScrollView(
+              child: RichMarkdownPreview(data: md),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Research Steps (1)'), findsOneWidget);
+      expect(find.text('Related Questions'), findsOneWidget);
+      expect(find.text('Compare INTC vs AMD margins'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'AppAiMessageBubble renders json-fenced and bare ResearchPanel payloads as ResearchPanel',
+    (tester) async {
+      const jsonBody = '''{
+  "title": "Intel Bull/Bear Scenarios",
+  "summary": "Evaluating potential outcomes for Intel based on strategic and market conditions.",
+  "columns": ["Scenario", "Trigger", "Assumptions", "Consequence"],
+  "rows": [
+    [
+      "Bull Case",
+      "Successful 7nm and 5nm rollouts, demand surge in data centers",
+      "Growth in AI, cloud computing, and recovery in PC demand",
+      "Potential upside to \$50-\$60 range, driven by innovation and performance leadership"
+    ]
+  ]
+}''';
+
+      for (final body in <String>[
+        '```scenario_tree\n$jsonBody\n```',
+        '```json\n$jsonBody\n```',
+        jsonBody,
+      ]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: UiTheme.dark().toThemeData(),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: AppAiMessageBubble(
+                  message: AppAiMessage(
+                    id: 'msg-${body.hashCode}',
+                    role: AppAiRole.assistant,
+                    body: body,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(find.text('Intel Bull/Bear Scenarios'), findsOneWidget);
+        expect(find.text('Bull Case'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+  testWidgets(
+    'PerplexityNewsCard inside AppAiChatBlock renders all stories without layout or SelectionArea errors',
+    (tester) async {
+      const newsMarkdown = '''
+Here are the latest updates on Intel Corporation (INTC):
+
+```news
+{
+  "title": "Intel Corporation – Latest News & Insights",
+  "articles": [
+    {"headline": "Intel Reports Q3 Earnings", "publisher": "intc.com", "url": "https://intc.com/1"},
+    {"headline": "Foundry Momentum Builds", "publisher": "intc.com", "url": "https://intc.com/2"},
+    {"headline": "AI PC Shipments Accelerate", "publisher": "intc.com", "url": "https://intc.com/3"},
+    {"headline": "Data Center Segment Growth", "publisher": "intc.com", "url": "https://intc.com/4"}
+  ]
+}
+```
+''';
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: UiTheme.dark().toThemeData(),
+          home: Scaffold(
+            body: AppAiChatBlock(
+              onSend: (_) {},
+              composer: const SizedBox(height: 40),
+              messages: const [
+                AppAiMessage(
+                  id: 'news-1',
+                  role: AppAiRole.assistant,
+                  body: newsMarkdown,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Intel Corporation – Latest News & Insights'), findsOneWidget);
+      expect(find.text('4 stories'), findsOneWidget);
+      expect(find.text('Intel Reports Q3 Earnings'), findsOneWidget);
+      expect(find.text('Data Center Segment Growth'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'large markdown documents render progressively and support Show more / Show less fold',
+    (tester) async {
+      final largeDoc = List.generate(
+        18,
+        (i) =>
+            '## Section $i\n\nLong institutional analysis paragraph $i covering revenue growth, margins, capex, and valuation multiples across semiconductor peers.\n',
+      ).join('\n');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: UiTheme.dark().toThemeData(),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: RichMarkdownPreview(data: largeDoc),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Section 0'), findsOneWidget);
+      expect(find.text('Section 17'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: UiTheme.dark().toThemeData(),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: RichMarkdownPreview(
+                data: largeDoc,
+                maxCollapsedChars: 400,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Show more'), findsOneWidget);
+      expect(find.text('Section 17'), findsNothing);
+      await tester.tap(find.text('Show more'));
+      await tester.pumpAndSettle();
+      expect(find.text('Show less'), findsOneWidget);
+      expect(find.text('Section 17'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

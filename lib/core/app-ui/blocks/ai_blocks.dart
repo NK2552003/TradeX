@@ -261,39 +261,42 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
                         },
                         child: NotificationListener<ScrollNotification>(
                           onNotification: _onScroll,
-                          child: ListView.builder(
-                            controller: _scroll,
-                            padding: EdgeInsets.symmetric(
-                              vertical: context.sp(theme.spacing.md),
+                          child: SelectionArea(
+                            child: ListView.builder(
+                              controller: _scroll,
+                              padding: EdgeInsets.symmetric(
+                                vertical: context.sp(theme.spacing.md),
+                              ),
+                              itemCount: widget.messages.length + headerCount,
+                              itemBuilder: (BuildContext ctx, int i) {
+                                if (widget.header != null && i == 0) {
+                                  return widget.header!;
+                                }
+                                final AppAiMessage msg =
+                                    widget.messages[i - headerCount];
+                                return _KeepAliveMessage(
+                                  key: ValueKey(msg.id),
+                                  keepAlive: msg.pending,
+                                  child:
+                                      widget.messageBuilder?.call(ctx, msg) ??
+                                      AppAiMessageBubble(
+                                        message: msg,
+                                        onCopy: widget.onCopy == null
+                                            ? null
+                                            : () => widget.onCopy!(msg),
+                                        onRetry: widget.onRetry == null
+                                            ? null
+                                            : () => widget.onRetry!(msg),
+                                        onShare: widget.onShare == null
+                                            ? null
+                                            : () => widget.onShare!(msg),
+                                        onOpenRef: widget.onOpenRef,
+                                        actionsBuilder:
+                                            widget.messageActionsBuilder,
+                                      ),
+                                );
+                              },
                             ),
-                            itemCount: widget.messages.length + headerCount,
-                            itemBuilder: (BuildContext ctx, int i) {
-                              if (widget.header != null && i == 0) {
-                                return widget.header!;
-                              }
-                              final AppAiMessage msg =
-                                  widget.messages[i - headerCount];
-                              return AppFadeIn(
-                                key: ValueKey(msg.id),
-                                child:
-                                    widget.messageBuilder?.call(ctx, msg) ??
-                                    AppAiMessageBubble(
-                                      message: msg,
-                                      onCopy: widget.onCopy == null
-                                          ? null
-                                          : () => widget.onCopy!(msg),
-                                      onRetry: widget.onRetry == null
-                                          ? null
-                                          : () => widget.onRetry!(msg),
-                                      onShare: widget.onShare == null
-                                          ? null
-                                          : () => widget.onShare!(msg),
-                                      onOpenRef: widget.onOpenRef,
-                                      actionsBuilder:
-                                          widget.messageActionsBuilder,
-                                    ),
-                              );
-                            },
                           ),
                         ),
                       ),
@@ -451,5 +454,39 @@ class AppStrategyGraphBlock extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _KeepAliveMessage extends StatefulWidget {
+  const _KeepAliveMessage({
+    super.key,
+    required this.child,
+    required this.keepAlive,
+  });
+
+  final Widget child;
+  final bool keepAlive;
+
+  @override
+  State<_KeepAliveMessage> createState() => _KeepAliveMessageState();
+}
+
+class _KeepAliveMessageState extends State<_KeepAliveMessage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => widget.keepAlive;
+
+  @override
+  void didUpdateWidget(covariant _KeepAliveMessage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.keepAlive != widget.keepAlive) {
+      updateKeepAlive();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

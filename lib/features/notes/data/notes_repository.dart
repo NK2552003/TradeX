@@ -718,15 +718,15 @@ class NotesRepositoryImpl implements NotesRepository {
       final actor = SupabaseConfig.client?.auth.currentUser?.id;
       if (actor == null) return current;
       try {
-        await SupabaseConfig.client!
-            .from('trader_note_views')
-            .upsert({
-              'note_id': id,
-              'user_id': actor,
-              'viewed_at': DateTime.now().toUtc().toIso8601String(),
-            })
-            .select('note_id')
-            .single();
+        await SupabaseConfig.client!.from('trader_note_views').upsert(
+          {
+            'note_id': id,
+            'user_id': actor,
+            'viewed_at': DateTime.now().toUtc().toIso8601String(),
+          },
+          onConflict: 'note_id,user_id',
+          ignoreDuplicates: true,
+        );
         return await getById(id) ?? current;
       } catch (error) {
         debugPrint('[NotesRepository] view could not be recorded: $error');

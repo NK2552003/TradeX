@@ -414,7 +414,7 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     final HtmlNode? node = registry[element.textContent];
-    if (node == null) return null;
+    if (node == null) return const SizedBox.shrink();
     return _renderBlockNode(
       node,
       preferredStyle ?? styleSheet.p ?? const TextStyle(),

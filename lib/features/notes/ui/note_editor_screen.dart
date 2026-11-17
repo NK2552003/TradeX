@@ -451,8 +451,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     if (_isBlank) {
       final wasBootstrap = _createdAsSilentDraftForAttachment;
       _discardUncommittedAttachments(deleteBootstrapDraft: true);
-      if (mounted)
+      if (mounted) {
         widget.onClose(_note.id.isEmpty || wasBootstrap ? null : _note);
+      }
       return;
     }
     final needsSave = _dirty && !_isBlank;

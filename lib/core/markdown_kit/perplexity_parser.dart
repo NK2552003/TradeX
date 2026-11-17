@@ -587,20 +587,36 @@ class PerplexityAnswerParser {
         continue;
       }
 
-      if (PerplexityBlockTags.isStructured(tag) && tag != 'loading_card') {
+      final String effectiveTag = !PerplexityBlockTags.isStructured(tag)
+          ? (_inferStructuredJsonTag(blockBody) ?? tag)
+          : tag;
+
+      if (PerplexityBlockTags.isStructured(effectiveTag) &&
+          effectiveTag != 'loading_card') {
         final String label = _deriveBlockSummary(
-          tag: tag,
+          tag: effectiveTag,
           body: blockBody,
           outTickers: tickers,
           outSources: candidates,
           outMedia: mediaCandidates,
         );
         cards.add(
-          PerplexityCardSummary(tag: tag, label: label, rawSpec: blockBody),
+          PerplexityCardSummary(
+            tag: effectiveTag,
+            label: label,
+            rawSpec: blockBody,
+          ),
         );
       }
 
-      keptLines.addAll(lines.sublist(i, closeIndex + 1));
+      if (effectiveTag != tag) {
+        keptLines
+          ..add('$fenceMarker$effectiveTag')
+          ..addAll(lines.sublist(i + 1, closeIndex))
+          ..add(lines[closeIndex]);
+      } else {
+        keptLines.addAll(lines.sublist(i, closeIndex + 1));
+      }
       i = closeIndex + 1;
     }
 
@@ -868,6 +884,60 @@ class PerplexityAnswerParser {
         if (p.isNotEmpty) '${p[0].toUpperCase()}${p.substring(1)}',
     ].join();
   }
+
+  static String? _inferStructuredJsonTag(String raw) {
+    final dynamic decoded = parseFlexibleJson(raw);
+    if (decoded is! Map) return null;
+    final bool hasTable =
+        decoded['columns'] is List &&
+        (decoded['columns'] as List).isNotEmpty &&
+        decoded['rows'] is List;
+    final bool hasFormat =
+        decoded['format'] is String &&
+        (decoded['summary'] is String ||
+            decoded['rows'] is List ||
+            decoded['evidence'] is List);
+    if (hasTable || hasFormat) return 'research_panel';
+    if (decoded.containsKey('scenarios') ||
+        decoded.containsKey('cases') ||
+        (decoded.containsKey('entry') && decoded.containsKey('stopLoss')) ||
+        decoded.containsKey('leftItems') ||
+        decoded.containsKey('rightItems') ||
+        decoded.containsKey('entities') ||
+        decoded.containsKey('quadrants') ||
+        decoded.containsKey('equityCurve') ||
+        decoded.containsKey('profitFactor') ||
+        decoded.containsKey('holdings') ||
+        decoded.containsKey('allocations') ||
+        (decoded.containsKey('accountSize') && decoded.containsKey('riskPct')) ||
+        decoded.containsKey('indicators') ||
+        decoded.containsKey('releases') ||
+        decoded.containsKey('targetMean') ||
+        decoded.containsKey('upgrades') ||
+        decoded.containsKey('putCallRatio') ||
+        decoded.containsKey('fearGreed') ||
+        decoded.containsKey('formula') ||
+        decoded.containsKey('equation') ||
+        decoded.containsKey('marketCap') ||
+        decoded.containsKey('peRatio') ||
+        (decoded.containsKey('symbol') && decoded.containsKey('price')) ||
+        decoded.containsKey('netWorth') ||
+        decoded.containsKey('bio') ||
+        decoded.containsKey('articles') ||
+        decoded.containsKey('filingType') ||
+        decoded.containsKey('videoUrl') ||
+        decoded.containsKey('videos') ||
+        decoded.containsKey('facts') ||
+        decoded.containsKey('quote')) {
+      return 'card';
+    }
+    return null;
+  }
+
+  static List<String> parseFollowUps(String raw) => _parseFollowUps(raw);
+
+  static List<PerplexitySearchStep> parseSearchSteps(String raw) =>
+      _parseSearchSteps(raw);
 
   static List<String> _parseFollowUps(String raw) {
     final dynamic decoded = parseFlexibleJson(raw);

@@ -31,6 +31,7 @@ class CommunityHighlightedText extends StatelessWidget {
       return RichMarkdownPreview(
         data: text,
         selectable: selectable,
+        maxCollapsedChars: 600,
         onOpenRef: (ref) => onTagTap?.call(
           ref.kind == AppLinkKind.ticker ? '\$${ref.id}' : ref.id,
         ),

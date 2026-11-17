@@ -816,8 +816,9 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
             hint: 'Open in Copilot',
             onTap: () async {
               final skill = await pickTraderSkill(context);
-              if (mounted && skill != null)
+              if (mounted && skill != null) {
                 widget.onOpenTraderSkill?.call(skill);
+              }
             },
           ),
       ],

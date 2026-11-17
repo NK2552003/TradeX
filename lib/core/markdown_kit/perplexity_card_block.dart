@@ -387,6 +387,9 @@ class PerplexityCardBlock extends StatelessWidget {
     if (data.containsKey('entry') && data.containsKey('stopLoss')) {
       return 'setup';
     }
+    if (data['columns'] is List && data['rows'] is List) {
+      return 'research_panel';
+    }
     if (data.containsKey('leftItems') ||
         data.containsKey('rightItems') ||
         data.containsKey('entities') ||

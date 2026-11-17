@@ -130,8 +130,9 @@ void main() {
           for (var i = 0; i < 200; i++) {
             await Future<void>.delayed(const Duration(milliseconds: 10));
             await tester.pump();
-            if (!tester.widget<UiDropzone>(find.byType(UiDropzone)).uploading)
+            if (!tester.widget<UiDropzone>(find.byType(UiDropzone)).uploading) {
               break;
+            }
           }
         });
         await tester.pumpAndSettle();

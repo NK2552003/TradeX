@@ -66,7 +66,7 @@ class ResearchPanel extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (text(data['summary']).isNotEmpty) ...[
-              SelectableText(
+              Text(
                 text(data['summary']),
                 style: context.uiText.body.copyWith(height: 1.6),
               ),

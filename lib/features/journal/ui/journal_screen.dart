@@ -252,8 +252,9 @@ class JournalScreenState extends State<JournalScreen> {
     super.didUpdateWidget(oldWidget);
     final AppLinkOpenRequest? request = widget.openRequest;
     if (request != null && request != oldWidget.openRequest) {
-      if (request.id.isNotEmpty && request.kind == AppLinkKind.journal)
+      if (request.id.isNotEmpty && request.kind == AppLinkKind.journal) {
         _resolvingRequest = true;
+      }
       _apply(request);
     }
     if (oldWidget.onSubpageChanged != widget.onSubpageChanged) {
@@ -310,8 +311,9 @@ class JournalScreenState extends State<JournalScreen> {
   };
 
   AppTrade? get _active {
-    if (_linkedRecord != null && _linkedRecord!.id == _activeId)
+    if (_linkedRecord != null && _linkedRecord!.id == _activeId) {
       return _linkedRecord;
+    }
     final AppTrade? draft = _draft;
     if (draft != null) return draft;
     final String? id = _activeId;

@@ -48,10 +48,18 @@ class AppAiMessageBubble extends StatefulWidget {
 }
 
 class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
+  // Keep the established reveal cadence, but avoid rebuilding rich markdown
+  // for every frame while a response is streaming.
   final AiTypewriter _typewriter = AiTypewriter();
+  DateTime? _lastStreamRender;
   bool _streamedInSession = false;
   int _answerTab = 0;
   bool? _helpfulVote;
+  String? _cachedParsedBody;
+  bool? _cachedParsedStreaming;
+  int? _cachedSourcesLen;
+  int? _cachedStepsLen;
+  PerplexityAnswerMeta? _cachedMeta;
   bool get _isAssistant => widget.message.role == AppAiRole.assistant;
 
   @override
@@ -64,6 +72,17 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
 
   void _onReveal() {
     if (!mounted) return;
+    if (_typewriter.isTyping) {
+      final DateTime now = DateTime.now();
+      final DateTime? lastRender = _lastStreamRender;
+      if (lastRender != null &&
+          now.difference(lastRender) < const Duration(milliseconds: 48)) {
+        return;
+      }
+      _lastStreamRender = now;
+    } else {
+      _lastStreamRender = null;
+    }
     setState(() {});
     const AiOutputGrowthNotification().dispatch(context);
   }
@@ -128,24 +147,38 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
         ? _typewriter.visibleText
         : message.body;
 
-    final PerplexityAnswerMeta? meta = _isAssistant && displayedBody.isNotEmpty
-        ? PerplexityAnswerParser.parse(
-            displayedBody,
-            explicitUrls: message.sources,
-            structuredSources: [
-              for (final AppAiSource s in message.structuredSources)
-                (
-                  url: s.url,
-                  title: s.title,
-                  domain: s.domain,
-                  snippet: s.snippet,
-                ),
-            ],
-            externalSteps: message.steps,
-            focus: message.focus,
-            isStreaming: isAnimatingStream,
-          )
-        : null;
+    PerplexityAnswerMeta? meta;
+    if (_isAssistant && displayedBody.isNotEmpty) {
+      if (_cachedMeta != null &&
+          _cachedParsedBody == displayedBody &&
+          _cachedParsedStreaming == isAnimatingStream &&
+          _cachedSourcesLen == message.sources.length &&
+          _cachedStepsLen == message.steps.length) {
+        meta = _cachedMeta;
+      } else {
+        meta = PerplexityAnswerParser.parse(
+          displayedBody,
+          explicitUrls: message.sources,
+          structuredSources: [
+            for (final AppAiSource s in message.structuredSources)
+              (
+                url: s.url,
+                title: s.title,
+                domain: s.domain,
+                snippet: s.snippet,
+              ),
+          ],
+          externalSteps: message.steps,
+          focus: message.focus,
+          isStreaming: isAnimatingStream,
+        );
+        _cachedParsedBody = displayedBody;
+        _cachedParsedStreaming = isAnimatingStream;
+        _cachedSourcesLen = message.sources.length;
+        _cachedStepsLen = message.steps.length;
+        _cachedMeta = meta;
+      }
+    }
 
     final List<String> effectiveFollowUps = <String>[
       ...?meta?.followUps,
@@ -299,7 +332,9 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
                     child: GestureDetector(
                       onTap: () => showUiLightbox(
                         ctx,
-                        imageUrls: allUrls.isNotEmpty ? allUrls : <String>[rawUrl],
+                        imageUrls: allUrls.isNotEmpty
+                            ? allUrls
+                            : <String>[rawUrl],
                         initialIndex: tappedIdx >= 0 ? tappedIdx : 0,
                       ),
                       child: ConstrainedBox(
@@ -516,7 +551,9 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
                   child: ClipRRect(
                     borderRadius: context.radius(theme.radii.md),
                     child: SizedBox(
-                      width: context.sz(imageAttachments.length == 1 ? 180 : 108),
+                      width: context.sz(
+                        imageAttachments.length == 1 ? 180 : 108,
+                      ),
                       height: context.sz(
                         imageAttachments.length == 1 ? 124 : 84,
                       ),
@@ -1148,10 +1185,7 @@ class _PerplexityInlineMediaStrip extends StatelessWidget {
                       child: Stack(
                         fit: StackFit.expand,
                         children: <Widget>[
-                          UiRemoteImage(
-                            url: preview[i].url,
-                            fit: BoxFit.cover,
-                          ),
+                          UiRemoteImage(url: preview[i].url, fit: BoxFit.cover),
                           if (preview[i].caption.isNotEmpty)
                             Positioned(
                               left: 0,
@@ -1372,6 +1406,9 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final List<PerplexitySource> preview = sources.take(6).toList();
+    final double cardHeight = context.sz(
+      MediaQuery.textScalerOf(context).scale(88),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1422,9 +1459,11 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
               for (int i = 0; i < preview.length; i++) ...<Widget>[
                 SizedBox(
                   width: context.sz(200),
+                  height: cardHeight,
                   child: UiCard(
                     variant: UiCardVariant.outlined,
                     density: UiDensity.compact,
+                    hoverLift: false,
                     onTap: onSourceTap != null
                         ? () => onSourceTap!(preview[i].url)
                         : null,
@@ -1485,9 +1524,11 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
               if (sources.length > preview.length)
                 SizedBox(
                   width: context.sz(148),
+                  height: cardHeight,
                   child: UiCard(
                     variant: UiCardVariant.subtle,
                     density: UiDensity.compact,
+                    hoverLift: false,
                     onTap: onViewAll,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

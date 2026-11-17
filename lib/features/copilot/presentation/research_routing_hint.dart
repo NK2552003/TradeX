@@ -22,31 +22,18 @@ class ResearchRoutingHint extends StatelessWidget {
         valueListenable: controller,
         builder: (context, value, _) {
           final route = ResearchRouter.select(value.text);
-          return Padding(
-            padding: EdgeInsets.only(bottom: context.sp(context.ui.spacing.xs)),
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: context.sp(context.ui.spacing.xs),
-              runSpacing: context.sp(context.ui.spacing.xxs),
-              children: [
-                UiTooltip(
-                  message: route.reason,
-                  child: UiBadge(
-                    label: route.explicit
-                        ? route.label
-                        : 'Auto · ${route.label}',
-                    icon: Icons.auto_awesome_outlined,
-                    variant: UiBadgeVariant.soft,
-                    size: UiSize.xs,
-                  ),
-                ),
-                UiButton(
-                  label: 'Change format',
-                  variant: UiVariant.ghost,
-                  size: UiSize.xs,
-                  onPressed: enabled ? onChoose : null,
-                ),
-              ],
+          return UiTooltip(
+            message: '${route.reason} (Tap to change format)',
+            child: UiButton(
+              label: route.explicit
+                  ? route.label
+                  : 'Auto · ${route.label}',
+              icon: Icons.auto_awesome_outlined,
+              trailingIcon: Icons.expand_more,
+              variant: UiVariant.soft,
+              size: UiSize.xs,
+              rounded: true,
+              onPressed: enabled ? onChoose : null,
             ),
           );
         },

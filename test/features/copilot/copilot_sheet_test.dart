@@ -42,7 +42,14 @@ void main() {
         expect(rect.top, greaterThan(8));
       }
       expect(find.byType(UiSplitPane), findsNothing);
-      await tester.tap(find.text(width < 600 ? 'Library' : 'Workspace').first);
+      await tester.tap(
+        find.byWidgetPredicate(
+          (w) =>
+              (w is Tooltip &&
+                  (w.message == 'Library' || w.message == 'Workspace')) ||
+              (w is Text && (w.data == 'Library' || w.data == 'Workspace')),
+        ).first,
+      );
       await tester.pumpAndSettle();
       expect(find.text('New conversation'), findsWidgets);
       expect(tester.takeException(), isNull);

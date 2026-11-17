@@ -521,11 +521,60 @@ class PerplexityPulseCard extends StatelessWidget {
         : !(changeLabel ?? '').trimLeft().startsWith('-');
     final UiIntent intent = isPos ? UiIntent.bullish : UiIntent.bearish;
 
+    final bool hasPriceHeader =
+        primaryValue != null || changePct != null || changeLabel != null;
+    final bool inlinePriceInHeader =
+        !context.uiRes.isMobile && (hasPriceHeader || sparkline.length >= 2);
+    final Widget? priceRow = (hasPriceHeader || sparkline.length >= 2)
+        ? Wrap(
+            spacing: context.sp(theme.spacing.sm),
+            runSpacing: context.sp(theme.spacing.xs),
+            crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.end,
+            children: <Widget>[
+              if (primaryValue != null)
+                Text(
+                  primaryValue,
+                  style: context.uiText.display.copyWith(
+                    fontSize: context.fs(inlinePriceInHeader ? 20 : 24),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              if (changePct != null)
+                UiBadge.delta(changePct)
+              else if (changeLabel != null)
+                UiBadge(
+                  label: changeLabel,
+                  intent: intent,
+                  size: UiSize.xs,
+                ),
+              if (sparkline.length >= 2)
+                SizedBox(
+                  width: context.sz(108),
+                  height: context.sz(32),
+                  child: UiSparkChart(
+                    data: sparkline,
+                    color: intent.color(context),
+                  ),
+                ),
+              if (sourceUrl != null)
+                AppSiteLogo(url: sourceUrl, label: title, size: 22),
+            ],
+          )
+        : (sourceUrl != null
+              ? AppSiteLogo(url: sourceUrl, label: title, size: 22)
+              : null);
+
+    final bool hasBody =
+        (!inlinePriceInHeader && priceRow != null) ||
+        items.isNotEmpty ||
+        (sourceUrl != null && onTapUrl != null);
+
     return Padding(
       padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
       child: UiCard(
         variant: UiCardVariant.outlined,
-        headerDivider: true,
+        headerDivider: hasBody,
         padding: EdgeInsets.all(context.sp(theme.spacing.md)),
         accentColor: theme.colors.primary,
         title: title,
@@ -535,81 +584,52 @@ class PerplexityPulseCard extends StatelessWidget {
           size: context.sz(theme.sizes.iconMd),
           color: theme.colors.primary,
         ),
-        trailing: sourceUrl != null
-            ? AppSiteLogo(url: sourceUrl, label: title, size: 22)
-            : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (primaryValue != null || sparkline.length >= 2) ...<Widget>[
-              Wrap(
-                spacing: context.sp(theme.spacing.md),
-                runSpacing: context.sp(theme.spacing.xs),
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
+        trailing: inlinePriceInHeader
+            ? priceRow
+            : (sourceUrl != null
+                  ? AppSiteLogo(url: sourceUrl, label: title, size: 22)
+                  : null),
+        child: !hasBody
+            ? const SizedBox.shrink()
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Wrap(
-                    spacing: context.sp(theme.spacing.sm),
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: <Widget>[
-                      if (primaryValue != null)
-                        Text(
-                          primaryValue,
-                          style: context.uiText.display.copyWith(
-                            fontSize: context.fs(24),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      if (changePct != null)
-                        UiBadge.delta(changePct)
-                      else if (changeLabel != null)
-                        UiBadge(
-                          label: changeLabel,
-                          intent: intent,
-                          size: UiSize.xs,
-                        ),
-                    ],
-                  ),
-                  if (sparkline.length >= 2)
-                    SizedBox(
-                      width: context.sz(128),
-                      height: context.sz(36),
-                      child: UiSparkChart(
-                        data: sparkline,
-                        color: intent.color(context),
+                  if (!inlinePriceInHeader && priceRow != null) ...<Widget>[
+                    priceRow,
+                    if (items.isNotEmpty ||
+                        (sourceUrl != null && onTapUrl != null))
+                      UiGap.v(theme.spacing.md),
+                  ],
+                  if (items.isNotEmpty)
+                    UiCardGrid(
+                      minTileWidth:
+                          context.sz(150) *
+                          MediaQuery.textScalerOf(context).scale(1),
+                      largeColumns: 3,
+                      desktopColumns: 3,
+                      tabletColumns: 2,
+                      equalHeight: false,
+                      children: <Widget>[
+                        for (final Map<String, dynamic> item in items)
+                          _PulseTile(item: item, onOpenRef: onOpenRef),
+                      ],
+                    ),
+                  if (sourceUrl != null && onTapUrl != null) ...<Widget>[
+                    UiGap.v(theme.spacing.sm),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: AppSiteLinkChip(
+                        url: sourceUrl,
+                        title:
+                            SiteLogoResolver.extractDomain(sourceUrl) ??
+                            'Source',
+                        onTap: () => onTapUrl!(sourceUrl),
                       ),
                     ),
+                  ],
                 ],
               ),
-              UiGap.v(theme.spacing.md),
-            ],
-            if (items.isNotEmpty)
-              UiCardGrid(
-                minTileWidth:
-                    context.sz(150) * MediaQuery.textScalerOf(context).scale(1),
-                largeColumns: 3,
-                desktopColumns: 3,
-                tabletColumns: 2,
-                equalHeight: false,
-                children: <Widget>[
-                  for (final Map<String, dynamic> item in items)
-                    _PulseTile(item: item, onOpenRef: onOpenRef),
-                ],
-              ),
-            if (sourceUrl != null && onTapUrl != null) ...<Widget>[
-              UiGap.v(theme.spacing.sm),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: AppSiteLinkChip(
-                  url: sourceUrl,
-                  title: SiteLogoResolver.extractDomain(sourceUrl) ?? 'Source',
-                  onTap: () => onTapUrl!(sourceUrl),
-                ),
-              ),
-            ],
-          ],
-        ),
       ),
     );
   }
