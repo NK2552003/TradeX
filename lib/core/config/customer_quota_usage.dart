@@ -82,11 +82,7 @@ class CustomerQuotaUsage {
       return fallback;
     }
 
-    bool optionalBool(
-      Map<String, dynamic> source,
-      String key,
-      bool fallback,
-    ) {
+    bool optionalBool(Map<String, dynamic> source, String key, bool fallback) {
       final value = source[key];
       if (value is bool) return value;
       return fallback;
@@ -140,7 +136,10 @@ class CustomerQuotaUsage {
     );
     if (result.userId == signedInId) {
       AppSession.instance.changeTier(result.tier);
-      AppSession.instance.aiQueriesUsed.value = result.aiQueriesUsed;
+      AppSession.instance.updateAiQuota(
+        used: result.aiQueriesUsed,
+        limit: result.aiQueriesLimit,
+      );
     }
     return result;
   }

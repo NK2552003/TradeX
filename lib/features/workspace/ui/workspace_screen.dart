@@ -904,7 +904,11 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
       subtitle: subtitle,
       trailing: UiToggleGroup<String>(
         value: _notesFilter,
-        size: UiSize.xs,
+        expand: context.uiRes.isMobile,
+        density: context.uiRes.isMobile
+            ? UiDensity.compact
+            : UiDensity.comfortable,
+        size: context.uiRes.isMobile ? UiSize.sm : UiSize.xs,
         onChanged: (String value) {
           if (value == 'all' && _notesFilter == 'all') {
             widget.onOpenFeature('notes');
@@ -1032,7 +1036,11 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
       subtitle: subtitle,
       trailing: UiToggleGroup<String>(
         value: _journalFilter,
-        size: UiSize.xs,
+        expand: context.uiRes.isMobile,
+        density: context.uiRes.isMobile
+            ? UiDensity.compact
+            : UiDensity.comfortable,
+        size: context.uiRes.isMobile ? UiSize.sm : UiSize.xs,
         onChanged: (String value) {
           if (value == 'all' && _journalFilter == 'all') {
             widget.onOpenFeature('journal');
@@ -1138,7 +1146,11 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
       subtitle: subtitle,
       trailing: UiToggleGroup<String>(
         value: _strategyFilter,
-        size: UiSize.xs,
+        expand: context.uiRes.isMobile,
+        density: context.uiRes.isMobile
+            ? UiDensity.compact
+            : UiDensity.comfortable,
+        size: context.uiRes.isMobile ? UiSize.sm : UiSize.xs,
         onChanged: (String value) {
           if (value == 'all' && _strategyFilter == 'all') {
             widget.onOpenFeature('strategies');

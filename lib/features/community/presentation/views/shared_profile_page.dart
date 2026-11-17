@@ -3,7 +3,6 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
@@ -42,25 +41,18 @@ class _SharedProfilePageState extends State<SharedProfilePage> {
     final rows = await client
         .from('profiles')
         .select(
-          'id,handle,display_name,avatar_url,bio,role,verified,subscription_tier',
+          'id,handle,display_name,avatar_url,bio,role,verified,'
+          'subscription_tier,experience_level,trading_style,location,website,'
+          'avg_hold_duration,primary_market,top_strategy,risk_mantra,'
+          'followers_count,following_count,win_rate,public_stats,posts_count',
         )
         .or('handle.eq.${widget.handle},handle.eq.@${widget.handle}')
         .limit(1);
     if (rows.isEmpty) return null;
     final row = rows.first;
-    return CommunityAuthor(
-      id: row['id'] as String,
-      handle: row['handle'] as String? ?? widget.handle,
-      displayName: row['display_name'] as String? ?? widget.handle,
-      avatarUrl: row['avatar_url'] as String?,
-      bio: row['bio'] as String?,
-      verified: row['verified'] as bool? ?? false,
-      subscriptionTier: row['subscription_tier'] as String? ?? 'free',
-      userRole: switch (row['role']) {
-        'user_admin' || 'admin' => UserRole.userAdmin,
-        'affiliate' => UserRole.affiliate,
-        _ => UserRole.customer,
-      },
+    return CommunityRepository.mapProfileToCommunityAuthor(
+      authorId: row['id'] as String,
+      authorProfile: Map<String, dynamic>.from(row),
     );
   }
 
@@ -69,7 +61,18 @@ class _SharedProfilePageState extends State<SharedProfilePage> {
     future: _author,
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
-        return const UiSkeleton(height: 240);
+        return Scaffold(
+          backgroundColor: context.uiColors.background,
+          body: AlphaThreadBackdrop.auth(
+            showSideEdges: context.uiRes.isDesktop,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 700),
+                child: UiSkeleton.profilePreview(),
+              ),
+            ),
+          ),
+        );
       }
       if (snapshot.hasError) {
         return UiEmptyState(

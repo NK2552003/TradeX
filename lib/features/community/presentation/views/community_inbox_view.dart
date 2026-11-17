@@ -115,9 +115,13 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
-          child: _activeConversation == null
-              ? _buildConversationList()
-              : _buildChatThread(_activeConversation!),
+          child:
+              widget.repository.isLoading &&
+                  widget.repository.loadConversations().isEmpty
+              ? UiSkeleton.messages()
+              : (_activeConversation == null
+                    ? _buildConversationList()
+                    : _buildChatThread(_activeConversation!)),
         ),
       ),
     );

@@ -91,9 +91,9 @@ class UnifiedAiService {
     bool? allowWebSearch,
   }) async {
     if (CustomerLimitations.isAiQuotaExhausted()) {
-      final quota = CustomerLimitations.currentQuota;
+      final limit = CustomerLimitations.effectiveAiQueriesLimit;
       throw StateError(
-        'Monthly AI quota exceeded (${AppSession.instance.aiQueriesUsed.value}/${quota.maxAiQueriesPerMonth}). Upgrade your plan for more AI credits.',
+        'Monthly AI quota exceeded (${AppSession.instance.aiQueriesUsed.value}/$limit). Upgrade your plan for more AI credits.',
       );
     }
     if (SupabaseConfig.isConfigured) {
@@ -235,9 +235,9 @@ class UnifiedAiService {
     String requestKind = 'chat',
   }) async* {
     if (CustomerLimitations.isAiQuotaExhausted()) {
-      final quota = CustomerLimitations.currentQuota;
+      final limit = CustomerLimitations.effectiveAiQueriesLimit;
       throw StateError(
-        'Monthly AI quota exceeded (${AppSession.instance.aiQueriesUsed.value}/${quota.maxAiQueriesPerMonth}). Upgrade your plan for more AI credits.',
+        'Monthly AI quota exceeded (${AppSession.instance.aiQueriesUsed.value}/$limit). Upgrade your plan for more AI credits.',
       );
     }
     if (SupabaseConfig.isConfigured) {
@@ -436,11 +436,11 @@ class UnifiedAiService {
         throw StateError(errText);
       }
       final usage = data['usage'];
-      if (usage is Map &&
-          usage['user_id'] == actor &&
-          usage['ai_queries_used'] is num) {
-        AppSession.instance.aiQueriesUsed.value =
-            (usage['ai_queries_used'] as num).toInt();
+      if (usage is Map) {
+        AppSession.instance.updateAiQuotaFromUsage(
+          usage,
+          expectedUserId: actor,
+        );
       }
       return data['text'] as String;
     } on FunctionException catch (error) {

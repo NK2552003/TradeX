@@ -130,11 +130,11 @@ class UiToggleGroup<T> extends StatelessWidget {
             !hasBoundedWidth ||
             constraints.maxWidth >= options.length * minSegmentWidth;
         final bool effectiveExpand =
+            hasBoundedWidth &&
             (expand ||
                 (constraints.hasTightWidth &&
-                    variant != UiToggleGroupVariant.pill)) &&
-            hasBoundedWidth &&
-            fitsExpanded;
+                    variant != UiToggleGroupVariant.pill &&
+                    fitsExpanded));
 
         final List<Widget> items = <Widget>[
           for (int i = 0; i < options.length; i++)
@@ -348,7 +348,10 @@ class _UiToggleButton<T> extends StatelessWidget {
         constraints: BoxConstraints(minHeight: size.height(ctx) - ctx.sz(4)),
         padding: EdgeInsets.symmetric(
           horizontal:
-              ctx.sp(iconOnly ? theme.spacing.sm : theme.spacing.md) * f,
+              ctx.sp(
+                iconOnly || isExpanded ? theme.spacing.sm : theme.spacing.md,
+              ) *
+              f,
           vertical: ctx.sp(theme.spacing.xs) * f,
         ),
         // Pill groups live inside a Wrap and must hug their label. Supplying

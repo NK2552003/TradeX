@@ -6,7 +6,6 @@ import 'package:tradex/core/data/account_access_repository.dart';
 import 'package:tradex/core/security/private_messaging_gate.dart';
 import 'package:tradex/core/widgets/account_access_gate.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/presentation/pages/splash_screen.dart';
 
 class _Access extends AccountAccessRepository {
   final ready = Completer<AccountAccess>();
@@ -32,9 +31,9 @@ void main() {
             ),
           ),
         );
-        expect(find.byType(SplashScreen), findsOneWidget);
+        expect(find.byType(UiSkeleton), findsWidgets);
         await tester.pump(const Duration(seconds: 5));
-        expect(find.byType(SplashScreen), findsOneWidget);
+        expect(find.byType(UiSkeleton), findsWidgets);
         expect(find.text('Private community'), findsNothing);
         expect(find.text('Verifying Terminal Session'), findsNothing);
         if (status == 'error') {
@@ -51,7 +50,7 @@ void main() {
           );
         }
         await tester.pumpAndSettle();
-        expect(find.byType(SplashScreen), findsNothing);
+        expect(find.byType(UiSkeleton), findsNothing);
         expect(
           find.text('Private community'),
           status == 'active' ? findsOneWidget : findsNothing,

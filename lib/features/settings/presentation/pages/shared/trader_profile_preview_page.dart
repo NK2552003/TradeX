@@ -15,14 +15,8 @@ import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_space_history.dart';
-import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
-import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
-import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
-import 'package:tradex/features/community/presentation/widgets/community_engagement_bar.dart';
-import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
-import 'package:tradex/features/community/presentation/widgets/community_share_sheet.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_options_sheet.dart';
+import 'package:tradex/features/community/presentation/widgets/community_post_card.dart'
+    as community;
 import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/journal/ui/journal_entry_screen.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
@@ -186,8 +180,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
     final raw = (_liveHandle?.trim().isNotEmpty == true)
         ? _liveHandle!
         : (widget.author?.handle.trim().isNotEmpty == true
-            ? widget.author!.handle
-            : 'trader');
+              ? widget.author!.handle
+              : 'trader');
     return raw.replaceFirst(RegExp(r'^@+'), '').trim();
   }
 
@@ -198,7 +192,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
     final targetAuthorId = widget.author?.id.isNotEmpty == true
         ? widget.author!.id
         : '';
-    final bool isSelf = widget.isCurrentUser ||
+    final bool isSelf =
+        widget.isCurrentUser ||
         (targetAuthorId.isNotEmpty &&
             targetAuthorId == SupabaseConfig.client?.auth.currentUser?.id);
     if (repo != null) {
@@ -220,38 +215,52 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
 
     if (widget.isCurrentUser) {
       final cp = ProfileSettingsRepositoryImpl.instance.cachedProfile;
-      if (widget.displayName.isEmpty && cp.displayName.isNotEmpty && cp.displayName != 'Your account') {
+      if (widget.displayName.isEmpty &&
+          cp.displayName.isNotEmpty &&
+          cp.displayName != 'Your account') {
         _liveDisplayName = cp.displayName;
       }
-      if (widget.handle.isEmpty && cp.handle.isNotEmpty) _liveHandle = cp.handle;
-      if ((widget.bio == null || widget.bio!.isEmpty) && cp.bio?.isNotEmpty == true) {
+      if (widget.handle.isEmpty && cp.handle.isNotEmpty) {
+        _liveHandle = cp.handle;
+      }
+      if ((widget.bio == null || widget.bio!.isEmpty) &&
+          cp.bio?.isNotEmpty == true) {
         _liveBio = cp.bio;
       }
-      if ((widget.avatarUrl == null || widget.avatarUrl!.isEmpty) && cp.avatarUrl?.isNotEmpty == true) {
+      if ((widget.avatarUrl == null || widget.avatarUrl!.isEmpty) &&
+          cp.avatarUrl?.isNotEmpty == true) {
         _liveAvatarUrl = cp.avatarUrl;
       }
-      if ((widget.location == null || widget.location!.isEmpty) && cp.location?.isNotEmpty == true) {
+      if ((widget.location == null || widget.location!.isEmpty) &&
+          cp.location?.isNotEmpty == true) {
         _liveLocation = cp.location;
       }
-      if ((widget.website == null || widget.website!.isEmpty) && cp.website?.isNotEmpty == true) {
+      if ((widget.website == null || widget.website!.isEmpty) &&
+          cp.website?.isNotEmpty == true) {
         _liveWebsite = cp.website;
       }
-      if ((widget.avgHoldDuration == null || widget.avgHoldDuration!.isEmpty) && cp.avgHoldDuration?.isNotEmpty == true) {
+      if ((widget.avgHoldDuration == null || widget.avgHoldDuration!.isEmpty) &&
+          cp.avgHoldDuration?.isNotEmpty == true) {
         _liveAvgHoldDuration = cp.avgHoldDuration;
       }
-      if ((widget.primaryMarket == null || widget.primaryMarket!.isEmpty) && cp.primaryMarket?.isNotEmpty == true) {
+      if ((widget.primaryMarket == null || widget.primaryMarket!.isEmpty) &&
+          cp.primaryMarket?.isNotEmpty == true) {
         _livePrimaryMarket = cp.primaryMarket;
       }
-      if ((widget.topStrategy == null || widget.topStrategy!.isEmpty) && cp.topStrategy?.isNotEmpty == true) {
+      if ((widget.topStrategy == null || widget.topStrategy!.isEmpty) &&
+          cp.topStrategy?.isNotEmpty == true) {
         _liveTopStrategy = cp.topStrategy;
       }
-      if ((widget.riskMantra == null || widget.riskMantra!.isEmpty) && cp.riskMantra?.isNotEmpty == true) {
+      if ((widget.riskMantra == null || widget.riskMantra!.isEmpty) &&
+          cp.riskMantra?.isNotEmpty == true) {
         _liveRiskMantra = cp.riskMantra;
       }
-      if ((widget.experienceLevel == null || widget.experienceLevel!.isEmpty) && cp.experienceLevel?.isNotEmpty == true) {
+      if ((widget.experienceLevel == null || widget.experienceLevel!.isEmpty) &&
+          cp.experienceLevel?.isNotEmpty == true) {
         _liveExperienceLevel = cp.experienceLevel;
       }
-      if ((widget.tradingStyle == null || widget.tradingStyle!.isEmpty) && cp.tradingStyle?.isNotEmpty == true) {
+      if ((widget.tradingStyle == null || widget.tradingStyle!.isEmpty) &&
+          cp.tradingStyle?.isNotEmpty == true) {
         _liveTradingStyle = cp.tradingStyle;
       }
       if (_liveSubscriptionTier == null && cp.subscriptionTier.isNotEmpty) {
@@ -261,13 +270,30 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
       _livePublicStats ??= cp.publicStats;
       _livePublicJournals ??= cp.publicJournals;
     }
-    if (widget.subscriptionTier != null && widget.subscriptionTier!.isNotEmpty) {
+    if (widget.subscriptionTier != null &&
+        widget.subscriptionTier!.isNotEmpty) {
       _liveSubscriptionTier ??= widget.subscriptionTier;
     }
     if (widget.verified != null) {
       _liveVerified ??= widget.verified;
     }
     _loadLiveTraderData();
+    _loadAuthorPosts();
+  }
+
+  void _loadAuthorPosts() {
+    final repo = widget.repository;
+    final authorId = widget.author?.id.trim() ?? '';
+    if (repo == null ||
+        authorId.isEmpty ||
+        repo.hasLoadedPostsForAuthor(authorId)) {
+      return;
+    }
+    unawaited(
+      repo.fetchPostsForAuthor(authorId).whenComplete(() {
+        if (mounted) setState(() {});
+      }),
+    );
   }
 
   void _onRepoChanged() {
@@ -277,7 +303,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
     final targetAuthorId = widget.author?.id.isNotEmpty == true
         ? widget.author!.id
         : '';
-    final bool isSelf = widget.isCurrentUser ||
+    final bool isSelf =
+        widget.isCurrentUser ||
         (targetAuthorId.isNotEmpty &&
             targetAuthorId == SupabaseConfig.client?.auth.currentUser?.id);
     setState(() {
@@ -320,8 +347,10 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         _isFollowing = widget.author!.isFollowing;
       }
       _loadLiveTraderData();
+      _loadAuthorPosts();
     }
-    if (widget.subscriptionTier != oldWidget.subscriptionTier && widget.subscriptionTier != null) {
+    if (widget.subscriptionTier != oldWidget.subscriptionTier &&
+        widget.subscriptionTier != null) {
       _liveSubscriptionTier = widget.subscriptionTier;
     }
     if (widget.verified != oldWidget.verified && widget.verified != null) {
@@ -339,7 +368,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
       final String cleanH = _cleanHandle;
       final String targetId = widget.author?.id.isNotEmpty == true
           ? widget.author!.id
-          : (widget.isCurrentUser && currentAuthUser != null ? currentAuthUser.id : '');
+          : (widget.isCurrentUser && currentAuthUser != null
+                ? currentAuthUser.id
+                : '');
 
       const profileColumns =
           'id, handle, display_name, bio, avatar_url, location, website, '
@@ -379,31 +410,42 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         if (_liveBio == null && (widget.bio == null || widget.bio!.isEmpty)) {
           _liveBio = profileRow['bio'] as String?;
         }
-        if (_liveAvatarUrl == null && (widget.avatarUrl == null || widget.avatarUrl!.isEmpty)) {
+        if (_liveAvatarUrl == null &&
+            (widget.avatarUrl == null || widget.avatarUrl!.isEmpty)) {
           _liveAvatarUrl = profileRow['avatar_url'] as String?;
         }
-        if (_liveLocation == null && (widget.location == null || widget.location!.isEmpty)) {
+        if (_liveLocation == null &&
+            (widget.location == null || widget.location!.isEmpty)) {
           _liveLocation = profileRow['location'] as String?;
         }
-        if (_liveWebsite == null && (widget.website == null || widget.website!.isEmpty)) {
+        if (_liveWebsite == null &&
+            (widget.website == null || widget.website!.isEmpty)) {
           _liveWebsite = profileRow['website'] as String?;
         }
-        if (_liveAvgHoldDuration == null && (widget.avgHoldDuration == null || widget.avgHoldDuration!.isEmpty)) {
+        if (_liveAvgHoldDuration == null &&
+            (widget.avgHoldDuration == null ||
+                widget.avgHoldDuration!.isEmpty)) {
           _liveAvgHoldDuration = profileRow['avg_hold_duration'] as String?;
         }
-        if (_livePrimaryMarket == null && (widget.primaryMarket == null || widget.primaryMarket!.isEmpty)) {
+        if (_livePrimaryMarket == null &&
+            (widget.primaryMarket == null || widget.primaryMarket!.isEmpty)) {
           _livePrimaryMarket = profileRow['primary_market'] as String?;
         }
-        if (_liveTopStrategy == null && (widget.topStrategy == null || widget.topStrategy!.isEmpty)) {
+        if (_liveTopStrategy == null &&
+            (widget.topStrategy == null || widget.topStrategy!.isEmpty)) {
           _liveTopStrategy = profileRow['top_strategy'] as String?;
         }
-        if (_liveRiskMantra == null && (widget.riskMantra == null || widget.riskMantra!.isEmpty)) {
+        if (_liveRiskMantra == null &&
+            (widget.riskMantra == null || widget.riskMantra!.isEmpty)) {
           _liveRiskMantra = profileRow['risk_mantra'] as String?;
         }
-        if (_liveExperienceLevel == null && (widget.experienceLevel == null || widget.experienceLevel!.isEmpty)) {
+        if (_liveExperienceLevel == null &&
+            (widget.experienceLevel == null ||
+                widget.experienceLevel!.isEmpty)) {
           _liveExperienceLevel = profileRow['experience_level'] as String?;
         }
-        if (_liveTradingStyle == null && (widget.tradingStyle == null || widget.tradingStyle!.isEmpty)) {
+        if (_liveTradingStyle == null &&
+            (widget.tradingStyle == null || widget.tradingStyle!.isEmpty)) {
           _liveTradingStyle = profileRow['trading_style'] as String?;
         }
         _liveVerified = profileRow['verified'] as bool?;
@@ -413,10 +455,12 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                 profileRow['notification_settings'] as Map,
               )
             : null;
-        _livePublicStats = profileRow['public_stats'] as bool? ??
+        _livePublicStats =
+            profileRow['public_stats'] as bool? ??
             notif?['public_stats'] as bool? ??
             _livePublicStats;
-        _livePublicJournals = profileRow['public_journals'] as bool? ??
+        _livePublicJournals =
+            profileRow['public_journals'] as bool? ??
             notif?['public_journals'] as bool? ??
             _livePublicJournals;
 
@@ -504,9 +548,15 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             for (final item in entries) {
               final outcome = (item['outcome'] as String?)?.toLowerCase();
               final pnl = (item['pnl'] as num?)?.toDouble();
-              final isWin = outcome == 'win' || (outcome == null && pnl != null && pnl > 0);
-              final isLoss = outcome == 'loss' || (outcome == null && pnl != null && pnl < 0);
-              final isBreakeven = outcome == 'breakeven' || (outcome == null && pnl != null && pnl == 0);
+              final isWin =
+                  outcome == 'win' ||
+                  (outcome == null && pnl != null && pnl > 0);
+              final isLoss =
+                  outcome == 'loss' ||
+                  (outcome == null && pnl != null && pnl < 0);
+              final isBreakeven =
+                  outcome == 'breakeven' ||
+                  (outcome == null && pnl != null && pnl == 0);
 
               if (isWin || isLoss || isBreakeven) {
                 closedCount++;
@@ -515,7 +565,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
 
               final ticker = item['ticker'] as String?;
               if (ticker != null && ticker.trim().isNotEmpty) {
-                tickerCounts[ticker.trim()] = (tickerCounts[ticker.trim()] ?? 0) + 1;
+                tickerCounts[ticker.trim()] =
+                    (tickerCounts[ticker.trim()] ?? 0) + 1;
               }
 
               final openedAtStr = item['opened_at'] as String?;
@@ -534,13 +585,16 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
               _liveWinRate = (winCount / closedCount) * 100.0;
             }
 
-            if ((_livePrimaryMarket == null || _livePrimaryMarket!.isEmpty) && tickerCounts.isNotEmpty) {
+            if ((_livePrimaryMarket == null || _livePrimaryMarket!.isEmpty) &&
+                tickerCounts.isNotEmpty) {
               final sortedTickers = tickerCounts.entries.toList()
                 ..sort((a, b) => b.value.compareTo(a.value));
               _livePrimaryMarket = sortedTickers.first.key;
             }
 
-            if ((_liveAvgHoldDuration == null || _liveAvgHoldDuration!.isEmpty) && holdCount > 0) {
+            if ((_liveAvgHoldDuration == null ||
+                    _liveAvgHoldDuration!.isEmpty) &&
+                holdCount > 0) {
               final avgM = totalHoldMinutes ~/ holdCount;
               if (avgM < 60) {
                 _liveAvgHoldDuration = '${avgM}m (Intraday)';
@@ -556,7 +610,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         }
       }
 
-      if (widget.userRole == UserRole.userAdmin || _liveRole == UserRole.userAdmin) {
+      if (widget.userRole == UserRole.userAdmin ||
+          _liveRole == UserRole.userAdmin) {
         try {
           _liveTotalTraders = await client.from('profiles').count();
         } catch (_) {}
@@ -586,136 +641,165 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
     final String effectiveDisplayName = widget.displayName.trim().isNotEmpty
         ? widget.displayName.trim()
         : ((_liveDisplayName?.trim().isNotEmpty == true)
-            ? _liveDisplayName!
-            : (widget.author?.displayName.trim().isNotEmpty == true
-                ? widget.author!.displayName.trim()
-                : 'Trader'));
+              ? _liveDisplayName!
+              : (widget.author?.displayName.trim().isNotEmpty == true
+                    ? widget.author!.displayName.trim()
+                    : 'Trader'));
 
-    final String? effectiveAvatarUrl = widget.avatarUrl?.trim().isNotEmpty == true
+    final String? effectiveAvatarUrl =
+        widget.avatarUrl?.trim().isNotEmpty == true
         ? widget.avatarUrl!.trim()
         : ((_liveAvatarUrl?.trim().isNotEmpty == true)
-            ? _liveAvatarUrl
-            : widget.author?.avatarUrl);
+              ? _liveAvatarUrl
+              : widget.author?.avatarUrl);
 
-    final bool effectiveVerified = (!isAdmin) &&
+    final bool effectiveVerified =
+        (!isAdmin) &&
         ((_liveVerified ??
-            widget.verified ??
-            widget.author?.verified ??
-            (widget.isCurrentUser
-                ? (ProfileSettingsRepositoryImpl.instance.cachedProfile.verified ||
-                    (SupabaseAuthBackendService.instance.currentUserProfile?.verified ?? false))
-                : false)) == true);
+                widget.verified ??
+                widget.author?.verified ??
+                (widget.isCurrentUser
+                    ? (ProfileSettingsRepositoryImpl
+                              .instance
+                              .cachedProfile
+                              .verified ||
+                          (SupabaseAuthBackendService
+                                  .instance
+                                  .currentUserProfile
+                                  ?.verified ??
+                              false))
+                    : false)) ==
+            true);
 
     final String? effectiveLocation = widget.location?.trim().isNotEmpty == true
         ? widget.location!.trim()
         : ((_liveLocation?.trim().isNotEmpty == true)
-            ? _liveLocation
-            : widget.author?.location);
+              ? _liveLocation
+              : widget.author?.location);
 
     final String? effectiveWebsite = widget.website?.trim().isNotEmpty == true
         ? widget.website!.trim()
         : ((_liveWebsite?.trim().isNotEmpty == true)
-            ? _liveWebsite
-            : widget.author?.website);
+              ? _liveWebsite
+              : widget.author?.website);
 
     final String? effectiveJoined = (_liveJoinedDate?.trim().isNotEmpty == true)
         ? _liveJoinedDate
         : widget.author?.joinedDate;
 
-    final String? effectiveHold = widget.avgHoldDuration?.trim().isNotEmpty == true
+    final String? effectiveHold =
+        widget.avgHoldDuration?.trim().isNotEmpty == true
         ? widget.avgHoldDuration!.trim()
         : ((_liveAvgHoldDuration?.trim().isNotEmpty == true)
-            ? _liveAvgHoldDuration
-            : widget.author?.avgHoldDuration);
+              ? _liveAvgHoldDuration
+              : widget.author?.avgHoldDuration);
 
-    final String? effectiveMarket = widget.primaryMarket?.trim().isNotEmpty == true
+    final String? effectiveMarket =
+        widget.primaryMarket?.trim().isNotEmpty == true
         ? widget.primaryMarket!.trim()
         : ((_livePrimaryMarket?.trim().isNotEmpty == true)
-            ? _livePrimaryMarket
-            : widget.author?.primaryMarket);
+              ? _livePrimaryMarket
+              : widget.author?.primaryMarket);
 
-    final String? effectiveStrategy = widget.topStrategy?.trim().isNotEmpty == true
+    final String? effectiveStrategy =
+        widget.topStrategy?.trim().isNotEmpty == true
         ? widget.topStrategy!.trim()
         : ((_liveTopStrategy?.trim().isNotEmpty == true)
-            ? _liveTopStrategy
-            : widget.author?.tradingStyle);
+              ? _liveTopStrategy
+              : widget.author?.tradingStyle);
 
-    final String? effectiveRiskMantra = widget.riskMantra?.trim().isNotEmpty == true
+    final String? effectiveRiskMantra =
+        widget.riskMantra?.trim().isNotEmpty == true
         ? widget.riskMantra!.trim()
         : ((_liveRiskMantra?.trim().isNotEmpty == true)
-            ? _liveRiskMantra
-            : widget.author?.riskMantra);
+              ? _liveRiskMantra
+              : widget.author?.riskMantra);
 
-    final String? effectiveExperience = widget.experienceLevel?.trim().isNotEmpty == true
+    final String? effectiveExperience =
+        widget.experienceLevel?.trim().isNotEmpty == true
         ? widget.experienceLevel!.trim()
         : ((_liveExperienceLevel?.trim().isNotEmpty == true)
-            ? _liveExperienceLevel
-            : widget.author?.experienceLevel);
+              ? _liveExperienceLevel
+              : widget.author?.experienceLevel);
 
-    final String? effectiveStyle = widget.tradingStyle?.trim().isNotEmpty == true
+    final String? effectiveStyle =
+        widget.tradingStyle?.trim().isNotEmpty == true
         ? widget.tradingStyle!.trim()
         : ((_liveTradingStyle?.trim().isNotEmpty == true)
-            ? _liveTradingStyle
-            : widget.author?.tradingStyle);
+              ? _liveTradingStyle
+              : widget.author?.tradingStyle);
 
     final String targetAuthorId = widget.author?.id.isNotEmpty == true
         ? widget.author!.id
-        : (widget.isCurrentUser && SupabaseConfig.client?.auth.currentUser != null
-            ? SupabaseConfig.client!.auth.currentUser!.id
-            : '');
+        : (widget.isCurrentUser &&
+                  SupabaseConfig.client?.auth.currentUser != null
+              ? SupabaseConfig.client!.auth.currentUser!.id
+              : '');
 
     final String currentAuthId =
         SupabaseConfig.client?.auth.currentUser?.id ?? '';
     final String cachedHandle = ProfileSettingsRepositoryImpl
-        .instance.cachedProfile.handle
+        .instance
+        .cachedProfile
+        .handle
         .toLowerCase()
         .replaceFirst(RegExp(r'^@+'), '')
         .trim();
     final authUser = SupabaseConfig.client?.auth.currentUser;
-    final String authHandle = (authUser?.userMetadata?['handle'] as String? ??
-            authUser?.userMetadata?['username'] as String? ??
-            authUser?.email?.split('@').first ??
-            '')
-        .toLowerCase()
-        .replaceFirst(RegExp(r'^@+'), '')
-        .trim();
-    final bool isViewingSelf = widget.isCurrentUser ||
+    final String authHandle =
+        (authUser?.userMetadata?['handle'] as String? ??
+                authUser?.userMetadata?['username'] as String? ??
+                authUser?.email?.split('@').first ??
+                '')
+            .toLowerCase()
+            .replaceFirst(RegExp(r'^@+'), '')
+            .trim();
+    final bool isViewingSelf =
+        widget.isCurrentUser ||
         (currentAuthId.isNotEmpty && targetAuthorId == currentAuthId) ||
-        (cachedHandle.isNotEmpty && cachedHandle == _cleanHandle.toLowerCase()) ||
+        (cachedHandle.isNotEmpty &&
+            cachedHandle == _cleanHandle.toLowerCase()) ||
         (authHandle.isNotEmpty && authHandle == _cleanHandle.toLowerCase());
 
     final bool isSelf = isViewingSelf;
 
-    final bool effectivePublicStats = widget.publicStats ??
+    final bool effectivePublicStats =
+        widget.publicStats ??
         _livePublicStats ??
         (isViewingSelf
             ? ProfileSettingsRepositoryImpl.instance.cachedProfile.publicStats
             : true);
 
-    final bool effectivePublicJournals = widget.publicJournals ??
+    final bool effectivePublicJournals =
+        widget.publicJournals ??
         _livePublicJournals ??
         (isViewingSelf
-            ? ProfileSettingsRepositoryImpl.instance.cachedProfile.publicJournals
+            ? ProfileSettingsRepositoryImpl
+                  .instance
+                  .cachedProfile
+                  .publicJournals
             : true);
 
-    final AppJournalStats? localJournalStats =
-        isViewingSelf ? JournalRepositoryScope.repository.stats : null;
+    final AppJournalStats? localJournalStats = isViewingSelf
+        ? JournalRepositoryScope.repository.stats
+        : null;
 
-    final double? effectiveWinRate = _liveWinRate ??
+    final double? effectiveWinRate =
+        _liveWinRate ??
         (widget.author?.winRate != null
             ? (widget.author!.winRate! <= 1.0
-                ? widget.author!.winRate! * 100.0
-                : widget.author!.winRate)
+                  ? widget.author!.winRate! * 100.0
+                  : widget.author!.winRate)
             : (localJournalStats != null && localJournalStats.total > 0
-                ? localJournalStats.winRate
-                : null));
+                  ? localJournalStats.winRate
+                  : null));
 
-    final int effectiveDisciplineScore = (localJournalStats != null &&
-            localJournalStats.total > 0)
+    final int effectiveDisciplineScore =
+        (localJournalStats != null && localJournalStats.total > 0)
         ? (72 + (localJournalStats.winRate * 0.25).round()).clamp(60, 99)
         : (effectiveWinRate != null
-            ? (72 + (effectiveWinRate * 0.25).round()).clamp(60, 99)
-            : 92);
+              ? (72 + (effectiveWinRate * 0.25).round()).clamp(60, 99)
+              : 92);
 
     final int effectiveFollowers = _liveFollowers;
 
@@ -724,8 +808,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
     final int effectivePosts = _livePostsCount > 0
         ? _livePostsCount
         : (widget.repository != null && widget.author != null
-            ? widget.repository!.postsForAuthor(widget.author!.id).length
-            : (widget.author?.postsCount ?? 0));
+              ? widget.repository!.postsForAuthor(widget.author!.id).length
+              : (widget.author?.postsCount ?? 0));
 
     final Color verifiedColor = switch (effectiveRole) {
       UserRole.customer => theme.colors.primary,
@@ -736,57 +820,65 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
     final String rawSubTier = (_liveSubscriptionTier?.trim().isNotEmpty == true)
         ? _liveSubscriptionTier!
         : (widget.subscriptionTier?.trim().isNotEmpty == true
-            ? widget.subscriptionTier!
-            : (widget.author?.subscriptionTier.trim().isNotEmpty == true
-                ? widget.author!.subscriptionTier
-                : (widget.isCurrentUser
-                    ? (SupabaseAuthBackendService.instance.currentUserProfile?.subscriptionTier ??
-                        ProfileSettingsRepositoryImpl.instance.cachedProfile.subscriptionTier)
-                    : (widget.author != null ? widget.author!.tier.name : 'free'))));
+              ? widget.subscriptionTier!
+              : (widget.author?.subscriptionTier.trim().isNotEmpty == true
+                    ? widget.author!.subscriptionTier
+                    : (widget.isCurrentUser
+                          ? (SupabaseAuthBackendService
+                                    .instance
+                                    .currentUserProfile
+                                    ?.subscriptionTier ??
+                                ProfileSettingsRepositoryImpl
+                                    .instance
+                                    .cachedProfile
+                                    .subscriptionTier)
+                          : (widget.author != null
+                                ? widget.author!.tier.name
+                                : 'free'))));
     final String cleanSubTier = rawSubTier.toLowerCase().trim();
 
     final String roleBadgeText = switch (effectiveRole) {
       UserRole.userAdmin => 'DESK SUPERADMIN · ROOT',
       UserRole.affiliate => 'OFFICIAL PARTNER',
       UserRole.customer => switch (cleanSubTier) {
-          'enterprise' => 'ENTERPRISE PLAN',
-          'pro' => 'PRO TRADER',
-          'premium' => 'PREMIUM PLAN',
-          'basic' || 'starter' => 'BASIC PLAN',
-          'free' || _ => switch (widget.author?.tier) {
-              AppTier.enterprise => 'ENTERPRISE PLAN',
-              AppTier.premium => 'BASIC PLAN',
-              _ => 'FREE PLAN',
-            },
+        'enterprise' => 'ENTERPRISE PLAN',
+        'pro' => 'PRO TRADER',
+        'premium' => 'PREMIUM PLAN',
+        'basic' || 'starter' => 'BASIC PLAN',
+        'free' || _ => switch (widget.author?.tier) {
+          AppTier.enterprise => 'ENTERPRISE PLAN',
+          AppTier.premium => 'BASIC PLAN',
+          _ => 'FREE PLAN',
         },
+      },
     };
 
     final UiIntent roleBadgeIntent = switch (effectiveRole) {
       UserRole.userAdmin => UiIntent.danger,
       UserRole.affiliate => UiIntent.warning,
       UserRole.customer => switch (cleanSubTier) {
-          'enterprise' => UiIntent.success,
-          'pro' || 'premium' => UiIntent.primary,
-          'basic' || 'starter' => UiIntent.info,
-          'free' || _ => switch (widget.author?.tier) {
-              AppTier.enterprise => UiIntent.success,
-              AppTier.premium => UiIntent.primary,
-              _ => UiIntent.neutral,
-            },
+        'enterprise' => UiIntent.success,
+        'pro' || 'premium' => UiIntent.primary,
+        'basic' || 'starter' => UiIntent.info,
+        'free' || _ => switch (widget.author?.tier) {
+          AppTier.enterprise => UiIntent.success,
+          AppTier.premium => UiIntent.primary,
+          _ => UiIntent.neutral,
         },
+      },
     };
 
     final String displayBio = widget.bio?.trim().isNotEmpty == true
         ? widget.bio!.trim()
         : ((_liveBio?.trim().isNotEmpty == true)
-            ? _liveBio!
-            : (widget.author?.bio?.trim().isNotEmpty == true
-                ? widget.author!.bio!
-                : (isAdmin
-                    ? 'Chief Risk Officer & Proprietary Desk Overseer. Managing firm-wide risk boundaries, capital allocation matrices, and trading engine infrastructure.'
-                    : (isAffiliate
-                        ? 'Official alphajournal Partner & trading educator. Sharing trade setups, execution blueprints, and member discounts.'
-                        : ''))));
+              ? _liveBio!
+              : (widget.author?.bio?.trim().isNotEmpty == true
+                    ? widget.author!.bio!
+                    : (isAdmin
+                          ? 'Chief Risk Officer & Proprietary Desk Overseer. Managing firm-wide risk boundaries, capital allocation matrices, and trading engine infrastructure.'
+                          : (isAffiliate
+                                ? 'Official alphajournal Partner & trading educator. Sharing trade setups, execution blueprints, and member discounts.'
+                                : ''))));
 
     final List<UiTabItem> tabItems = switch (effectiveRole) {
       UserRole.userAdmin => <UiTabItem>[
@@ -1000,7 +1092,6 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-
               // ---------------------------------------------------------------
               // Twitter/X Style Profile Hero Card
               // ---------------------------------------------------------------
@@ -1164,8 +1255,13 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       size: UiSize.md,
                                       onPressed: () {
                                         final link = isAffiliate
-                                            ? AppShareLinks.referral(widget.referralCode ?? _cleanHandle)
-                                            : AppShareLinks.profile(_cleanHandle);
+                                            ? AppShareLinks.referral(
+                                                widget.referralCode ??
+                                                    _cleanHandle,
+                                              )
+                                            : AppShareLinks.profile(
+                                                _cleanHandle,
+                                              );
                                         ShareActions.showLinkShareSheet(
                                           context,
                                           title: isAffiliate
@@ -1181,7 +1277,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                         );
                                       },
                                     ),
-                                    if (isViewingSelf && widget.onEditProfile != null)
+                                    if (isViewingSelf &&
+                                        widget.onEditProfile != null)
                                       UiButton(
                                         label: 'Edit Profile',
                                         leadingIcon: Icons.edit_outlined,
@@ -1214,8 +1311,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             widget.onDirectMessage!(peer);
                                           } else {
                                             try {
-                                              final repo = MessagesRepositoryScope
-                                                  .repository;
+                                              final repo =
+                                                  MessagesRepositoryScope
+                                                      .repository;
                                               if (repo.isMessagingRestricted(
                                                 peer,
                                               )) {
@@ -1227,12 +1325,13 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                     content: Padding(
                                                       padding:
                                                           EdgeInsets.symmetric(
-                                                            vertical: context.sp(
-                                                              context
-                                                                  .ui
-                                                                  .spacing
-                                                                  .sm,
-                                                            ),
+                                                            vertical: context
+                                                                .sp(
+                                                                  context
+                                                                      .ui
+                                                                      .spacing
+                                                                      .sm,
+                                                                ),
                                                           ),
                                                       child: Text(
                                                         '@$_cleanHandle does not accept direct messages from everyone. Only invited traders or accounts they follow can start a conversation.',
@@ -1243,7 +1342,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                     actions: <Widget>[
                                                       UiButton(
                                                         label: 'OK',
-                                                        intent: UiIntent.primary,
+                                                        intent:
+                                                            UiIntent.primary,
                                                         onPressed: () =>
                                                             Navigator.of(
                                                               context,
@@ -1301,37 +1401,60 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             if (_isFollowing) {
                                               _liveFollowers++;
                                             } else {
-                                              if (_liveFollowers > 0) _liveFollowers--;
+                                              if (_liveFollowers > 0) {
+                                                _liveFollowers--;
+                                              }
                                             }
                                           });
 
-                                          final targetTid = targetAuthorId.isNotEmpty
+                                          final targetTid =
+                                              targetAuthorId.isNotEmpty
                                               ? targetAuthorId
                                               : (widget.author?.id ?? '');
-                                          if (widget.repository != null && targetTid.isNotEmpty) {
-                                            widget.repository!.toggleFollow(targetTid);
-                                          } else if (SupabaseConfig.isConfigured && targetTid.isNotEmpty) {
+                                          if (widget.repository != null &&
+                                              targetTid.isNotEmpty) {
+                                            widget.repository!.toggleFollow(
+                                              targetTid,
+                                            );
+                                          } else if (SupabaseConfig
+                                                  .isConfigured &&
+                                              targetTid.isNotEmpty) {
                                             try {
-                                              final client = SupabaseConfig.client!;
-                                              final curUid = client.auth.currentUser?.id;
-                                              if (curUid != null && curUid.isNotEmpty) {
+                                              final client =
+                                                  SupabaseConfig.client!;
+                                              final curUid =
+                                                  client.auth.currentUser?.id;
+                                              if (curUid != null &&
+                                                  curUid.isNotEmpty) {
                                                 if (_isFollowing) {
-                                                  await client.from('community_follows').insert({
-                                                    'follower_id': curUid,
-                                                    'following_id': targetTid,
-                                                  });
+                                                  await client
+                                                      .from('community_follows')
+                                                      .insert({
+                                                        'follower_id': curUid,
+                                                        'following_id':
+                                                            targetTid,
+                                                      });
                                                 } else {
-                                                  await client.from('community_follows').delete()
+                                                  await client
+                                                      .from('community_follows')
+                                                      .delete()
                                                       .eq('follower_id', curUid)
-                                                      .eq('following_id', targetTid);
+                                                      .eq(
+                                                        'following_id',
+                                                        targetTid,
+                                                      );
                                                 }
                                               }
                                             } catch (e) {
-                                              debugPrint('[TraderProfilePreviewPage] toggleFollow error: $e');
+                                              debugPrint(
+                                                '[TraderProfilePreviewPage] toggleFollow error: $e',
+                                              );
                                             }
                                           }
 
-                                          if (!mounted || !context.mounted) return;
+                                          if (!mounted || !context.mounted) {
+                                            return;
+                                          }
                                           UiToast.show(
                                             context,
                                             title: _isFollowing
@@ -1457,7 +1580,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                               if (isAdmin) ...[
                                 _MetaItem(
                                   icon: Icons.shield_rounded,
-                                  text: widget.adminClearanceLevel?.isNotEmpty == true
+                                  text:
+                                      widget.adminClearanceLevel?.isNotEmpty ==
+                                          true
                                       ? 'Clearance: ${widget.adminClearanceLevel}'
                                       : 'Clearance: Root Admin / L5',
                                 ),
@@ -1466,19 +1591,21 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                   text: widget.deskDivision?.isNotEmpty == true
                                       ? widget.deskDivision!
                                       : (effectiveStrategy?.trim().isNotEmpty ==
-                                              true
-                                          ? effectiveStrategy!
-                                          : 'Proprietary Trading Desk'),
+                                                true
+                                            ? effectiveStrategy!
+                                            : 'Proprietary Trading Desk'),
                                 ),
                                 if (widget.adminDesignation?.isNotEmpty == true)
                                   _MetaItem(
                                     icon: Icons.badge_outlined,
                                     text: widget.adminDesignation!,
                                   ),
-                                if (widget.adminSupervisedCapital?.isNotEmpty == true)
+                                if (widget.adminSupervisedCapital?.isNotEmpty ==
+                                    true)
                                   _MetaItem(
                                     icon: Icons.account_balance_wallet_outlined,
-                                    text: 'Pool: ${widget.adminSupervisedCapital}',
+                                    text:
+                                        'Pool: ${widget.adminSupervisedCapital}',
                                   ),
                                 _MetaItem(
                                   icon: Icons.security_rounded,
@@ -1494,7 +1621,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 ),
                                 _MetaItem(
                                   icon: Icons.terminal_rounded,
-                                  text: widget.adminTerminalUrl?.isNotEmpty == true
+                                  text:
+                                      widget.adminTerminalUrl?.isNotEmpty ==
+                                          true
                                       ? widget.adminTerminalUrl!
                                       : 'tradex.internal/root',
                                   isLink: true,
@@ -1513,31 +1642,39 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     text: effectiveJoined,
                                   ),
                                 if (isAffiliate) ...[
-                                  if (widget.referralCode?.isNotEmpty == true || _cleanHandle.isNotEmpty)
+                                  if (widget.referralCode?.isNotEmpty == true ||
+                                      _cleanHandle.isNotEmpty)
                                     _MetaItem(
                                       icon: Icons.link_rounded,
-                                      text:
-                                          AppShareLinks.referral(widget.referralCode?.isNotEmpty == true ? widget.referralCode! : _cleanHandle),
+                                      text: AppShareLinks.referral(
+                                        widget.referralCode?.isNotEmpty == true
+                                            ? widget.referralCode!
+                                            : _cleanHandle,
+                                      ),
                                       isLink: true,
                                     ),
                                   if (widget.channelHandle?.isNotEmpty == true)
                                     _MetaItem(
                                       icon: Icons.alternate_email_rounded,
-                                      text: widget.channelHandle!.startsWith('@')
+                                      text:
+                                          widget.channelHandle!.startsWith('@')
                                           ? widget.channelHandle!
                                           : '@${widget.channelHandle}',
                                     ),
-                                  if (effectiveMarket != null && effectiveMarket.isNotEmpty)
+                                  if (effectiveMarket != null &&
+                                      effectiveMarket.isNotEmpty)
                                     _MetaItem(
                                       icon: Icons.category_outlined,
                                       text: effectiveMarket,
                                     ),
-                                  if (widget.niche?.isNotEmpty == true && widget.niche != effectiveMarket)
+                                  if (widget.niche?.isNotEmpty == true &&
+                                      widget.niche != effectiveMarket)
                                     _MetaItem(
                                       icon: Icons.category_outlined,
                                       text: widget.niche!,
                                     ),
-                                  if (widget.audienceReach?.trim().isNotEmpty == true)
+                                  if (widget.audienceReach?.trim().isNotEmpty ==
+                                      true)
                                     _MetaItem(
                                       icon: Icons.groups_outlined,
                                       text: 'Reach: ${widget.audienceReach!}',
@@ -1627,11 +1764,15 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 : (isAffiliate
                                       ? <Widget>[
                                           _SocialStat(
-                                            count: _formatCount(effectiveFollowers),
+                                            count: _formatCount(
+                                              effectiveFollowers,
+                                            ),
                                             label: 'Followers',
                                           ),
                                           _SocialStat(
-                                            count: _formatCount(effectiveFollowing),
+                                            count: _formatCount(
+                                              effectiveFollowing,
+                                            ),
                                             label: 'Following',
                                           ),
                                           _SocialStat(
@@ -1639,7 +1780,11 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             label: 'Public Posts',
                                           ),
                                           _SocialStat(
-                                            count: widget.referralCode?.trim().isNotEmpty == true
+                                            count:
+                                                widget.referralCode
+                                                        ?.trim()
+                                                        .isNotEmpty ==
+                                                    true
                                                 ? widget.referralCode!
                                                 : 'PARTNER',
                                             label: 'Partner Code',
@@ -1647,11 +1792,15 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                         ]
                                       : <Widget>[
                                           _SocialStat(
-                                            count: _formatCount(effectiveFollowing),
+                                            count: _formatCount(
+                                              effectiveFollowing,
+                                            ),
                                             label: 'Following',
                                           ),
                                           _SocialStat(
-                                            count: _formatCount(effectiveFollowers),
+                                            count: _formatCount(
+                                              effectiveFollowers,
+                                            ),
                                             label: 'Followers',
                                           ),
                                           _SocialStat(
@@ -1662,8 +1811,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             count: !effectivePublicStats
                                                 ? 'Private'
                                                 : (effectiveWinRate != null
-                                                    ? '${effectiveWinRate.toStringAsFixed(1)}%'
-                                                    : '--'),
+                                                      ? '${effectiveWinRate.toStringAsFixed(1)}%'
+                                                      : '--'),
                                             label: 'Win Rate',
                                           ),
                                           if (!isAdmin && !isAffiliate)
@@ -1685,10 +1834,14 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                               vertical: context.sp(theme.spacing.xs),
                             ),
                             decoration: BoxDecoration(
-                              color: theme.colors.surfaceMuted.withValues(alpha: 0.5),
+                              color: theme.colors.surfaceMuted.withValues(
+                                alpha: 0.5,
+                              ),
                               borderRadius: context.radius(theme.radii.lg),
                               border: Border.all(
-                                color: theme.colors.border.withValues(alpha: 0.6),
+                                color: theme.colors.border.withValues(
+                                  alpha: 0.6,
+                                ),
                                 width: theme.borders.hairline,
                               ),
                             ),
@@ -1699,10 +1852,12 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     BoxConstraints constraints,
                                   ) {
                                     if (isAdmin) {
-                                      final tradersCountStr = _liveTotalTraders > 0
+                                      final tradersCountStr =
+                                          _liveTotalTraders > 0
                                           ? '$_liveTotalTraders Accounts'
                                           : 'Active';
-                                      final journalsCountStr = _liveTotalJournals > 0
+                                      final journalsCountStr =
+                                          _liveTotalJournals > 0
                                           ? '$_liveTotalJournals Logged'
                                           : 'Live Stream';
                                       if (constraints.maxWidth > 520) {
@@ -1821,13 +1976,20 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     }
 
                                     if (isAffiliate) {
-                                      final String nicheText = effectiveMarket != null && effectiveMarket.trim().isNotEmpty
+                                      final String nicheText =
+                                          effectiveMarket != null &&
+                                              effectiveMarket.trim().isNotEmpty
                                           ? effectiveMarket
                                           : 'Trading Education';
-                                      final String followersStr = effectiveFollowers > 0
+                                      final String followersStr =
+                                          effectiveFollowers > 0
                                           ? '$effectiveFollowers Traders'
                                           : '0 Traders';
-                                      final String codeStr = widget.referralCode?.trim().isNotEmpty == true
+                                      final String codeStr =
+                                          widget.referralCode
+                                                  ?.trim()
+                                                  .isNotEmpty ==
+                                              true
                                           ? widget.referralCode!
                                           : 'Active';
                                       if (constraints.maxWidth > 520) {
@@ -1869,7 +2031,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                               child: _KpiPill(
                                                 label: 'Public Posts',
                                                 value: '$effectivePosts Guides',
-                                                isPositive: effectivePosts > 0 ? true : null,
+                                                isPositive: effectivePosts > 0
+                                                    ? true
+                                                    : null,
                                               ),
                                             ),
                                           ],
@@ -1927,8 +2091,12 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                 Expanded(
                                                   child: _KpiPill(
                                                     label: 'Guides',
-                                                    value: '$effectivePosts Guides',
-                                                    isPositive: effectivePosts > 0 ? true : null,
+                                                    value:
+                                                        '$effectivePosts Guides',
+                                                    isPositive:
+                                                        effectivePosts > 0
+                                                        ? true
+                                                        : null,
                                                   ),
                                                 ),
                                               ],
@@ -1939,21 +2107,32 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     }
 
                                     // Pro Trader / Customer view (The user's actual profile)
-                                    final String winRateStr = !effectivePublicStats
+                                    final String winRateStr =
+                                        !effectivePublicStats
                                         ? 'Private'
                                         : (effectiveWinRate != null
-                                            ? '${effectiveWinRate.toStringAsFixed(1)}%'
-                                            : '--');
-                                    final String holdStr = effectiveHold != null && effectiveHold.trim().isNotEmpty
+                                              ? '${effectiveWinRate.toStringAsFixed(1)}%'
+                                              : '--');
+                                    final String holdStr =
+                                        effectiveHold != null &&
+                                            effectiveHold.trim().isNotEmpty
                                         ? effectiveHold
                                         : 'Not Set';
-                                    final String marketText = effectiveMarket != null && effectiveMarket.trim().isNotEmpty
+                                    final String marketText =
+                                        effectiveMarket != null &&
+                                            effectiveMarket.trim().isNotEmpty
                                         ? effectiveMarket
                                         : 'Not Set';
-                                    final String mantraStr = effectiveRiskMantra != null && effectiveRiskMantra.trim().isNotEmpty
+                                    final String mantraStr =
+                                        effectiveRiskMantra != null &&
+                                            effectiveRiskMantra
+                                                .trim()
+                                                .isNotEmpty
                                         ? effectiveRiskMantra
                                         : 'Not Set';
-                                    final String topStrategyText = effectiveStrategy != null && effectiveStrategy.trim().isNotEmpty
+                                    final String topStrategyText =
+                                        effectiveStrategy != null &&
+                                            effectiveStrategy.trim().isNotEmpty
                                         ? effectiveStrategy
                                         : 'Not Set';
 
@@ -1967,8 +2146,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                               isPositive: !effectivePublicStats
                                                   ? null
                                                   : (effectiveWinRate != null
-                                                      ? effectiveWinRate >= 50.0
-                                                      : null),
+                                                        ? effectiveWinRate >=
+                                                              50.0
+                                                        : null),
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
@@ -1976,7 +2156,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Avg Hold',
                                               value: holdStr,
-                                              isPositive: holdStr != 'Not Set' ? true : null,
+                                              isPositive: holdStr != 'Not Set'
+                                                  ? true
+                                                  : null,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
@@ -1992,7 +2174,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Risk Mantra',
                                               value: mantraStr,
-                                              isPositive: mantraStr != 'Not Set' ? true : null,
+                                              isPositive: mantraStr != 'Not Set'
+                                                  ? true
+                                                  : null,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
@@ -2015,18 +2199,24 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                 child: _KpiPill(
                                                   label: 'Win Rate',
                                                   value: winRateStr,
-                                                  isPositive: !effectivePublicStats
+                                                  isPositive:
+                                                      !effectivePublicStats
                                                       ? null
-                                                      : (effectiveWinRate != null
-                                                          ? effectiveWinRate >= 50.0
-                                                          : null),
+                                                      : (effectiveWinRate !=
+                                                                null
+                                                            ? effectiveWinRate >=
+                                                                  50.0
+                                                            : null),
                                                 ),
                                               ),
                                               Expanded(
                                                 child: _KpiPill(
                                                   label: 'Avg Hold',
                                                   value: holdStr,
-                                                  isPositive: holdStr != 'Not Set' ? true : null,
+                                                  isPositive:
+                                                      holdStr != 'Not Set'
+                                                      ? true
+                                                      : null,
                                                 ),
                                               ),
                                               Expanded(
@@ -2056,7 +2246,10 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                 child: _KpiPill(
                                                   label: 'Risk Mantra',
                                                   value: mantraStr,
-                                                  isPositive: mantraStr != 'Not Set' ? true : null,
+                                                  isPositive:
+                                                      mantraStr != 'Not Set'
+                                                      ? true
+                                                      : null,
                                                 ),
                                               ),
                                               Expanded(
@@ -2190,7 +2383,9 @@ class _KpiPill extends StatelessWidget {
     final theme = context.ui;
     final Color valueColor = isPositive == true
         ? theme.colors.bullish
-        : (isPositive == false ? theme.colors.bearish : theme.colors.foreground);
+        : (isPositive == false
+              ? theme.colors.bearish
+              : theme.colors.foreground);
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -2293,44 +2488,15 @@ class _TwitterFeedPreview extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: authorPosts.map((CommunityPost post) {
-          final diff = DateTime.now().difference(post.createdAt);
-          final timeStr = diff.inMinutes < 60
-              ? '${diff.inMinutes}m ago'
-              : (diff.inHours < 24
-                    ? '${diff.inHours}h ago'
-                    : (diff.inDays == 1 ? 'Yesterday' : '${diff.inDays}d ago'));
-
           return Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: _TwitterPostCard(
+            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+            child: community.CommunityPostCard(
               post: post,
-              displayName: post.author.displayName,
-              handle: post.author.handle,
-              avatarUrl: post.author.avatarUrl,
-              verifiedColor: verifiedColor,
-              isVerified: post.author.verified || post.author.userRole == UserRole.userAdmin,
-              isPinned: post.isPinned,
-              timestamp: timeStr,
-              body: post.body,
-              tags: post.tags,
-              setupSnapshot: post.tradeSetup != null
-                  ? _TradeSetupSnippet(
-                      ticker: post.tradeSetup!.ticker,
-                      side: post.tradeSetup!.side,
-                      entry: post.tradeSetup!.entry,
-                      exit: post.tradeSetup!.exit ?? '--',
-                      rMultiple: post.tradeSetup!.rMultiple ?? '--',
-                      pnl: post.tradeSetup!.pnl ?? '--',
-                      isWin: post.tradeSetup!.isWin ?? true,
-                      tradeId:
-                          'trd_${post.tradeSetup!.ticker.toLowerCase().replaceAll(' ', '_')}',
-                      onOpenRef: onOpenRef,
-                    )
-                  : null,
+              variant: community.CommunityPostCardVariant.boxed,
+              currentUser: repository!.currentAuthor,
+              repository: repository,
               onTap: onPostTap != null ? () => onPostTap!(post) : null,
               onOpenRef: onOpenRef,
-              repository: repository!,
-              isAuthor: isAuthor,
             ),
           );
         }).toList(),
@@ -2349,559 +2515,6 @@ class _TwitterFeedPreview extends StatelessWidget {
             ? '@$handle has not published any community posts yet.'
             : 'No community posts shared yet.',
       ),
-    );
-  }
-}
-
-class _TwitterPostCard extends StatefulWidget {
-  const _TwitterPostCard({
-    required this.post,
-    required this.displayName,
-    required this.handle,
-    this.avatarUrl,
-    required this.verifiedColor,
-    this.isVerified = false,
-    this.isPinned = false,
-    required this.timestamp,
-    required this.body,
-    required this.tags,
-    this.setupSnapshot,
-    this.onTap,
-    this.onOpenRef,
-    required this.repository,
-    this.isAuthor = false,
-  });
-
-  final CommunityPost post;
-  final String displayName;
-  final String handle;
-  final String? avatarUrl;
-  final Color verifiedColor;
-  final bool isVerified;
-  final bool isPinned;
-  final String timestamp;
-  final String body;
-  final List<String> tags;
-  final Widget? setupSnapshot;
-  final VoidCallback? onTap;
-  final ValueChanged<AppLinkRef>? onOpenRef;
-  final CommunityRepository repository;
-  final bool isAuthor;
-
-  @override
-  State<_TwitterPostCard> createState() => _TwitterPostCardState();
-}
-
-class _TwitterPostCardState extends State<_TwitterPostCard> {
-  late String _body = widget.body;
-  late List<String> _tags = List<String>.from(widget.tags);
-
-  @override
-  void didUpdateWidget(_TwitterPostCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.body != widget.body) {
-      _body = widget.body;
-    }
-    if (oldWidget.tags != widget.tags) {
-      _tags = List<String>.from(widget.tags);
-    }
-  }
-
-  bool get _isAuthor {
-    if (widget.isAuthor) return true;
-    final repo = widget.repository;
-    final current = repo.currentAuthor;
-    final p = widget.post;
-    if (p.author.id == current.id ||
-        p.author.handle.toLowerCase() == current.handle.toLowerCase()) {
-      return true;
-    }
-    final cleanCurrent = current.handle
-        .toLowerCase()
-        .replaceFirst('@', '')
-        .trim();
-    final cleanHandle = widget.handle
-        .toLowerCase()
-        .replaceFirst('@', '')
-        .trim();
-    if (cleanCurrent.isNotEmpty && cleanCurrent == cleanHandle) {
-      return true;
-    }
-    return false;
-  }
-
-  Future<void> _handleEditPost(BuildContext context) async {
-    final effectivePost = widget.post;
-    final repo = widget.repository;
-    await CommunityEditPostDialog.show(
-      context,
-      post: effectivePost,
-      repository: repo,
-    );
-    final updated = repo.loadPostById(effectivePost.id);
-    if (updated != null && mounted) {
-      setState(() {
-        _body = updated.body;
-        _tags = List<String>.from(updated.tags);
-      });
-    }
-  }
-
-  void _showPostOptions(BuildContext context) {
-    final repo = widget.repository;
-    final effectivePost = repo.findPost(widget.post.id) ?? widget.post;
-    final authorMode = _isAuthor;
-    CommunityPostOptionsSheet.show(
-      context,
-      post: effectivePost,
-      repository: repo,
-      isAuthor: authorMode,
-      onEdit: authorMode ? () => _handleEditPost(context) : null,
-      onDelete: authorMode
-          ? () {
-              if (mounted) setState(() {});
-              UiToast.show(
-                context,
-                title: 'Post deleted',
-                message: 'Your post was removed.',
-                intent: UiIntent.neutral,
-              );
-            }
-          : null,
-    );
-  }
-
-  void _openActualPost(BuildContext context) {
-    if (widget.onTap != null) {
-      widget.onTap!();
-      return;
-    }
-    final post = widget.post;
-    final repo = widget.repository;
-    final user = repo.currentAuthor;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CommunityPostDetailView(
-          post: post,
-          repository: repo,
-          currentUser: user,
-          onOpenRef: widget.onOpenRef,
-          onBack: () => Navigator.of(context).pop(),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-    final repo = widget.repository;
-
-    return InkWell(
-      onTap: () => _openActualPost(context),
-      splashColor: theme.colors.primary.withValues(alpha: 0.05),
-      highlightColor: theme.colors.surfaceMuted.withValues(alpha: 0.4),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.md),
-          vertical: context.sp(theme.spacing.sm),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // Pinned badge row
-            if (widget.isPinned) ...<Widget>[
-              Padding(
-                padding: EdgeInsets.only(
-                  left: context.sz(36),
-                  bottom: context.sp(theme.spacing.xs),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Icon(
-                      Icons.push_pin_rounded,
-                      size: context.sz(13),
-                      color: theme.colors.primary,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Text(
-                      'Pinned Setup',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.primary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: context.fs(11),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            // Avatar rail + content
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // Left: avatar
-                UiAvatar(
-                  name: widget.displayName,
-                  imageUrl: widget.avatarUrl,
-                  size: UiSize.sm,
-                  verified: widget.isVerified,
-                  verifiedColor: widget.verifiedColor,
-                ),
-                SizedBox(width: context.sp(theme.spacing.sm)),
-
-                // Right: author header + body + tags + engagement bar
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      // Author row
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Expanded(
-                            child: Wrap(
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 4,
-                              children: <Widget>[
-                                Text(
-                                  widget.displayName,
-                                  style: context.uiText.bodyStrong.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                if (widget.isVerified) ...<Widget>[
-                                  Icon(
-                                    Icons.verified_rounded,
-                                    color: widget.verifiedColor,
-                                    size: context.sz(14),
-                                  ),
-                                ],
-                                Text(
-                                  '@${widget.handle.replaceFirst(RegExp(r"^@+"), "")}',
-                                  style: context.uiText.caption.copyWith(
-                                    color: theme.colors.foregroundMuted,
-                                  ),
-                                ),
-                                Text(
-                                  '· ${widget.timestamp}',
-                                  style: context.uiText.caption.copyWith(
-                                    color: theme.colors.foregroundMuted,
-                                  ),
-                                ),
-                                if (widget.post.isPendingApproval)
-                                  const UiBadge(
-                                    label: 'Pending Approval',
-                                    intent: UiIntent.warning,
-                                    variant: UiBadgeVariant.soft,
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (_isAuthor) ...<Widget>[
-                            UiButton(
-                              label: 'Edit',
-                              icon: Icons.edit_outlined,
-                              size: UiSize.xs,
-                              variant: UiVariant.soft,
-                              intent: UiIntent.primary,
-                              onPressed: () => _handleEditPost(context),
-                            ),
-                            SizedBox(width: context.sp(theme.spacing.xs)),
-                          ],
-                          UiIconButton(
-                            icon: Icons.more_horiz_rounded,
-                            size: UiSize.xs,
-                            tooltip: 'Post options',
-                            onPressed: () => _showPostOptions(context),
-                          ),
-                        ],
-                      ),
-
-                      // Body
-                      SizedBox(height: context.sp(theme.spacing.xs)),
-                      Text(
-                        _body,
-                        style: context.uiText.body.copyWith(
-                          height: 1.45,
-                          fontSize: context.fs(14),
-                        ),
-                      ),
-
-                      // Embedded trade setup card
-                      if (widget.setupSnapshot != null) ...<Widget>[
-                        SizedBox(height: context.sp(theme.spacing.sm)),
-                        widget.setupSnapshot!,
-                      ],
-
-                      // Embedded writing desk record attachment (notes/journal/strategy)
-                      if (widget.post.attachment != null) ...<Widget>[
-                        SizedBox(height: context.sp(theme.spacing.sm)),
-                        CommunityAttachmentTile(
-                          attachment: widget.post.attachment!,
-                          onTap: () async {
-                            final source = widget.post.attachment!.source;
-                            if (widget.onOpenRef != null) {
-                              if (ModalRoute.of(context)?.isCurrent == true &&
-                                  Navigator.of(context).canPop()) {
-                                Navigator.of(context).pop();
-                              }
-                              widget.onOpenRef!(source);
-                            } else {
-                              if (source.kind == AppLinkKind.journal) {
-                                final trade = await JournalRepositoryScope
-                                    .repository
-                                    .getById(source.id);
-                                if (trade != null && context.mounted) {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (ctx) => Scaffold(
-                                        body: JournalEntryScreen(
-                                          entry: trade,
-                                          onClose: () =>
-                                              Navigator.of(ctx).pop(),
-                                          onEdit: () {},
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } else if (source.kind == AppLinkKind.note) {
-                                final note = await NotesRepositoryScope
-                                    .repository
-                                    .getById(source.id);
-                                if (note != null && context.mounted) {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (ctx) => Scaffold(
-                                        body: NotePreviewScreen(
-                                          note: note,
-                                          onClose: () =>
-                                              Navigator.of(ctx).pop(),
-                                          onEdit: () {},
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }
-                              }
-                            }
-                          },
-                        ),
-                      ],
-
-                      // Hashtag badges
-                      if (_tags.isNotEmpty) ...<Widget>[
-                        SizedBox(height: context.sp(theme.spacing.sm)),
-                        Wrap(
-                          spacing: context.sp(theme.spacing.xs),
-                          runSpacing: context.sp(theme.spacing.xs),
-                          children: _tags
-                              .map(
-                                (String tag) => UiBadge(
-                                  label: '#$tag',
-                                  intent: UiIntent.primary,
-                                  variant: UiBadgeVariant.soft,
-                                  size: UiSize.xs,
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ],
-
-                      SizedBox(height: context.sp(theme.spacing.xs)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            ListenableBuilder(
-              listenable: repo,
-              builder: (context, _) {
-                final post = repo.findPost(widget.post.id) ?? widget.post;
-                return CommunityEngagementBar(
-                  comments: post.comments,
-                  likes: post.likes,
-                  liked: post.liked,
-                  userReaction: post.userReaction,
-                  reactions: post.reactions,
-                  reposted: post.reposted,
-                  onReply: () => _openActualPost(context),
-                  onLike: () => repo.toggleLike(post.id),
-                  onReact: (emoji) => repo.toggleLike(post.id, reaction: emoji),
-                  onShare: () => CommunityShareSheet.show(
-                    context, post: post, repository: repo,
-                  ),
-                  onRepost: () => CommunityRepostDialog.show(
-                    context,
-                    post: post,
-                    onRepost: () => repo.toggleRepost(post.id),
-                    onQuote: () => UiDialog.show<void>(
-                      context,
-                      child: CommunityComposerCard(
-                        author: repo.currentAuthor,
-                        repository: repo,
-                        quotedPost: post,
-                        onPostCreated: () => Navigator.of(context).pop(),
-                        onClose: () => Navigator.of(context).pop(),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            // Bottom separator hairline
-            Divider(
-              height: 1,
-              thickness: theme.borders.hairline,
-              color: theme.colors.border.withValues(alpha: 0.5),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TradeSetupSnippet extends StatelessWidget {
-  const _TradeSetupSnippet({
-    required this.ticker,
-    required this.side,
-    required this.entry,
-    required this.exit,
-    required this.rMultiple,
-    required this.pnl,
-    required this.isWin,
-    this.tradeId,
-    this.onOpenRef,
-  });
-
-  final String ticker;
-  final String side;
-  final String entry;
-  final String exit;
-  final String rMultiple;
-  final String pnl;
-  final bool isWin;
-  final String? tradeId;
-  final ValueChanged<AppLinkRef>? onOpenRef;
-
-  void _handleTap(BuildContext context) async {
-    final id = tradeId ?? 'trd_$ticker';
-    if (onOpenRef != null) {
-      if (ModalRoute.of(context)?.isCurrent == true &&
-          Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-      onOpenRef!(AppLinkRef(kind: AppLinkKind.journal, id: id, title: ticker));
-    } else {
-      final actualTrade =
-          await JournalRepositoryScope.repository.getById(id) ??
-          AppTrade(
-            id: id,
-            ticker: ticker,
-            side: side.toUpperCase() == 'LONG' ? AppSide.long : AppSide.short,
-            entry:
-                double.tryParse(entry.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-                0.0,
-            exit:
-                double.tryParse(exit.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
-            size: 100,
-            pnl:
-                double.tryParse(pnl.replaceAll(RegExp(r'[^0-9.-]'), '')) ?? 0.0,
-            pnlPercent: 0.0,
-            rMultiple:
-                double.tryParse(
-                  rMultiple.replaceAll(RegExp(r'[^0-9.-]'), ''),
-                ) ??
-                0.0,
-            outcome: isWin ? AppOutcome.win : AppOutcome.loss,
-            openedAt: DateTime.now(),
-            notes: 'Trade setup shared via profile.',
-            isPublic: true,
-          );
-      if (context.mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (ctx) => Scaffold(
-              body: JournalEntryScreen(
-                entry: actualTrade,
-                onClose: () => Navigator.of(ctx).pop(),
-                onEdit: () {},
-              ),
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.ui;
-
-    final Widget card = Container(
-      padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
-      decoration: BoxDecoration(
-        color: theme.colors.surfaceMuted,
-        borderRadius: context.radius(theme.radii.md),
-        border: Border.all(
-          color: isWin
-              ? theme.colors.bullish.withValues(alpha: 0.3)
-              : theme.colors.bearish.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Wrap(
-            spacing: context.sp(theme.spacing.xs),
-            runSpacing: context.sp(theme.spacing.xs),
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: <Widget>[
-              UiBadge(
-                label: side,
-                intent: side == 'LONG' ? UiIntent.bullish : UiIntent.bearish,
-                size: UiSize.xs,
-              ),
-              const SizedBox(width: 6),
-              Text(ticker, style: context.uiText.bodyStrong),
-
-              UiBadge(
-                label: '$pnl ($rMultiple)',
-                intent: isWin ? UiIntent.bullish : UiIntent.bearish,
-                variant: UiBadgeVariant.solid,
-                size: UiSize.xs,
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Wrap(
-            spacing: context.sp(theme.spacing.md),
-            runSpacing: 4,
-            children: <Widget>[
-              Text('Entry: $entry', style: context.uiText.caption),
-              Text('Exit: $exit', style: context.uiText.caption),
-              Text(
-                'Execution: Verified ✓',
-                style: context.uiText.caption.copyWith(
-                  color: theme.colors.bullish,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-
-    return InkWell(
-      onTap: () => _handleTap(context),
-      borderRadius: context.radius(theme.radii.md),
-      child: card,
     );
   }
 }
@@ -2934,8 +2547,9 @@ class _PublicJournalPreview extends StatelessWidget {
     final theme = context.ui;
 
     if (!publicJournals) {
-      final String cleanH =
-          (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
+      final String cleanH = (handle ?? '')
+          .replaceFirst(RegExp(r'^@+'), '')
+          .trim();
       return Padding(
         padding: EdgeInsets.symmetric(
           vertical: context.sp(theme.spacing.xl),
@@ -2943,12 +2557,14 @@ class _PublicJournalPreview extends StatelessWidget {
         ),
         child: UiEmptyState(
           icon: Icons.lock_outline_rounded,
-          title: isCurrentUser ? 'Public Journal Disabled' : 'Journal is Private',
+          title: isCurrentUser
+              ? 'Public Journal Disabled'
+              : 'Journal is Private',
           message: isCurrentUser
               ? 'You have disabled "Show verified trade logs in public journal" in Profile Settings. Other traders cannot see your trades.'
               : (cleanH.isNotEmpty
-                  ? '@$cleanH has chosen to keep their journal entries private.'
-                  : 'This trader\'s journal entries are private.'),
+                    ? '@$cleanH has chosen to keep their journal entries private.'
+                    : 'This trader\'s journal entries are private.'),
         ),
       );
     }
@@ -2961,16 +2577,21 @@ class _PublicJournalPreview extends StatelessWidget {
         final List<AppTrade> allTrades = snapshot.data ?? <AppTrade>[];
         final List<AppTrade> trades = isCurrentUser
             ? allTrades
-                .where((t) =>
-                    (authorId != null && authorId!.isNotEmpty && t.userId == authorId) ||
-                    RecordAccess.owns(t.userId))
-                .toList()
+                  .where(
+                    (t) =>
+                        (authorId != null &&
+                            authorId!.isNotEmpty &&
+                            t.userId == authorId) ||
+                        RecordAccess.owns(t.userId),
+                  )
+                  .toList()
             : ((authorId != null && authorId!.isNotEmpty)
-                ? allTrades.where((t) => t.userId == authorId).toList()
-                : const <AppTrade>[]);
+                  ? allTrades.where((t) => t.userId == authorId).toList()
+                  : const <AppTrade>[]);
 
-        final String cleanH =
-            (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
+        final String cleanH = (handle ?? '')
+            .replaceFirst(RegExp(r'^@+'), '')
+            .trim();
 
         if (trades.isEmpty) {
           return Padding(
@@ -2980,12 +2601,14 @@ class _PublicJournalPreview extends StatelessWidget {
             ),
             child: UiEmptyState(
               icon: Icons.auto_stories_outlined,
-              title: isCurrentUser ? 'No journal entries yet' : 'No public journal entries',
+              title: isCurrentUser
+                  ? 'No journal entries yet'
+                  : 'No public journal entries',
               message: isCurrentUser
                   ? 'Log your trades and executions in the Journal section.'
                   : (cleanH.isNotEmpty
-                      ? '@$cleanH has not shared any journal trades publicly yet.'
-                      : 'No verified trades shared publicly yet.'),
+                        ? '@$cleanH has not shared any journal trades publicly yet.'
+                        : 'No verified trades shared publicly yet.'),
             ),
           );
         }
@@ -3454,16 +3077,21 @@ class _NotesPlaybooksPreview extends StatelessWidget {
         final List<AppNote> allNotes = snapshot.data ?? <AppNote>[];
         final List<AppNote> notes = isCurrentUser
             ? allNotes
-                .where((n) =>
-                    (authorId != null && authorId!.isNotEmpty && n.userId == authorId) ||
-                    RecordAccess.owns(n.userId))
-                .toList()
+                  .where(
+                    (n) =>
+                        (authorId != null &&
+                            authorId!.isNotEmpty &&
+                            n.userId == authorId) ||
+                        RecordAccess.owns(n.userId),
+                  )
+                  .toList()
             : ((authorId != null && authorId!.isNotEmpty)
-                ? allNotes.where((n) => n.userId == authorId).toList()
-                : const <AppNote>[]);
+                  ? allNotes.where((n) => n.userId == authorId).toList()
+                  : const <AppNote>[]);
 
-        final String cleanH =
-            (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
+        final String cleanH = (handle ?? '')
+            .replaceFirst(RegExp(r'^@+'), '')
+            .trim();
 
         if (notes.isEmpty) {
           return Padding(
@@ -3477,8 +3105,8 @@ class _NotesPlaybooksPreview extends StatelessWidget {
               message: isCurrentUser
                   ? 'Create research notes, market thoughts, and trade reviews in the Notes section.'
                   : (cleanH.isNotEmpty
-                      ? '@$cleanH has not published any public research notes.'
-                      : 'No public notes shared yet.'),
+                        ? '@$cleanH has not published any public research notes.'
+                        : 'No public notes shared yet.'),
             ),
           );
         }
@@ -3672,19 +3300,25 @@ class _StrategiesPreview extends StatelessWidget {
           ? StrategiesRepositoryScope.repository.watchAll()
           : StrategiesRepositoryScope.repository.watchPublic(),
       builder: (BuildContext context, AsyncSnapshot<List<AppStrategy>> snapshot) {
-        final List<AppStrategy> allStrategies = snapshot.data ?? <AppStrategy>[];
+        final List<AppStrategy> allStrategies =
+            snapshot.data ?? <AppStrategy>[];
         final List<AppStrategy> strategies = isCurrentUser
             ? allStrategies
-                .where((s) =>
-                    (authorId != null && authorId!.isNotEmpty && s.userId == authorId) ||
-                    RecordAccess.owns(s.userId))
-                .toList()
+                  .where(
+                    (s) =>
+                        (authorId != null &&
+                            authorId!.isNotEmpty &&
+                            s.userId == authorId) ||
+                        RecordAccess.owns(s.userId),
+                  )
+                  .toList()
             : ((authorId != null && authorId!.isNotEmpty)
-                ? allStrategies.where((s) => s.userId == authorId).toList()
-                : const <AppStrategy>[]);
+                  ? allStrategies.where((s) => s.userId == authorId).toList()
+                  : const <AppStrategy>[]);
 
-        final String cleanH =
-            (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
+        final String cleanH = (handle ?? '')
+            .replaceFirst(RegExp(r'^@+'), '')
+            .trim();
 
         if (strategies.isEmpty) {
           return Padding(
@@ -3694,12 +3328,14 @@ class _StrategiesPreview extends StatelessWidget {
             ),
             child: UiEmptyState(
               icon: Icons.menu_book_outlined,
-              title: isCurrentUser ? 'No strategies yet' : 'No public playbooks',
+              title: isCurrentUser
+                  ? 'No strategies yet'
+                  : 'No public playbooks',
               message: isCurrentUser
                   ? 'Build systematic setups and execution playbooks in the Strategies section.'
                   : (cleanH.isNotEmpty
-                      ? '@$cleanH has not shared any public strategies or playbooks.'
-                      : 'No public strategies or playbooks shared yet.'),
+                        ? '@$cleanH has not shared any public strategies or playbooks.'
+                        : 'No public strategies or playbooks shared yet.'),
             ),
           );
         }
@@ -4234,7 +3870,10 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                       size: UiSize.xs,
                       leadingIcon: Icons.copy_rounded,
                       onPressed: () {
-                        ShareActions.copy(context, AppShareLinks.referral(referralCode));
+                        ShareActions.copy(
+                          context,
+                          AppShareLinks.referral(referralCode),
+                        );
                       },
                     ),
                   ],
@@ -4299,31 +3938,17 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                       label: 'Channel Handle',
                     ),
                   if (niche?.trim().isNotEmpty == true)
-                    _SocialStat(
-                      count: niche!,
-                      label: 'Content Niche',
-                    ),
-                  _SocialStat(
-                    count: audienceReach,
-                    label: 'Audience Reach',
-                  ),
+                    _SocialStat(count: niche!, label: 'Content Niche'),
+                  _SocialStat(count: audienceReach, label: 'Audience Reach'),
                   if (payoutMethod?.trim().isNotEmpty == true)
-                    _SocialStat(
-                      count: payoutMethod!,
-                      label: 'Payout Rail',
-                    ),
+                    _SocialStat(count: payoutMethod!, label: 'Payout Rail'),
                   if (phoneNumber?.trim().isNotEmpty == true)
-                    _SocialStat(
-                      count: phoneNumber!,
-                      label: 'Verified Phone',
-                    ),
+                    _SocialStat(count: phoneNumber!, label: 'Verified Phone'),
                 ],
               ),
               if (sampleLink?.trim().isNotEmpty == true) ...[
                 SizedBox(height: context.sp(theme.spacing.sm)),
-                Divider(
-                  color: theme.colors.border.withValues(alpha: 0.5),
-                ),
+                Divider(color: theme.colors.border.withValues(alpha: 0.5)),
                 SizedBox(height: context.sp(theme.spacing.xs)),
                 Row(
                   children: <Widget>[
@@ -4333,10 +3958,7 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                       color: theme.colors.warning,
                     ),
                     SizedBox(width: context.sp(theme.spacing.xs)),
-                    Text(
-                      'Content Portfolio: ',
-                      style: context.uiText.caption,
-                    ),
+                    Text('Content Portfolio: ', style: context.uiText.caption),
                     Expanded(
                       child: Text(
                         sampleLink!,
@@ -5369,11 +4991,12 @@ class _TraderPendingApprovalPostsPreview extends StatelessWidget {
         final targetId = (authorId != null && authorId!.trim().isNotEmpty)
             ? authorId!
             : (author?.id.isNotEmpty == true
-                ? author!.id
-                : repo.currentAuthor.id);
+                  ? author!.id
+                  : repo.currentAuthor.id);
 
-        final List<CommunityPost> pendingPosts =
-            repo.pendingPostsForAuthor(targetId);
+        final List<CommunityPost> pendingPosts = repo.pendingPostsForAuthor(
+          targetId,
+        );
 
         if (pendingPosts.isEmpty) {
           return Padding(
@@ -5408,46 +5031,15 @@ class _TraderPendingApprovalPostsPreview extends StatelessWidget {
               ),
             ),
             ...pendingPosts.map((CommunityPost post) {
-              final diff = DateTime.now().difference(post.createdAt);
-              final timeStr = diff.inMinutes < 60
-                  ? '${diff.inMinutes}m ago'
-                  : (diff.inHours < 24
-                      ? '${diff.inHours}h ago'
-                      : (diff.inDays == 1
-                          ? 'Yesterday'
-                          : '${diff.inDays}d ago'));
-
               return Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: _TwitterPostCard(
+                padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+                child: community.CommunityPostCard(
                   post: post,
-                  displayName: post.author.displayName,
-                  handle: post.author.handle,
-                  avatarUrl: post.author.avatarUrl,
-                  verifiedColor: verifiedColor,
-                  isVerified: post.author.verified || post.author.userRole == UserRole.userAdmin,
-                  isPinned: post.isPinned,
-                  timestamp: timeStr,
-                  body: post.body,
-                  tags: post.tags,
-                  setupSnapshot: post.tradeSetup != null
-                      ? _TradeSetupSnippet(
-                          ticker: post.tradeSetup!.ticker,
-                          side: post.tradeSetup!.side,
-                          entry: post.tradeSetup!.entry,
-                          exit: post.tradeSetup!.exit ?? '--',
-                          rMultiple: post.tradeSetup!.rMultiple ?? '--',
-                          pnl: post.tradeSetup!.pnl ?? '--',
-                          isWin: post.tradeSetup!.isWin ?? true,
-                          tradeId:
-                              'trd_${post.tradeSetup!.ticker.toLowerCase().replaceAll(' ', '_')}',
-                          onOpenRef: onOpenRef,
-                        )
-                      : null,
+                  variant: community.CommunityPostCardVariant.boxed,
+                  currentUser: repo.currentAuthor,
+                  repository: repo,
                   onTap: onPostTap != null ? () => onPostTap!(post) : null,
                   onOpenRef: onOpenRef,
-                  repository: repo,
-                  isAuthor: true,
                 ),
               );
             }),

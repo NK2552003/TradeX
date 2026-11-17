@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/features/copilot/copilot.dart';
 import 'package:tradex/features/copilot/data/copilot_api.dart';
@@ -59,6 +60,31 @@ class DeferredApi extends CopilotApi {
 }
 
 void main() {
+  test('live admin AI allowance overrides the tier catalogue quota', () {
+    final session = AppSession.instance;
+    final previousTier = session.tier.value;
+    final previousUsed = session.aiQueriesUsed.value;
+    final previousLimit = session.aiQueriesLimit.value;
+    addTearDown(() {
+      session.changeTier(previousTier);
+      session.aiQueriesUsed.value = previousUsed;
+      session.aiQueriesLimit.value = previousLimit;
+    });
+
+    session.changeTier(AppTier.free);
+    session.updateAiQuotaFromUsage(<String, dynamic>{
+      'user_id': 'admin-overridden-user',
+      'ai_queries_used': 11,
+      'limits': <String, dynamic>{'ai_queries_per_month': 1000},
+    });
+    final controller = CopilotController(api: DeferredApi(), autoLoad: false);
+    addTearDown(controller.dispose);
+
+    expect(controller.effectiveAiQueriesUsed, 11);
+    expect(controller.effectiveAiQueriesLimit, 1000);
+    expect(controller.isAiQuotaBlocked, isFalse);
+  });
+
   test('closing an inactive overlay keeps another surface’s call locked', () {
     final controller = CopilotController(api: DeferredApi(), autoLoad: false);
     final inactiveVoice = CopilotVoiceController(controller);
@@ -106,27 +132,32 @@ void main() {
     expect(controller.activeThreadId, 'call');
   });
 
-  test('sendPrompt blocks local fallback on quota exhaustion and locks subsequent sends', () async {
-    AppSession.instance.aiQueriesUsed.value = 0;
-    addTearDown(() => AppSession.instance.aiQueriesUsed.value = 0);
+  test(
+    'sendPrompt blocks local fallback on quota exhaustion and locks subsequent sends',
+    () async {
+      AppSession.instance.aiQueriesUsed.value = 0;
+      addTearDown(() => AppSession.instance.aiQueriesUsed.value = 0);
 
-    final api = _QuotaErrorApi();
-    final controller = CopilotController(api: api, autoLoad: false);
-    addTearDown(controller.dispose);
-    await controller.reload();
-    controller.selectThread('t-quota');
+      final api = _QuotaErrorApi();
+      final controller = CopilotController(api: api, autoLoad: false);
+      addTearDown(controller.dispose);
+      await controller.reload();
+      controller.selectThread('t-quota');
 
-    final accepted = await controller.sendPrompt('Analyze NIFTY support levels');
-    expect(accepted, isFalse);
-    expect(controller.quotaExceeded, isTrue);
-    expect(controller.isAiQuotaBlocked, isTrue);
-    expect(controller.error, isNotNull);
-    expect(api.runs, 1);
+      final accepted = await controller.sendPrompt(
+        'Analyze NIFTY support levels',
+      );
+      expect(accepted, isFalse);
+      expect(controller.quotaExceeded, isTrue);
+      expect(controller.isAiQuotaBlocked, isTrue);
+      expect(controller.error, isNotNull);
+      expect(api.runs, 1);
 
-    final secondAttempt = await controller.sendPrompt('Any follow-up');
-    expect(secondAttempt, isFalse);
-    expect(api.runs, 1);
-  });
+      final secondAttempt = await controller.sendPrompt('Any follow-up');
+      expect(secondAttempt, isFalse);
+      expect(api.runs, 1);
+    },
+  );
 
   test(
     'reload applies defaultSpecialistId and autoAttachContext controls pageContextId',

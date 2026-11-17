@@ -117,6 +117,13 @@ class AppSession {
   /// AI Copilot queries consumed in the current billing period.
   final ValueNotifier<int> aiQueriesUsed = ValueNotifier<int>(0);
 
+  /// Live monthly AI allowance returned by the server for this account.
+  ///
+  /// This is nullable until the first quota refresh so offline/demo sessions
+  /// can still fall back to the tier catalogue. Admin overrides must not be
+  /// collapsed back to the catalogue value after they have been loaded.
+  final ValueNotifier<int?> aiQueriesLimit = ValueNotifier<int?>(null);
+
   /// 'monthly' | 'annual'. The cycle the account is currently billed on.
   String billingCycle = _seedCycle;
 
@@ -184,6 +191,34 @@ class AppSession {
     aiQueriesUsed.value = aiQueriesUsed.value + 1;
   }
 
+  void updateAiQuota({int? used, int? limit}) {
+    if (used != null && used >= 0) aiQueriesUsed.value = used;
+    if (limit != null && limit >= 0) aiQueriesLimit.value = limit;
+  }
+
+  /// Applies either the quota RPC shape (`limits.ai_queries_per_month`) or the
+  /// flattened gateway shape (`ai_queries_limit`) to the shared live session.
+  void updateAiQuotaFromUsage(
+    Map<dynamic, dynamic> usage, {
+    String? expectedUserId,
+  }) {
+    final responseUserId = usage['user_id']?.toString();
+    if (expectedUserId != null &&
+        responseUserId != null &&
+        responseUserId != expectedUserId) {
+      return;
+    }
+    final usedValue = usage['ai_queries_used'];
+    final limits = usage['limits'];
+    final limitValue =
+        usage['ai_queries_limit'] ??
+        (limits is Map ? limits['ai_queries_per_month'] : null);
+    updateAiQuota(
+      used: usedValue is num ? usedValue.toInt() : null,
+      limit: limitValue is num ? limitValue.toInt() : null,
+    );
+  }
+
   /// Records a completed checkout: the plan, the cycle it was bought on and the
   /// period it paid for. Renewal is live again and any coupon carries over.
   void startPeriod(AppTier value, String cycle) {
@@ -204,6 +239,7 @@ class AppSession {
     profileMode.value = UserProfileMode.traderAffiliateAdmin;
     activeRole.value = UserRole.customer;
     aiQueriesUsed.value = 0;
+    aiQueriesLimit.value = null;
     billingCycle = _seedCycle;
     cancelAtPeriodEnd = false;
     renewedAt = _seedRenewedAt;

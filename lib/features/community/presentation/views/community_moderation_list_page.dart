@@ -50,44 +50,46 @@ class _CommunityModerationListPageState
     final mutedList = widget.repository.loadMutedUsers();
     final blockedList = widget.repository.loadBlockedUsers();
 
-    final Widget content = Column(
-      children: [
-        Container(
-          color: colors.surface,
-          padding: EdgeInsets.symmetric(
-            horizontal: context.sp(16),
-            vertical: context.sp(10),
-          ),
-          child: UiToggleGroup<int>(
-            value: _selectedTab,
-            onChanged: (int val) => setState(() => _selectedTab = val),
-            expand: true,
-            size: UiSize.sm,
-            variant: UiToggleGroupVariant.segmented,
-            options: [
-              UiToggleOption<int>(
-                value: 0,
-                label: 'Muted',
-                badge: '${mutedList.length}',
-                icon: Icons.volume_off_outlined,
+    final Widget content = widget.repository.isLoading
+        ? UiSkeleton.settingsList(showHeader: false, rows: 6)
+        : Column(
+            children: [
+              Container(
+                color: colors.surface,
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(16),
+                  vertical: context.sp(10),
+                ),
+                child: UiToggleGroup<int>(
+                  value: _selectedTab,
+                  onChanged: (int val) => setState(() => _selectedTab = val),
+                  expand: true,
+                  size: UiSize.sm,
+                  variant: UiToggleGroupVariant.segmented,
+                  options: [
+                    UiToggleOption<int>(
+                      value: 0,
+                      label: 'Muted',
+                      badge: '${mutedList.length}',
+                      icon: Icons.volume_off_outlined,
+                    ),
+                    UiToggleOption<int>(
+                      value: 1,
+                      label: 'Blocked',
+                      badge: '${blockedList.length}',
+                      icon: Icons.block_outlined,
+                    ),
+                  ],
+                ),
               ),
-              UiToggleOption<int>(
-                value: 1,
-                label: 'Blocked',
-                badge: '${blockedList.length}',
-                icon: Icons.block_outlined,
+              const UiDivider(),
+              Expanded(
+                child: _selectedTab == 0
+                    ? _buildMutedView(mutedList)
+                    : _buildBlockedView(blockedList),
               ),
             ],
-          ),
-        ),
-        const UiDivider(),
-        Expanded(
-          child: _selectedTab == 0
-              ? _buildMutedView(mutedList)
-              : _buildBlockedView(blockedList),
-        ),
-      ],
-    );
+          );
 
     if (widget.isEmbedded) {
       return content;

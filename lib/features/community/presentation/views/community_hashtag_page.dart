@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
@@ -147,98 +149,101 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
           ),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
-          child: Column(
-            children: [
-              // Topic summary uses the same shared surface as Explore cards.
-              UiCard(
-                variant: UiCardVariant.subtle,
-                child: Row(
+      body: widget.repository.isLoading && widget.repository.forYouPosts.isEmpty
+          ? UiSkeleton.community(tab: 1)
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
+                child: Column(
                   children: [
-                    UiBadge(
-                      label: widget.tag.startsWith(r'$') ? r'$' : '#',
-                      intent: UiIntent.primary,
-                      variant: UiBadgeVariant.soft,
-                    ),
-                    UiGap.h(theme.spacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    // Topic summary uses the same shared surface as Explore cards.
+                    UiCard(
+                      variant: UiCardVariant.subtle,
+                      child: Row(
                         children: [
-                          Text(
-                            displayTag,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.uiText.title.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: colors.foreground,
-                            ),
+                          UiBadge(
+                            label: widget.tag.startsWith(r'$') ? r'$' : '#',
+                            intent: UiIntent.primary,
+                            variant: UiBadgeVariant.soft,
                           ),
-                          Text(
-                            '${_posts.length} public discussions',
-                            style: context.uiText.caption.copyWith(
-                              color: colors.foregroundMuted,
+                          UiGap.h(theme.spacing.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  displayTag,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.uiText.title.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: colors.foreground,
+                                  ),
+                                ),
+                                Text(
+                                  '${_posts.length} public discussions',
+                                  style: context.uiText.caption.copyWith(
+                                    color: colors.foregroundMuted,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
+                    const UiDivider(),
+
+                    // Sub tabs
+                    Container(
+                      color: colors.surface,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.sp(12),
+                        vertical: context.sp(8),
+                      ),
+                      child: UiTabs(
+                        tabs: const ['Top Posts', 'Latest', 'Traders'],
+                        selectedIndex: _selectedTabIndex,
+                        onChanged: (idx) =>
+                            setState(() => _selectedTabIndex = idx),
+                      ),
+                    ),
+                    const UiDivider(),
+
+                    // Tab Content
+                    Expanded(
+                      child: _selectedTabIndex == 2
+                          ? _buildTradersList()
+                          : CommunityFeedList(
+                              posts: _visiblePosts,
+                              onPostTap: (post) {
+                                if (widget.onPostTap != null) {
+                                  widget.onPostTap!(post);
+                                } else {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => CommunityPostDetailView(
+                                        post: post,
+                                        repository: widget.repository,
+                                        currentUser:
+                                            widget.currentUser ??
+                                            widget.repository.currentAuthor,
+                                        onOpenRef: widget.onOpenRef,
+                                        onTagTap: widget.onTagTap,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              onAuthorTap: widget.onAuthorTap,
+                              onOpenRef: widget.onOpenRef,
+                              onTagTap: widget.onTagTap,
+                            ),
+                    ),
                   ],
                 ),
               ),
-              const UiDivider(),
-
-              // Sub tabs
-              Container(
-                color: colors.surface,
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(12),
-                  vertical: context.sp(8),
-                ),
-                child: UiTabs(
-                  tabs: const ['Top Posts', 'Latest', 'Traders'],
-                  selectedIndex: _selectedTabIndex,
-                  onChanged: (idx) => setState(() => _selectedTabIndex = idx),
-                ),
-              ),
-              const UiDivider(),
-
-              // Tab Content
-              Expanded(
-                child: _selectedTabIndex == 2
-                    ? _buildTradersList()
-                    : CommunityFeedList(
-                        posts: _visiblePosts,
-                        onPostTap: (post) {
-                          if (widget.onPostTap != null) {
-                            widget.onPostTap!(post);
-                          } else {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => CommunityPostDetailView(
-                                  post: post,
-                                  repository: widget.repository,
-                                  currentUser:
-                                      widget.currentUser ??
-                                      widget.repository.currentAuthor,
-                                  onOpenRef: widget.onOpenRef,
-                                  onTagTap: widget.onTagTap,
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                        onAuthorTap: widget.onAuthorTap,
-                        onOpenRef: widget.onOpenRef,
-                        onTagTap: widget.onTagTap,
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 

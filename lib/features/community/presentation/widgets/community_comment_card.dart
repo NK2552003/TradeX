@@ -74,12 +74,12 @@ class CommunityCommentCard extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       spacing: context.sp(theme.spacing.xxs),
                       children: <Widget>[
-                        GestureDetector(
+                        UiInteractive(
                           onTap: onAuthorTap == null
                               ? null
                               : () => onAuthorTap!(author),
-                          child: Text(
-                            author.displayName,
+                          builder: (context, _) => Text(
+                            author.displayHandle,
                             style: context.uiText.bodyStrong.copyWith(
                               fontWeight: FontWeight.w700,
                               fontSize: context.fs(13),
@@ -102,13 +102,6 @@ class CommunityCommentCard extends StatelessWidget {
                             variant: UiBadgeVariant.solid,
                             size: UiSize.xs,
                           ),
-                        Text(
-                          author.displayHandle,
-                          style: context.uiText.caption.copyWith(
-                            color: theme.colors.foregroundMuted,
-                            fontSize: context.fs(12),
-                          ),
-                        ),
                         Text(
                           '·',
                           style: context.uiText.caption.copyWith(

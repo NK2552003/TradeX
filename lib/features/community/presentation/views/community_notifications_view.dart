@@ -119,11 +119,13 @@ class _CommunityNotificationsViewState
         if (context.uiRes.isMobile) const UiDivider(),
 
         Expanded(
-          child: _NotificationsList(
-            notifications: filtered,
-            repository: widget.repository,
-            onAuthorTap: widget.onAuthorTap,
-          ),
+          child: widget.repository.isLoading && allNotifications.isEmpty
+              ? UiSkeleton.notifications()
+              : _NotificationsList(
+                  notifications: filtered,
+                  repository: widget.repository,
+                  onAuthorTap: widget.onAuthorTap,
+                ),
         ),
       ],
     );

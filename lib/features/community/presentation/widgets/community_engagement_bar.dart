@@ -25,6 +25,7 @@ class CommunityEngagementBar extends StatefulWidget {
     this.onReact,
     this.onShare,
     this.onShowReactions,
+    this.onInsights,
     this.showBorder = true,
   });
 
@@ -42,6 +43,7 @@ class CommunityEngagementBar extends StatefulWidget {
   final ValueChanged<String>? onReact;
   final VoidCallback? onShare;
   final VoidCallback? onShowReactions;
+  final VoidCallback? onInsights;
   final bool showBorder;
 
   @override
@@ -289,6 +291,15 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar>
         onTap: widget.onShare,
         isMobile: isMobile,
       ),
+      if (widget.onInsights != null)
+        CommunityEngagementButton(
+          icon: Icons.analytics_outlined,
+          count: '',
+          tooltip: 'View post analytics',
+          activeColor: theme.colors.primary,
+          onTap: widget.onInsights,
+          isMobile: isMobile,
+        ),
     ];
     return Column(
       mainAxisSize: MainAxisSize.min,

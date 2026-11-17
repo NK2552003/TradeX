@@ -569,6 +569,10 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     if (ref.kind == AppLinkKind.note ||
         ref.kind == AppLinkKind.journal ||
         ref.kind == AppLinkKind.strategy) {
+      final String? originPostId = ref.originPostId;
+      final CommunityPost? originPost = originPostId == null
+          ? null
+          : _repo.loadPostById(originPostId);
       unawaited(
         PublicRecordDetailModal.show(
           context,
@@ -578,6 +582,17 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
               ? null
               : () =>
                     widget.onOpenWriting!(ref.copyWith(isPublicContext: false)),
+          initiallySaved: originPost?.bookmarked ?? false,
+          onSaveChanged: originPostId == null
+              ? null
+              : (bool saved) async {
+                  final CommunityPost? current = _repo.loadPostById(
+                    originPostId,
+                  );
+                  if (current?.bookmarked != saved) {
+                    await _repo.setBookmark(originPostId, saved);
+                  }
+                },
         ),
       );
       return;

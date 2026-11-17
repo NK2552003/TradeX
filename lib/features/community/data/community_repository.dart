@@ -64,6 +64,8 @@ class CommunityRepository extends ChangeNotifier {
   String _followLoadedForUserId = '';
   bool _pendingFollowRefresh = false;
   final Set<String> _pendingFollowWrites = <String>{};
+  final Set<String> _loadedAuthorPostIds = <String>{};
+  final Map<String, Future<void>> _authorPostLoads = <String, Future<void>>{};
   bool _hasMorePosts = true;
   int _loadedPostRows = 0;
   RealtimeChannel? _realtimeChannel;
@@ -251,13 +253,34 @@ class CommunityRepository extends ChangeNotifier {
     required String targetUserId,
     required int offset,
     required int limit,
+    String? authorId,
   }) async {
-    final res = await client
-        .from('community_posts')
-        .select(_postSelectColumns)
-        .or('is_public.eq.true,author_id.eq.$targetUserId')
-        .order('created_at', ascending: false)
-        .range(offset, offset + limit - 1);
+    final scopedAuthorId = authorId?.trim() ?? '';
+    final dynamic res;
+    if (scopedAuthorId.isEmpty) {
+      res = await client
+          .from('community_posts')
+          .select(_postSelectColumns)
+          .or('is_public.eq.true,author_id.eq.$targetUserId')
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+    } else if (scopedAuthorId == targetUserId) {
+      res = await client
+          .from('community_posts')
+          .select(_postSelectColumns)
+          .eq('author_id', scopedAuthorId)
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+    } else {
+      res = await client
+          .from('community_posts')
+          .select(_postSelectColumns)
+          .eq('author_id', scopedAuthorId)
+          .eq('is_public', true)
+          .eq('moderation_status', 'approved')
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+    }
 
     final rawRows = (res as List).whereType<Map<String, dynamic>>().toList();
     final pagePostIds = <String>[];
@@ -1508,6 +1531,75 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
+  /// Loads the complete profile feed for one author instead of relying on the
+  /// first page of the global community timeline. Public viewers receive only
+  /// approved public posts; the owner receives their private and pending posts
+  /// as well.
+  Future<void> fetchPostsForAuthor(String authorId) {
+    final cleanAuthorId = authorId.trim();
+    if (cleanAuthorId.isEmpty ||
+        !SupabaseConfig.isConfigured ||
+        !_isUuid(cleanAuthorId)) {
+      return Future<void>.value();
+    }
+    final existing = _authorPostLoads[cleanAuthorId];
+    if (existing != null) return existing;
+    final load = _fetchPostsForAuthor(cleanAuthorId);
+    _authorPostLoads[cleanAuthorId] = load;
+    return load.whenComplete(() => _authorPostLoads.remove(cleanAuthorId));
+  }
+
+  bool hasLoadedPostsForAuthor(String authorId) =>
+      _loadedAuthorPostIds.contains(authorId.trim());
+
+  Future<void> _fetchPostsForAuthor(String authorId) async {
+    final client = SupabaseConfig.client;
+    if (client == null) return;
+    final targetUserId = _resolveUserId();
+    const pageSize = 100;
+    var offset = 0;
+    final loadedPosts = <CommunityPost>[];
+    final loadedComments = <String, List<CommunityComment>>{};
+
+    while (true) {
+      final page = await _fetchPostsPage(
+        client: client,
+        targetUserId: targetUserId,
+        offset: offset,
+        limit: pageSize,
+        authorId: authorId,
+      );
+      loadedPosts.addAll(page.posts);
+      loadedComments.addAll(page.comments);
+      if (page.rawRowCount < pageSize) break;
+      offset += pageSize;
+    }
+    if (_disposed || targetUserId != _resolveUserId()) return;
+
+    _forYouPosts = <CommunityPost>[
+      ..._forYouPosts.where((post) => post.author.id != authorId),
+      ...loadedPosts,
+    ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    _commentsByPost = <String, List<CommunityComment>>{
+      ..._commentsByPost,
+      ...loadedComments,
+    };
+    _followingPosts = _forYouPosts
+        .where(
+          (post) =>
+              _followedAuthorIds.contains(post.author.id) ||
+              followedReactionsForPost(post.id).isNotEmpty ||
+              followedRepostsForPost(post.id).isNotEmpty,
+        )
+        .toList();
+    _signalPosts = _forYouPosts
+        .where((post) => post.tradeSetup != null)
+        .toList();
+    _loadedAuthorPostIds.add(authorId);
+    _rebuildBookmarks();
+    if (!_disposed) notifyListeners();
+  }
+
   @override
   void dispose() {
     _disposed = true;
@@ -2125,6 +2217,8 @@ class CommunityRepository extends ChangeNotifier {
         _currentAuthorOverride?.displayName != author.displayName) {
       _currentAuthorOverride = author;
       if (idChanged && SupabaseConfig.isConfigured) {
+        _loadedAuthorPostIds.clear();
+        _authorPostLoads.clear();
         _hasLoadedFollows = false;
         _followedAuthorIds.clear();
         _followerAuthorIds.clear();
@@ -2707,58 +2801,62 @@ class CommunityRepository extends ChangeNotifier {
   /// Returns: { "bookmarked": bool }
   void toggleBookmark(String postId) {
     final existingPost = findPost(postId);
-    final bool wasBookmarked = existingPost?.bookmarked ?? false;
-    final bool isBookmarkedNow = !wasBookmarked;
+    if (existingPost == null) return;
+    unawaited(setBookmark(postId, !existingPost.bookmarked));
+  }
 
+  /// Persists an exact bookmark state and rolls the optimistic UI back if the
+  /// server rejects the write. Shared-record overlays await this method so a
+  /// successful Save message always reflects the real bookmark row.
+  Future<void> setBookmark(String postId, bool isBookmarked) async {
+    final existingPost = findPost(postId);
+    if (existingPost == null) {
+      throw StateError('This post is no longer available.');
+    }
+    if (existingPost.bookmarked == isBookmarked) return;
+
+    _setBookmarkLocally(postId, isBookmarked);
+
+    if (!SupabaseConfig.isConfigured || !_isUuid(postId)) return;
+    final client = SupabaseConfig.client!;
+    final targetUserId = _resolveUserId();
+    if (targetUserId.isEmpty) {
+      _setBookmarkLocally(postId, existingPost.bookmarked);
+      throw StateError('Sign in to save Community bookmarks.');
+    }
+
+    try {
+      if (isBookmarked) {
+        await client.from('community_bookmarks').upsert({
+          'post_id': postId,
+          'user_id': targetUserId,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      } else {
+        await client
+            .from('community_bookmarks')
+            .delete()
+            .eq('post_id', postId)
+            .eq('user_id', targetUserId);
+      }
+    } catch (error, stackTrace) {
+      _setBookmarkLocally(postId, existingPost.bookmarked);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
+  }
+
+  void _setBookmarkLocally(String postId, bool isBookmarked) {
     _forYouPosts = _forYouPosts
-        .map(
-          (p) => p.id == postId ? p.copyWith(bookmarked: isBookmarkedNow) : p,
-        )
+        .map((p) => p.id == postId ? p.copyWith(bookmarked: isBookmarked) : p)
         .toList();
     _followingPosts = _followingPosts
-        .map(
-          (p) => p.id == postId ? p.copyWith(bookmarked: isBookmarkedNow) : p,
-        )
+        .map((p) => p.id == postId ? p.copyWith(bookmarked: isBookmarked) : p)
         .toList();
     _signalPosts = _signalPosts
-        .map(
-          (p) => p.id == postId ? p.copyWith(bookmarked: isBookmarkedNow) : p,
-        )
+        .map((p) => p.id == postId ? p.copyWith(bookmarked: isBookmarked) : p)
         .toList();
     _rebuildBookmarks();
     notifyListeners();
-
-    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
-      final client = SupabaseConfig.client!;
-      final targetUserId = _resolveUserId();
-      if (targetUserId.isNotEmpty) {
-        if (isBookmarkedNow) {
-          unawaited(() async {
-            try {
-              await client.from('community_bookmarks').upsert({
-                'post_id': postId,
-                'user_id': targetUserId,
-                'created_at': DateTime.now().toIso8601String(),
-              });
-            } catch (e) {
-              debugPrint('[CommunityRepository] bookmark insert error: $e');
-            }
-          }());
-        } else {
-          unawaited(() async {
-            try {
-              await client
-                  .from('community_bookmarks')
-                  .delete()
-                  .eq('post_id', postId)
-                  .eq('user_id', targetUserId);
-            } catch (e) {
-              debugPrint('[CommunityRepository] bookmark delete error: $e');
-            }
-          }());
-        }
-      }
-    }
   }
 
   void _rebuildBookmarks() {
@@ -4149,7 +4247,8 @@ class CommunityRepository extends ChangeNotifier {
       final found = all.firstWhere(
         (p) =>
             (p.id == postId || p.id == mappedId) &&
-            (p.isPublic || p.author.id == currentAuthor.id),
+            (p.author.id == currentAuthor.id ||
+                (p.isPublic && !p.isPendingApproval)),
       );
       if (_blockedUsers.contains(found.author.id)) {
         return null;
@@ -4183,7 +4282,7 @@ class CommunityRepository extends ChangeNotifier {
         final currentAuthId = SupabaseConfig.client?.auth.currentUser?.id;
         final moderationStatus =
             row['moderation_status']?.toString().toLowerCase() ?? 'approved';
-        if (moderationStatus == 'rejected' && authorId != currentAuthId) {
+        if (moderationStatus != 'approved' && authorId != currentAuthId) {
           return null;
         }
         if (row['is_public'] != true && authorId != currentAuthId) {

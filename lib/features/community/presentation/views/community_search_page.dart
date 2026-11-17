@@ -134,36 +134,39 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
           onClear: () => _onSearch(''),
         ),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
-          child: Column(
-            children: [
-              if (_query.isNotEmpty) ...[
-                Container(
-                  color: colors.surface,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.sp(12),
-                    vertical: context.sp(8),
-                  ),
-                  child: UiTabs(
-                    tabs: const ['All', 'Posts', 'Traders'],
-                    selectedIndex: _selectedCategory,
-                    onChanged: (idx) => setState(() => _selectedCategory = idx),
-                  ),
-                ),
-                const UiDivider(),
-              ],
+      body: widget.repository.isLoading && widget.repository.forYouPosts.isEmpty
+          ? UiSkeleton.search()
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
+                child: Column(
+                  children: [
+                    if (_query.isNotEmpty) ...[
+                      Container(
+                        color: colors.surface,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.sp(12),
+                          vertical: context.sp(8),
+                        ),
+                        child: UiTabs(
+                          tabs: const ['All', 'Posts', 'Traders'],
+                          selectedIndex: _selectedCategory,
+                          onChanged: (idx) =>
+                              setState(() => _selectedCategory = idx),
+                        ),
+                      ),
+                      const UiDivider(),
+                    ],
 
-              Expanded(
-                child: _query.isEmpty
-                    ? _buildRecentSearches()
-                    : _buildSearchResults(matchedPosts, matchedUsers),
+                    Expanded(
+                      child: _query.isEmpty
+                          ? _buildRecentSearches()
+                          : _buildSearchResults(matchedPosts, matchedUsers),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 

@@ -306,22 +306,24 @@ class CustomerLimitations {
   }
 
   /// Current monthly AI query allowance for the active tier.
+  static int get effectiveAiQueriesLimit =>
+      AppSession.instance.aiQueriesLimit.value ??
+      currentQuota.maxAiQueriesPerMonth;
+
   static bool isAiQuotaExhausted({int? usedOverride, int? limitOverride}) {
-    final quota = currentQuota;
-    final limit = limitOverride ?? quota.maxAiQueriesPerMonth;
+    final limit = limitOverride ?? effectiveAiQueriesLimit;
     final used = usedOverride ?? AppSession.instance.aiQueriesUsed.value;
     return limit <= 0 || used >= limit;
   }
 
   static int aiQueriesRemaining({int? usedOverride, int? limitOverride}) {
-    final quota = currentQuota;
-    final limit = limitOverride ?? quota.maxAiQueriesPerMonth;
+    final limit = limitOverride ?? effectiveAiQueriesLimit;
     final used = usedOverride ?? AppSession.instance.aiQueriesUsed.value;
     return (limit - used).clamp(0, 999999);
   }
 
   static void markAiQuotaExhausted({int? limit}) {
-    final max = limit ?? currentQuota.maxAiQueriesPerMonth;
+    final max = limit ?? effectiveAiQueriesLimit;
     if (AppSession.instance.aiQueriesUsed.value < max) {
       AppSession.instance.aiQueriesUsed.value = max;
     }
@@ -341,7 +343,8 @@ class CustomerLimitations {
     if (!context.mounted) return false;
     final quota = currentQuota;
     final limit = usage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth;
-    final used = usage?.aiQueriesUsed ?? AppSession.instance.aiQueriesUsed.value;
+    final used =
+        usage?.aiQueriesUsed ?? AppSession.instance.aiQueriesUsed.value;
     if (limit > 0 && used < limit) return true;
     markAiQuotaExhausted(limit: limit);
     if (showDialogOnLimit && context.mounted) {
@@ -404,7 +407,9 @@ class CustomerLimitations {
   }
 
   /// Repository-safe price alert check (throws [StateError] when capped).
-  static Future<void> assertCanCreatePriceAlert({int? currentAlertCount}) async {
+  static Future<void> assertCanCreatePriceAlert({
+    int? currentAlertCount,
+  }) async {
     if (SupabaseConfig.isConfigured &&
         SupabaseConfig.client?.auth.currentUser != null) {
       await CustomerTierQuota.refreshPublishedCatalogue().catchError((_) {});
@@ -915,10 +920,18 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
     return ValueListenableBuilder<AppTier>(
       valueListenable: session.tier,
       builder: (BuildContext context, AppTier tier, Widget? _) {
-        return ValueListenableBuilder<int>(
-          valueListenable: session.aiQueriesUsed,
-          builder: (BuildContext context, int aiUsed, Widget? _) {
+        return ListenableBuilder(
+          listenable: Listenable.merge(<Listenable>[
+            session.aiQueriesUsed,
+            session.aiQueriesLimit,
+          ]),
+          builder: (BuildContext context, Widget? _) {
+            final int aiUsed = session.aiQueriesUsed.value;
             final CustomerTierQuota quota = CustomerTierQuota.forTier(tier);
+            final int aiLimit =
+                _accountUsage?.aiQueriesLimit ??
+                session.aiQueriesLimit.value ??
+                quota.maxAiQueriesPerMonth;
             final int? notesUsed = SupabaseConfig.isConfigured
                 ? _accountUsage?.notesUsed
                 : widget.noteCount;
@@ -941,7 +954,8 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
             final int alertsLimit =
                 _accountUsage?.alertsLimit ?? quota.maxAlerts;
             final int postsToday =
-                _accountUsage?.communityPostsToday ?? widget.communityPostsToday;
+                _accountUsage?.communityPostsToday ??
+                widget.communityPostsToday;
             final int postsLimit =
                 _accountUsage?.communityPostsPerDayLimit ??
                 quota.maxCommunityPostsPerDay;
@@ -989,8 +1003,7 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                 ],
                 UiDataPanel(
                   label: 'Customer Plan & Workspace Allowances',
-                  hint:
-                      '${quota.planName} Tier (${quota.priceLabel}) · Pre-trade Max: ${formatInrAmount(_riskConfig.maxPositionPerTrader)}',
+                  hint: '${quota.planName} Tier · ${quota.priceLabel}',
                   leadingIcon: Icons.account_balance_wallet_outlined,
                   trailing: tier != AppTier.enterprise
                       ? UiButton(
@@ -1021,13 +1034,15 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                             label: 'Research Notes',
                             value:
                                 '${notesUsed ?? 0} / ${_accountUsage?.notesLimit ?? quota.maxNotes}',
-                            hint: (notesUsed != null &&
+                            hint:
+                                (notesUsed != null &&
                                     notesUsed >=
                                         (_accountUsage?.notesLimit ??
                                             quota.maxNotes))
                                 ? 'Limit reached · upgrade tier'
                                 : '${((_accountUsage?.notesLimit ?? quota.maxNotes) - (notesUsed ?? 0)).clamp(0, 99999)} notes available',
-                            intent: (notesUsed != null &&
+                            intent:
+                                (notesUsed != null &&
                                     notesUsed >=
                                         (_accountUsage?.notesLimit ??
                                             quota.maxNotes))
@@ -1039,13 +1054,15 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                             label: 'Journal Trades',
                             value:
                                 '${tradesUsed ?? 0} / ${_accountUsage?.tradesLimit ?? quota.maxTrades}',
-                            hint: (tradesUsed != null &&
+                            hint:
+                                (tradesUsed != null &&
                                     tradesUsed >=
                                         (_accountUsage?.tradesLimit ??
                                             quota.maxTrades))
                                 ? 'Monthly cap reached'
                                 : '${((_accountUsage?.tradesLimit ?? quota.maxTrades) - (tradesUsed ?? 0)).clamp(0, 99999)} entries remaining',
-                            intent: (tradesUsed != null &&
+                            intent:
+                                (tradesUsed != null &&
                                     tradesUsed >=
                                         (_accountUsage?.tradesLimit ??
                                             quota.maxTrades))
@@ -1057,13 +1074,15 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                             label: 'Live Playbooks',
                             value:
                                 '${playbooksUsed ?? 0} / ${_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies}',
-                            hint: (playbooksUsed != null &&
+                            hint:
+                                (playbooksUsed != null &&
                                     playbooksUsed >=
                                         (_accountUsage?.livePlaybooksLimit ??
                                             quota.maxLiveStrategies))
                                 ? 'Strategy limit reached'
                                 : '${((_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies) - (playbooksUsed ?? 0)).clamp(0, 99999)} active rules left',
-                            intent: (playbooksUsed != null &&
+                            intent:
+                                (playbooksUsed != null &&
                                     playbooksUsed >=
                                         (_accountUsage?.livePlaybooksLimit ??
                                             quota.maxLiveStrategies))
@@ -1073,18 +1092,15 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                           UiStat(
                             icon: Icons.auto_awesome_outlined,
                             label: 'AI Copilot Queries',
-                            value:
-                                '${aiUsedForAccount ?? 0} / ${_accountUsage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth}',
-                            hint: (aiUsedForAccount != null &&
-                                    aiUsedForAccount >=
-                                        (_accountUsage?.aiQueriesLimit ??
-                                            quota.maxAiQueriesPerMonth))
+                            value: '${aiUsedForAccount ?? 0} / $aiLimit',
+                            hint:
+                                (aiUsedForAccount != null &&
+                                    aiUsedForAccount >= aiLimit)
                                 ? 'Monthly credits exhausted'
-                                : '${((_accountUsage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth) - (aiUsedForAccount ?? 0)).clamp(0, 99999)} prompt credits',
-                            intent: (aiUsedForAccount != null &&
-                                    aiUsedForAccount >=
-                                        (_accountUsage?.aiQueriesLimit ??
-                                            quota.maxAiQueriesPerMonth))
+                                : '${(aiLimit - (aiUsedForAccount ?? 0)).clamp(0, 99999)} prompt credits',
+                            intent:
+                                (aiUsedForAccount != null &&
+                                    aiUsedForAccount >= aiLimit)
                                 ? UiIntent.danger
                                 : UiIntent.bullish,
                           ),

@@ -45,6 +45,8 @@ class JournalEntryScreen extends StatefulWidget {
     this.linkGraph,
     this.canEdit = true,
     this.isPublicContext = false,
+    this.savedOverride,
+    this.onToggleSaved,
   });
 
   final AppTrade entry;
@@ -61,6 +63,8 @@ class JournalEntryScreen extends StatefulWidget {
   final AppLinkGraph? linkGraph;
   final bool canEdit;
   final bool isPublicContext;
+  final bool? savedOverride;
+  final Future<void> Function()? onToggleSaved;
 
   @override
   State<JournalEntryScreen> createState() => _JournalEntryScreenState();
@@ -141,6 +145,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
   }
 
   AppTrade get _entry => _activeEntry;
+  bool get _isSaved => widget.savedOverride ?? _entry.isFavorite;
 
   Future<void> _toggleVisibility() async {
     final bool next = !_entry.isPublic;
@@ -396,8 +401,14 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     }
   }
 
-  Future<void> _toggleFavorite() =>
-      _guard(() => _repo.toggleFavorite(_entry.id));
+  Future<void> _toggleFavorite() => _guard(() async {
+    final callback = widget.onToggleSaved;
+    if (callback != null) {
+      await callback();
+      return;
+    }
+    await _repo.toggleFavorite(_entry.id);
+  });
 
   Future<void> _shareTrade() async {
     final AppLinkRef ref = AppLinkRef(
@@ -501,7 +512,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               AppJournalNoteHeader(
-                entry: _entry,
+                entry: _entry.copyWith(isFavorite: _isSaved),
                 onBack: widget.onClose,
                 onToggleFavorite: _busy ? null : _toggleFavorite,
                 onOpenStrategy:

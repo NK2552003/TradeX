@@ -276,7 +276,9 @@ class AppTrade {
     outcome: outcome ?? this.outcome,
     // Detaching a strategy needs its own flag: `strategyId: null` is
     // indistinguishable from "leave it alone" in a copyWith.
-    strategy: clearStrategy || clearStrategyName ? null : (strategy ?? this.strategy),
+    strategy: clearStrategy || clearStrategyName
+        ? null
+        : (strategy ?? this.strategy),
     tags: tags ?? this.tags,
     notes: notes ?? this.notes,
     screenshotUrl: screenshotUrl ?? this.screenshotUrl,
@@ -737,7 +739,8 @@ class AppPost {
   final String moderationStatus;
 
   /// Returns true when this post is awaiting moderator approval.
-  bool get isPendingApproval => moderationStatus.trim().toLowerCase() == 'pending';
+  bool get isPendingApproval =>
+      moderationStatus.trim().toLowerCase() == 'pending';
 }
 
 abstract class AppPostAttachment {
@@ -1395,6 +1398,7 @@ class AppLinkRef {
     this.icon,
     this.missing = false,
     this.isPublicContext = false,
+    this.originPostId,
   });
 
   /// A link whose target no longer resolves — a note the trader deleted, say.
@@ -1424,6 +1428,11 @@ class AppLinkRef {
   /// Whether this link exists or is being navigated within a public record / community context.
   final bool isPublicContext;
 
+  /// Community post that opened this record, when applicable. This lets the
+  /// public reader save the viewer-owned post bookmark without mutating the
+  /// original author's note, journal entry, or strategy.
+  final String? originPostId;
+
   AppLinkRef copyWith({
     AppLinkKind? kind,
     String? id,
@@ -1434,6 +1443,7 @@ class AppLinkRef {
     IconData? icon,
     bool? missing,
     bool? isPublicContext,
+    String? originPostId,
   }) => AppLinkRef(
     kind: kind ?? this.kind,
     id: id ?? this.id,
@@ -1444,6 +1454,7 @@ class AppLinkRef {
     icon: icon ?? this.icon,
     missing: missing ?? this.missing,
     isPublicContext: isPublicContext ?? this.isPublicContext,
+    originPostId: originPostId ?? this.originPostId,
   );
 
   UiIntent get effectiveIntent =>

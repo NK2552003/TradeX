@@ -32,6 +32,7 @@ class CopilotController extends ChangeNotifier {
       _onEncryptionUnlocked,
     );
     AppSession.instance.aiQueriesUsed.addListener(_onUsageChanged);
+    AppSession.instance.aiQueriesLimit.addListener(_onUsageChanged);
     if (autoLoad) {
       AppVisibility.instance.addListener(_onVisibilityChanged);
       unawaited(reload());
@@ -85,7 +86,7 @@ class CopilotController extends ChangeNotifier {
   int get effectiveAiQueriesUsed =>
       quotaUsed ?? AppSession.instance.aiQueriesUsed.value;
   int get effectiveAiQueriesLimit =>
-      quotaLimit ?? CustomerLimitations.currentQuota.maxAiQueriesPerMonth;
+      quotaLimit ?? CustomerLimitations.effectiveAiQueriesLimit;
   bool get isAiQuotaBlocked =>
       quotaExceeded ||
       CustomerLimitations.isAiQuotaExhausted(
@@ -97,12 +98,12 @@ class CopilotController extends ChangeNotifier {
 
   void _onUsageChanged() {
     final used = AppSession.instance.aiQueriesUsed.value;
-    if (quotaUsed != null && used > quotaUsed!) {
-      quotaUsed = used;
-    }
+    final limit = AppSession.instance.aiQueriesLimit.value;
+    quotaUsed = used;
+    if (limit != null) quotaLimit = limit;
     quotaExceeded = CustomerLimitations.isAiQuotaExhausted(
-      usedOverride: quotaUsed ?? used,
-      limitOverride: quotaLimit,
+      usedOverride: used,
+      limitOverride: limit ?? quotaLimit,
     );
     _notify();
   }
@@ -145,6 +146,8 @@ class CopilotController extends ChangeNotifier {
     quotaExceeded = false;
     quotaUsed = null;
     quotaLimit = null;
+    AppSession.instance.aiQueriesUsed.value = 0;
+    AppSession.instance.aiQueriesLimit.value = null;
     error = null;
     unawaited(reload());
   }
@@ -203,15 +206,18 @@ class CopilotController extends ChangeNotifier {
       _pollFailures = 0;
       if (!quiet) error = null;
       if (activeThreadId != null && activeThread == null) activeThreadId = null;
-      final defaultSpec =
-          (workspace.settings['defaultSpecialistId'] ?? '').toString().trim();
+      final defaultSpec = (workspace.settings['defaultSpecialistId'] ?? '')
+          .toString()
+          .trim();
       if (activeThreadId == null &&
           !_specialistManuallySelected &&
           defaultSpec.isNotEmpty &&
           workspace.specialists.any((s) => s.id == defaultSpec)) {
         specialistId = defaultSpec;
       }
-      if (!autoAttachContext && activeThreadId != null && pageContextId != null) {
+      if (!autoAttachContext &&
+          activeThreadId != null &&
+          pageContextId != null) {
         pageContextId = null;
       }
       if (SupabaseConfig.isConfigured &&
@@ -257,7 +263,10 @@ class CopilotController extends ChangeNotifier {
           quotaExceeded != nextExceeded) {
         quotaUsed = usage.aiQueriesUsed;
         quotaLimit = usage.aiQueriesLimit;
-        AppSession.instance.aiQueriesUsed.value = usage.aiQueriesUsed;
+        AppSession.instance.updateAiQuota(
+          used: usage.aiQueriesUsed,
+          limit: usage.aiQueriesLimit,
+        );
         quotaExceeded = nextExceeded;
         _notify();
       }
@@ -309,8 +318,9 @@ class CopilotController extends ChangeNotifier {
       _specialistManuallySelected = true;
       specialistId = specialist;
     } else {
-      final defaultSpec =
-          (workspace.settings['defaultSpecialistId'] ?? '').toString().trim();
+      final defaultSpec = (workspace.settings['defaultSpecialistId'] ?? '')
+          .toString()
+          .trim();
       if (defaultSpec.isNotEmpty &&
           !_specialistManuallySelected &&
           workspace.specialists.any((s) => s.id == defaultSpec)) {
@@ -498,6 +508,7 @@ class CopilotController extends ChangeNotifier {
       _onEncryptionUnlocked,
     );
     AppSession.instance.aiQueriesUsed.removeListener(_onUsageChanged);
+    AppSession.instance.aiQueriesLimit.removeListener(_onUsageChanged);
     if (_autoLoad) {
       AppVisibility.instance.removeListener(_onVisibilityChanged);
     }

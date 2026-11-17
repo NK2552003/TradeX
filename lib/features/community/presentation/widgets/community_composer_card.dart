@@ -1369,68 +1369,47 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
           SizedBox(height: spacingSm),
 
-          // ---- Step 3: Main Body / Responsive Two-Column Preview ----
-          if (isDesktop && _isPreviewMode) ...<Widget>[
-            // Desktop 2-column live split view (Interactive Editor on left, Real-time feed preview on right)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Expanded(
-                  flex: 5,
-                  child: _buildEditorContent(theme, isMobile, activeToken),
-                ),
-                SizedBox(width: spacingMd),
-                Container(width: 1, height: 480, color: theme.colors.border),
-                SizedBox(width: spacingMd),
-                Expanded(
-                  flex: 4,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Icon(
-                            Icons.remove_red_eye_outlined,
-                            size: context.sz(14),
-                            color: theme.colors.primary,
-                          ),
-                          SizedBox(width: spacingXs),
-                          Text(
-                            'LIVE FEED PREVIEW',
-                            style: context.uiText.label.copyWith(
-                              fontWeight: FontWeight.w800,
-                              fontSize: context.fs(11),
-                              letterSpacing: 0.6,
-                              color: theme.colors.primary,
-                            ),
-                          ),
-                          const Spacer(),
-                          UiBadge(
-                            label: 'REAL-TIME',
-                            intent: UiIntent.success,
-                            variant: UiBadgeVariant.soft,
-                            size: UiSize.xs,
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: spacingSm),
-                      CommunityPostCard(
-                        post: _buildPreviewPost(),
-                        variant: CommunityPostCardVariant.boxed,
-                        repository: widget.repository,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          // ---- Step 3: Editor / Full-width Preview ----
+          // The preview slides over the editor instead of squeezing both into
+          // two narrow columns. The same composer powers published-post edits,
+          // so Edit and Create share this interaction automatically.
+          AnimatedSize(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : theme.motion.normal,
+            curve: theme.motion.curve,
+            alignment: Alignment.topCenter,
+            child: AnimatedSwitcher(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : theme.motion.normal,
+              reverseDuration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : theme.motion.fast,
+              switchInCurve: theme.motion.curve,
+              switchOutCurve: theme.motion.curve,
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                final bool preview = child.key == const ValueKey('preview');
+                final Animation<Offset> slide = Tween<Offset>(
+                  begin: Offset(preview ? 0.08 : -0.05, 0),
+                  end: Offset.zero,
+                ).animate(animation);
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
+              child: _isPreviewMode
+                  ? KeyedSubtree(
+                      key: const ValueKey('preview'),
+                      child: _buildLivePreviewCard(theme, isMobile),
+                    )
+                  : KeyedSubtree(
+                      key: const ValueKey('editor'),
+                      child: _buildEditorContent(theme, isMobile, activeToken),
+                    ),
             ),
-          ] else if (_isPreviewMode) ...<Widget>[
-            // Mobile full-width preview mode
-            _buildLivePreviewCard(theme, isMobile),
-          ] else ...<Widget>[
-            // Standard single-column editor
-            _buildEditorContent(theme, isMobile, activeToken),
-          ],
+          ),
 
           SizedBox(height: spacingSm),
           UiDivider(spacing: spacingXs),

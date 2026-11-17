@@ -549,20 +549,27 @@ class CommunityTrendingWidget extends StatelessWidget {
                   fontSize: context.fs(11),
                 ),
               ),
-              Text(
-                item.topic,
-                style: context.uiText.bodyStrong.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (item.postCount != null)
-                Text(
-                  item.postCount!,
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundSubtle,
-                    fontSize: context.fs(11),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      item.topic,
+                      style: context.uiText.bodyStrong.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
+                  if (item.postCount != null)
+                    Text(
+                      item.postCount!,
+                      textAlign: TextAlign.end,
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundSubtle,
+                        fontSize: context.fs(11),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         ),

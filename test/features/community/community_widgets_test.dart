@@ -173,7 +173,7 @@ void main() {
   });
 
   group('CommunityCommentCard Tests', () {
-    testWidgets('renders author, body with highlight, and like counter', (
+    testWidgets('renders author ID, body with highlight, and like counter', (
       WidgetTester tester,
     ) async {
       const author = CommunityAuthor(
@@ -210,7 +210,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Sarah Connor'), findsOneWidget);
+      expect(find.text('Sarah Connor'), findsNothing);
       expect(find.text('@sarah_c'), findsOneWidget);
       expect(find.text('5'), findsOneWidget);
       expect(find.text('Reply'), findsOneWidget);
@@ -593,8 +593,16 @@ void main() {
       final buttons = find.byType(CommunityEngagementButton);
       expect(buttons, findsNWidgets(4));
       final actions = tester.widgetList<CommunityEngagementButton>(buttons);
-      expect(actions.map((button) => button.tooltip), ['Like', 'Reply', 'Repost', 'Share']);
-      expect(tester.getCenter(find.byIcon(Icons.thumb_up_outlined)).dx, greaterThan(tester.getCenter(buttons.last).dx));
+      expect(actions.map((button) => button.tooltip), [
+        'Like',
+        'Reply',
+        'Repost',
+        'Share',
+      ]);
+      expect(
+        tester.getCenter(find.byIcon(Icons.thumb_up_outlined)).dx,
+        greaterThan(tester.getCenter(buttons.last).dx),
+      );
 
       final double firstMetricY = tester.getCenter(buttons.at(0)).dy;
       for (int index = 1; index < 4; index++) {
@@ -628,7 +636,8 @@ void main() {
         final post = CommunityPost(
           id: 'post-share-101',
           author: author,
-          body: 'Watching \$NVDA breakout above 140 resistance with strong volume.',
+          body:
+              'Watching \$NVDA breakout above 140 resistance with strong volume.',
           tickers: const <String>['NVDA'],
           tags: const <String>['breakout'],
           createdAt: DateTime.now(),
@@ -645,13 +654,18 @@ void main() {
         SharedPreferences.setMockInitialValues({});
         String? copiedLink;
         final messenger = tester.binding.defaultBinaryMessenger;
-        messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        messenger.setMockMethodCallHandler(SystemChannels.platform, (
+          call,
+        ) async {
           if (call.method == 'Clipboard.setData') {
             copiedLink = (call.arguments as Map)['text'] as String?;
           }
           return null;
         });
-        addTearDown(() => messenger.setMockMethodCallHandler(SystemChannels.platform, null));
+        addTearDown(
+          () =>
+              messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+        );
         bool shareCallbackFired = false;
 
         await tester.pumpWidget(
@@ -678,7 +692,9 @@ void main() {
         // Verify CommunityShareSheet opened with post preview, URL, and external share options
         expect(find.text('Share Post'), findsOneWidget);
         expect(
-          find.text('https://community.alphajournal.in/community/post/post-share-101?public=true'),
+          find.text(
+            'https://community.alphajournal.in/community/post/post-share-101?public=true',
+          ),
           findsOneWidget,
         );
         expect(
@@ -704,7 +720,10 @@ void main() {
 
         expect(repo.shareCountFor('post-share-101'), 1);
         expect(shareCallbackFired, isTrue);
-        expect(copiedLink, 'https://community.alphajournal.in/community/post/post-share-101?public=true');
+        expect(
+          copiedLink,
+          'https://community.alphajournal.in/community/post/post-share-101?public=true',
+        );
 
         // Tap Save Post to Trader Notes
         final int notesBefore =
@@ -741,9 +760,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
-              body: SingleChildScrollView(
-                child: AppPostCard(post: appPost),
-              ),
+              body: SingleChildScrollView(child: AppPostCard(post: appPost)),
             ),
           ),
         );
@@ -755,7 +772,9 @@ void main() {
 
         expect(find.text('Share Post'), findsOneWidget);
         expect(
-          find.text('https://community.alphajournal.in/community/post/app-post-77?public=true'),
+          find.text(
+            'https://community.alphajournal.in/community/post/app-post-77?public=true',
+          ),
           findsOneWidget,
         );
         expect(
@@ -766,10 +785,7 @@ void main() {
           find.byKey(const ValueKey('app-post-share-whatsapp')),
           findsOneWidget,
         );
-        expect(
-          find.byKey(const ValueKey('app-post-share-x')),
-          findsOneWidget,
-        );
+        expect(find.byKey(const ValueKey('app-post-share-x')), findsOneWidget);
       },
     );
   });

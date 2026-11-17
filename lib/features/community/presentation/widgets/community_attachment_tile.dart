@@ -95,47 +95,55 @@ class CommunityAttachmentTile extends StatelessWidget {
             ),
           ],
           UiGap.v(gap),
-          Wrap(
-            spacing: context.sp(theme.spacing.xs),
-            runSpacing: context.sp(theme.spacing.xs),
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              UiBadge(
-                label: attachment.isPublic ? 'Public' : 'Private',
-                intent: attachment.isPublic
-                    ? UiIntent.success
-                    : UiIntent.neutral,
-                variant: UiBadgeVariant.soft,
-                size: UiSize.xs,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                child: Wrap(
+                  spacing: context.sp(theme.spacing.xs),
+                  runSpacing: context.sp(theme.spacing.xs),
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: <Widget>[
+                    UiBadge(
+                      label: attachment.isPublic ? 'Public' : 'Private',
+                      intent: attachment.isPublic
+                          ? UiIntent.success
+                          : UiIntent.neutral,
+                      variant: UiBadgeVariant.soft,
+                      size: UiSize.xs,
+                    ),
+                    if (attachment.primaryTicker != null)
+                      UiBadge(
+                        label: '\$${attachment.primaryTicker}',
+                        size: UiSize.xs,
+                      ),
+                    for (final tag in attachment.tags.take(dense ? 2 : 4))
+                      UiBadge(
+                        label: '#$tag',
+                        variant: UiBadgeVariant.outline,
+                        size: UiSize.xs,
+                      ),
+                    if (attachment.hasMedia)
+                      const UiBadge(
+                        label: 'Media',
+                        size: UiSize.xs,
+                        variant: UiBadgeVariant.outline,
+                      ),
+                  ],
+                ),
               ),
-              if (attachment.primaryTicker != null)
-                UiBadge(
-                  label: '\$${attachment.primaryTicker}',
-                  size: UiSize.xs,
+              if (!dense) ...<Widget>[
+                UiGap.h(context.sp(theme.spacing.sm)),
+                Text(
+                  'Updated ${AppTokens.relativeTime(attachment.updatedAt)}',
+                  textAlign: TextAlign.end,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                  ),
                 ),
-              for (final tag in attachment.tags.take(dense ? 2 : 4))
-                UiBadge(
-                  label: '#$tag',
-                  variant: UiBadgeVariant.outline,
-                  size: UiSize.xs,
-                ),
-              if (attachment.hasMedia)
-                const UiBadge(
-                  label: 'Media',
-                  size: UiSize.xs,
-                  variant: UiBadgeVariant.outline,
-                ),
+              ],
             ],
           ),
-          if (!dense) ...[
-            UiGap.v(gap),
-            Text(
-              'Updated ${AppTokens.relativeTime(attachment.updatedAt)}',
-              style: context.uiText.caption.copyWith(
-                color: theme.colors.foregroundSubtle,
-              ),
-            ),
-          ],
         ],
       ),
     );

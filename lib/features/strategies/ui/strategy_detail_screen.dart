@@ -53,6 +53,8 @@ class StrategyDetailScreen extends StatefulWidget {
     this.canEdit = true,
     this.isPublicContext = false,
     this.initialTab = StrategyDetailTab.playbook,
+    this.savedOverride,
+    this.onToggleSaved,
   });
 
   final AppStrategy strategy;
@@ -69,6 +71,8 @@ class StrategyDetailScreen extends StatefulWidget {
   final AppLinkGraph? linkGraph;
   final bool canEdit;
   final bool isPublicContext;
+  final bool? savedOverride;
+  final Future<void> Function()? onToggleSaved;
 
   /// Which tab is selected when the document first opens. Additive — callers
   /// that do not care leave it at the default and get the playbook body.
@@ -189,6 +193,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   }
 
   AppStrategy get _strategy => widget.strategy;
+  bool get _isSaved => widget.savedOverride ?? _strategy.isFavorite;
 
   bool get _canEdit =>
       widget.canEdit &&
@@ -302,8 +307,14 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
     });
   }
 
-  Future<void> _toggleFavorite() =>
-      _guard(() => _repo.toggleFavorite(_strategy.id));
+  Future<void> _toggleFavorite() => _guard(() async {
+    final callback = widget.onToggleSaved;
+    if (callback != null) {
+      await callback();
+      return;
+    }
+    await _repo.toggleFavorite(_strategy.id);
+  });
 
   /// Publishing shares the rules, not the trader's record. Saying so at the
   /// moment of the decision is the only place it will be read.
@@ -619,7 +630,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               AppStrategyNoteHeader(
-                strategy: _strategy,
+                strategy: _strategy.copyWith(isFavorite: _isSaved),
                 onBack: widget.onClose,
                 onStatusChanged: _canEdit && !_busy ? _setStatus : null,
                 onToggleFavorite: _busy ? null : _toggleFavorite,

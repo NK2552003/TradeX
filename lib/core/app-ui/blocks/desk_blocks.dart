@@ -1224,10 +1224,7 @@ class _AppWorkspaceSectionCarouselState
                 ),
                 if (widget.trailing != null) ...<Widget>[
                   SizedBox(height: context.sp(theme.spacing.sm)),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: widget.trailing!,
-                  ),
+                  SizedBox(width: double.infinity, child: widget.trailing!),
                 ],
               ],
             );

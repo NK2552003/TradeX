@@ -17,6 +17,7 @@ import 'package:tradex/features/community/presentation/widgets/community_engagem
 import 'package:tradex/features/community/presentation/widgets/community_highlighted_text.dart';
 import 'package:tradex/features/community/presentation/widgets/community_link_preview_tile.dart';
 import 'package:tradex/features/community/presentation/widgets/community_poll_tile.dart';
+import 'package:tradex/features/community/presentation/widgets/community_post_insights_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_options_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/community_quote_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
@@ -835,7 +836,10 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             attachment: post.attachment!,
             onTap: widget.onOpenRef != null
                 ? () => widget.onOpenRef!(
-                    post.attachment!.source.copyWith(isPublicContext: true),
+                    post.attachment!.source.copyWith(
+                      isPublicContext: true,
+                      originPostId: post.id,
+                    ),
                   )
                 : widget.onTap,
           ),
@@ -1021,6 +1025,13 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             onLike: _handleLike,
             onReact: _handleReact,
             onShare: () => _handleShare(context),
+            onInsights: _isAuthor
+                ? () => CommunityPostInsightsSheet.show(
+                    context,
+                    post: _currentPost,
+                    repository: _resolvedRepository,
+                  )
+                : null,
             showBorder: true,
           ),
           UiReveal(

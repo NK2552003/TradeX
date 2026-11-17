@@ -128,7 +128,7 @@ class _CommunityDiscussionCommentState
                                         ? null
                                         : () => widget.onAuthorTap!(author),
                                     builder: (context, _) => Text(
-                                      author.displayName,
+                                      author.displayHandle,
                                       style: context.uiText.bodyStrong,
                                     ),
                                   ),
@@ -142,14 +142,6 @@ class _CommunityDiscussionCommentState
                                     style: context.uiText.caption,
                                   ),
                                 ],
-                              ),
-                              Text(
-                                author.bio?.trim().isNotEmpty == true
-                                    ? author.bio!
-                                    : author.displayHandle,
-                                style: context.uiText.caption,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),

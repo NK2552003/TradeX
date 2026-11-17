@@ -43,6 +43,8 @@ class NotePreviewScreen extends StatefulWidget {
     this.linkGraph,
     this.canEdit = true,
     this.isPublicContext = false,
+    this.savedOverride,
+    this.onToggleSaved,
   });
 
   final AppNote note;
@@ -64,6 +66,8 @@ class NotePreviewScreen extends StatefulWidget {
   final AppLinkGraph? linkGraph;
   final bool canEdit;
   final bool isPublicContext;
+  final bool? savedOverride;
+  final Future<void> Function()? onToggleSaved;
 
   @override
   State<NotePreviewScreen> createState() => _NotePreviewScreenState();
@@ -136,6 +140,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   }
 
   AppNote get _note => _activeNote;
+  bool get _isSaved => widget.savedOverride ?? _note.isFavorite;
 
   /// Roughly 220 words a minute, floored at a minute so a two-line note does
   /// not claim to take zero.
@@ -251,8 +256,14 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
     UiToast.error(context, title: 'Could not post comment', message: '$e');
   }
 
-  Future<void> _toggleSaveNote() =>
-      _noteAction(() => _repo.toggleFavorite(_note.id));
+  Future<void> _toggleSaveNote() async {
+    final callback = widget.onToggleSaved;
+    if (callback != null) {
+      await callback();
+      return;
+    }
+    await _noteAction(() => _repo.toggleFavorite(_note.id));
+  }
 
   Future<void> _toggleVisibility() async {
     final bool next = !_note.isPublic;
@@ -408,12 +419,12 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
       ),
       SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
-        icon: _note.isFavorite
+        icon: _isSaved
             ? Icons.bookmark_rounded
             : Icons.bookmark_outline_rounded,
-        variant: _note.isFavorite ? UiVariant.soft : UiVariant.ghost,
-        intent: _note.isFavorite ? UiIntent.primary : UiIntent.neutral,
-        tooltip: _note.isFavorite ? 'Remove from saved' : 'Save note',
+        variant: _isSaved ? UiVariant.soft : UiVariant.ghost,
+        intent: _isSaved ? UiIntent.primary : UiIntent.neutral,
+        tooltip: _isSaved ? 'Remove from saved' : 'Save note',
         onPressed: _toggleSaveNote,
       ),
       SizedBox(width: context.sp(theme.spacing.xs)),
@@ -647,13 +658,11 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
               SizedBox(width: context.sp(theme.spacing.xs)),
               Expanded(
                 child: UiButton(
-                  label: _note.isFavorite ? 'Saved' : 'Save',
-                  leadingIcon: _note.isFavorite
+                  label: _isSaved ? 'Saved' : 'Save',
+                  leadingIcon: _isSaved
                       ? Icons.bookmark_rounded
                       : Icons.bookmark_border_rounded,
-                  variant: _note.isFavorite
-                      ? UiVariant.soft
-                      : UiVariant.outline,
+                  variant: _isSaved ? UiVariant.soft : UiVariant.outline,
                   intent: UiIntent.primary,
                   size: UiSize.sm,
                   onPressed: _toggleSaveNote,

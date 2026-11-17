@@ -6,7 +6,6 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/data/account_access_repository.dart';
 import 'package:tradex/core/config/startup_ready.dart';
 import 'package:tradex/core/utils/app_visibility.dart';
-import 'package:tradex/features/auth/presentation/pages/splash_screen.dart';
 
 /// Suspended accounts never render cached private screens. Access is refreshed
 /// on resume and periodically; database checks also protect every request.
@@ -135,12 +134,22 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading && _access == null && _error == null) {
-      return SplashScreen(onFinish: () {});
-    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) finishWebStartup();
     });
+    if (_loading && _access == null && _error == null) {
+      return Scaffold(
+        backgroundColor: context.uiColors.background,
+        body: SafeArea(
+          child: UiSkeleton.page(
+            title: 'Loading workspace',
+            subtitle: 'Verifying your account access',
+            showMetrics: true,
+            cardCount: 3,
+          ),
+        ),
+      );
+    }
     if (_error == null && _access?.isActive == true) {
       return widget.builder(context);
     }

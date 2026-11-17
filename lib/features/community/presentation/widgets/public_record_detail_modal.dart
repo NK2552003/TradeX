@@ -26,6 +26,8 @@ class PublicRecordDetailModal extends StatefulWidget {
     this.initialLinkGraph,
     this.onOpenEditor,
     this.onOpenRef,
+    this.initiallySaved = false,
+    this.onSaveChanged,
   });
 
   final AppLinkRef ref;
@@ -37,6 +39,8 @@ class PublicRecordDetailModal extends StatefulWidget {
   /// Leaves Community and opens the owner's real Workspace editor.
   final VoidCallback? onOpenEditor;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final bool initiallySaved;
+  final Future<void> Function(bool saved)? onSaveChanged;
 
   static Future<void> show(
     BuildContext context, {
@@ -47,6 +51,8 @@ class PublicRecordDetailModal extends StatefulWidget {
     AppLinkGraph? initialLinkGraph,
     VoidCallback? onOpenEditor,
     ValueChanged<AppLinkRef>? onOpenRef,
+    bool initiallySaved = false,
+    Future<void> Function(bool saved)? onSaveChanged,
   }) {
     return showSettingsSideSheet<void>(
       context,
@@ -63,6 +69,8 @@ class PublicRecordDetailModal extends StatefulWidget {
         initialLinkGraph: initialLinkGraph,
         onOpenEditor: onOpenEditor,
         onOpenRef: onOpenRef,
+        initiallySaved: initiallySaved,
+        onSaveChanged: onSaveChanged,
       ),
     );
   }
@@ -79,6 +87,7 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
   AppTrade? _trade;
   AppStrategy? _strategy;
   AppLinkGraph? _publicGraph;
+  late bool _isSaved = widget.initiallySaved;
 
   @override
   void initState() {
@@ -210,6 +219,44 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
     WidgetsBinding.instance.addPostFrameCallback((_) => openEditor());
   }
 
+  bool get _canOpenEditor {
+    if (widget.onOpenEditor == null) return false;
+    final String? ownerId = switch (widget.ref.kind) {
+      AppLinkKind.note => _note?.userId,
+      AppLinkKind.journal => _trade?.userId,
+      AppLinkKind.strategy => _strategy?.userId,
+      _ => null,
+    };
+    return ownerId != null && RecordAccess.owns(ownerId);
+  }
+
+  Future<void> _toggleSaved() async {
+    final callback = widget.onSaveChanged;
+    if (callback == null) return;
+    final bool next = !_isSaved;
+    setState(() => _isSaved = next);
+    try {
+      await callback(next);
+      if (!mounted) return;
+      UiToast.show(
+        context,
+        title: next ? 'Saved to bookmarks' : 'Removed from bookmarks',
+        message: next
+            ? 'This shared record is now available from your Community bookmarks.'
+            : 'This shared record was removed from your Community bookmarks.',
+        intent: next ? UiIntent.success : UiIntent.neutral,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaved = !next);
+      UiToast.error(
+        context,
+        title: 'Bookmark was not saved',
+        message: '$error',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const _PublicRecordLoadingView();
@@ -234,33 +281,39 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
         note: _note!,
         onClose: _close,
         onEdit: _openEditor,
-        onEditWriting: widget.onOpenEditor == null ? null : _openEditor,
+        onEditWriting: _canOpenEditor ? _openEditor : null,
         onOpenLink: widget.onOpenRef,
         linkGraph: _publicGraph,
         canEdit: false,
         isPublicContext: true,
+        savedOverride: _isSaved,
+        onToggleSaved: widget.onSaveChanged == null ? null : _toggleSaved,
       ),
       AppLinkKind.journal => JournalEntryScreen(
         key: ValueKey<String>('community-journal-${widget.ref.id}'),
         entry: _trade!,
         onClose: _close,
         onEdit: _openEditor,
-        onEditWriting: widget.onOpenEditor == null ? null : _openEditor,
+        onEditWriting: _canOpenEditor ? _openEditor : null,
         onOpenLink: widget.onOpenRef,
         linkGraph: _publicGraph,
         canEdit: false,
         isPublicContext: true,
+        savedOverride: _isSaved,
+        onToggleSaved: widget.onSaveChanged == null ? null : _toggleSaved,
       ),
       AppLinkKind.strategy => StrategyDetailScreen(
         key: ValueKey<String>('community-strategy-${widget.ref.id}'),
         strategy: _strategy!,
         onClose: _close,
         onEdit: _openEditor,
-        onEditWriting: widget.onOpenEditor == null ? null : _openEditor,
+        onEditWriting: _canOpenEditor ? _openEditor : null,
         onOpenLink: widget.onOpenRef,
         linkGraph: _publicGraph,
         canEdit: false,
         isPublicContext: true,
+        savedOverride: _isSaved,
+        onToggleSaved: widget.onSaveChanged == null ? null : _toggleSaved,
       ),
       _ => const SizedBox.shrink(),
     };

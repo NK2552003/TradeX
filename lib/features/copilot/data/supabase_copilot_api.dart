@@ -311,9 +311,11 @@ class SupabaseCopilotApi extends CopilotApi {
         throw CopilotFailure(errMsg, response.statusCode);
       }
       final usage = result['usage'];
-      if (usage is Map && usage['ai_queries_used'] is num) {
-        AppSession.instance.aiQueriesUsed.value =
-            (usage['ai_queries_used'] as num).toInt();
+      if (usage is Map) {
+        AppSession.instance.updateAiQuotaFromUsage(
+          usage,
+          expectedUserId: store.owner,
+        );
       }
       final answer = textOf(result, 'text');
       if (answer.trim().isEmpty) {
@@ -428,10 +430,7 @@ class SupabaseCopilotApi extends CopilotApi {
         'mimeType': 'application/pdf',
       };
     }
-    return {
-      'name': textOf(att, 'filename', 'Attachment'),
-      'kind': 'text',
-    };
+    return {'name': textOf(att, 'filename', 'Attachment'), 'kind': 'text'};
   }
 
   static Iterable<String> _streamChunks(String text) sync* {
