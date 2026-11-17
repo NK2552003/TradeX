@@ -48,10 +48,13 @@ class AppAiMessageBubble extends StatefulWidget {
 }
 
 class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
-  // Keep the established reveal cadence, but avoid rebuilding rich markdown
-  // for every frame while a response is streaming.
-  final AiTypewriter _typewriter = AiTypewriter();
-  DateTime? _lastStreamRender;
+  // ~30fps reveal cadence cuts full-markdown re-parses in half during
+  // streaming while staying deterministic under FakeAsync widget tests.
+  final AiTypewriter _typewriter = AiTypewriter(
+    interval: const Duration(milliseconds: 32),
+    minGraphemesPerTick: 12,
+    catchUpDivisor: 14,
+  );
   bool _streamedInSession = false;
   int _answerTab = 0;
   bool? _helpfulVote;
@@ -72,17 +75,6 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
 
   void _onReveal() {
     if (!mounted) return;
-    if (_typewriter.isTyping) {
-      final DateTime now = DateTime.now();
-      final DateTime? lastRender = _lastStreamRender;
-      if (lastRender != null &&
-          now.difference(lastRender) < const Duration(milliseconds: 48)) {
-        return;
-      }
-      _lastStreamRender = now;
-    } else {
-      _lastStreamRender = null;
-    }
     setState(() {});
     const AiOutputGrowthNotification().dispatch(context);
   }
@@ -1406,10 +1398,6 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final List<PerplexitySource> preview = sources.take(6).toList();
-    final double cardHeight = context.sz(
-      MediaQuery.textScalerOf(context).scale(88),
-    );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -1453,20 +1441,21 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
         UiGap.v(theme.spacing.xxs),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              for (int i = 0; i < preview.length; i++) ...<Widget>[
-                SizedBox(
-                  width: context.sz(200),
-                  height: cardHeight,
-                  child: UiCard(
-                    variant: UiCardVariant.outlined,
-                    density: UiDensity.compact,
-                    hoverLift: false,
-                    onTap: onSourceTap != null
-                        ? () => onSourceTap!(preview[i].url)
-                        : null,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (int i = 0; i < preview.length; i++) ...<Widget>[
+                  SizedBox(
+                    width: context.sz(200),
+                    child: UiCard(
+                      variant: UiCardVariant.outlined,
+                      density: UiDensity.compact,
+                      hoverLift: false,
+                      motion: false,
+                      onTap: onSourceTap != null
+                          ? () => onSourceTap!(preview[i].url)
+                          : null,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -1524,11 +1513,11 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
               if (sources.length > preview.length)
                 SizedBox(
                   width: context.sz(148),
-                  height: cardHeight,
                   child: UiCard(
                     variant: UiCardVariant.subtle,
                     density: UiDensity.compact,
                     hoverLift: false,
+                    motion: false,
                     onTap: onViewAll,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1554,6 +1543,7 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
           ),
         ),
       ],

@@ -49,8 +49,16 @@ class CrossSubdomainLocalStorage extends LocalStorage {
 
 String? getSharedFlag(String key) => null;
 
+String? getLocalPreferenceFallback(String key) => null;
+
 void setSharedFlag(String key, String value, {int maxAgeDays = 30}) {}
 
 void removeSharedFlag(String key) {}
+
+void syncWebTheme({
+  required String mode,
+  required String density,
+  required bool isLight,
+}) {}
 
 void navigateBrowserUrl(String url) {}

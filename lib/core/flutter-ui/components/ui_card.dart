@@ -178,14 +178,18 @@ class _UiCardState extends State<UiCard> {
         child: _cardContent(ctx, pad, f, radius),
       );
 
-      if (!widget.motion) {
+      final bool useMotion =
+          widget.motion &&
+          (hasAction || widget.collapsible || widget.selected);
+      final Clip clip = widget.media != null ? Clip.antiAlias : Clip.none;
+      if (!useMotion) {
         return Container(
           constraints: widget.minHeight == null
               ? null
               : BoxConstraints(minHeight: widget.minHeight!),
           decoration: decoration,
           foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
-          clipBehavior: Clip.antiAlias,
+          clipBehavior: clip,
           child: inner,
         );
       }
@@ -204,7 +208,7 @@ class _UiCardState extends State<UiCard> {
             : BoxConstraints(minHeight: widget.minHeight!),
         decoration: decoration,
         foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: clip,
         child: inner,
       );
     }

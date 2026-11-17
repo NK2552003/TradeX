@@ -12,6 +12,7 @@ function createFakeDom({
   referrer = '',
   cookies = '',
   prefersLight = false,
+  storage = {},
 } = {}) {
   const parsedUrl = new URL(url);
   const byId = new Map();
@@ -199,7 +200,8 @@ function createFakeDom({
       listeners.set(evt, fn);
     },
     localStorage: {
-      getItem: () => null,
+      getItem: (k) =>
+        Object.prototype.hasOwnProperty.call(storage, k) ? storage[k] : null,
     },
   };
 
@@ -531,4 +533,87 @@ test('transition chrome omits Features pill, omits market skeleton white horizon
   assert.ok(styleEl.textContent.includes('@media(min-width:905px){.aj-trans-host{--aj-text-scale:1.1;}}'));
   assert.ok(styleEl.textContent.includes('.aj-page-title{font-size:calc(24 * var(--aj-text-scale) * var(--aj-unit))'));
   assert.ok(styleEl.textContent.includes('.aj-page-sub{font-size:calc(14 * var(--aj-text-scale) * var(--aj-unit))'));
+});
+
+test('subdomain switcher loader respects latest cookie, SharedPreferences fallback, system mode, and live syncTheme updates', () => {
+  // Duplicate host-only cookie followed by updated parent-domain cookie resolves to the latest value.
+  const duplicateEnv = createFakeDom({
+    url: 'https://community.alphajournal.in/community_feed',
+    cookies:
+      'ax_sb_auth.n=1; ax_theme_mode=dark; ax_theme_mode=light; ax_theme_density=Compact',
+  });
+  const dupInit = duplicateEnv.api.initHead();
+  assert.equal(dupInit.theme.isLight, true);
+  assert.equal(dupInit.theme.compact, true);
+  assert.equal(
+    duplicateEnv.document.documentElement.classList.contains('aj-light'),
+    true,
+  );
+  assert.equal(
+    duplicateEnv.document.documentElement.style.getPropertyValue('--aj-bg'),
+    '#FAFAF9',
+  );
+  assert.equal(duplicateEnv.metaTheme.getAttribute('content'), '#FAFAF9');
+
+  // SharedPreferences flutter.* keys work when cookies are absent (e.g. localhost or first load).
+  const storageEnv = createFakeDom({
+    url: 'http://localhost:5000/market',
+    cookies: 'ax_sb_auth.n=1',
+    storage: {
+      'flutter.ax_theme_mode': '"light"',
+      'flutter.ax_theme_density': '"Compact"',
+    },
+  });
+  const spInit = storageEnv.api.initHead();
+  assert.equal(spInit.theme.isLight, true);
+  assert.equal(spInit.theme.compact, true);
+  const spVeil = storageEnv.api.startOutgoing(
+    'https://community.alphajournal.in/community_feed',
+  );
+  assert.ok(spVeil);
+  assert.ok(spVeil.style.cssText.includes('#FAFAF9'));
+  assert.equal(
+    storageEnv.document.documentElement.classList.contains('aj-light'),
+    true,
+  );
+
+  // Live syncTheme switches dark -> light -> system cleanly across DOM tokens and veil palette.
+  const liveEnv = createFakeDom({
+    url: 'https://app.alphajournal.in/settings',
+    cookies: 'ax_sb_auth.n=1; ax_theme_mode=dark',
+    prefersLight: true,
+  });
+  liveEnv.api.initHead();
+  assert.equal(
+    liveEnv.document.documentElement.classList.contains('aj-light'),
+    false,
+  );
+  liveEnv.api.syncTheme('light', 'Compact', true);
+  assert.equal(
+    liveEnv.document.documentElement.classList.contains('aj-light'),
+    true,
+  );
+  assert.equal(
+    liveEnv.document.documentElement.style.getPropertyValue('--aj-bg'),
+    '#FAFAF9',
+  );
+  assert.equal(
+    liveEnv.document.documentElement.style.getPropertyValue('--aj-pad'),
+    '12px',
+  );
+  assert.equal(liveEnv.metaTheme.getAttribute('content'), '#FAFAF9');
+
+  liveEnv.api.syncTheme('system', 'Comfortable', false);
+  assert.equal(
+    liveEnv.document.documentElement.classList.contains('aj-light'),
+    false,
+  );
+  assert.equal(
+    liveEnv.document.documentElement.style.getPropertyValue('--aj-bg'),
+    '#0D0C0B',
+  );
+  assert.equal(
+    liveEnv.document.documentElement.style.getPropertyValue('--aj-pad'),
+    '16px',
+  );
 });

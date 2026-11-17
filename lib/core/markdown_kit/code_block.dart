@@ -88,14 +88,16 @@ class RichCodeBlockBuilder extends MarkdownElementBuilder {
     if (PerplexityBlockTags.perplexityCards.contains(langKey) ||
         (!PerplexityBlockTags.chartAndDiagramTags.contains(langKey) &&
             isStructuredPerplexityJson(source.trim()))) {
-      return PerplexityCardBlock(
-        tag: PerplexityBlockTags.perplexityCards.contains(langKey)
-            ? langKey
-            : (isResearchPanelJson(source.trim()) ? 'research_panel' : 'card'),
-        spec: source.trim(),
-        onOpenRef: onOpenRef,
-        onTapUrl: onTapUrl,
-        onPromptTap: onPromptTap,
+      return SelectionContainer.disabled(
+        child: PerplexityCardBlock(
+          tag: PerplexityBlockTags.perplexityCards.contains(langKey)
+              ? langKey
+              : (isResearchPanelJson(source.trim()) ? 'research_panel' : 'card'),
+          spec: source.trim(),
+          onOpenRef: onOpenRef,
+          onTapUrl: onTapUrl,
+          onPromptTap: onPromptTap,
+        ),
       );
     }
     const Set<String> chartFenceTags = <String>{
@@ -124,7 +126,9 @@ class RichCodeBlockBuilder extends MarkdownElementBuilder {
           (langKey == 'chart' || langKey == 'graph' || langKey == 'plot')
           ? null
           : langKey;
-      return ChartBlock(spec: source.trim(), defaultType: defaultType);
+      return SelectionContainer.disabled(
+        child: ChartBlock(spec: source.trim(), defaultType: defaultType),
+      );
     }
     return _CodeBlock(
       typing: typing,

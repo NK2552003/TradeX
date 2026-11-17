@@ -468,4 +468,36 @@ Here are the latest updates on Intel Corporation (INTC):
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'PerplexityCompanyCard formats nested price object instead of printing raw Map literal',
+    (tester) async {
+      const md = '''
+```company
+{
+  "name": "Intel Corporation",
+  "ticker": "INTC",
+  "exchange": "NASDAQ",
+  "sector": "Semiconductors",
+  "price": {"value": 55.47, "currency": "USD", "changePercent": "-7.0%"},
+  "marketCap": "~\$295B"
+}
+```
+''';
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: UiTheme.dark().toThemeData(),
+          home: const Scaffold(
+            body: SingleChildScrollView(
+              child: RichMarkdownPreview(data: md),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('\$55.47'), findsOneWidget);
+      expect(find.text('-7.00%'), findsOneWidget);
+      expect(find.textContaining('{value:'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

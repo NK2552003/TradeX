@@ -53,10 +53,16 @@ class AiTypewriter extends ChangeNotifier {
 
   void update(String text, {bool animate = true}) {
     if (text == _target) return;
-    if (text.startsWith(_target)) {
+    if (!animate || _skipped || _reducedMotion) {
+      _target = text;
+      _queue.clear();
+      _revealAll();
+      return;
+    }
+    if (text.startsWith(_target) && _queue.isNotEmpty) {
       // Re-segment the tail to keep emoji/combining marks intact across chunks.
       final tail = _target.isEmpty ? 0 : _target.length - _queue.last.length;
-      if (_queue.isNotEmpty) _queue.removeLast();
+      _queue.removeLast();
       _queue.addAll(text.substring(tail).characters);
     } else {
       _queue
@@ -66,10 +72,6 @@ class AiTypewriter extends ChangeNotifier {
       _visibleUnits = 0;
     }
     _target = text;
-    if (!animate || _skipped || _reducedMotion) {
-      _revealAll();
-      return;
-    }
     // A chunk may extend the final grapheme that is already visible.
     _shown = _shown.clamp(0, _queue.length);
     _visibleUnits = _queue.take(_shown).fold(0, (n, c) => n + c.length);

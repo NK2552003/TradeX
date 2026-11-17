@@ -201,24 +201,6 @@ class CopilotController extends ChangeNotifier {
       workspace = CopilotWorkspace.fromJson(state);
       connected = true;
       _pollFailures = 0;
-      if (SupabaseConfig.isConfigured &&
-          SupabaseConfig.client?.auth.currentUser != null) {
-        try {
-          await CustomerTierQuota.refreshPublishedCatalogue();
-          final usage = await CustomerQuotaUsage.fetch();
-          if (!_disposed && epoch == _epoch) {
-            quotaUsed = usage.aiQueriesUsed;
-            quotaLimit = usage.aiQueriesLimit;
-            AppSession.instance.aiQueriesUsed.value = usage.aiQueriesUsed;
-            quotaExceeded = CustomerLimitations.isAiQuotaExhausted(
-              usedOverride: usage.aiQueriesUsed,
-              limitOverride: usage.aiQueriesLimit,
-            );
-          }
-        } catch (_) {}
-      } else {
-        quotaExceeded = CustomerLimitations.isAiQuotaExhausted();
-      }
       if (!quiet) error = null;
       if (activeThreadId != null && activeThread == null) activeThreadId = null;
       final defaultSpec =
@@ -231,6 +213,16 @@ class CopilotController extends ChangeNotifier {
       }
       if (!autoAttachContext && activeThreadId != null && pageContextId != null) {
         pageContextId = null;
+      }
+      if (SupabaseConfig.isConfigured &&
+          SupabaseConfig.client?.auth.currentUser != null) {
+        // Render the workspace immediately and refresh tier/usage quota in the
+        // background instead of blocking initial load on sequential RPCs.
+        loading = false;
+        _notify();
+        unawaited(_refreshQuotaInBackground(epoch));
+      } else {
+        quotaExceeded = CustomerLimitations.isAiQuotaExhausted();
       }
     } catch (failure) {
       if (_disposed || epoch != _epoch || sequence != _loadSequence) return;
@@ -246,6 +238,30 @@ class CopilotController extends ChangeNotifier {
         _schedulePoll();
       }
     }
+  }
+
+  Future<void> _refreshQuotaInBackground(int epoch) async {
+    try {
+      final results = await Future.wait<dynamic>([
+        CustomerTierQuota.refreshPublishedCatalogue(),
+        CustomerQuotaUsage.fetch(),
+      ]);
+      final usage = results[1] as CustomerQuotaUsage;
+      if (_disposed || epoch != _epoch) return;
+      final bool nextExceeded = CustomerLimitations.isAiQuotaExhausted(
+        usedOverride: usage.aiQueriesUsed,
+        limitOverride: usage.aiQueriesLimit,
+      );
+      if (quotaUsed != usage.aiQueriesUsed ||
+          quotaLimit != usage.aiQueriesLimit ||
+          quotaExceeded != nextExceeded) {
+        quotaUsed = usage.aiQueriesUsed;
+        quotaLimit = usage.aiQueriesLimit;
+        AppSession.instance.aiQueriesUsed.value = usage.aiQueriesUsed;
+        quotaExceeded = nextExceeded;
+        _notify();
+      }
+    } catch (_) {}
   }
 
   /// Applies workspace settings updates immediately in memory so Settings

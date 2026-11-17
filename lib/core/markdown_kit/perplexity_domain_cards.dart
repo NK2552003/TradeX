@@ -21,19 +21,80 @@ class PerplexityCardDataUtils {
   static String? str(Map<String, dynamic> map, List<String> keys) {
     for (final String key in keys) {
       final dynamic v = map[key];
-      if (v != null) {
-        final String s = v.toString().trim();
-        if (s.isNotEmpty && s.toLowerCase() != 'null') return s;
-      }
+      final String? parsed = _scalarStr(v);
+      if (parsed != null) return parsed;
     }
     return null;
   }
 
+  static String? _scalarStr(dynamic v) {
+    if (v == null) return null;
+    if (v is Map) {
+      final Map<String, dynamic> m = Map<String, dynamic>.from(v);
+      final String? direct = str(m, const [
+        'formatted',
+        'display',
+        'text',
+        'label',
+        'title',
+        'name',
+      ]);
+      if (direct != null) return direct;
+      final String? val = _scalarStr(m['value'] ?? m['amount'] ?? m['price']);
+      if (val == null) return null;
+      final String? unit = _scalarStr(m['currency'] ?? m['unit']);
+      if (unit != null && !val.contains(unit)) {
+        if (unit.toUpperCase() == 'USD' && !val.startsWith(r'$')) {
+          return '\$$val';
+        }
+        return '$unit $val';
+      }
+      return val;
+    }
+    if (v is List) {
+      final List<String> parts = v
+          .map(_scalarStr)
+          .whereType<String>()
+          .where((String s) => s.isNotEmpty)
+          .toList();
+      return parts.isEmpty ? null : parts.join(', ');
+    }
+    final String s = v.toString().trim();
+    if (s.isEmpty || s.toLowerCase() == 'null') return null;
+    return s;
+  }
+
   static double? numVal(dynamic raw) {
     if (raw is num && raw.isFinite) return raw.toDouble();
+    if (raw is Map) {
+      return numVal(
+        raw['value'] ??
+            raw['amount'] ??
+            raw['price'] ??
+            raw['formatted'] ??
+            raw['display'],
+      );
+    }
     if (raw is String) {
       final String cleaned = raw.replaceAll(RegExp(r'[\$,%\s,+]'), '').trim();
       final double? parsed = double.tryParse(cleaned);
+      if (parsed != null && parsed.isFinite) return parsed;
+    }
+    return null;
+  }
+
+  /// Extracts a single numeric price from decorated quotes such as
+  /// `"Approx: \$34.00"` or `"USD 55.47"`, while ignoring multi-number ranges.
+  static double? embeddedNum(dynamic raw) {
+    final double? direct = numVal(raw);
+    if (direct != null) return direct;
+    final String? text = _scalarStr(raw);
+    if (text == null) return null;
+    final List<RegExpMatch> matches = RegExp(
+      r'-?\d+(?:\.\d+)?',
+    ).allMatches(text.replaceAll(',', '')).toList();
+    if (matches.length == 1) {
+      final double? parsed = double.tryParse(matches.first.group(0)!);
       if (parsed != null && parsed.isFinite) return parsed;
     }
     return null;
@@ -197,26 +258,58 @@ class PerplexityCompanyCard extends StatelessWidget {
       'website',
     ]);
 
-    final String? priceStr = PerplexityCardDataUtils.str(data, [
-      'price',
-      'currentPrice',
-      'lastPrice',
-    ]);
-    final String? currency = PerplexityCardDataUtils.str(data, ['currency']);
-    final double? changePct = PerplexityCardDataUtils.numField(data, [
-      'changePct',
-      'change_pct',
-      'changePercent',
-    ]);
-    final String? changeLabel = PerplexityCardDataUtils.str(data, [
-      'change',
-      'delta',
-    ]);
-    final String? asOf = PerplexityCardDataUtils.str(data, [
-      'asOf',
-      'updatedAt',
-      'timestamp',
-    ]);
+    final Map<String, dynamic>? priceMap = () {
+      for (final String k in const ['price', 'currentPrice', 'lastPrice']) {
+        final dynamic raw = data[k];
+        if (raw is Map) return Map<String, dynamic>.from(raw);
+      }
+      return null;
+    }();
+    final String? priceStr = priceMap != null
+        ? PerplexityCardDataUtils.str(priceMap, [
+            'formatted',
+            'display',
+            'value',
+            'amount',
+            'price',
+          ])
+        : PerplexityCardDataUtils.str(data, [
+            'price',
+            'currentPrice',
+            'lastPrice',
+          ]);
+    final String? currency =
+        PerplexityCardDataUtils.str(data, ['currency']) ??
+        (priceMap == null
+            ? null
+            : PerplexityCardDataUtils.str(priceMap, ['currency']));
+    final double? changePct =
+        PerplexityCardDataUtils.numField(data, [
+          'changePct',
+          'change_pct',
+          'changePercent',
+        ]) ??
+        (priceMap == null
+            ? null
+            : PerplexityCardDataUtils.numField(priceMap, [
+                'changePct',
+                'change_pct',
+                'changePercent',
+              ]));
+    final String? changeLabel =
+        PerplexityCardDataUtils.str(data, ['change', 'delta']) ??
+        (priceMap == null
+            ? null
+            : PerplexityCardDataUtils.str(priceMap, ['change', 'delta']));
+    final String? asOf =
+        PerplexityCardDataUtils.str(data, ['asOf', 'updatedAt', 'timestamp']) ??
+        (priceMap == null
+            ? null
+            : PerplexityCardDataUtils.str(priceMap, [
+                'asOf',
+                'updatedAt',
+                'timestamp',
+              ]));
     final List<double> sparkline = PerplexityCardDataUtils.numList(data, [
       'sparkline',
       'history',
@@ -318,9 +411,17 @@ class PerplexityCompanyCard extends StatelessWidget {
                     children: <Widget>[
                       if (priceStr != null)
                         Text(
-                          currency != null && !priceStr.contains(currency)
-                              ? '$currency $priceStr'
-                              : priceStr,
+                          () {
+                            if (currency == null ||
+                                priceStr.contains(currency) ||
+                                priceStr.startsWith(r'$')) {
+                              return priceStr;
+                            }
+                            if (currency.toUpperCase() == 'USD') {
+                              return '\$$priceStr';
+                            }
+                            return '$currency $priceStr';
+                          }(),
                           style: context.uiText.display.copyWith(
                             fontSize: context.fs(24),
                             fontWeight: FontWeight.w700,
@@ -338,11 +439,9 @@ class PerplexityCompanyCard extends StatelessWidget {
                                     ? Icons.trending_down
                                     : null),
                         ),
-                      if (priceStr != null)
+                      if (priceStr != null && asOf != null)
                         Text(
-                          asOf == null
-                              ? 'Quote time not supplied'
-                              : 'As of $asOf',
+                          'As of $asOf',
                           style: context.uiText.caption.copyWith(
                             color: theme.colors.foregroundSubtle,
                           ),
@@ -378,24 +477,44 @@ class PerplexityCompanyCard extends StatelessWidget {
                 ),
               ),
               UiGap.v(theme.spacing.xs),
-              UiRangeMeter(
-                min: range52w.low,
-                max: range52w.high,
-                minLabel: range52w.low.toStringAsFixed(2),
-                maxLabel: range52w.high.toStringAsFixed(2),
-                markers: <UiRangeMarker>[
-                  if (range52w.current != null)
-                    UiRangeMarker(
-                      value: range52w.current!.clamp(
-                        range52w.low,
-                        range52w.high,
+              () {
+                final double? clampedCurrent = range52w.current?.clamp(
+                  range52w.low,
+                  range52w.high,
+                );
+                return UiRangeMeter(
+                  min: range52w.low,
+                  max: range52w.high,
+                  minLabel: range52w.low.toStringAsFixed(2),
+                  maxLabel: range52w.high.toStringAsFixed(2),
+                  valueFormatter: (num v) => v.toStringAsFixed(2),
+                  zones: <UiRangeZone>[
+                    if (clampedCurrent != null)
+                      UiRangeZone(
+                        start: range52w.low,
+                        end: clampedCurrent,
+                        intent: priceIntent,
+                        alpha: 0.42,
+                      )
+                    else
+                      UiRangeZone(
+                        start: range52w.low,
+                        end: range52w.high,
+                        intent: UiIntent.primary,
+                        alpha: 0.16,
                       ),
-                      label: 'Current ${range52w.current!.toStringAsFixed(2)}',
-                      intent: priceIntent,
-                      strong: true,
-                    ),
-                ],
-              ),
+                  ],
+                  markers: <UiRangeMarker>[
+                    if (clampedCurrent != null)
+                      UiRangeMarker(
+                        value: clampedCurrent,
+                        label: 'Current',
+                        intent: priceIntent,
+                        strong: true,
+                      ),
+                  ],
+                );
+              }(),
             ],
 
             // Analyst Consensus Category Bar
@@ -738,11 +857,10 @@ class PerplexityCompanyCard extends StatelessWidget {
       }
     }
     if (low == null || high == null || high <= low) return null;
-    final double? current = PerplexityCardDataUtils.numField(data, [
-      'price',
-      'currentPrice',
-      'lastPrice',
-    ]);
+    final double? current =
+        PerplexityCardDataUtils.embeddedNum(data['price']) ??
+        PerplexityCardDataUtils.embeddedNum(data['currentPrice']) ??
+        PerplexityCardDataUtils.embeddedNum(data['lastPrice']);
     return (
       low: low,
       high: high,

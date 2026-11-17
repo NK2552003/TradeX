@@ -232,7 +232,8 @@ class _AnimatedEmblemPainter extends CustomPainter {
   bool shouldRepaint(covariant _AnimatedEmblemPainter oldDelegate) =>
       oldDelegate.progress != progress ||
       oldDelegate.primary != primary ||
-      oldDelegate.accent != accent;
+      oldDelegate.accent != accent ||
+      oldDelegate.surface != surface;
 }
 
 class RecordUnavailable extends StatelessWidget {

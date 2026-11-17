@@ -1090,5 +1090,46 @@ Full Perplexity-grade research bundle for NVIDIA [NVIDIA Investor Relations](htt
         expect(layoutErrors, isEmpty, reason: layoutErrors.join('\n---\n'));
       });
     }
+
+    testWidgets(
+      'PerplexityCompanyCard populates 52-week progress zone, parses decorated price, and aligns min/max bounds to both edges',
+      (WidgetTester tester) async {
+        await tester.binding.setSurfaceSize(const Size(680, 900));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          _wrapTestWidget(
+            const PerplexityCompanyCard(
+              data: <String, dynamic>{
+                'name': 'Intel Corporation',
+                'ticker': 'INTC',
+                'exchange': 'NASDAQ',
+                'sector': 'Semiconductors',
+                'price': 'Approx: \$34.00',
+                'changePercent': -0.5,
+                'range52w': '24.59 – 44.32',
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final UiRangeMeter meter = tester.widget<UiRangeMeter>(
+          find.byType(UiRangeMeter),
+        );
+        expect(meter.zones, hasLength(1));
+        expect(meter.zones.first.start, closeTo(24.59, 0.01));
+        expect(meter.zones.first.end, closeTo(34.00, 0.01));
+        expect(meter.markers, hasLength(1));
+        expect(meter.markers.first.value, closeTo(34.00, 0.01));
+        expect(find.text('Current 34.00'), findsOneWidget);
+
+        final Rect meterRect = tester.getRect(find.byType(UiRangeMeter));
+        final Rect minRect = tester.getRect(find.text('24.59'));
+        final Rect maxRect = tester.getRect(find.text('44.32'));
+        expect((minRect.left - meterRect.left).abs(), lessThanOrEqualTo(4));
+        expect((meterRect.right - maxRect.right).abs(), lessThanOrEqualTo(4));
+      },
+    );
   });
 }

@@ -238,42 +238,66 @@
     }
     var prefix = name + '=';
     var parts = raw.split(';');
+    var found = '';
     for (var i = 0; i < parts.length; i++) {
       var part = parts[i].trim();
       if (part.indexOf(prefix) === 0) {
         var val = part.slice(prefix.length);
+        var decoded = val;
         try {
-          return decodeURIComponent(val);
-        } catch (_) {
-          return val;
-        }
+          decoded = decodeURIComponent(val);
+        } catch (_) {}
+        if (decoded) found = decoded;
       }
     }
-    return '';
+    return found;
+  }
+
+  function decodeFlutterPref(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    var trimmed = raw.trim();
+    if (!trimmed) return '';
+    if (trimmed.charAt(0) === '"' && trimmed.charAt(trimmed.length - 1) === '"') {
+      try {
+        var parsed = JSON.parse(trimmed);
+        if (typeof parsed === 'string') return parsed.trim();
+      } catch (_) {}
+    }
+    return trimmed;
   }
 
   function readFlag(name, opts) {
     opts = opts || {};
     var fromCookie = readCookie(name, opts.cookieStr);
     if (fromCookie) return fromCookie;
-    return safeStorageGet(name);
+    var direct = safeStorageGet(name);
+    if (direct) return direct;
+    return decodeFlutterPref(safeStorageGet('flutter.' + name));
   }
 
   function resolveTheme(opts) {
     opts = opts || {};
-    var mode = opts.themeMode || readFlag('ax_theme_mode', opts);
+    var rawMode = opts.themeMode || readFlag('ax_theme_mode', opts);
+    var mode = String(rawMode || '').trim().toLowerCase();
+    if (mode !== 'light' && mode !== 'dark' && mode !== 'system') {
+      mode = '';
+    }
     var prefersLight =
       typeof opts.prefersLight === 'boolean'
         ? opts.prefersLight
         : typeof window !== 'undefined' &&
           typeof window.matchMedia === 'function' &&
           window.matchMedia('(prefers-color-scheme: light)').matches;
-    var isLight = mode === 'light' || (mode === 'system' && prefersLight);
-    var density = opts.density || readFlag('ax_theme_density', opts);
+    var isLight =
+      typeof opts.isLight === 'boolean'
+        ? opts.isLight
+        : mode === 'light' || (mode === 'system' && prefersLight);
+    var rawDensity = opts.density || readFlag('ax_theme_density', opts);
+    var density = String(rawDensity || '').trim().toLowerCase();
     return {
       mode: mode || 'dark',
       isLight: isLight,
-      compact: density === 'Compact',
+      compact: density === 'compact',
       palette: isLight ? THEMES.light : THEMES.dark,
     };
   }
@@ -808,8 +832,7 @@
       '@media(min-width:1024px){.aj-sidebar{width:244px;padding:4px 5px;}}',
       '@media(min-width:768px){.aj-sidebar{display:flex;}}',
       '.aj-side-head{display:flex;align-items:center;justify-content:center;gap:8px;padding:5px 4px;border-radius:12px;}',
-      '@media(min-width:1024px){.aj-side-head{justify-content:flex-start;padding:5px 8px;background:rgba(255,255,255,0.025);border:1px solid var(--aj-border);}}',
-      '.aj-light .aj-side-head{background:rgba(255,255,255,0.7);}',
+      '@media(min-width:1024px){.aj-side-head{justify-content:flex-start;padding:5px 8px;background:rgba(255,255,255,0.025);border:1px solid var(--aj-border);}.aj-light .aj-side-head{background:rgba(255,255,255,0.7);}}',
       '.aj-logo-badge{width:20px;height:20px;border-radius:3px;background:var(--aj-primary);color:var(--aj-bg);display:grid;place-items:center;font-weight:700;font-size:calc(12 * var(--aj-text-scale) * var(--aj-unit));letter-spacing:-.04em;flex-shrink:0;}',
       '.aj-side-brand{display:none;flex-direction:column;gap:2px;min-width:0;flex:1;}',
       '@media(min-width:1024px){.aj-side-brand{display:flex;}}',
@@ -1809,6 +1832,23 @@
     return veil;
   }
 
+  function syncTheme(optsOrMode, density, isLight) {
+    if (typeof document === 'undefined') return null;
+    var opts;
+    if (optsOrMode && typeof optsOrMode === 'object') {
+      opts = optsOrMode;
+    } else {
+      opts = {
+        themeMode: optsOrMode,
+        density: density,
+        isLight: typeof isLight === 'boolean' ? isLight : undefined,
+      };
+    }
+    var theme = resolveTheme(opts);
+    applyThemeVariables(theme, document);
+    return theme;
+  }
+
   var api = {
     THEMES: THEMES,
     DOCKS: DOCKS,
@@ -1816,6 +1856,7 @@
     parseSilentCookie: parseSilentCookie,
     resolveSurface: resolveSurface,
     applyThemeVariables: applyThemeVariables,
+    syncTheme: syncTheme,
     renderInto: renderInto,
     initHead: initHead,
     mountIncoming: mountIncoming,

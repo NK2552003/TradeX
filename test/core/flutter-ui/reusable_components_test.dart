@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/markdown_kit/markdown_kit.dart';
 
 void main() {
   testWidgets('AGENTS.md catalog aliases and constructors compile and render', (
@@ -533,5 +534,65 @@ BTC: 31.0
       expect(tester.takeException(), isNull);
     }
   });
+
+  testWidgets(
+    'UiEditorToolbar and MarkdownEditorToolbar distribute tool items evenly across container width',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(760, 480));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final editorKey = GlobalKey<RichMarkdownEditorFieldState>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: UiTheme.dark().toThemeData(),
+          home: UiThemeScope(
+            theme: UiTheme.dark(),
+            child: Scaffold(
+              body: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  SizedBox(
+                    width: 600,
+                    child: UiEditorToolbar(
+                      actions: const <UiEditorAction>[
+                        UiEditorAction.bold,
+                        UiEditorAction.italic,
+                        UiEditorAction.heading,
+                        UiEditorAction.bulletList,
+                        UiEditorAction.quote,
+                        UiEditorAction.link,
+                      ],
+                      onAction: (_) {},
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: 680,
+                    child: MarkdownEditorToolbar(editorKey: editorKey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Rect barRect = tester.getRect(find.byType(UiEditorToolbar));
+      final Rect boldRect = tester.getRect(find.byIcon(Icons.format_bold).first);
+      final Rect italicRect = tester.getRect(find.byIcon(Icons.format_italic).first);
+      final Rect linkRect = tester.getRect(find.byIcon(Icons.link).first);
+      expect((boldRect.left - barRect.left).abs(), lessThan(40));
+      expect((barRect.right - linkRect.right).abs(), lessThan(40));
+      // Gap between consecutive items expands to fill width rather than bunching on left.
+      expect(italicRect.left - boldRect.right, greaterThan(45));
+
+      final Rect mdBarRect = tester.getRect(find.byType(MarkdownEditorToolbar));
+      final Rect moreRect = tester.getRect(find.byIcon(Icons.add_box_outlined));
+      expect((mdBarRect.right - moreRect.right).abs(), lessThan(60));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 

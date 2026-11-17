@@ -278,6 +278,44 @@ void main() {
       controller.dispose();
     },
   );
+
+  testWidgets(
+    'CopilotScreen scrollable chat starts from top under transparent header overlay',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 820);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final api = _AutoSpeakApi();
+      final controller = CopilotController(
+        api: api,
+        initialState: CopilotWorkspace.fromJson(api.state),
+        autoLoad: false,
+      )..connected = true;
+      await controller.sendPrompt('Summarize INTC');
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: UiTheme.dark().toThemeData(),
+          home: Scaffold(body: CopilotScreen(repository: controller)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Rect screenRect = tester.getRect(find.byType(CopilotScreen));
+      final Rect chatRect = tester.getRect(find.byType(CopilotChatPane));
+      final Rect listRect = tester.getRect(find.byType(ListView));
+      final Rect headerRect = tester.getRect(find.text('Copilot').last);
+
+      // Scrollable container extends full-height to the top behind the header.
+      expect(chatRect.top, lessThan(headerRect.top));
+      expect((listRect.top - screenRect.top).abs(), lessThanOrEqualTo(2));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      controller.dispose();
+    },
+  );
 }
 
 Future<void> capture(WidgetTester tester, GlobalKey key, String name) async {

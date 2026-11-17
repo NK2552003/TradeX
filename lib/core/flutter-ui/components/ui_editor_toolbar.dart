@@ -106,12 +106,10 @@ class UiEditorToolbar extends StatelessWidget {
         horizontal: context.sp(theme.spacing.xs),
         vertical: context.sp(theme.spacing.xxs),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final action in actions)
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final List<Widget> items = <Widget>[
+            for (final UiEditorAction action in actions)
               UiIconButton(
                 icon: action.icon,
                 tooltip: action.label,
@@ -121,12 +119,32 @@ class UiEditorToolbar extends StatelessWidget {
                     : UiVariant.ghost,
                 onPressed: onAction != null ? () => onAction!(action) : null,
               ),
-            if (trailing != null) ...[
+            if (trailing != null) ...<Widget>[
               const UiDivider(vertical: true, spacing: 4),
-              trailing!,
+              if (trailing is Row)
+                for (final Widget child in (trailing! as Row).children)
+                  if (child is! SizedBox) child else if (child.child != null) child
+              else
+                trailing!,
             ],
-          ],
-        ),
+          ];
+          final Row row = Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: items.length > 1
+                ? MainAxisAlignment.spaceBetween
+                : MainAxisAlignment.start,
+            children: items,
+          );
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: constraints.hasBoundedWidth
+                ? ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: row,
+                  )
+                : row,
+          );
+        },
       ),
     );
   }

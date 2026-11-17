@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/cross_subdomain_storage.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
@@ -75,14 +76,111 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _reduceMotion = map['reduce_motion'] == true;
       }
     });
+    if (!mounted) return;
+    final activeController =
+        AppThemeController.maybeOf(context) ?? _fallbackController;
+    final String? rawMode = map['theme_mode'] as String?;
+    if (rawMode != null &&
+        CrossSubdomainState.getFlag('ax_theme_mode') == null &&
+        CrossSubdomainState.getLocalPreferenceFallback('ax_theme_mode') ==
+            null) {
+      final ThemeMode? parsedMode = switch (rawMode.trim()) {
+        'light' => ThemeMode.light,
+        'system' => ThemeMode.system,
+        'dark' => ThemeMode.dark,
+        _ => null,
+      };
+      if (parsedMode != null) {
+        activeController.setMode(parsedMode);
+        _syncControllerToSubdomain(activeController);
+      }
+    }
+    final String? rawDensity = map['density'] as String?;
+    if ((rawDensity == 'Compact' || rawDensity == 'Comfortable') &&
+        CrossSubdomainState.getFlag('ax_theme_density') == null &&
+        CrossSubdomainState.getLocalPreferenceFallback('ax_theme_density') ==
+            null) {
+      activeController.setDensity(rawDensity!);
+      _syncControllerToSubdomain(activeController);
+    }
   }
 
-  Future<void> _saveExtras(String title, String message) async {
+  void _persistAppearanceChange(
+    AppThemeController controller, {
+    required String title,
+    required String message,
+  }) {
+    _syncControllerToSubdomain(controller);
+    _saveExtras('', '', showToast: false, controller: controller);
+    UiToast.show(
+      context,
+      title: title,
+      message: message,
+      intent: UiIntent.info,
+    );
+  }
+
+  void _syncControllerToSubdomain(AppThemeController controller) {
+    CrossSubdomainState.setFlag(
+      'ax_theme_mode',
+      controller.value.name,
+      maxAgeDays: 180,
+    );
+    CrossSubdomainState.setFlag(
+      'ax_theme_density',
+      controller.density,
+      maxAgeDays: 180,
+    );
+    CrossSubdomainState.setFlag(
+      'ax_chart_range',
+      controller.chartRange,
+      maxAgeDays: 180,
+    );
+    CrossSubdomainState.setFlag(
+      'ax_chart_style',
+      controller.chartStyle,
+      maxAgeDays: 180,
+    );
+    CrossSubdomainState.setFlag(
+      'ax_chart_colors',
+      controller.colorConvention,
+      maxAgeDays: 180,
+    );
+    final Brightness systemBrightness =
+        (mounted ? MediaQuery.maybePlatformBrightnessOf(context) : null) ??
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final bool isLight = switch (controller.value) {
+      ThemeMode.light => true,
+      ThemeMode.dark => false,
+      ThemeMode.system => systemBrightness == Brightness.light,
+    };
+    CrossSubdomainState.syncWebTheme(
+      mode: controller.value.name,
+      density: controller.density,
+      isLight: isLight,
+    );
+  }
+
+  Future<void> _saveExtras(
+    String title,
+    String message, {
+    bool showToast = true,
+    AppThemeController? controller,
+  }) async {
+    final activeController =
+        controller ??
+        (mounted ? AppThemeController.maybeOf(context) : null) ??
+        _fallbackController;
     final payload = <String, dynamic>{
       'number_format': _numberFormat,
       'time_format': _timeFormat,
       'show_ticker_strip': _showTickerStrip,
       'reduce_motion': _reduceMotion,
+      'theme_mode': activeController.value.name,
+      'density': activeController.density,
+      'chart_range': activeController.chartRange,
+      'chart_style': activeController.chartStyle,
+      'color_convention': activeController.colorConvention,
     };
     try {
       final sp = await SharedPreferences.getInstance();
@@ -97,7 +195,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         });
       }
     } catch (_) {}
-    if (mounted) {
+    if (showToast && mounted) {
       UiToast.show(
         context,
         title: title,
@@ -225,12 +323,11 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           ],
                           onChanged: (mode) {
                             themeController.setMode(mode);
-                            UiToast.show(
-                              context,
+                            _persistAppearanceChange(
+                              themeController,
                               title: 'Theme Changed',
                               message:
                                   'Switched to ${mode.name.toUpperCase()} theme mode.',
-                              intent: UiIntent.info,
                             );
                           },
                         ),
@@ -251,11 +348,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                               .toList(),
                           onChanged: (val) {
                             themeController.setDensity(val);
-                            UiToast.show(
-                              context,
+                            _persistAppearanceChange(
+                              themeController,
                               title: 'Density Updated',
                               message: 'Layout spacing adjusted to $val mode.',
-                              intent: UiIntent.info,
                             );
                           },
                         ),
@@ -286,12 +382,11 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                               .toList(),
                           onChanged: (val) {
                             themeController.setChartRange(val);
-                            UiToast.show(
-                              context,
+                            _persistAppearanceChange(
+                              themeController,
                               title: 'Default Timeframe Updated',
                               message:
                                   'New symbol charts will default to $val range.',
-                              intent: UiIntent.info,
                             );
                           },
                         ),
@@ -309,11 +404,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                               .toList(),
                           onChanged: (val) {
                             themeController.setChartStyle(val);
-                            UiToast.show(
-                              context,
+                            _persistAppearanceChange(
+                              themeController,
                               title: 'Primary Chart Style Updated',
                               message: 'Default chart rendering set to $val.',
-                              intent: UiIntent.info,
                             );
                           },
                         ),
@@ -331,12 +425,11 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                               .toList(),
                           onChanged: (val) {
                             themeController.setColorConvention(val);
-                            UiToast.show(
-                              context,
+                            _persistAppearanceChange(
+                              themeController,
                               title: 'Color Convention Applied',
                               message:
                                   'Bullish & bearish chart colors switched to $val.',
-                              intent: UiIntent.info,
                             );
                           },
                         ),

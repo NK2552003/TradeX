@@ -9,6 +9,7 @@ external _JsNavTransition? get _jsNavTransition;
 
 extension type _JsNavTransition._(JSObject _) implements JSObject {
   external void startOutgoing(String url);
+  external void syncTheme(String mode, String density, bool isLight);
 }
 
 /// Web Supabase [LocalStorage] that persists the session in chunked cookies on
@@ -186,11 +187,35 @@ String? getSharedFlag(String key) {
   }
 }
 
+String? getLocalPreferenceFallback(String key) {
+  try {
+    final direct = web.window.localStorage.getItem(key);
+    if (direct != null && direct.isNotEmpty) return direct;
+    final pref = web.window.localStorage.getItem('flutter.$key');
+    if (pref == null || pref.isEmpty) return null;
+    final trimmed = pref.trim();
+    if (trimmed.length >= 2 &&
+        trimmed.startsWith('"') &&
+        trimmed.endsWith('"')) {
+      return trimmed.substring(1, trimmed.length - 1);
+    }
+    return trimmed;
+  } catch (_) {
+    return null;
+  }
+}
+
 void setSharedFlag(String key, String value, {int maxAgeDays = 30}) {
   final isProd = SubdomainCookieCodec.isProductionDomain(
     web.window.location.hostname,
   );
-  if (!isProd || !web.window.navigator.cookieEnabled) {
+  final isAppearancePref =
+      key == 'ax_theme_mode' ||
+      key == 'ax_theme_density' ||
+      key == 'ax_chart_range' ||
+      key == 'ax_chart_style' ||
+      key == 'ax_chart_colors';
+  if (!isProd || !web.window.navigator.cookieEnabled || isAppearancePref) {
     try {
       web.window.localStorage.setItem(key, value);
     } catch (_) {}
@@ -199,6 +224,11 @@ void setSharedFlag(String key, String value, {int maxAgeDays = 30}) {
     return;
   }
   final secure = web.window.location.protocol == 'https:';
+  // Expire any host-only cookie first so it cannot shadow `.alphajournal.in`.
+  web.document.cookie = SubdomainCookieCodec.formatDeleteCookie(
+    key,
+    secure: secure,
+  );
   web.document.cookie = SubdomainCookieCodec.formatSetCookie(
     key,
     value,
@@ -218,9 +248,50 @@ void removeSharedFlag(String key) {
   final secure = web.window.location.protocol == 'https:';
   web.document.cookie = SubdomainCookieCodec.formatDeleteCookie(
     key,
+    secure: secure,
+  );
+  web.document.cookie = SubdomainCookieCodec.formatDeleteCookie(
+    key,
     domain: '.${SubdomainCookieCodec.rootDomain}',
     secure: secure,
   );
+}
+
+void syncWebTheme({
+  required String mode,
+  required String density,
+  required bool isLight,
+}) {
+  try {
+    final transition = _jsNavTransition;
+    if (transition != null) {
+      transition.syncTheme(mode, density, isLight);
+      return;
+    }
+  } catch (_) {}
+
+  try {
+    final doc = web.document;
+    final rootEl = doc.documentElement;
+    final bg = isLight ? '#FAFAF9' : '#0D0C0B';
+    final fg = isLight ? '#151312' : '#FAFAF9';
+    if (rootEl != null) {
+      if (isLight) {
+        rootEl.classList.add('aj-light');
+      } else {
+        rootEl.classList.remove('aj-light');
+      }
+      if (rootEl.isA<web.HTMLElement>()) {
+        final htmlEl = rootEl as web.HTMLElement;
+        htmlEl.style.colorScheme = isLight ? 'light' : 'dark';
+        htmlEl.style.setProperty('--aj-bg', bg);
+        htmlEl.style.setProperty('--aj-fg', fg);
+      }
+    }
+    doc.body?.style.backgroundColor = bg;
+    final meta = doc.querySelector('meta[name="theme-color"]');
+    meta?.setAttribute('content', bg);
+  } catch (_) {}
 }
 
 void _showOutgoingNavigationVeil(String url) {
@@ -238,8 +309,17 @@ void _showOutgoingNavigationVeil(String url) {
     final body = doc.body;
     if (body == null) return;
     doc.getElementById('aj-nav-veil')?.remove();
-    final isLight =
-        doc.documentElement?.classList.contains('aj-light') ?? false;
+    final cookies = SubdomainCookieCodec.parseCookieString(doc.cookie);
+    final rawMode =
+        (cookies['ax_theme_mode'] ?? getLocalPreferenceFallback('ax_theme_mode') ?? '')
+            .trim()
+            .toLowerCase();
+    final isLight = switch (rawMode) {
+      'light' => true,
+      'dark' => false,
+      'system' => web.window.matchMedia('(prefers-color-scheme: light)').matches,
+      _ => doc.documentElement?.classList.contains('aj-light') ?? false,
+    };
     final veil = doc.createElement('div') as web.HTMLElement;
     veil.id = 'aj-nav-veil';
     veil.style.cssText =
@@ -259,6 +339,10 @@ void navigateBrowserUrl(String url) {
   final bool useSilentUiLoader = hasActiveSession && silentValue != '0';
   if (SubdomainCookieCodec.isProductionDomain(web.window.location.hostname)) {
     final secure = web.window.location.protocol == 'https:';
+    web.document.cookie = SubdomainCookieCodec.formatDeleteCookie(
+      'ax_silent_nav',
+      secure: secure,
+    );
     if (useSilentUiLoader) {
       web.document.cookie = SubdomainCookieCodec.formatSetCookie(
         'ax_silent_nav',

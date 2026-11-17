@@ -34,6 +34,7 @@ class AppAiChatBlock extends StatefulWidget {
     this.composerController,
     this.composerHint = 'Message your AI trading coach',
     this.canSend = true,
+    this.topPadding = 0.0,
   });
 
   final List<AppAiMessage> messages;
@@ -65,6 +66,10 @@ class AppAiChatBlock extends StatefulWidget {
   final TextEditingController? composerController;
   final String composerHint;
   final bool canSend;
+
+  /// Extra top padding inside the scroll viewport so content clears a
+  /// floating transparent header at rest while still scrolling underneath it.
+  final double topPadding;
 
   @override
   State<AppAiChatBlock> createState() => _AppAiChatBlockState();
@@ -233,10 +238,12 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
                               );
                           return SingleChildScrollView(
                             physics: const ClampingScrollPhysics(),
+                            padding: EdgeInsets.only(top: widget.topPadding),
                             child: ConstrainedBox(
                               constraints: BoxConstraints(
                                 minHeight: viewport.maxHeight.isFinite
-                                    ? viewport.maxHeight
+                                    ? (viewport.maxHeight - widget.topPadding)
+                                          .clamp(0.0, double.infinity)
                                     : 0.0,
                               ),
                               child: Column(
@@ -261,22 +268,25 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
                         },
                         child: NotificationListener<ScrollNotification>(
                           onNotification: _onScroll,
-                          child: SelectionArea(
-                            child: ListView.builder(
-                              controller: _scroll,
-                              padding: EdgeInsets.symmetric(
-                                vertical: context.sp(theme.spacing.md),
-                              ),
-                              itemCount: widget.messages.length + headerCount,
-                              itemBuilder: (BuildContext ctx, int i) {
-                                if (widget.header != null && i == 0) {
-                                  return widget.header!;
-                                }
-                                final AppAiMessage msg =
-                                    widget.messages[i - headerCount];
-                                return _KeepAliveMessage(
-                                  key: ValueKey(msg.id),
-                                  keepAlive: msg.pending,
+                          child: ListView.builder(
+                            controller: _scroll,
+                            padding: EdgeInsets.fromLTRB(
+                              0,
+                              context.sp(theme.spacing.md) + widget.topPadding,
+                              0,
+                              context.sp(theme.spacing.md),
+                            ),
+                            itemCount: widget.messages.length + headerCount,
+                            itemBuilder: (BuildContext ctx, int i) {
+                              if (widget.header != null && i == 0) {
+                                return widget.header!;
+                              }
+                              final AppAiMessage msg =
+                                  widget.messages[i - headerCount];
+                              return _KeepAliveMessage(
+                                key: ValueKey(msg.id),
+                                keepAlive: true,
+                                child: RepaintBoundary(
                                   child:
                                       widget.messageBuilder?.call(ctx, msg) ??
                                       AppAiMessageBubble(
@@ -294,9 +304,9 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
                                         actionsBuilder:
                                             widget.messageActionsBuilder,
                                       ),
-                                );
-                              },
-                            ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),

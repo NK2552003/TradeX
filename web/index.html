@@ -162,6 +162,7 @@
     html.aj-light {
       --bg: #FAFAF9;
       --fg: #151312;
+      --muted: #6B7FD7;
       color-scheme: light;
     }
     body {
@@ -189,8 +190,8 @@
     #splash-loader {
       position: fixed;
       inset: 0;
-      background: var(--bg);
-      color: var(--fg);
+      background: var(--aj-bg, var(--bg));
+      color: var(--aj-fg, var(--fg));
       display: flex;
       flex-direction: column;
       align-items: center;

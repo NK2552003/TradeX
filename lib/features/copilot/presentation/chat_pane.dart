@@ -41,6 +41,7 @@ class CopilotChatPane extends StatefulWidget {
     this.onSpeakMessage,
     this.onOpenRef,
     this.voiceActive = false,
+    this.topInset = 0.0,
   });
   final CopilotController controller;
   final String? initialPrompt;
@@ -49,6 +50,7 @@ class CopilotChatPane extends StatefulWidget {
   final ValueChanged<String>? onSpeakMessage;
   final ValueChanged<AppLinkRef>? onOpenRef;
   final bool voiceActive;
+  final double topInset;
   @override
   State<CopilotChatPane> createState() => _CopilotChatPaneState();
 }
@@ -1048,6 +1050,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                   controller.activeThreadId ??
                       'new-${controller.specialist?.id}',
                 ),
+                topPadding: widget.topInset,
                 header: topNotice,
                 messages: displayed,
                 onSend: _send,

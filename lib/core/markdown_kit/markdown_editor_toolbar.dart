@@ -181,118 +181,134 @@ class MarkdownEditorToolbar extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        child: Row(
-          children: [
-            if (_editor != null)
-              ValueListenableBuilder<UndoHistoryValue>(
-                valueListenable: _editor!.undoController,
-                builder: (context, value, _) => Row(
-                  children: [
-                    _ToolbarButton(
-                      icon: Icons.undo,
-                      hint: 'Undo',
-                      onTap: value.canUndo
-                          ? () => _editor?.undoController.undo()
-                          : null,
-                    ),
-                    _ToolbarButton(
-                      icon: Icons.redo,
-                      hint: 'Redo',
-                      onTap: value.canRedo
-                          ? () => _editor?.undoController.redo()
-                          : null,
-                    ),
-                  ],
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final double minRowWidth = constraints.hasBoundedWidth
+              ? (constraints.maxWidth - 16).clamp(0.0, double.infinity)
+              : 0.0;
+          Widget buildToolbarRow(UndoHistoryValue? undoValue) {
+            final List<Widget> items = <Widget>[
+              if (_editor != null) ...<Widget>[
+                _ToolbarButton(
+                  icon: Icons.undo,
+                  hint: 'Undo',
+                  onTap: (undoValue?.canUndo ?? false)
+                      ? () => _editor?.undoController.undo()
+                      : null,
                 ),
-              ),
-            _ToolbarDivider(),
-            PopupMenuButton<String>(
-              tooltip: 'Heading',
-              icon: Icon(Icons.title, size: 20, color: colors.foregroundMuted),
-              splashRadius: 20,
-              padding: EdgeInsets.zero,
-              onSelected: (value) => _editor?.prefixCurrentLine(value),
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: '# ', child: Text('Heading 1')),
-                PopupMenuItem(value: '## ', child: Text('Heading 2')),
-                PopupMenuItem(value: '### ', child: Text('Heading 3')),
+                _ToolbarButton(
+                  icon: Icons.redo,
+                  hint: 'Redo',
+                  onTap: (undoValue?.canRedo ?? false)
+                      ? () => _editor?.undoController.redo()
+                      : null,
+                ),
+                _ToolbarDivider(),
               ],
-            ),
-            _ToolbarButton(
-              icon: Icons.format_bold,
-              hint: 'Bold',
-              onTap: () => _editor?.wrapSelection('**', '**'),
-            ),
-            _ToolbarButton(
-              icon: Icons.format_italic,
-              hint: 'Italic',
-              onTap: () => _editor?.wrapSelection('*', '*'),
-            ),
-            _ToolbarButton(
-              icon: Icons.format_strikethrough,
-              hint: 'Strikethrough',
-              onTap: () => _editor?.wrapSelection('~~', '~~'),
-            ),
-            _ToolbarButton(
-              icon: Icons.code,
-              hint: 'Inline code',
-              onTap: () => _editor?.wrapSelection('`', '`'),
-            ),
-            _ToolbarDivider(),
-            _ToolbarButton(
-              icon: Icons.format_list_bulleted,
-              hint: 'Bulleted list',
-              onTap: () => _editor?.prefixCurrentLine('- '),
-            ),
-            _ToolbarButton(
-              icon: Icons.format_list_numbered,
-              hint: 'Numbered list',
-              onTap: () => _editor?.prefixCurrentLine('1. '),
-            ),
-            _ToolbarButton(
-              icon: Icons.checklist,
-              hint: 'Checklist item',
-              onTap: () => _editor?.prefixCurrentLine('- [ ] '),
-            ),
-            _ToolbarButton(
-              icon: Icons.format_quote,
-              hint: 'Quote',
-              onTap: () => _editor?.prefixCurrentLine('> '),
-            ),
-            _ToolbarDivider(),
-            _ToolbarButton(
-              icon: Icons.link,
-              hint: 'Link a record',
-              onTap:
-                  onInsertRecord ?? () => _editor?.wrapSelection('[', '](url)'),
-            ),
-            if (onPickImage != null)
-              _ToolbarButton(
-                icon: Icons.image_outlined,
-                hint: 'Add image',
-                onTap: onPickImage,
+              PopupMenuButton<String>(
+                tooltip: 'Heading',
+                icon: Icon(Icons.title, size: 20, color: colors.foregroundMuted),
+                splashRadius: 20,
+                padding: EdgeInsets.zero,
+                onSelected: (value) => _editor?.prefixCurrentLine(value),
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: '# ', child: Text('Heading 1')),
+                  PopupMenuItem(value: '## ', child: Text('Heading 2')),
+                  PopupMenuItem(value: '### ', child: Text('Heading 3')),
+                ],
               ),
-            if (onToggleVoice != null)
               _ToolbarButton(
-                icon: listening
-                    ? Icons.stop_circle_outlined
-                    : Icons.mic_none_rounded,
-                hint: listening ? 'Stop dictation' : 'Dictate with voice',
-                onTap: onToggleVoice,
-                active: listening,
+                icon: Icons.format_bold,
+                hint: 'Bold',
+                onTap: () => _editor?.wrapSelection('**', '**'),
               ),
-            _ToolbarDivider(),
-            _ToolbarButton(
-              icon: Icons.add_box_outlined,
-              hint: 'Insert table, math, flowchart, chart…',
-              onTap: () => _showMore(context),
+              _ToolbarButton(
+                icon: Icons.format_italic,
+                hint: 'Italic',
+                onTap: () => _editor?.wrapSelection('*', '*'),
+              ),
+              _ToolbarButton(
+                icon: Icons.format_strikethrough,
+                hint: 'Strikethrough',
+                onTap: () => _editor?.wrapSelection('~~', '~~'),
+              ),
+              _ToolbarButton(
+                icon: Icons.code,
+                hint: 'Inline code',
+                onTap: () => _editor?.wrapSelection('`', '`'),
+              ),
+              _ToolbarDivider(),
+              _ToolbarButton(
+                icon: Icons.format_list_bulleted,
+                hint: 'Bulleted list',
+                onTap: () => _editor?.prefixCurrentLine('- '),
+              ),
+              _ToolbarButton(
+                icon: Icons.format_list_numbered,
+                hint: 'Numbered list',
+                onTap: () => _editor?.prefixCurrentLine('1. '),
+              ),
+              _ToolbarButton(
+                icon: Icons.checklist,
+                hint: 'Checklist item',
+                onTap: () => _editor?.prefixCurrentLine('- [ ] '),
+              ),
+              _ToolbarButton(
+                icon: Icons.format_quote,
+                hint: 'Quote',
+                onTap: () => _editor?.prefixCurrentLine('> '),
+              ),
+              _ToolbarDivider(),
+              _ToolbarButton(
+                icon: Icons.link,
+                hint: 'Link a record',
+                onTap:
+                    onInsertRecord ?? () => _editor?.wrapSelection('[', '](url)'),
+              ),
+              if (onPickImage != null)
+                _ToolbarButton(
+                  icon: Icons.image_outlined,
+                  hint: 'Add image',
+                  onTap: onPickImage,
+                ),
+              if (onToggleVoice != null)
+                _ToolbarButton(
+                  icon: listening
+                      ? Icons.stop_circle_outlined
+                      : Icons.mic_none_rounded,
+                  hint: listening ? 'Stop dictation' : 'Dictate with voice',
+                  onTap: onToggleVoice,
+                  active: listening,
+                ),
+              _ToolbarDivider(),
+              _ToolbarButton(
+                icon: Icons.add_box_outlined,
+                hint: 'Insert table, math, flowchart, chart…',
+                onTap: () => _showMore(context),
+              ),
+            ];
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: items,
+            );
+          }
+
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: minRowWidth),
+              child: _editor != null
+                  ? ValueListenableBuilder<UndoHistoryValue>(
+                      valueListenable: _editor!.undoController,
+                      builder: (context, value, _) => buildToolbarRow(value),
+                    )
+                  : buildToolbarRow(null),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

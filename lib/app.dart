@@ -16,6 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/core/config/startup_ready.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/auth.dart';
 import 'package:tradex/core/widgets/not_found_page.dart';
 import 'package:tradex/core/widgets/record_unavailable.dart';
@@ -28,7 +29,7 @@ class TradeXApp extends StatefulWidget {
   State<TradeXApp> createState() => _TradeXAppState();
 }
 
-class _TradeXAppState extends State<TradeXApp> {
+class _TradeXAppState extends State<TradeXApp> with WidgetsBindingObserver {
   UserRole? _activeRole;
   String? _pendingExternalRedirect;
 
@@ -181,12 +182,15 @@ class _TradeXAppState extends State<TradeXApp> {
         }
         return NoTransitionPage(
           key: ValueKey('redirect-$targetUrl'),
-          child: Scaffold(
-            body: RecordOpeningBanner(
-              title: 'Switching workspace...',
-              subtitle: 'Connecting to ${initialRedirect.host}',
-              badgeLabel: 'Subdomain',
-              icon: Icons.swap_horiz_rounded,
+          child: Builder(
+            builder: (context) => Scaffold(
+              backgroundColor: context.ui.colors.background,
+              body: RecordOpeningBanner(
+                title: 'Switching workspace...',
+                subtitle: 'Connecting to ${initialRedirect.host}',
+                badgeLabel: 'Subdomain',
+                icon: Icons.swap_horiz_rounded,
+              ),
             ),
           ),
         );
@@ -230,6 +234,9 @@ class _TradeXAppState extends State<TradeXApp> {
             onOpenRecord: (ref) => navigateTarget(CustomerRoute.forRecord(ref)),
             onStageChanged: (stage) {
               if (stage == AuthStage.authenticated) {
+                if (!_hadThemeModeCookie && !_cloudHydrated) {
+                  _hydrateCloudAppearanceIfUnset();
+                }
                 final bool shouldResolveEntry =
                     state.uri.path.startsWith('/auth/') ||
                     state.uri.path == '/' ||
@@ -304,18 +311,31 @@ class _TradeXAppState extends State<TradeXApp> {
   }
 
   late final AppThemeController _themeController = _createThemeController();
+  late final bool _hadThemeModeCookie;
+  late final bool _hadDensityCookie;
+  late final bool _hadRangeCookie;
+  late final bool _hadStyleCookie;
+  late final bool _hadColorsCookie;
+  bool _cloudHydrated = false;
+  bool _userOrLocalThemeApplied = false;
+
+  static String? _readInitialPref(String key) =>
+      CrossSubdomainState.getFlag(key) ??
+      CrossSubdomainState.getLocalPreferenceFallback(key);
+
+  static ThemeMode? _parseThemeMode(String? raw) => switch (raw?.trim()) {
+    'light' => ThemeMode.light,
+    'system' => ThemeMode.system,
+    'dark' => ThemeMode.dark,
+    _ => null,
+  };
 
   static AppThemeController _createThemeController() {
-    final savedMode = CrossSubdomainState.getFlag('ax_theme_mode');
-    final mode = switch (savedMode) {
-      'light' => ThemeMode.light,
-      'system' => ThemeMode.system,
-      'dark' => ThemeMode.dark,
-      _ => ThemeMode.dark,
-    };
-    final savedDensity = CrossSubdomainState.getFlag('ax_theme_density');
+    final savedMode = _readInitialPref('ax_theme_mode');
+    final mode = _parseThemeMode(savedMode) ?? ThemeMode.dark;
+    final savedDensity = _readInitialPref('ax_theme_density');
     final density = savedDensity == 'Compact' ? 'Compact' : 'Comfortable';
-    final savedRange = CrossSubdomainState.getFlag('ax_chart_range');
+    final savedRange = _readInitialPref('ax_chart_range');
     final chartRange = const <String>{
       '1D',
       '1W',
@@ -325,7 +345,7 @@ class _TradeXAppState extends State<TradeXApp> {
     }.contains(savedRange)
         ? savedRange!
         : '1D';
-    final savedStyle = CrossSubdomainState.getFlag('ax_chart_style');
+    final savedStyle = _readInitialPref('ax_chart_style');
     final chartStyle = const <String>{
       'Candlestick',
       'Line',
@@ -334,7 +354,7 @@ class _TradeXAppState extends State<TradeXApp> {
     }.contains(savedStyle)
         ? savedStyle!
         : 'Candlestick';
-    final savedColors = CrossSubdomainState.getFlag('ax_chart_colors');
+    final savedColors = _readInitialPref('ax_chart_colors');
     final colorConvention = const <String>{
       'Standard (Green/Red)',
       'Colorblind-Safe (Blue/Orange)',
@@ -351,7 +371,27 @@ class _TradeXAppState extends State<TradeXApp> {
     );
   }
 
-  void _syncThemeToSubdomains() {
+  bool _resolveIsDark([BuildContext? ctx]) {
+    final Brightness systemBrightness =
+        (ctx != null ? MediaQuery.maybePlatformBrightnessOf(ctx) : null) ??
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    return switch (_themeController.value) {
+      ThemeMode.system => systemBrightness == Brightness.dark,
+      ThemeMode.dark => true,
+      ThemeMode.light => false,
+    };
+  }
+
+  void _syncWebThemeDom() {
+    CrossSubdomainState.syncWebTheme(
+      mode: _themeController.value.name,
+      density: _themeController.density,
+      isLight: !_resolveIsDark(),
+    );
+  }
+
+  void _syncThemeToSubdomains({bool saveLocal = true}) {
+    _userOrLocalThemeApplied = true;
     CrossSubdomainState.setFlag(
       'ax_theme_mode',
       _themeController.value.name,
@@ -377,52 +417,118 @@ class _TradeXAppState extends State<TradeXApp> {
       _themeController.colorConvention,
       maxAgeDays: 180,
     );
-    _saveAppearancePrefs();
+    _syncWebThemeDom();
+    if (saveLocal) {
+      _saveAppearancePrefs();
+    }
+  }
+
+  void _applyAppearanceMapIfUnset(Map<String, dynamic> map) {
+    final mode = _parseThemeMode(map['theme_mode'] as String?);
+    if (!_hadThemeModeCookie && mode != null) {
+      _themeController.setMode(mode);
+    }
+    final density = map['density'] as String?;
+    if (!_hadDensityCookie &&
+        (density == 'Compact' || density == 'Comfortable')) {
+      _themeController.setDensity(density!);
+    }
+    final range = map['chart_range'] as String?;
+    if (!_hadRangeCookie &&
+        const {'1D', '1W', '1M', '1Y', 'ALL'}.contains(range)) {
+      _themeController.setChartRange(range!);
+    }
+    final style = map['chart_style'] as String?;
+    if (!_hadStyleCookie &&
+        const {'Candlestick', 'Line', 'Area', 'Bars'}.contains(style)) {
+      _themeController.setChartStyle(style!);
+    }
+    final colors = map['color_convention'] as String?;
+    if (!_hadColorsCookie &&
+        const {
+          'Standard (Green/Red)',
+          'Colorblind-Safe (Blue/Orange)',
+          'Monochrome (High Contrast)',
+        }.contains(colors)) {
+      _themeController.setColorConvention(colors!);
+    }
+  }
+
+  Future<void> _hydrateCloudAppearanceIfUnset() async {
+    if (_cloudHydrated || _hadThemeModeCookie || _userOrLocalThemeApplied) {
+      return;
+    }
+    _cloudHydrated = true;
+    try {
+      final client = SupabaseConfig.client;
+      final uid = client?.auth.currentUser?.id;
+      if (!SupabaseConfig.isConfigured || client == null || uid == null) return;
+      final row = await client
+          .from('user_app_preferences')
+          .select('appearance_extras')
+          .eq('user_id', uid)
+          .maybeSingle();
+      final extras = row?['appearance_extras'];
+      if (extras is Map && extras.isNotEmpty && mounted) {
+        if (_userOrLocalThemeApplied) return;
+        _applyAppearanceMapIfUnset(Map<String, dynamic>.from(extras));
+      }
+    } catch (_) {}
   }
 
   Future<void> _hydrateAppearancePrefs() async {
+    bool appliedLocal = CrossSubdomainState.getLocalPreferenceFallback('ax_theme_mode') != null;
     try {
       final sp = await SharedPreferences.getInstance();
       if (!mounted) return;
-      final savedMode = sp.getString('ax_theme_mode');
-      if (savedMode != null && CrossSubdomainState.getFlag('ax_theme_mode') == null) {
-        final mode = switch (savedMode) {
-          'light' => ThemeMode.light,
-          'system' => ThemeMode.system,
-          'dark' => ThemeMode.dark,
-          _ => null,
-        };
-        if (mode != null) _themeController.setMode(mode);
+      final savedMode = _parseThemeMode(sp.getString('ax_theme_mode'));
+      if (savedMode != null && !_hadThemeModeCookie) {
+        _themeController.setMode(savedMode);
+        appliedLocal = true;
       }
       final savedDensity = sp.getString('ax_theme_density');
       if (savedDensity != null &&
-          CrossSubdomainState.getFlag('ax_theme_density') == null &&
+          !_hadDensityCookie &&
           (savedDensity == 'Compact' || savedDensity == 'Comfortable')) {
         _themeController.setDensity(savedDensity);
+        appliedLocal = true;
       }
       final savedRange = sp.getString('ax_chart_range');
       if (savedRange != null &&
-          CrossSubdomainState.getFlag('ax_chart_range') == null &&
+          !_hadRangeCookie &&
           const {'1D', '1W', '1M', '1Y', 'ALL'}.contains(savedRange)) {
         _themeController.setChartRange(savedRange);
+        appliedLocal = true;
       }
       final savedStyle = sp.getString('ax_chart_style');
       if (savedStyle != null &&
-          CrossSubdomainState.getFlag('ax_chart_style') == null &&
+          !_hadStyleCookie &&
           const {'Candlestick', 'Line', 'Area', 'Bars'}.contains(savedStyle)) {
         _themeController.setChartStyle(savedStyle);
+        appliedLocal = true;
       }
       final savedColors = sp.getString('ax_chart_colors');
       if (savedColors != null &&
-          CrossSubdomainState.getFlag('ax_chart_colors') == null &&
+          !_hadColorsCookie &&
           const {
             'Standard (Green/Red)',
             'Colorblind-Safe (Blue/Orange)',
             'Monochrome (High Contrast)',
           }.contains(savedColors)) {
         _themeController.setColorConvention(savedColors);
+        appliedLocal = true;
+      }
+
+      if (!appliedLocal && !_hadThemeModeCookie) {
+        await _hydrateCloudAppearanceIfUnset();
       }
     } catch (_) {}
+    if (!mounted) return;
+    if (_hadThemeModeCookie || appliedLocal) {
+      _syncThemeToSubdomains(saveLocal: false);
+    } else {
+      _syncWebThemeDom();
+    }
   }
 
   Future<void> _saveAppearancePrefs() async {
@@ -440,12 +546,29 @@ class _TradeXAppState extends State<TradeXApp> {
   void initState() {
     super.initState();
     usePathUrlStrategy();
+    _hadThemeModeCookie = CrossSubdomainState.getFlag('ax_theme_mode') != null;
+    _hadDensityCookie =
+        CrossSubdomainState.getFlag('ax_theme_density') != null;
+    _hadRangeCookie = CrossSubdomainState.getFlag('ax_chart_range') != null;
+    _hadStyleCookie = CrossSubdomainState.getFlag('ax_chart_style') != null;
+    _hadColorsCookie = CrossSubdomainState.getFlag('ax_chart_colors') != null;
+    WidgetsBinding.instance.addObserver(this);
+    _syncWebThemeDom();
     _hydrateAppearancePrefs();
     _themeController.addListener(_syncThemeToSubdomains);
   }
 
   @override
+  void didChangePlatformBrightness() {
+    if (_themeController.value == ThemeMode.system) {
+      _syncWebThemeDom();
+      if (mounted) setState(() {});
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _themeController.removeListener(_syncThemeToSubdomains);
     _router.dispose();
     _themeController.dispose();
@@ -466,13 +589,7 @@ class _TradeXAppState extends State<TradeXApp> {
       child: ListenableBuilder(
         listenable: _themeController,
         builder: (context, _) {
-          final Brightness systemBrightness =
-              MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.dark;
-          final bool isDark = switch (_themeController.value) {
-            ThemeMode.system => systemBrightness == Brightness.dark,
-            ThemeMode.dark => true,
-            ThemeMode.light => false,
-          };
+          final bool isDark = _resolveIsDark(context);
 
           final UiSpacing spacing = _themeController.density == 'Compact'
               ? const UiSpacing(

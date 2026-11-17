@@ -159,17 +159,19 @@ class UiRangeMeter extends StatelessWidget {
         if (showBounds) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.xxs)),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               Flexible(
-                child: Text(
-                  minLabel ?? fmt(min),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: uiOverline(context),
+                child: Padding(
+                  padding: EdgeInsets.only(right: context.sp(theme.spacing.xs)),
+                  child: Text(
+                    minLabel ?? fmt(min),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: uiOverline(context),
+                  ),
                 ),
               ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              const Spacer(),
               Flexible(
                 child: Text(
                   maxLabel ?? fmt(max),

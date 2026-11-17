@@ -146,80 +146,123 @@ class CopilotScreenState extends State<CopilotScreen> {
     super.dispose();
   }
 
+  String? _cachedAppearance;
+  UiTheme? _cachedUiTheme;
+  ThemeData? _cachedThemeData;
+  UiTheme? _cachedParentTheme;
+
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: Listenable.merge([_controller, _voice]),
-    builder: (context, _) {
-      final appearance = textOf(
-        _controller.workspace.settings,
-        'appearance',
-        'system',
-      );
-      final theme = switch (appearance) {
-        'light' => UiTheme.light(),
-        'dark' => UiTheme.dark(),
-        _ => context.ui,
-      };
-      return UiThemeScope(
-        theme: theme,
-        child: Theme(
-          data: theme.toThemeData(),
-          child: Material(
-            type: MaterialType.transparency,
-            child: Builder(builder: _buildWorkspace),
+  Widget build(BuildContext context) {
+    final parentTheme = context.ui;
+    return AnimatedBuilder(
+      animation: Listenable.merge([_controller, _voice]),
+      builder: (context, _) {
+        final appearance = textOf(
+          _controller.workspace.settings,
+          'appearance',
+          'system',
+        );
+        if (_cachedThemeData == null ||
+            _cachedAppearance != appearance ||
+            (appearance == 'system' && _cachedParentTheme != parentTheme)) {
+          final theme = switch (appearance) {
+            'light' => UiTheme.light(),
+            'dark' => UiTheme.dark(),
+            _ => parentTheme,
+          };
+          _cachedAppearance = appearance;
+          _cachedParentTheme = parentTheme;
+          _cachedUiTheme = theme;
+          _cachedThemeData = theme.toThemeData();
+        }
+        return UiThemeScope(
+          theme: _cachedUiTheme!,
+          child: Theme(
+            data: _cachedThemeData!,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Builder(builder: _buildWorkspace),
+            ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
+  }
 
   Widget _buildWorkspace(BuildContext context) {
+    final theme = context.ui;
     final device = context.uiRes;
-    final chat = Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: context.sz(760)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_voice.active || _voice.connecting) ...[
-              CopilotVoicePanel(
-                voice: _voice,
-                name: _controller.specialist?.name ?? 'Copilot',
+    final double horizPad = context.sp(
+      device.pick<double>(
+        mobile: theme.spacing.sm,
+        tablet: theme.spacing.md,
+        desktop: theme.spacing.lg,
+      ),
+    );
+    final double topBarPad = context.sp(
+      device.isMobile ? theme.spacing.sm : theme.spacing.md,
+    );
+    final double bottomPad = context.sp(
+      device.isMobile ? theme.spacing.sm : theme.spacing.md,
+    );
+    final bool hasVoiceTop =
+        _voice.active || _voice.connecting || _voice.error != null;
+    final double headerClearance =
+        topBarPad +
+        context.sz(36) +
+        (device.isTablet ? context.sp(theme.spacing.sm) + context.sz(40) : 0) +
+        context.sp(theme.spacing.sm);
+
+    final chat = Padding(
+      padding: EdgeInsets.only(bottom: bottomPad),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.sz(760)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (hasVoiceTop) SizedBox(height: headerClearance),
+              if (_voice.active || _voice.connecting) ...[
+                CopilotVoicePanel(
+                  voice: _voice,
+                  name: _controller.specialist?.name ?? 'Copilot',
+                ),
+                UiGap.v(theme.spacing.md),
+              ],
+              if (_voice.error != null)
+                UiCallout(
+                  title: 'Call unavailable',
+                  message: _voice.error!,
+                  intent: UiIntent.warning,
+                ),
+              Expanded(
+                child: CopilotChatPane(
+                  key: _chatKey,
+                  controller: _controller,
+                  voiceActive: _voice.active,
+                  topInset: hasVoiceTop ? 0.0 : headerClearance,
+                  onOpenRef: widget.onOpenRef,
+                  onVoice: _voice.active
+                      ? _voice.end
+                      : (!_controller.isAiQuotaBlocked &&
+                                !CustomerLimitations.isAiQuotaExhausted() &&
+                                !_voice.connecting &&
+                                !_controller.conversationLocked
+                            ? _voice.start
+                            : null),
+                  onSpeakMessage: _voice.speakAssistantMessage,
+                  onPage: (page) {
+                    setState(() => _page = page);
+                    _showWorkspace(true);
+                  },
+                  initialPrompt: _allowInitialPrompt
+                      ? widget.initialPrompt
+                      : null,
+                ),
               ),
-              UiGap.v(context.ui.spacing.md),
             ],
-            if (_voice.error != null)
-              UiCallout(
-                title: 'Call unavailable',
-                message: _voice.error!,
-                intent: UiIntent.warning,
-              ),
-            Expanded(
-              child: CopilotChatPane(
-                key: _chatKey,
-                controller: _controller,
-                voiceActive: _voice.active,
-                onOpenRef: widget.onOpenRef,
-                onVoice: _voice.active
-                    ? _voice.end
-                    : (!_controller.isAiQuotaBlocked &&
-                              !CustomerLimitations.isAiQuotaExhausted() &&
-                              !_voice.connecting &&
-                              !_controller.conversationLocked
-                          ? _voice.start
-                          : null),
-                onSpeakMessage: _voice.speakAssistantMessage,
-                onPage: (page) {
-                  setState(() => _page = page);
-                  _showWorkspace(true);
-                },
-                initialPrompt: _allowInitialPrompt
-                    ? widget.initialPrompt
-                    : null,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -260,86 +303,115 @@ class CopilotScreenState extends State<CopilotScreen> {
               });
             },
           );
-    return UiPage(
-      scrollable: false,
-      maxWidth: 1600,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              if (device.isMobile && _workspaceOpen)
-                UiIconButton(
-                  icon: Icons.arrow_back,
-                  tooltip: 'Back to conversation',
-                  onPressed: () => _showWorkspace(false),
-                ),
-              Expanded(
-                child: Text(
-                  'Copilot',
-                  style: context.uiText.heading,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (_controller.activeThread?.messages.any(
-                    (m) => m.body.trim().isNotEmpty,
-                  ) ==
-                  true)
-                UiIconButton(
-                  icon: Icons.ios_share_outlined,
-                  tooltip: 'Copy research thread',
-                  variant: UiVariant.ghost,
-                  size: UiSize.sm,
-                  onPressed: _copyThread,
-                ),
-              if (widget.onOpenSettings != null)
-                UiIconButton(
-                  icon: Icons.tune_rounded,
-                  tooltip: 'AI & Copilot settings',
-                  variant: UiVariant.ghost,
-                  size: UiSize.sm,
-                  onPressed: widget.onOpenSettings,
-                ),
-              if (!device.isTablet)
-                UiIconButton(
-                  icon: Icons.space_dashboard_outlined,
-                  tooltip: device.isMobile ? 'Library' : 'Workspace',
-                  variant: _workspaceOpen ? UiVariant.soft : UiVariant.ghost,
-                  size: UiSize.sm,
-                  onPressed: () => _showWorkspace(!_workspaceOpen),
-                ),
-            ],
-          ),
-          if (device.isTablet)
-            UiTabs(
-              tabs: const ['Conversation', 'Workspace'],
-              selectedIndex: _workspaceOpen ? 1 : 0,
-              onChanged: (index) => _showWorkspace(index == 1),
-            ),
-          UiGap.v(context.ui.spacing.md),
-          Expanded(
-            child: device.isDesktop
-                ? UiSplitPane(
-                    primary: chat,
-                    detail: Padding(
-                      padding: EdgeInsets.only(
-                        left: context.sp(context.ui.spacing.lg),
-                      ),
-                      child: workspace,
-                    ),
-                    initialRatio: .62,
-                    minRatio: .5,
-                    maxRatio: .75,
-                    showDetail: _workspaceOpen,
-                    splitFrom: UiDeviceType.desktop,
-                  )
-                : IndexedStack(
-                    index: _workspaceOpen ? 1 : 0,
-                    children: [chat, workspace],
+    final paddedWorkspace = Padding(
+      padding: EdgeInsets.only(
+        top: headerClearance,
+        bottom: bottomPad,
+        left: device.isDesktop ? context.sp(theme.spacing.lg) : 0,
+      ),
+      child: workspace,
+    );
+
+    final Widget headerOverlay = Material(
+      type: MaterialType.transparency,
+      child: Padding(
+        padding: EdgeInsets.only(top: topBarPad),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                if (device.isMobile && _workspaceOpen)
+                  UiIconButton(
+                    icon: Icons.arrow_back,
+                    tooltip: 'Back to conversation',
+                    onPressed: () => _showWorkspace(false),
                   ),
+                Expanded(
+                  child: Text(
+                    'Copilot',
+                    style: context.uiText.heading,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (_controller.activeThread?.messages.any(
+                      (m) => m.body.trim().isNotEmpty,
+                    ) ==
+                    true)
+                  UiIconButton(
+                    icon: Icons.ios_share_outlined,
+                    tooltip: 'Copy research thread',
+                    variant: UiVariant.ghost,
+                    size: UiSize.sm,
+                    onPressed: _copyThread,
+                  ),
+                if (widget.onOpenSettings != null)
+                  UiIconButton(
+                    icon: Icons.tune_rounded,
+                    tooltip: 'AI & Copilot settings',
+                    variant: UiVariant.ghost,
+                    size: UiSize.sm,
+                    onPressed: widget.onOpenSettings,
+                  ),
+                if (!device.isTablet)
+                  UiIconButton(
+                    icon: Icons.space_dashboard_outlined,
+                    tooltip: device.isMobile ? 'Library' : 'Workspace',
+                    variant: _workspaceOpen ? UiVariant.soft : UiVariant.ghost,
+                    size: UiSize.sm,
+                    onPressed: () => _showWorkspace(!_workspaceOpen),
+                  ),
+              ],
+            ),
+            if (device.isTablet) ...[
+              UiGap.v(theme.spacing.xs),
+              UiTabs(
+                tabs: const ['Conversation', 'Workspace'],
+                selectedIndex: _workspaceOpen ? 1 : 0,
+                onChanged: (index) => _showWorkspace(index == 1),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: horizPad),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: context.sz(1600)),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: device.isDesktop
+                      ? UiSplitPane(
+                          primary: chat,
+                          detail: paddedWorkspace,
+                          initialRatio: .62,
+                          minRatio: .5,
+                          maxRatio: .75,
+                          showDetail: _workspaceOpen,
+                          splitFrom: UiDeviceType.desktop,
+                        )
+                      : IndexedStack(
+                          index: _workspaceOpen ? 1 : 0,
+                          children: [chat, paddedWorkspace],
+                        ),
+                ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: headerOverlay,
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
