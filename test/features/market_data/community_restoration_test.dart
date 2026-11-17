@@ -55,10 +55,7 @@ void main() {
         .firstWhere((n) => n.category.toLowerCase() != 'crypto')
         .headline;
     expect(
-      find.descendant(
-        of: panel,
-        matching: find.text(otherCategoryHeadline),
-      ),
+      find.descendant(of: panel, matching: find.text(otherCategoryHeadline)),
       findsNothing,
     );
     await tester.tap(
@@ -115,7 +112,7 @@ void main() {
       await tester.pump();
       await tester.pump();
     }
-    expect(find.byType(CommunityNewsWidget), findsOneWidget);
+    expect(find.byType(CommunityNewsWidget), findsNothing);
     expect(find.byType(CommunityTrendingWidget), findsOneWidget);
     expect(find.byType(CommunityWhoToFollowCard), findsOneWidget);
     expect(find.byType(CommunityPushNotificationsCard), findsOneWidget);

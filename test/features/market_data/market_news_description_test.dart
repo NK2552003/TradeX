@@ -58,51 +58,100 @@ void main() {
       expect(summaryFinder, findsOneWidget);
     });
 
-    testWidgets('CommunityNewsWidget displays 2 lines of description in sidebar row', (
+    testWidgets(
+      'CommunityNewsWidget displays 2 lines of description in sidebar row',
+      (WidgetTester tester) async {
+        final item = CommunityNewsItem(
+          id: 'news_item_1',
+          headline:
+              'NIFTY Breaks All-Time High on Strong Institutional Inflows',
+          summary:
+              'Domestic and foreign institutional investors poured aggressive liquidity into banking and energy sectors pushing the index to record highs.',
+          source: 'alphajournal Market Desk',
+          publishedAt: DateTime.now(),
+          category: 'Macro',
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: CommunityNewsWidget(items: [item], onShowMore: () {}),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            'NIFTY Breaks All-Time High on Strong Institutional Inflows',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            'Domestic and foreign institutional investors poured aggressive liquidity into banking and energy sectors pushing the index to record highs.',
+          ),
+          findsOneWidget,
+        );
+
+        final summaryFinder = find.byWidgetPredicate(
+          (w) =>
+              w is Text &&
+              w.data != null &&
+              w.data!.startsWith(
+                'Domestic and foreign institutional investors',
+              ) &&
+              w.maxLines == 2 &&
+              w.overflow == TextOverflow.ellipsis,
+        );
+        expect(summaryFinder, findsOneWidget);
+        expect(find.text("Today's Market Wire"), findsOneWidget);
+      },
+    );
+
+    testWidgets('CommunityNewsWidget labels older batches as latest', (
       WidgetTester tester,
     ) async {
       final item = CommunityNewsItem(
-        id: 'news_item_1',
-        headline: 'NIFTY Breaks All-Time High on Strong Institutional Inflows',
-        summary:
-            'Domestic and foreign institutional investors poured aggressive liquidity into banking and energy sectors pushing the index to record highs.',
-        source: 'alphajournal Market Desk',
-        publishedAt: DateTime.now(),
-        category: 'Macro',
+        id: 'older_news_item',
+        headline: 'Latest available market story',
+        source: 'Market Desk',
+        publishedAt: DateTime.now().subtract(const Duration(days: 2)),
       );
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: CommunityNewsWidget(
-              items: [item],
-              onShowMore: () {},
+            body: CommunityNewsWidget(items: <CommunityNewsItem>[item]),
+          ),
+        ),
+      );
+
+      expect(find.text('Latest Market Wire'), findsOneWidget);
+      expect(find.text("Today's Market Wire"), findsNothing);
+      expect(find.text('Show more'), findsNothing);
+    });
+
+    testWidgets('empty community market sections collapse completely', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: <Widget>[
+                CommunityNewsWidget(items: <CommunityNewsItem>[]),
+                CommunityTrendingWidget(items: <CommunityTrendItem>[]),
+              ],
             ),
           ),
         ),
       );
-      await tester.pumpAndSettle();
 
-      expect(
-        find.text('NIFTY Breaks All-Time High on Strong Institutional Inflows'),
-        findsOneWidget,
-      );
-      expect(
-        find.text(
-          'Domestic and foreign institutional investors poured aggressive liquidity into banking and energy sectors pushing the index to record highs.',
-        ),
-        findsOneWidget,
-      );
-
-      final summaryFinder = find.byWidgetPredicate(
-        (w) =>
-            w is Text &&
-            w.data != null &&
-            w.data!.startsWith('Domestic and foreign institutional investors') &&
-            w.maxLines == 2 &&
-            w.overflow == TextOverflow.ellipsis,
-      );
-      expect(summaryFinder, findsOneWidget);
+      expect(find.text("Today's Market Wire"), findsNothing);
+      expect(find.text('Latest Market Wire'), findsNothing);
+      expect(find.text("What's happening"), findsNothing);
+      expect(find.text('Show more'), findsNothing);
     });
 
     testWidgets('MarketNewsCard does not render like button', (

@@ -1,63 +1,22 @@
 import 'package:flutter/material.dart';
+
 import 'package:tradex/core/app-ui/app_ui.dart';
-// ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import '../models/market_snapshot.dart';
+
 import '../data/yahoo_finance_service.dart';
+import '../models/market_snapshot.dart';
+import 'market_index_group_card.dart';
+import 'market_index_item.dart';
 
-/// Item representing a single index row in World Indices and Assets tables with freshness tracking.
-class MarketIndexItem {
-  const MarketIndexItem({
-    required this.symbol,
-    required this.name,
-    required this.price,
-    required this.changePercent,
-    required this.spark,
-    this.isLive = false,
-    this.timestamp,
-    this.source = 'Offline Snapshot',
-  });
+export 'market_index_item.dart';
+export 'market_index_group_card.dart';
 
-  final String symbol;
-  final String name;
-  final double price;
-  final double changePercent;
-  final List<double> spark;
-  final bool isLive;
-  final DateTime? timestamp;
-  final String source;
-
-  bool get isPositive => changePercent >= 0;
-
-  MarketIndexItem copyWith({
-    String? symbol,
-    String? name,
-    double? price,
-    double? changePercent,
-    List<double>? spark,
-    bool? isLive,
-    DateTime? timestamp,
-    String? source,
-  }) => MarketIndexItem(
-    symbol: symbol ?? this.symbol,
-    name: name ?? this.name,
-    price: price ?? this.price,
-    changePercent: changePercent ?? this.changePercent,
-    spark: spark ?? this.spark,
-    isLive: isLive ?? this.isLive,
-    timestamp: timestamp ?? this.timestamp,
-    source: source ?? this.source,
-  );
-}
-
-/// World Indices and Assets Overview Card matching Image 2.
-/// Displays global market indices across Americas, Europe, Asia and assets with live Yahoo Finance analytics.
-/// Zero hardcoding: dynamically loads live quotes using rotating mobile IPs.
+/// Responsive Overview section for global indices, commodities, FX and rates.
 class MarketWorldIndicesCard extends StatefulWidget {
   const MarketWorldIndicesCard({
     super.key,
     this.onInstrument,
-    this.instruments = const [],
+    this.instruments = const <MarketInstrument>[],
   });
 
   final ValueChanged<MarketInstrument>? onInstrument;
@@ -68,6 +27,55 @@ class MarketWorldIndicesCard extends StatefulWidget {
 }
 
 class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
+  static const List<(String, String)> _americasDefinitions = <(String, String)>[
+    ('^IXIC', 'Nasdaq'),
+    ('^GSPTSE', 'S&P/TSX Composite'),
+    ('^GSPC', 'S&P 500'),
+    ('^DJI', 'Dow 30'),
+    ('^RUT', 'Russell 2000'),
+    ('DX-Y.NYB', 'US Dollar Index'),
+    ('^VIX', 'VIX'),
+    ('^BVSP', 'IBOVESPA'),
+  ];
+  static const List<(String, String)> _europeDefinitions = <(String, String)>[
+    ('^GDAXI', 'DAX'),
+    ('^FCHI', 'CAC 40'),
+    ('^STOXX50E', 'EURO STOXX 50'),
+    ('^FTSE', 'FTSE 100'),
+    ('^N100', 'Euronext 100'),
+    ('EURUSD=X', 'EUR / USD'),
+  ];
+  static const List<(String, String)> _asiaDefinitions = <(String, String)>[
+    ('^BSESN', 'S&P BSE SENSEX'),
+    ('^HSI', 'Hang Seng'),
+    ('000001.SS', 'SSE Composite'),
+    ('^AXJO', 'S&P/ASX 200'),
+    ('^N225', 'Nikkei 225'),
+    ('^KS11', 'KOSPI Composite'),
+  ];
+  static const List<(String, String)> _commodityDefinitions =
+      <(String, String)>[
+        ('GC=F', 'Gold'),
+        ('SI=F', 'Silver'),
+        ('CL=F', 'Crude Oil'),
+        ('NG=F', 'Natural Gas'),
+        ('HG=F', 'Copper'),
+      ];
+  static const List<(String, String)> _currencyDefinitions = <(String, String)>[
+    ('EURUSD=X', 'EUR / USD'),
+    ('GBPUSD=X', 'GBP / USD'),
+    ('USDJPY=X', 'USD / JPY'),
+    ('USDINR=X', 'USD / INR'),
+    ('BTC-USD', 'Bitcoin USD'),
+    ('ETH-USD', 'Ethereum USD'),
+  ];
+  static const List<(String, String)> _bondDefinitions = <(String, String)>[
+    ('^TNX', '10-Year Treasury'),
+    ('^TYX', '30-Year Treasury'),
+    ('^FVX', '5-Year Treasury'),
+    ('^IRX', '13-Week Treasury Bill'),
+  ];
+
   late List<MarketIndexItem> _americas;
   late List<MarketIndexItem> _europe;
   late List<MarketIndexItem> _asia;
@@ -75,293 +83,124 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
   late List<MarketIndexItem> _currencies;
   late List<MarketIndexItem> _bonds;
 
-  static const List<(String, String, double)> kAmericasDefs = [
-    ('^IXIC', 'Nasdaq', 18415.20),
-    ('^GSPTSE', 'S&P/TSX Composite', 24650.10),
-    ('^GSPC', 'S&P 500', 5842.10),
-    ('^DJI', 'Dow 30', 42600.50),
-    ('^RUT', 'Russell 2000', 2215.40),
-    ('DX-Y.NYB', 'US Dollar Index', 104.25),
-    ('^VIX', 'VIX', 18.50),
-    ('^BVSP', 'IBOVESPA', 131200.00),
-  ];
-
-  static const List<(String, String, double)> kEuropeDefs = [
-    ('^GDAXI', 'DAX P', 19450.20),
-    ('^FCHI', 'CAC 40', 7540.30),
-    ('^STOXX50E', 'EURO STOXX 50', 4920.10),
-    ('^FTSE', 'FTSE 100', 8240.10),
-    ('^N100', 'Euronext 100', 1480.50),
-    ('EURUSD=X', 'EUR / USD', 1.085),
-  ];
-
-  static const List<(String, String, double)> kAsiaDefs = [
-    ('^BSESN', 'S&P BSE SENSEX', 80150.20),
-    ('^HSI', 'Hang Seng', 20590.15),
-    ('000001.SS', 'SSE Composite', 3280.40),
-    ('^AXJO', 'S&P/ASX 200', 8220.50),
-    ('^N225', 'Nikkei 225', 38900.00),
-    ('^KS11', 'KOSPI Composite', 2605.30),
-  ];
-
-  static const List<(String, String, double)> kCommoditiesDefs = [
-    ('GC=F', 'Gold', 2648.50),
-    ('SI=F', 'Silver', 31.40),
-    ('CL=F', 'Crude Oil', 71.20),
-    ('NG=F', 'Natural Gas', 2.85),
-    ('HG=F', 'Copper', 4.35),
-  ];
-
-  static const List<(String, String, double)> kCurrenciesDefs = [
-    ('EURUSD=X', 'EUR / USD', 1.085),
-    ('GBPUSD=X', 'GBP / USD', 1.298),
-    ('USDJPY=X', 'USD / JPY', 152.40),
-    ('USDINR=X', 'USD / INR', 84.15),
-    ('BTC-USD', 'Bitcoin USD', 94200.00),
-    ('ETH-USD', 'Ethereum USD', 3420.00),
-  ];
-
-  static const List<(String, String, double)> kBondsDefs = [
-    ('^TNX', '10-Yr Bond Yield', 4.24),
-    ('^TYX', '30-Yr Bond Yield', 4.51),
-    ('^FVX', '5-Yr Bond Yield', 4.08),
-    ('^IRX', '13-Week Bill Yield', 4.62),
-  ];
-
-  static List<MarketIndexItem> _initList(List<(String, String, double)> defs) =>
-      defs
-          .map(
-            (d) => MarketIndexItem(
-              symbol: d.$1,
-              name: d.$2,
-              price: d.$3,
-              changePercent: 0.0,
-              spark: [d.$3 * 0.99, d.$3 * 0.995, d.$3 * 1.002, d.$3],
-            ),
-          )
-          .toList();
-
   @override
   void initState() {
     super.initState();
-    _americas = _initList(kAmericasDefs);
-    _europe = _initList(kEuropeDefs);
-    _asia = _initList(kAsiaDefs);
-    _commodities = _initList(kCommoditiesDefs);
-    _currencies = _initList(kCurrenciesDefs);
-    _bonds = _initList(kBondsDefs);
-
+    _americas = _initialItems(_americasDefinitions);
+    _europe = _initialItems(_europeDefinitions);
+    _asia = _initialItems(_asiaDefinitions);
+    _commodities = _initialItems(_commodityDefinitions);
+    _currencies = _initialItems(_currencyDefinitions);
+    _bonds = _initialItems(_bondDefinitions);
     _syncFromInstruments();
-    _fetchLiveYahooData();
+    _fetchLatestQuotes();
   }
 
   @override
   void didUpdateWidget(covariant MarketWorldIndicesCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.instruments != widget.instruments ||
-        oldWidget.instruments.length != widget.instruments.length) {
-      if (mounted) {
-        setState(() {
-          _syncFromInstruments();
-        });
-      }
+    if (!identical(oldWidget.instruments, widget.instruments)) {
+      setState(_syncFromInstruments);
     }
   }
+
+  static List<MarketIndexItem> _initialItems(
+    List<(String, String)> definitions,
+  ) => definitions
+      .map(
+        ((String, String) definition) => MarketIndexItem(
+          symbol: definition.$1,
+          name: definition.$2,
+          price: 0,
+          changePercent: 0,
+          spark: const <double>[],
+        ),
+      )
+      .toList();
+
+  List<List<MarketIndexItem>> get _groups => <List<MarketIndexItem>>[
+    _americas,
+    _europe,
+    _asia,
+    _commodities,
+    _currencies,
+    _bonds,
+  ];
 
   void _syncFromInstruments() {
     if (widget.instruments.isEmpty) return;
+    final Map<String, MarketInstrument> instrumentsBySymbol =
+        <String, MarketInstrument>{
+          for (final MarketInstrument instrument in widget.instruments)
+            instrument.symbol.toUpperCase(): instrument,
+        };
 
-    final totalAvg =
-        widget.instruments.fold<double>(
-          0.0,
-          (sum, inst) => sum + inst.changePercent,
-        ) /
-        widget.instruments.length;
-    final techAvg = widget.instruments
-        .where((i) => '${i.raw['sector'] ?? ''}'.toLowerCase().contains('tech'))
-        .fold<double>(0.0, (s, i) => s + i.changePercent);
-
-    void syncList(List<MarketIndexItem> list) {
-      for (var i = 0; i < list.length; i++) {
-        final item = list[i];
-        final match = widget.instruments
-            .where(
-              (inst) =>
-                  inst.symbol == item.symbol ||
-                  inst.name.toLowerCase() == item.name.toLowerCase(),
-            )
-            .firstOrNull;
-        if (match != null && match.price > 0) {
-          list[i] = item.copyWith(
-            price: match.price,
-            changePercent: match.changePercent,
-            spark: match.spark.isNotEmpty ? match.spark : [match.price],
-          );
-        } else {
-          final pct = item.symbol.contains('IXIC')
-              ? (techAvg != 0.0 ? techAvg : totalAvg)
-              : totalAvg;
-          final p = item.price > 0 ? item.price : 100.0;
-          list[i] = item.copyWith(
-            price: p,
-            changePercent: pct,
-            spark: [p * (1 - pct / 200), p * (1 - pct / 400), p],
-          );
+    for (final List<MarketIndexItem> group in _groups) {
+      for (int index = 0; index < group.length; index++) {
+        final MarketIndexItem current = group[index];
+        final MarketInstrument? match =
+            instrumentsBySymbol[current.symbol.toUpperCase()] ??
+            widget.instruments
+                .where(
+                  (MarketInstrument instrument) =>
+                      instrument.name.toLowerCase() ==
+                      current.name.toLowerCase(),
+                )
+                .firstOrNull;
+        if (match == null || !match.price.isFinite || match.price <= 0) {
+          continue;
         }
+        group[index] = current.copyWith(
+          price: match.price,
+          changePercent: match.changePercent,
+          spark: match.spark,
+          timestamp: match.updatedAt,
+          source: 'Market snapshot',
+        );
       }
     }
-
-    syncList(_americas);
-    syncList(_europe);
-    syncList(_asia);
-    syncList(_commodities);
-    syncList(_currencies);
-    syncList(_bonds);
   }
 
-  Future<void> _fetchLiveYahooData() async {
-    if (!mounted) return;
-
-    final groups = <List<MarketIndexItem>>[
-      _americas,
-      _europe,
-      _asia,
-      _commodities,
-      _currencies,
-      _bonds,
-    ];
-    final requested = <({String symbol, String name})>[
-      for (final group in groups)
-        for (final item in group) (symbol: item.symbol, name: item.name),
-    ];
-    if (requested.isEmpty) return;
-
+  Future<void> _fetchLatestQuotes() async {
+    final List<({String symbol, String name})> requested =
+        <({String symbol, String name})>[
+          for (final List<MarketIndexItem> group in _groups)
+            for (final MarketIndexItem item in group)
+              (symbol: item.symbol, name: item.name),
+        ];
     try {
-      final liveMap = await YahooFinanceService.instance.fetchIndexItems(
-        requested,
-      );
-      if (!mounted || liveMap.isEmpty) return;
+      final Map<String, MarketIndexItem> latest = await YahooFinanceService
+          .instance
+          .fetchIndexItems(requested);
+      if (!mounted || latest.isEmpty) return;
       setState(() {
-        for (final list in groups) {
-          for (var i = 0; i < list.length; i++) {
-            final live = liveMap[list[i].symbol];
-            if (live != null) {
-              list[i] = live;
-            }
+        for (final List<MarketIndexItem> group in _groups) {
+          for (int index = 0; index < group.length; index++) {
+            group[index] = latest[group[index].symbol] ?? group[index];
           }
         }
       });
-    } catch (_) {}
-  }
-
-  Widget _buildTable(
-    BuildContext context,
-    String title,
-    List<MarketIndexItem> items, {
-    double? bodyHeight,
-  }) {
-    final theme = context.ui;
-    return UiTable<MarketIndexItem>(
-      key: ValueKey<String>('market-overview-table-$title'),
-      rows: items,
-      rowKey: (MarketIndexItem item) => item.symbol,
-      onRowTap: widget.onInstrument == null ? null : _openInstrument,
-      density: UiDensity.compact,
-      stickyHeader: bodyHeight != null,
-      minBodyHeight: bodyHeight,
-      maxBodyHeight: bodyHeight,
-      columns: <UiTableColumn<MarketIndexItem>>[
-        UiTableColumn<MarketIndexItem>(
-          header: title,
-          flex: 5,
-          cell: (BuildContext context, MarketIndexItem item) => Row(
-            children: <Widget>[
-              Flexible(
-                child: Text(
-                  item.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              if (item.spark.isNotEmpty) ...<Widget>[
-                UiGap.h(theme.spacing.xs),
-                SizedBox(
-                  width: context.sz(28),
-                  height: context.sz(14),
-                  child: UiSparkChart(
-                    values: item.spark,
-                    color: item.isPositive
-                        ? theme.colors.bullish
-                        : theme.colors.bearish,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        UiTableColumn<MarketIndexItem>(
-          header: 'Price',
-          numeric: true,
-          flex: 3,
-          cell: (BuildContext context, MarketIndexItem item) =>
-              item.price == 0.0
-              ? UiSkeleton(width: context.sz(35), height: context.sz(12))
-              : FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    item.price.toStringAsFixed(item.price < 10 ? 4 : 2),
-                    style: context.uiText.caption.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: theme.colors.foreground,
-                    ),
-                  ),
-                ),
-        ),
-        UiTableColumn<MarketIndexItem>(
-          header: 'Change %',
-          numeric: true,
-          flex: 3,
-          cell: (BuildContext context, MarketIndexItem item) =>
-              item.price == 0.0
-              ? UiSkeleton(width: context.sz(30), height: context.sz(12))
-              : FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    '${item.isPositive ? '+' : ''}${item.changePercent.toStringAsFixed(2)}%',
-                    style: context.uiText.caption.copyWith(
-                      color: item.isPositive
-                          ? theme.colors.bullish
-                          : theme.colors.bearish,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-        ),
-      ],
-    );
+    } catch (_) {
+      // Existing snapshot values remain visible when the live quote proxy fails.
+    }
   }
 
   void _openInstrument(MarketIndexItem item) {
-    final MarketInstrument? match = widget.instruments
+    final MarketInstrument? existing = widget.instruments
         .where(
           (MarketInstrument instrument) => instrument.symbol == item.symbol,
         )
         .firstOrNull;
     widget.onInstrument?.call(
-      match ??
+      existing ??
           MarketInstrument.fromJson(
             <String, dynamic>{
               'ticker': item.symbol,
               'price': item.price,
               'change_pct': item.changePercent,
-              'market': 'US',
-              'currency': 'USD',
+              'market': 'GLOBAL',
+              'currency': '',
+              'updated_at': item.timestamp?.toIso8601String(),
             },
             <String, dynamic>{'name': item.name},
             history: item.spark,
@@ -369,173 +208,120 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
     );
   }
 
-  double _sharedBodyHeight(
-    BuildContext context,
-    List<List<MarketIndexItem>> groups,
-  ) {
-    final int visibleRows = groups
-        .map((List<MarketIndexItem> group) => group.length)
-        .reduce((int a, int b) => a < b ? a : b);
-    return context.ui.sizes.minTapTarget * visibleRows;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = context.ui;
+    final UiTheme theme = context.ui;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // World Indices Section Header
-        Row(
-          children: [
-            Expanded(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      'World Indices',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.uiText.title.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  UiGap.h(theme.spacing.xxs),
-                  Icon(
-                    Icons.arrow_forward,
-                    size: context.sz(16),
-                    color: theme.colors.foregroundMuted,
-                  ),
-                ],
-              ),
+      children: <Widget>[
+        const _MarketSectionHeader(
+          title: 'World Indices',
+          subtitle: 'Major benchmarks across the Americas, Europe and Asia',
+        ),
+        UiGap.v(theme.spacing.sm),
+        UiCardGrid(
+          mobileColumns: 1,
+          tabletColumns: 2,
+          desktopColumns: 3,
+          largeColumns: 3,
+          minTileWidth: context.sz(340),
+          intrinsicHeight: true,
+          children: <Widget>[
+            MarketIndexGroupCard(
+              title: 'Americas',
+              items: _americas,
+              onItemTap: widget.onInstrument == null ? null : _openInstrument,
+            ),
+            MarketIndexGroupCard(
+              title: 'Europe',
+              items: _europe,
+              onItemTap: widget.onInstrument == null ? null : _openInstrument,
+            ),
+            MarketIndexGroupCard(
+              title: 'Asia',
+              items: _asia,
+              onItemTap: widget.onInstrument == null ? null : _openInstrument,
             ),
           ],
         ),
-        UiGap.v(theme.spacing.sm),
-
-        // 3-Column Region Grid (Americas, Europe, Asia)
-        LayoutBuilder(
-          builder: (context, c) {
-            if (c.maxWidth < 750) {
-              return Column(
-                children: [
-                  _buildTable(context, 'Americas', _americas),
-                  UiGap.v(theme.spacing.md),
-                  _buildTable(context, 'Europe', _europe),
-                  UiGap.v(theme.spacing.md),
-                  _buildTable(context, 'Asia', _asia),
-                ],
-              );
-            }
-            final double bodyHeight = _sharedBodyHeight(
-              context,
-              <List<MarketIndexItem>>[_americas, _europe, _asia],
-            );
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildTable(
-                    context,
-                    'Americas',
-                    _americas,
-                    bodyHeight: bodyHeight,
-                  ),
-                ),
-                UiGap.h(theme.spacing.sm),
-                Expanded(
-                  child: _buildTable(
-                    context,
-                    'Europe',
-                    _europe,
-                    bodyHeight: bodyHeight,
-                  ),
-                ),
-                UiGap.h(theme.spacing.sm),
-                Expanded(
-                  child: _buildTable(
-                    context,
-                    'Asia',
-                    _asia,
-                    bodyHeight: bodyHeight,
-                  ),
-                ),
-              ],
-            );
-          },
+        UiGap.v(theme.spacing.xl),
+        const _MarketSectionHeader(
+          title: 'Assets',
+          subtitle: 'Commodities, currencies, crypto and US Treasury yields',
         ),
-        UiGap.v(theme.spacing.lg),
+        UiGap.v(theme.spacing.sm),
+        UiCardGrid(
+          mobileColumns: 1,
+          tabletColumns: 2,
+          desktopColumns: 3,
+          largeColumns: 3,
+          minTileWidth: context.sz(340),
+          intrinsicHeight: true,
+          children: <Widget>[
+            MarketIndexGroupCard(
+              title: 'Commodities',
+              items: _commodities,
+              onItemTap: widget.onInstrument == null ? null : _openInstrument,
+            ),
+            MarketIndexGroupCard(
+              title: 'Currencies & Crypto',
+              items: _currencies,
+              onItemTap: widget.onInstrument == null ? null : _openInstrument,
+            ),
+            MarketIndexGroupCard(
+              title: 'US Treasury Yields',
+              items: _bonds,
+              onItemTap: widget.onInstrument == null ? null : _openInstrument,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
 
-        // Assets Section Header
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Assets',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+class _MarketSectionHeader extends StatelessWidget {
+  const _MarketSectionHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                title,
                 style: context.uiText.title.copyWith(
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-            ),
-          ],
+              UiGap.v(theme.spacing.xxs),
+              Text(
+                subtitle,
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
+              ),
+            ],
+          ),
         ),
-        UiGap.v(theme.spacing.sm),
-
-        // 3-Column Assets Grid (Commodities, Currencies, Bonds)
-        LayoutBuilder(
-          builder: (context, c) {
-            if (c.maxWidth < 750) {
-              return Column(
-                children: [
-                  _buildTable(context, 'Commodities', _commodities),
-                  UiGap.v(theme.spacing.md),
-                  _buildTable(context, 'Currencies', _currencies),
-                  UiGap.v(theme.spacing.md),
-                  _buildTable(context, 'US Treasury Bonds', _bonds),
-                ],
-              );
-            }
-            final double bodyHeight = _sharedBodyHeight(
-              context,
-              <List<MarketIndexItem>>[_commodities, _currencies, _bonds],
-            );
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildTable(
-                    context,
-                    'Commodities',
-                    _commodities,
-                    bodyHeight: bodyHeight,
-                  ),
-                ),
-                UiGap.h(theme.spacing.sm),
-                Expanded(
-                  child: _buildTable(
-                    context,
-                    'Currencies',
-                    _currencies,
-                    bodyHeight: bodyHeight,
-                  ),
-                ),
-                UiGap.h(theme.spacing.sm),
-                Expanded(
-                  child: _buildTable(
-                    context,
-                    'US Treasury Bonds',
-                    _bonds,
-                    bodyHeight: bodyHeight,
-                  ),
-                ),
-              ],
-            );
-          },
+        UiGap.h(theme.spacing.sm),
+        const UiBadge(
+          label: 'Latest quotes',
+          icon: Icons.schedule_rounded,
+          intent: UiIntent.info,
+          variant: UiBadgeVariant.soft,
+          size: UiSize.xs,
         ),
       ],
     );

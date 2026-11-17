@@ -727,9 +727,25 @@ class AssetMarketRepository {
       _snapshot = null;
     }
     _snapshotExpiresAt ??= now.add(_snapshotTtl);
-    return _snapshot ??= _loadSnapshot().whenComplete(() {
-      _snapshotExpiresAt = DateTime.now().add(_snapshotTtl);
-    });
+    final Future<MarketSnapshot>? activeSnapshot = _snapshot;
+    if (activeSnapshot != null) return activeSnapshot;
+
+    late final Future<MarketSnapshot> guardedSnapshot;
+    guardedSnapshot = _loadSnapshot().then(
+      (MarketSnapshot value) {
+        _snapshotExpiresAt = DateTime.now().add(_snapshotTtl);
+        return value;
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        if (identical(_snapshot, guardedSnapshot)) {
+          _snapshot = null;
+          _snapshotExpiresAt = null;
+        }
+        Error.throwWithStackTrace(error, stackTrace);
+      },
+    );
+    _snapshot = guardedSnapshot;
+    return guardedSnapshot;
   }
 
   Future<MarketSnapshot> _loadSnapshot() async {

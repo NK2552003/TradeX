@@ -214,68 +214,74 @@ void main() {
     expect(find.text('Could not refresh your network'), findsNothing);
   });
 
-  testWidgets('market shows all sections without inactive paging controls', (
-    tester,
-  ) async {
-    viewport(tester, 1400);
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(child: MarketWorldIndicesCard()),
-        ),
-      ),
-    );
-    expect(find.text('Americas'), findsOneWidget);
-    expect(find.text('Europe'), findsOneWidget);
-    expect(find.text('Asia'), findsOneWidget);
-    final List<UiTable<MarketIndexItem>> tables = tester
-        .widgetList<UiTable<MarketIndexItem>>(
-          find.byType(UiTable<MarketIndexItem>),
-        )
-        .toList(growable: false);
-    expect(tables, hasLength(6));
-    expect(
-      tables.take(3).map((UiTable<MarketIndexItem> table) => table.minBodyHeight),
-      everyElement(tables.first.minBodyHeight),
-    );
-    expect(tables.first.minBodyHeight, tables.first.maxBodyHeight);
-    expect(tables.first.rows.length, greaterThan(tables[1].rows.length));
-    final double americasHeight = tester
-        .getSize(
-          find.byKey(
-            const ValueKey<String>('market-overview-table-Americas'),
+  testWidgets(
+    'market shows complete responsive groups without table scrolling',
+    (tester) async {
+      viewport(tester, 1400);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(child: MarketWorldIndicesCard()),
           ),
-        )
-        .height;
-    expect(
-      tester
+        ),
+      );
+      expect(find.text('Americas'), findsOneWidget);
+      expect(find.text('Europe'), findsOneWidget);
+      expect(find.text('Asia'), findsOneWidget);
+      expect(find.text('Currencies & Crypto'), findsOneWidget);
+      expect(find.text('US Treasury Yields'), findsOneWidget);
+      expect(find.byType(MarketIndexGroupCard), findsNWidgets(6));
+      expect(find.byType(UiTable<MarketIndexItem>), findsNothing);
+      expect(
+        find.byKey(
+          const ValueKey<String>('market-overview-row-Americas-^BVSP'),
+        ),
+        findsOneWidget,
+      );
+      final double americasHeight = tester
           .getSize(
             find.byKey(
-              const ValueKey<String>('market-overview-table-Europe'),
+              const ValueKey<String>('market-overview-group-Americas'),
             ),
           )
-          .height,
-      closeTo(americasHeight, 0.1),
-    );
-    expect(
-      tester
+          .height;
+      final double europeHeight = tester
           .getSize(
-            find.byKey(const ValueKey<String>('market-overview-table-Asia')),
+            find.byKey(const ValueKey<String>('market-overview-group-Europe')),
           )
-          .height,
-      closeTo(americasHeight, 0.1),
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(
-          const ValueKey<String>('market-overview-table-Americas'),
+          .height;
+      expect(americasHeight, greaterThan(europeHeight));
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey<String>('market-overview-group-Americas'),
+          ),
+          matching: find.byType(SingleChildScrollView),
         ),
-        matching: find.byType(SingleChildScrollView),
-      ),
-      findsWidgets,
+        findsNothing,
+      );
+      expect(find.byTooltip('Previous'), findsNothing);
+      expect(find.byTooltip('Next'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final double width in <double>[390, 820]) {
+    testWidgets(
+      'market overview adapts without overflow at ${width.toInt()}px',
+      (tester) async {
+        viewport(tester, width);
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(child: MarketWorldIndicesCard()),
+            ),
+          ),
+        );
+
+        expect(find.byType(MarketIndexGroupCard), findsNWidgets(6));
+        expect(tester.takeException(), isNull);
+      },
     );
-    expect(find.byTooltip('Previous'), findsNothing);
-    expect(find.byTooltip('Next'), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+  }
 }

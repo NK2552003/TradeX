@@ -1481,27 +1481,54 @@ class CommunityRepository extends ChangeNotifier {
   Future<void>? _marketLoad;
   String? marketDataError;
   MarketSnapshot? marketSnapshot;
-  Future<void> loadMarketData({AssetMarketRepository? source}) =>
-      _marketLoad ??= _loadMarketData(source ?? AssetMarketRepository.shared);
+  Future<void> loadMarketData({AssetMarketRepository? source}) {
+    final Future<void>? activeLoad = _marketLoad;
+    if (activeLoad != null) return activeLoad;
+
+    final Future<void> nextLoad = _loadMarketData(
+      source ?? AssetMarketRepository.shared,
+    );
+    _marketLoad = nextLoad;
+    return nextLoad.whenComplete(() {
+      if (identical(_marketLoad, nextLoad)) {
+        _marketLoad = null;
+      }
+    });
+  }
+
   Future<void> _loadMarketData(AssetMarketRepository source) async {
+    marketDataError = null;
     try {
       final snapshot = await source.snapshot();
       if (_disposed) return;
       marketSnapshot = snapshot;
-      _news = snapshot.articles
-          .map(
-            (a) => CommunityNewsItem(
-              id: a.link.isEmpty ? a.title : a.link,
-              headline: a.title,
-              source: a.publisher,
-              publishedAt: a.publishedAt ?? DateTime(1970),
-              summary: a.summary,
-              articleUrl: a.link,
-              thumbnail: a.thumbnailUrl,
-              relatedTickers: a.tickers,
-            ),
-          )
-          .toList();
+      final Set<String> seenArticleIds = <String>{};
+      _news =
+          snapshot.articles
+              .map(
+                (MarketArticle article) => CommunityNewsItem(
+                  id: article.link.isEmpty ? article.title : article.link,
+                  headline: article.title.trim(),
+                  source: article.publisher.trim().isEmpty
+                      ? 'Market wire'
+                      : article.publisher.trim(),
+                  publishedAt: article.publishedAt ?? DateTime(1970),
+                  summary: article.summary.trim(),
+                  articleUrl: article.link,
+                  thumbnail: article.thumbnailUrl,
+                  relatedTickers: article.tickers,
+                ),
+              )
+              .where(
+                (CommunityNewsItem item) =>
+                    item.headline.isNotEmpty && seenArticleIds.add(item.id),
+              )
+              .toList()
+            ..sort(
+              (CommunityNewsItem a, CommunityNewsItem b) =>
+                  b.publishedAt.compareTo(a.publishedAt),
+            );
+      _trending = _buildLiveMarketTrends(snapshot, _news);
       notifyListeners();
     } catch (_) {
       if (!_disposed) {
@@ -1509,6 +1536,81 @@ class CommunityRepository extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  List<CommunityTrendItem> _buildLiveMarketTrends(
+    MarketSnapshot snapshot,
+    List<CommunityNewsItem> latestNews,
+  ) {
+    final Map<String, int> mentionsByTicker = <String, int>{};
+    for (final CommunityNewsItem item in latestNews.take(25)) {
+      for (final String rawTicker in item.relatedTickers) {
+        final String ticker = rawTicker.trim().toUpperCase();
+        if (ticker.isEmpty) continue;
+        mentionsByTicker.update(
+          ticker,
+          (int count) => count + 1,
+          ifAbsent: () => 1,
+        );
+      }
+    }
+
+    final Map<String, MarketInstrument> instrumentsBySymbol =
+        <String, MarketInstrument>{
+          for (final MarketInstrument instrument in snapshot.instruments)
+            instrument.symbol.toUpperCase(): instrument,
+        };
+    final List<MapEntry<String, int>> rankedMentions =
+        mentionsByTicker.entries.toList()
+          ..sort((MapEntry<String, int> a, MapEntry<String, int> b) {
+            final int countOrder = b.value.compareTo(a.value);
+            if (countOrder != 0) return countOrder;
+            final double aMove =
+                instrumentsBySymbol[a.key]?.changePercent.abs() ?? 0;
+            final double bMove =
+                instrumentsBySymbol[b.key]?.changePercent.abs() ?? 0;
+            return bMove.compareTo(aMove);
+          });
+
+    final List<CommunityTrendItem> trends = <CommunityTrendItem>[
+      for (final MapEntry<String, int> entry in rankedMentions.take(5))
+        CommunityTrendItem(
+          id: 'market-trend-${entry.key}',
+          topic: '\$${entry.key}',
+          category:
+              'Market wire · ${entry.value} ${entry.value == 1 ? 'story' : 'stories'}',
+          postCount: instrumentsBySymbol[entry.key] == null
+              ? null
+              : AppTokens.signedPercent(
+                  instrumentsBySymbol[entry.key]!.changePercent,
+                ),
+        ),
+    ];
+    if (trends.length >= 4) return trends;
+
+    final Set<String> usedSymbols = <String>{
+      for (final CommunityTrendItem trend in trends)
+        trend.topic.replaceFirst(r'$', ''),
+    };
+    final List<MarketInstrument> biggestMoves =
+        <MarketInstrument>[...snapshot.instruments]..sort(
+          (MarketInstrument a, MarketInstrument b) =>
+              b.changePercent.abs().compareTo(a.changePercent.abs()),
+        );
+    for (final MarketInstrument instrument in biggestMoves) {
+      final String symbol = instrument.symbol.toUpperCase();
+      if (!usedSymbols.add(symbol)) continue;
+      trends.add(
+        CommunityTrendItem(
+          id: 'market-move-$symbol',
+          topic: '\$$symbol',
+          category: 'Largest market moves',
+          postCount: AppTokens.signedPercent(instrument.changePercent),
+        ),
+      );
+      if (trends.length == 5) break;
+    }
+    return trends;
   }
 
   Future<void> loadMorePosts() async {

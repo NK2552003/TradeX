@@ -72,6 +72,8 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
   @override
   Widget build(BuildContext context) {
     final gap = context.ui.spacing.sm;
+    final List<CommunityNewsItem> news = widget.repository.news;
+    final List<CommunityTrendItem> trending = widget.repository.trending;
     Widget deferred(WidgetBuilder builder, double height) => Padding(
       padding: EdgeInsets.only(bottom: context.sp(gap)),
       child: UiDeferred(builder: builder, estimatedHeight: height),
@@ -97,21 +99,23 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
           ),
         deferred((_) => const CommunityPremiumCard(), 200),
         deferred((_) => const MarketMoversPanel(), 650),
-        deferred(
-          (_) => CommunityNewsWidget(
-            items: widget.repository.news,
-            snapshot: widget.repository.marketSnapshot,
-            onShowMore: widget.onNewsShowMore,
+        if (news.isNotEmpty)
+          deferred(
+            (_) => CommunityNewsWidget(
+              items: news,
+              snapshot: widget.repository.marketSnapshot,
+              onShowMore: widget.onNewsShowMore,
+            ),
+            300,
           ),
-          300,
-        ),
-        deferred(
-          (_) => CommunityTrendingWidget(
-            items: widget.repository.trending,
-            onShowMore: widget.onExplore,
+        if (trending.isNotEmpty)
+          deferred(
+            (_) => CommunityTrendingWidget(
+              items: trending,
+              onShowMore: widget.onExplore,
+            ),
+            300,
           ),
-          300,
-        ),
         if (widget.showWhoToFollow)
           deferred(
             (_) => CommunityWhoToFollowCard(
@@ -365,13 +369,29 @@ class CommunityNewsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final List<CommunityNewsItem> visibleItems =
+        items
+            .where((CommunityNewsItem item) => item.headline.trim().isNotEmpty)
+            .toList()
+          ..sort(
+            (CommunityNewsItem a, CommunityNewsItem b) =>
+                b.publishedAt.compareTo(a.publishedAt),
+          );
+    if (visibleItems.isEmpty) return const SizedBox.shrink();
+
+    final bool isLatestBatchToday = AppTokens.isSameDay(
+      visibleItems.first.publishedAt,
+      DateTime.now(),
+    );
 
     return UiCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           CommunitySectionHeader(
-            title: "Today's Market Wire",
+            title: isLatestBatchToday
+                ? "Today's Market Wire"
+                : 'Latest Market Wire',
             trailing: onDismiss == null
                 ? null
                 : UiIconButton(
@@ -382,7 +402,7 @@ class CommunityNewsWidget extends StatelessWidget {
                   ),
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
-          for (int i = 0; i < items.length && i < 3; i++) ...<Widget>[
+          for (int i = 0; i < visibleItems.length && i < 3; i++) ...<Widget>[
             if (i > 0)
               Padding(
                 padding: EdgeInsets.symmetric(
@@ -396,20 +416,22 @@ class CommunityNewsWidget extends StatelessWidget {
               padding: EdgeInsets.zero,
               onTap: () => CommunityArticleSheet.show(
                 context,
-                article: items[i],
+                article: visibleItems[i],
                 snapshot: snapshot,
               ),
-              child: _newsRow(context, items[i]),
+              child: _newsRow(context, visibleItems[i]),
             ),
           ],
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          UiButton(
-            label: 'Show more',
-            variant: UiVariant.outline,
-            size: UiSize.sm,
-            expand: true,
-            onPressed: onShowMore,
-          ),
+          if (onShowMore != null) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            UiButton(
+              label: 'Show more',
+              variant: UiVariant.outline,
+              size: UiSize.sm,
+              expand: true,
+              onPressed: onShowMore,
+            ),
+          ],
         ],
       ),
     );
@@ -503,6 +525,11 @@ class CommunityTrendingWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final List<CommunityTrendItem> visibleItems = items
+        .where((CommunityTrendItem item) => item.topic.trim().isNotEmpty)
+        .take(4)
+        .toList(growable: false);
+    if (visibleItems.isEmpty) return const SizedBox.shrink();
 
     return UiCard(
       child: Column(
@@ -510,7 +537,7 @@ class CommunityTrendingWidget extends StatelessWidget {
         children: <Widget>[
           const CommunitySectionHeader(title: "What's happening"),
           SizedBox(height: context.sp(theme.spacing.sm)),
-          for (int i = 0; i < items.length && i < 4; i++) ...<Widget>[
+          for (int i = 0; i < visibleItems.length; i++) ...<Widget>[
             if (i > 0)
               Padding(
                 padding: EdgeInsets.symmetric(
@@ -518,16 +545,18 @@ class CommunityTrendingWidget extends StatelessWidget {
                 ),
                 child: UiDivider(),
               ),
-            _trendRow(context, items[i]),
+            _trendRow(context, visibleItems[i]),
           ],
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          UiButton(
-            label: 'Show more',
-            variant: UiVariant.outline,
-            size: UiSize.sm,
-            expand: true,
-            onPressed: onShowMore,
-          ),
+          if (onShowMore != null) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            UiButton(
+              label: 'Show more',
+              variant: UiVariant.outline,
+              size: UiSize.sm,
+              expand: true,
+              onPressed: onShowMore,
+            ),
+          ],
         ],
       ),
     );
