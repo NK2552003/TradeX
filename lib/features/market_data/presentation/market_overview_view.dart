@@ -350,7 +350,7 @@ class MarketOverviewView extends StatelessWidget {
                   stats: [
                     UiStat(
                       label: 'Quotes',
-                      value: '${snapshot.instruments.length}',
+                      value: '${snapshot.manifest['quote_count'] ?? snapshot.instruments.length}',
                     ),
                     UiStat(
                       label: 'Screeners',
@@ -358,7 +358,7 @@ class MarketOverviewView extends StatelessWidget {
                     ),
                     UiStat(
                       label: 'Stories',
-                      value: '${snapshot.articles.length}',
+                      value: '${snapshot.manifest['news_count'] ?? snapshot.articles.length}',
                     ),
                     UiStat(
                       label: 'Profiles',

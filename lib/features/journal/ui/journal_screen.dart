@@ -843,7 +843,11 @@ class JournalScreenState extends State<JournalScreen> {
     if (_resolvingRequest &&
         _accessError == null &&
         _view == _JournalView.list) {
-      return const UiSkeleton(width: double.infinity, height: 240);
+      return RecordOpeningBanner(
+        title: 'Opening journal entry...',
+        subtitle: 'Fetching trade details and chart setup',
+        onBack: widget.onReturnToOrigin ?? _backToIndex,
+      );
     }
     if (_accessError != null) {
       return RecordUnavailable(message: _accessError!, onBack: _backToIndex);

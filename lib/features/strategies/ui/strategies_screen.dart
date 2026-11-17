@@ -1531,7 +1531,11 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     if (_resolvingRequest &&
         _accessError == null &&
         _view == _StrategyView.list) {
-      return const UiSkeleton(width: double.infinity, height: 240);
+      return RecordOpeningBanner(
+        title: 'Opening strategy...',
+        subtitle: 'Fetching playbook rules and performance metrics',
+        onBack: widget.onReturnToOrigin ?? _backToIndex,
+      );
     }
     if (_accessError != null) {
       return RecordUnavailable(message: _accessError!, onBack: _backToIndex);

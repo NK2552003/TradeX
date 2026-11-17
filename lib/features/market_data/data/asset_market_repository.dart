@@ -5,6 +5,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
 
+class MarketPageResult<T> {
+  const MarketPageResult({required this.items, required this.totalCount});
+  final List<T> items;
+  final int totalCount;
+}
+
 /// Market intelligence repository.
 ///
 /// In live application runtime (when no custom test [AssetBundle] is injected and
@@ -87,6 +93,378 @@ class AssetMarketRepository {
       if (error.code == 'PGRST205' || error.code == '42P01') return null;
       rethrow;
     }
+  }
+
+  Future<int> _exactCount(String table) async {
+    try {
+      return await _database.from(table).count(CountOption.exact);
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchNewsPage({
+    int offset = 0,
+    int limit = 25,
+  }) async {
+    final client = _database;
+    final rows = await client
+        .from('news_articles')
+        .select(
+          'id, title, summary, link, publisher, thumbnail_url, content_type, published_at',
+        )
+        .order('published_at', ascending: false)
+        .range(offset, offset + limit - 1);
+    final articleIds = (rows as List)
+        .whereType<Map>()
+        .map((r) => r['id'])
+        .where((id) => id != null)
+        .toList();
+    List<dynamic> tickerLinks = const <dynamic>[];
+    if (articleIds.isNotEmpty) {
+      try {
+        tickerLinks = await client
+            .from('news_article_tickers')
+            .select('article_id, ticker')
+            .inFilter('article_id', articleIds)
+            .limit(500);
+      } catch (_) {}
+    }
+    final tickersByArticle = <String, List<String>>{};
+    for (final link in tickerLinks.whereType<Map>()) {
+      final aid = '${link['article_id'] ?? ''}';
+      final t = '${link['ticker'] ?? ''}';
+      if (aid.isNotEmpty && t.isNotEmpty) {
+        (tickersByArticle[aid] ??= <String>[]).add(t);
+      }
+    }
+    return [
+      for (final raw in (rows as List).whereType<Map>())
+        <String, dynamic>{
+          ...Map<String, dynamic>.from(raw),
+          'related_tickers':
+              tickersByArticle['${raw['id']}'] ?? const <String>[],
+        },
+    ];
+  }
+
+  Future<List<MarketArticle>> loadMoreNews({
+    required int offset,
+    int limit = 20,
+  }) async {
+    if (!usesDatabase) return const <MarketArticle>[];
+    final rows = await _fetchNewsPage(offset: offset, limit: limit);
+    return rows
+        .map(MarketArticle.fromJson)
+        .where((a) => a.title.isNotEmpty)
+        .toList();
+  }
+
+  Future<MarketPageResult<MarketInstrument>> loadInstrumentsPage({
+    int page = 0,
+    int pageSize = 30,
+    String query = '',
+    String sort = 'rank',
+  }) async {
+    final q = query.trim().toLowerCase();
+    if (!usesDatabase) {
+      final snap = await snapshot();
+      var list = snap.instruments.where((inst) {
+        if (q.isEmpty) return true;
+        return inst.symbol.toLowerCase().contains(q) ||
+            inst.name.toLowerCase().contains(q);
+      }).toList();
+      if (sort == 'symbol') {
+        list.sort((a, b) => a.symbol.compareTo(b.symbol));
+      } else if (sort == 'change') {
+        list.sort((a, b) => b.changePercent.compareTo(a.changePercent));
+      } else if (sort == 'volume') {
+        list.sort((a, b) => b.volume.compareTo(a.volume));
+      }
+      final total = list.length;
+      final items = list.skip(page * pageSize).take(pageSize).toList();
+      return MarketPageResult(items: items, totalCount: total);
+    }
+
+    final client = _database;
+    final from = page * pageSize;
+    final to = from + pageSize - 1;
+    final safeQ = q.replaceAll(RegExp(r'[,()%]'), '');
+
+    if (sort == 'change' || sort == 'volume') {
+      final orderCol = sort == 'change' ? 'change_pct' : 'volume';
+      var quoteQuery = client
+          .from('stock_quotes')
+          .select(
+            'ticker, price, previous_close, day_high, day_low, volume, change_pct, updated_at',
+          );
+      if (safeQ.isNotEmpty) {
+        quoteQuery = quoteQuery.ilike('ticker', '%$safeQ%');
+      }
+      final quoteRows = (await quoteQuery
+              .order(orderCol, ascending: false)
+              .range(from, to)) as List? ??
+          const <dynamic>[];
+      final symbols = [
+        for (final r in quoteRows.whereType<Map>())
+          if ('${r['ticker'] ?? ''}'.isNotEmpty) '${r['ticker']}',
+      ];
+      if (symbols.isEmpty) {
+        return const MarketPageResult(items: <MarketInstrument>[], totalCount: 0);
+      }
+      final metaValues = await Future.wait<dynamic>([
+        client
+            .from('tickers')
+            .select('ticker, name, market, exchange, currency')
+            .inFilter('ticker', symbols),
+        client
+            .from('stock_fundamentals')
+            .select(
+              'ticker, market_cap, pe_ratio, sector, industry, dividend_yield, beta, fifty_two_week_high, fifty_two_week_low',
+            )
+            .inFilter('ticker', symbols),
+        _loadSparksBatch(symbols),
+        safeQ.isEmpty ? _exactCount('stock_quotes') : Future.value(symbols.length),
+      ]);
+      final metaMap = <String, Map<String, dynamic>>{
+        for (final r in (metaValues[0] as List? ?? const []).whereType<Map>())
+          '${r['ticker']}': Map<String, dynamic>.from(r),
+      };
+      final fundMap = <String, Map<String, dynamic>>{
+        for (final r in (metaValues[1] as List? ?? const []).whereType<Map>())
+          '${r['ticker']}': Map<String, dynamic>.from(r),
+      };
+      final sparks = metaValues[2] as Map<String, List<double>>;
+      final total = (metaValues[3] as int?) ?? symbols.length;
+      final items = [
+        for (final raw in quoteRows.whereType<Map>())
+          () {
+            final sym = '${raw['ticker'] ?? ''}';
+            final meta = metaMap[sym] ?? const <String, dynamic>{};
+            return MarketInstrument.fromJson(
+              <String, dynamic>{
+                ...meta,
+                ...Map<String, dynamic>.from(raw),
+                'ticker': sym,
+                'name': meta['name'] ?? sym,
+                'market': meta['market'] ?? 'US',
+                'currency': meta['currency'] ?? 'USD',
+              },
+              fundMap[sym] ?? const <String, dynamic>{},
+              history: sparks[sym] ?? const <double>[],
+            );
+          }(),
+      ];
+      return MarketPageResult(
+        items: items,
+        totalCount: total > 0 ? total : from + items.length,
+      );
+    }
+
+    // Default: rank-ordered from market_universe (fallback to tickers)
+    List<Map<String, dynamic>> dirRows = const <Map<String, dynamic>>[];
+    int totalCount = 0;
+    try {
+      var uQuery = client
+          .from('market_universe')
+          .select('ticker, display_symbol, rank, name, exchange, sector, market_cap');
+      if (safeQ.isNotEmpty) {
+        uQuery = uQuery.or('ticker.ilike.%$safeQ%,name.ilike.%$safeQ%');
+      }
+      final raw = (await uQuery
+              .order(sort == 'symbol' ? 'ticker' : 'rank', ascending: true)
+              .range(from, to)) as List? ??
+          const <dynamic>[];
+      dirRows = raw.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).toList();
+      if (safeQ.isEmpty) {
+        totalCount = await _exactCount('market_universe');
+      } else {
+        totalCount = dirRows.length < pageSize
+            ? from + dirRows.length
+            : from + dirRows.length + 1;
+      }
+    } on PostgrestException catch (error) {
+      if (error.code != 'PGRST205' && error.code != '42P01') rethrow;
+    }
+
+    if (dirRows.isEmpty && safeQ.isEmpty && page == 0) {
+      var tQuery = client
+          .from('tickers')
+          .select('ticker, name, market, exchange, currency');
+      final raw = (await tQuery.order('ticker', ascending: true).range(from, to))
+              as List? ??
+          const <dynamic>[];
+      dirRows = raw.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).toList();
+      totalCount = await _exactCount('tickers');
+    } else if (dirRows.isEmpty && safeQ.isNotEmpty) {
+      var tQuery = client
+          .from('tickers')
+          .select('ticker, name, market, exchange, currency')
+          .or('ticker.ilike.%$safeQ%,name.ilike.%$safeQ%');
+      final raw = (await tQuery.order('ticker', ascending: true).range(from, to))
+              as List? ??
+          const <dynamic>[];
+      dirRows = raw.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).toList();
+      totalCount = dirRows.length < pageSize
+          ? from + dirRows.length
+          : from + dirRows.length + 1;
+    }
+
+    final symbols = [
+      for (final r in dirRows)
+        if ('${r['ticker'] ?? ''}'.isNotEmpty) '${r['ticker']}',
+    ];
+    if (symbols.isEmpty) {
+      return const MarketPageResult(items: <MarketInstrument>[], totalCount: 0);
+    }
+
+    final detailValues = await Future.wait<dynamic>([
+      client
+          .from('stock_quotes')
+          .select(
+            'ticker, price, previous_close, day_high, day_low, volume, change_pct, updated_at',
+          )
+          .inFilter('ticker', symbols),
+      client
+          .from('stock_fundamentals')
+          .select(
+            'ticker, market_cap, pe_ratio, sector, industry, dividend_yield, beta, fifty_two_week_high, fifty_two_week_low',
+          )
+          .inFilter('ticker', symbols),
+      _loadSparksBatch(symbols),
+    ]);
+    final quoteMap = <String, Map<String, dynamic>>{
+      for (final r in (detailValues[0] as List? ?? const []).whereType<Map>())
+        '${r['ticker']}': Map<String, dynamic>.from(r),
+    };
+    final fundMap = <String, Map<String, dynamic>>{
+      for (final r in (detailValues[1] as List? ?? const []).whereType<Map>())
+        '${r['ticker']}': Map<String, dynamic>.from(r),
+    };
+    final sparks = detailValues[2] as Map<String, List<double>>;
+
+    final items = <MarketInstrument>[
+      for (final row in dirRows)
+        () {
+          final sym = '${row['ticker'] ?? ''}';
+          final q = quoteMap[sym] ?? const <String, dynamic>{};
+          final f = fundMap[sym] ?? const <String, dynamic>{};
+          return MarketInstrument.fromJson(
+            <String, dynamic>{
+              'ticker': sym,
+              'name': row['name'] ?? sym,
+              'market': row['market'] ?? 'US',
+              'currency': row['currency'] ?? 'USD',
+              'exchange': row['exchange'],
+              ...q,
+              'price': q['price'] ?? double.nan,
+              'change_pct': q['change_pct'] ?? 0.0,
+            },
+            <String, dynamic>{
+              if (row['sector'] != null) 'sector': row['sector'],
+              if (row['market_cap'] != null) 'market_cap': row['market_cap'],
+              ...f,
+            },
+            history: sparks[sym] ?? const <double>[],
+          );
+        }(),
+    ];
+    return MarketPageResult(
+      items: items,
+      totalCount: totalCount > 0 ? totalCount : from + items.length,
+    );
+  }
+
+  Future<MarketPageResult<Map<String, dynamic>>> loadCoveragePage({
+    int page = 0,
+    int pageSize = 30,
+    String query = '',
+  }) async {
+    final q = query.trim().toLowerCase();
+    if (!usesDatabase) {
+      final raw = await safeRead('tickers/universe');
+      final list = (raw is List ? raw : const <dynamic>[])
+          .whereType<Map>()
+          .map((r) => Map<String, dynamic>.from(r))
+          .where((r) => q.isEmpty || '$r'.toLowerCase().contains(q))
+          .toList();
+      return MarketPageResult(
+        items: list.skip(page * pageSize).take(pageSize).toList(),
+        totalCount: list.length,
+      );
+    }
+
+    final client = _database;
+    final from = page * pageSize;
+    final to = from + pageSize - 1;
+    final safeQ = q.replaceAll(RegExp(r'[,()%]'), '');
+
+    List<Map<String, dynamic>> dirRows = const <Map<String, dynamic>>[];
+    int totalCount = 0;
+    try {
+      var uQuery = client
+          .from('market_universe')
+          .select('ticker, display_symbol, rank, name, exchange, sector');
+      if (safeQ.isNotEmpty) {
+        uQuery = uQuery.or('ticker.ilike.%$safeQ%,name.ilike.%$safeQ%');
+      }
+      final raw = (await uQuery.order('rank', ascending: true).range(from, to))
+              as List? ??
+          const <dynamic>[];
+      dirRows = raw
+          .whereType<Map>()
+          .map((r) => <String, dynamic>{
+                ...Map<String, dynamic>.from(r),
+                'market': 'US',
+              })
+          .toList();
+      totalCount = safeQ.isEmpty
+          ? await _exactCount('market_universe')
+          : (dirRows.length < pageSize
+              ? from + dirRows.length
+              : from + dirRows.length + 1);
+    } on PostgrestException catch (error) {
+      if (error.code != 'PGRST205' && error.code != '42P01') rethrow;
+    }
+
+    if (dirRows.isEmpty && safeQ.isEmpty && page == 0) {
+      final raw = (await client
+              .from('tickers')
+              .select('ticker, name, market, exchange')
+              .order('ticker', ascending: true)
+              .range(from, to)) as List? ??
+          const <dynamic>[];
+      dirRows = raw.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).toList();
+      totalCount = await _exactCount('tickers');
+    }
+
+    final symbols = [
+      for (final r in dirRows)
+        if ('${r['ticker'] ?? ''}'.isNotEmpty) '${r['ticker']}',
+    ];
+    final quoteMap = <String, Map<String, dynamic>>{};
+    if (symbols.isNotEmpty) {
+      final quotes = (await client
+              .from('stock_quotes')
+              .select('ticker, price, change_pct')
+              .inFilter('ticker', symbols)) as List? ??
+          const <dynamic>[];
+      for (final r in quotes.whereType<Map>()) {
+        quoteMap['${r['ticker']}'] = Map<String, dynamic>.from(r);
+      }
+    }
+    final enriched = [
+      for (final r in dirRows)
+        <String, dynamic>{
+          ...r,
+          'has_quote': quoteMap.containsKey('${r['ticker']}'),
+          if (quoteMap.containsKey('${r['ticker']}')) ...quoteMap['${r['ticker']}']!,
+        },
+    ];
+    return MarketPageResult(
+      items: enriched,
+      totalCount: totalCount > 0 ? totalCount : from + enriched.length,
+    );
   }
 
   Future<dynamic> _readFromDatabase(String path) async {
@@ -183,44 +561,7 @@ class AssetMarketRepository {
       };
     }
     if (path == 'all_news' || path == 'news') {
-      final rows = await client
-          .from('news_articles')
-          .select(
-            'id, title, summary, link, publisher, thumbnail_url, content_type, published_at',
-          )
-          .order('published_at', ascending: false)
-          .limit(250);
-      final articleIds = (rows as List)
-          .whereType<Map>()
-          .map((r) => r['id'])
-          .where((id) => id != null)
-          .toList();
-      List<dynamic> tickerLinks = const <dynamic>[];
-      if (articleIds.isNotEmpty) {
-        try {
-          tickerLinks = await client
-              .from('news_article_tickers')
-              .select('article_id, ticker')
-              .inFilter('article_id', articleIds)
-              .limit(1000);
-        } catch (_) {}
-      }
-      final tickersByArticle = <String, List<String>>{};
-      for (final link in tickerLinks.whereType<Map>()) {
-        final aid = '${link['article_id'] ?? ''}';
-        final t = '${link['ticker'] ?? ''}';
-        if (aid.isNotEmpty && t.isNotEmpty) {
-          (tickersByArticle[aid] ??= <String>[]).add(t);
-        }
-      }
-      return [
-        for (final raw in (rows as List).whereType<Map>())
-          <String, dynamic>{
-            ...Map<String, dynamic>.from(raw),
-            'related_tickers':
-                tickersByArticle['${raw['id']}'] ?? const <String>[],
-          },
-      ];
+      return _fetchNewsPage(offset: 0, limit: 25);
     }
     if (path == 'screeners') {
       final allowed = await _loadUniverseSet(client);
@@ -567,34 +908,125 @@ class AssetMarketRepository {
   }
 
   Future<MarketSnapshot> _loadDatabaseSnapshot() async {
+    final client = _database;
     final values = await Future.wait<dynamic>([
-      safeRead('quotes'),
-      safeRead('fundamentals'),
+      client
+          .from('stock_quotes')
+          .select(
+            'ticker, price, previous_close, day_high, day_low, volume, change_pct, updated_at',
+          )
+          .order('change_pct', ascending: false)
+          .limit(20),
+      client
+          .from('stock_quotes')
+          .select(
+            'ticker, price, previous_close, day_high, day_low, volume, change_pct, updated_at',
+          )
+          .order('change_pct', ascending: true)
+          .limit(20),
+      client
+          .from('stock_quotes')
+          .select(
+            'ticker, price, previous_close, day_high, day_low, volume, change_pct, updated_at',
+          )
+          .order('volume', ascending: false)
+          .limit(20),
       safeRead('all_news'),
       safeRead('screeners'),
+      _exactCount('market_universe'),
+      _exactCount('stock_quotes'),
+      _exactCount('stock_fundamentals'),
+      _exactCount('stock_details'),
+      _exactCount('news_articles'),
     ]);
 
-    final quotes = Map<String, dynamic>.from(
-      values[0] is Map ? values[0] as Map : <String, dynamic>{},
-    );
-    final fundamentals = Map<String, dynamic>.from(
-      values[1] is Map ? values[1] as Map : <String, dynamic>{},
-    );
-    final rawNews = values[2];
+    final quotes = <String, Map<String, dynamic>>{};
+    for (final list in [values[0], values[1], values[2]]) {
+      for (final raw in (list as List? ?? const <dynamic>[]).whereType<Map>()) {
+        final sym = '${raw['ticker'] ?? ''}';
+        if (sym.isNotEmpty) {
+          quotes[sym] = Map<String, dynamic>.from(raw);
+        }
+      }
+    }
+
+    final rawNews = values[3];
     final screenerPayloads = Map<String, dynamic>.from(
-      values[3] is Map ? values[3] as Map : <String, dynamic>{},
+      values[4] is Map ? values[4] as Map : <String, dynamic>{},
     );
+    final universeCount = values[5] as int? ?? 0;
+    final quoteCount = values[6] as int? ?? 0;
+    final fundCount = values[7] as int? ?? 0;
+    final detailCount = values[8] as int? ?? 0;
+    final newsCount = values[9] as int? ?? 0;
+
+    // Collect symbols from top movers and screeners (~40-60 symbols) so we only
+    // fetch ticker metadata and fundamentals for what Overview/Screeners show.
+    final neededSymbols = <String>{...quotes.keys};
+    for (final screen in flattenScreens(screenerPayloads).values) {
+      for (final row in screen) {
+        final sym = '${row['symbol'] ?? row['ticker'] ?? ''}';
+        if (sym.isNotEmpty) neededSymbols.add(sym);
+      }
+    }
+
+    final metaByTicker = <String, Map<String, dynamic>>{};
+    final fundamentals = <String, Map<String, dynamic>>{};
+    if (neededSymbols.isNotEmpty) {
+      final symbolList = neededSymbols.toList();
+      final metaValues = await Future.wait<dynamic>([
+        client
+            .from('tickers')
+            .select('ticker, name, market, exchange, currency')
+            .inFilter('ticker', symbolList),
+        client
+            .from('stock_fundamentals')
+            .select(
+              'ticker, market_cap, pe_ratio, sector, industry, dividend_yield, beta, fifty_two_week_high, fifty_two_week_low',
+            )
+            .inFilter('ticker', symbolList),
+      ]);
+      for (final r in (metaValues[0] as List? ?? const []).whereType<Map>()) {
+        metaByTicker['${r['ticker']}'] = Map<String, dynamic>.from(r);
+      }
+      for (final r in (metaValues[1] as List? ?? const []).whereType<Map>()) {
+        fundamentals['${r['ticker']}'] = Map<String, dynamic>.from(r);
+      }
+    }
+
+    // Scope to market_universe when available.
+    if (neededSymbols.isNotEmpty) {
+      try {
+        final uRows = (await client
+                .from('market_universe')
+                .select('ticker')
+                .inFilter('ticker', neededSymbols.toList())) as List? ??
+            const <dynamic>[];
+        if (uRows.isNotEmpty) {
+          final allowed = {
+            for (final r in uRows.whereType<Map>()) '${r['ticker']}',
+          };
+          quotes.removeWhere((k, _) => !allowed.contains(k));
+        }
+      } catch (_) {}
+    }
 
     final instruments =
         quotes.values
-            .whereType<Map>()
             .map((raw) {
-              final quote = Map<String, dynamic>.from(raw);
+              final sym = '${raw['ticker'] ?? ''}';
+              final meta = metaByTicker[sym] ?? const <String, dynamic>{};
+              final mergedQuote = <String, dynamic>{
+                ...meta,
+                ...raw,
+                'ticker': sym,
+                'name': meta['name'] ?? sym,
+                'market': meta['market'] ?? 'US',
+                'currency': meta['currency'] ?? 'USD',
+              };
               return MarketInstrument.fromJson(
-                quote,
-                Map<String, dynamic>.from(
-                  fundamentals[quote['ticker']] as Map? ?? <String, dynamic>{},
-                ),
+                mergedQuote,
+                fundamentals[sym] ?? const <String, dynamic>{},
               );
             })
             .where((q) => q.price.isFinite)
@@ -605,8 +1037,7 @@ class AssetMarketRepository {
                 : a.market.compareTo(b.market),
           );
 
-    // A per-symbol limit prevents the server row cap from starving later
-    // symbols. Other visible rows load their history on demand.
+    // Load sparklines only for visible top movers & active candidates.
     final ranked = [...instruments]
       ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
     final active = [...instruments]
@@ -664,7 +1095,14 @@ class AssetMarketRepository {
     if (screenerPayloads.isNotEmpty) {
       for (final screen in flattenScreens(screenerPayloads).entries) {
         screens[screen.key] = screen.value
-            .map((row) => screenInstrument(row, quotes, fundamentals))
+            .map((row) {
+              final sym = '${row['symbol'] ?? row['ticker'] ?? ''}';
+              final mergedRow = <String, dynamic>{
+                ...(metaByTicker[sym] ?? const <String, dynamic>{}),
+                ...row,
+              };
+              return screenInstrument(mergedRow, quotes, fundamentals);
+            })
             .whereType<MarketInstrument>()
             .toList();
       }
@@ -685,13 +1123,21 @@ class AssetMarketRepository {
         ..sort((a, b) => b.volume.compareTo(a.volume));
     }
 
+    final effectiveQuotes = quoteCount > 0 ? quoteCount : enriched.length;
+    final effectiveDetails = detailCount > 0
+        ? detailCount
+        : (fundCount > 0 ? fundCount : enriched.length);
+    final effectiveUniverse =
+        universeCount > 0 ? universeCount : effectiveQuotes;
     final manifest = <String, dynamic>{
       'generated_at': DateTime.now().toUtc().toIso8601String(),
       'data_source': 'supabase_live',
-      'quote_count': enriched.length,
-      'detail_count': fundamentals.length,
-      'history_count': fundamentals.length,
-      'source_history_count': fundamentals.length,
+      'quote_count': effectiveQuotes,
+      'universe_count': effectiveUniverse,
+      'detail_count': effectiveDetails,
+      'history_count': fundCount > 0 ? fundCount : effectiveQuotes,
+      'source_history_count': effectiveUniverse,
+      'news_count': newsCount > 0 ? newsCount : articles.length,
     };
 
     return MarketSnapshot(
@@ -1360,9 +1806,19 @@ class AssetMarketRepository {
       return list;
     }
 
-    // 2. Single file mode: filter from all_news or provided fallback articles
+    // 2. Single file mode (or live DB): filter from initial articles, or fetch a larger DB batch when sparse
     final sourceArticles = fallbackArticles ?? await _loadAllArticles();
-    final filtered = _filterArticlesByTopic(sourceArticles, topicKey);
+    var filtered = _filterArticlesByTopic(sourceArticles, topicKey);
+    if (usesDatabase && filtered.length < 5) {
+      try {
+        final moreRows = await _fetchNewsPage(offset: 0, limit: 150);
+        final moreArticles = moreRows
+            .map(MarketArticle.fromJson)
+            .where((a) => a.title.isNotEmpty)
+            .toList();
+        filtered = _filterArticlesByTopic(moreArticles, topicKey);
+      } catch (_) {}
+    }
     _topicCache[topicKey] = filtered;
     return filtered;
   }

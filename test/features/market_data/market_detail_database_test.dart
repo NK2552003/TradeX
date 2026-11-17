@@ -270,4 +270,74 @@ void main() {
     expect((detail['news'] as List).first['title'], 'Apple headline');
     expect(detail['snapshot']['sections_available'], 5);
   });
+
+  test('snapshot, instruments page, coverage page and news lazy-load bounded slices', () async {
+    final client = SupabaseClient(
+      'https://example.test',
+      'test-key',
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+      httpClient: MockClient((request) async {
+        final table = request.url.pathSegments.last;
+        if (request.method == 'HEAD') {
+          return http.Response(
+            '',
+            200,
+            headers: {
+              'content-type': 'application/json',
+              'content-range': '*/5000',
+            },
+            request: request,
+          );
+        }
+        final rows = switch (table) {
+          'market_universe' => [
+            {
+              'ticker': 'AAPL',
+              'display_symbol': 'AAPL',
+              'rank': 1,
+              'name': 'Apple Inc.',
+              'exchange': 'NASDAQ',
+              'sector': 'Technology',
+              'market_cap': 5180000000000,
+            },
+          ],
+          'tickers' => [
+            {'ticker': 'AAPL', 'name': 'Apple Inc.', 'market': 'US'},
+          ],
+          'stock_quotes' => [
+            {'ticker': 'AAPL', 'price': 250, 'previous_close': 245, 'change_pct': 2.0, 'volume': 100},
+          ],
+          'stock_fundamentals' => [
+            {'ticker': 'AAPL', 'sector': 'Technology'},
+          ],
+          'news_articles' => [
+            {'id': 1, 'title': 'Market Update', 'link': 'https://example.test/1'},
+          ],
+          _ => [],
+        };
+        return http.Response(
+          jsonEncode(rows),
+          200,
+          headers: {'content-type': 'application/json'},
+          request: request,
+        );
+      }),
+    );
+    addTearDown(client.dispose);
+    final repo = AssetMarketRepository(client: client);
+    final snap = await repo.snapshot();
+    expect(snap.manifest['quote_count'], 5000);
+    expect(snap.instruments.map((e) => e.symbol).toList(), ['AAPL']);
+
+    final instPage = await repo.loadInstrumentsPage(page: 0, pageSize: 30);
+    expect(instPage.totalCount, 5000);
+    expect(instPage.items.single.symbol, 'AAPL');
+
+    final covPage = await repo.loadCoveragePage(page: 0, pageSize: 30);
+    expect(covPage.totalCount, 5000);
+    expect(covPage.items.single['has_quote'], isTrue);
+
+    final moreNews = await repo.loadMoreNews(offset: 25, limit: 20);
+    expect(moreNews.single.title, 'Market Update');
+  });
 }

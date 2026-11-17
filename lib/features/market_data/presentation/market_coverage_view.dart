@@ -25,10 +25,31 @@ class MarketCoverageView extends StatefulWidget {
 }
 
 class _MarketCoverageViewState extends State<MarketCoverageView> {
-  late final _future = _loadDirectory();
+  late Future<dynamic> _future = _loadDirectory();
   String _status = 'all';
+  int _page = 0;
+
+  bool get _isLazyDatabase => widget.repository.usesDatabase;
+
+  @override
+  void didUpdateWidget(covariant MarketCoverageView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_isLazyDatabase &&
+        (oldWidget.searchQuery != widget.searchQuery ||
+            oldWidget.repository != widget.repository)) {
+      _page = 0;
+      _future = _loadDirectory();
+    }
+  }
 
   Future<dynamic> _loadDirectory() async {
+    if (_isLazyDatabase) {
+      return widget.repository.loadCoveragePage(
+        page: _page,
+        pageSize: 30,
+        query: widget.searchQuery,
+      );
+    }
     final data = await widget.repository.safeRead('tickers/universe');
     if (data is List && data.isNotEmpty) return data;
     // Single JSON file fallback: construct directory rows from available snapshot quotes
@@ -62,21 +83,40 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
           ),
         );
       }
-      final directory = (result.data as List).whereType<Map>().toList();
-      final quotes = {for (final q in widget.snapshot.instruments) q.symbol: q};
-      final query = widget.searchQuery.trim().toLowerCase();
-      final rows = directory.where((r) {
-        final q = quotes[r['ticker']];
-        return (_status == 'all' ||
-                (_status == 'priced' ? q != null : q == null)) &&
-            '$r ${q?.name ?? ''}'.toLowerCase().contains(query);
-      }).toList();
       final manifest = widget.snapshot.manifest;
+      final quotes = {for (final q in widget.snapshot.instruments) q.symbol: q};
+      final bool pagedDb = result.data is MarketPageResult<Map<String, dynamic>>;
+      final int totalDirectoryCount = pagedDb
+          ? (result.data as MarketPageResult<Map<String, dynamic>>).totalCount
+          : (result.data as List).length;
+      final directory = pagedDb
+          ? (result.data as MarketPageResult<Map<String, dynamic>>).items
+          : (result.data as List).whereType<Map>().toList();
+      final query = widget.searchQuery.trim().toLowerCase();
+      final rows = pagedDb
+          ? directory.where((r) {
+              final hasQuote = r['has_quote'] == true || quotes.containsKey(r['ticker']);
+              return _status == 'all' || (_status == 'priced' ? hasQuote : !hasQuote);
+            }).toList()
+          : directory.where((r) {
+              final q = quotes[r['ticker']];
+              return (_status == 'all' ||
+                      (_status == 'priced' ? q != null : q == null)) &&
+                  '$r ${q?.name ?? ''}'.toLowerCase().contains(query);
+            }).toList();
+      final totalQuotesCount = pagedDb
+          ? (manifest['quote_count'] as num? ?? quotes.length).toInt()
+          : quotes.length;
       final directoryMarkets = <String, num>{};
-      for (final row in directory) {
-        final market = '${row['market'] ?? 'Other'}';
-        directoryMarkets.update(market, (n) => n + 1, ifAbsent: () => 1);
+      if (pagedDb) {
+        directoryMarkets['US'] = totalDirectoryCount;
+      } else {
+        for (final row in directory) {
+          final market = '${row['market'] ?? 'Other'}';
+          directoryMarkets.update(market, (n) => n + 1, ifAbsent: () => 1);
+        }
       }
+      final pageCount = (totalDirectoryCount / 30).ceil();
       return MarketTwoPanel(
         secondary: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -91,11 +131,11 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                     stats: [
                       UiStat(
                         label: 'Directory symbols',
-                        value: '${directory.length}',
+                        value: '$totalDirectoryCount',
                       ),
                       UiStat(
                         label: 'Quotes available',
-                        value: '${quotes.length}',
+                        value: '$totalQuotesCount',
                       ),
                       UiStat(
                         label: 'Price histories',
@@ -109,22 +149,25 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                   ),
                   UiGap.v(context.ui.spacing.md),
                   UiProgressBar(
-                    value: directory.isEmpty
+                    value: totalDirectoryCount == 0
                         ? 0
-                        : directory
-                                  .where((r) => quotes.containsKey(r['ticker']))
-                                  .length /
-                              directory.length,
+                        : (pagedDb
+                                ? (totalQuotesCount / totalDirectoryCount)
+                                    .clamp(0.0, 1.0)
+                                : directory
+                                        .where((r) => quotes.containsKey(r['ticker']))
+                                        .length /
+                                    directory.length),
                     label: 'Directory symbols with a quote',
                     intent: UiIntent.success,
                     valueFormatter: (v) => '${v.toStringAsFixed(1)}%',
                   ),
                   UiGap.v(context.ui.spacing.md),
                   UiProgressBar(
-                    value: quotes.isEmpty
+                    value: totalQuotesCount == 0
                         ? 0
                         : ((manifest['detail_count'] as num? ?? 0) /
-                                  quotes.length)
+                                  totalQuotesCount)
                               .clamp(0.0, 1.0),
                     label: 'Quoted symbols with a full dossier',
                     intent: UiIntent.primary,
@@ -140,7 +183,7 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                   UiCallout(
                     title: 'Snapshot coverage',
                     message:
-                        'This package contains ${manifest['history_count'] ?? 0} price histories and ${manifest['detail_count'] ?? 0} full profiles for ${quotes.length} quotes. The source export referenced ${manifest['source_history_count'] ?? manifest['history_count'] ?? 0} histories; unavailable files are not plotted.',
+                        'This package contains ${manifest['history_count'] ?? 0} price histories and ${manifest['detail_count'] ?? 0} full profiles for $totalQuotesCount quotes. The source export referenced ${manifest['source_history_count'] ?? manifest['history_count'] ?? 0} histories; unavailable files are not plotted.',
                   ),
                   UiGap.v(context.ui.spacing.md),
                   Text(
@@ -160,7 +203,9 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
         ),
         primary: UiCard(
           title: 'Ticker directory',
-          subtitle: '${rows.length} matching symbols',
+          subtitle: pagedDb
+              ? '${rows.length} on this page · $totalDirectoryCount total'
+              : '${rows.length} matching symbols',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -175,7 +220,7 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
               ),
               UiGap.v(context.ui.spacing.md),
               UiTable<Map>(
-                key: ValueKey('${widget.searchQuery}/$_status'),
+                key: ValueKey('${widget.searchQuery}/$_status/$_page'),
                 rows: rows,
                 pageSize: 30,
                 stackOnMobile: true,
@@ -189,7 +234,7 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                   ),
                   UiTableColumn(
                     header: 'Market',
-                    cell: (c, r) => Text('${r['market']}'),
+                    cell: (c, r) => Text('${r['market'] ?? 'US'}'),
                   ),
                   UiTableColumn(
                     header: 'Company',
@@ -199,14 +244,14 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                   ),
                   UiTableColumn(
                     header: 'Availability',
-                    cell: (c, r) => UiBadge(
-                      label: quotes.containsKey(r['ticker'])
-                          ? 'Quote available'
-                          : 'No quote',
-                      intent: quotes.containsKey(r['ticker'])
-                          ? UiIntent.success
-                          : UiIntent.neutral,
-                    ),
+                    cell: (c, r) {
+                      final hasQuote = r['has_quote'] == true ||
+                          quotes.containsKey(r['ticker']);
+                      return UiBadge(
+                        label: hasQuote ? 'Quote available' : 'No quote',
+                        intent: hasQuote ? UiIntent.success : UiIntent.neutral,
+                      );
+                    },
                   ),
                 ],
                 onRowTap: (r) {
@@ -216,15 +261,28 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                         MarketInstrument.fromJson(
                           {
                             'ticker': r['ticker'],
-                            'market': r['market'],
-                            'price': double.nan,
-                            'change_pct': 0,
+                            'market': r['market'] ?? 'US',
+                            'price': (r['price'] as num?)?.toDouble() ?? double.nan,
+                            'change_pct': (r['change_pct'] as num?)?.toDouble() ?? 0,
                           },
                           {'name': r['name'] ?? r['ticker']},
                         ),
                   );
                 },
               ),
+              if (pagedDb && pageCount > 1) ...[
+                UiGap.v(context.ui.spacing.sm),
+                UiPagination(
+                  page: _page.clamp(0, pageCount - 1),
+                  pageCount: pageCount,
+                  onPageChanged: (next) {
+                    setState(() {
+                      _page = next;
+                      _future = _loadDirectory();
+                    });
+                  },
+                ),
+              ],
             ],
           ),
         ),

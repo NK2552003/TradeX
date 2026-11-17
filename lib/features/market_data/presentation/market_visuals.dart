@@ -257,7 +257,10 @@ class MarketFundamentalVisuals extends StatelessWidget {
     double? number(String key) => (summary[key] as num?)?.toDouble();
     final low = number('fifty_two_week_low');
     final high = number('fifty_two_week_high');
-    final price = instrument.price;
+    final double? detailPrice = ((detail['quote'] as Map?)?['price'] as num?)?.toDouble();
+    final price = instrument.price.isFinite && instrument.price != 0
+        ? instrument.price
+        : (detailPrice ?? 0);
     final validRange = low != null && high != null && high > low;
     final recs = (detail['recommendations'] as List? ?? const [])
         .whereType<Map>();

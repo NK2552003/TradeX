@@ -384,12 +384,24 @@ class _YahooMarketRibbonState extends State<YahooMarketRibbon> {
 
                 return InkWell(
                   onTap: () {
+                    if (widget.onSelectInstrument == null) return;
                     final match = widget.instruments
                         .where((inst) => inst.symbol == item.symbol)
                         .firstOrNull;
-                    if (match != null && widget.onSelectInstrument != null) {
-                      widget.onSelectInstrument!(match);
-                    }
+                    widget.onSelectInstrument!(
+                      match ??
+                          MarketInstrument.fromJson(
+                            {
+                              'ticker': item.symbol,
+                              'price': item.price,
+                              'change_pct': item.changePercent,
+                              'market': 'US',
+                              'currency': 'USD',
+                            },
+                            {'name': item.name},
+                            history: item.spark,
+                          ),
+                    );
                   },
                   borderRadius: context.radius(theme.radii.sm),
                   child: Padding(

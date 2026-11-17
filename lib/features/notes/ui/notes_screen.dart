@@ -1499,7 +1499,11 @@ class NotesScreenState extends State<NotesScreen> {
   @override
   Widget build(BuildContext context) {
     if (_resolvingRequest && _accessError == null && _view == _NotesView.list) {
-      return const UiSkeleton(width: double.infinity, height: 240);
+      return RecordOpeningBanner(
+        title: 'Opening note...',
+        subtitle: 'Fetching research note and linked records',
+        onBack: widget.onReturnToOrigin ?? _backToList,
+      );
     }
     if (_accessError != null) {
       return RecordUnavailable(

@@ -177,13 +177,6 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
     final themeCtrl = AppThemeController.maybeOf(context);
     if (themeCtrl == null) return;
     _appliedThemeDefaults = true;
-    _historyRange = switch (themeCtrl.chartRange) {
-      '1D' => MarketHistoryRange.day,
-      '1W' => MarketHistoryRange.week,
-      '1M' => MarketHistoryRange.month,
-      '1Y' || 'ALL' => MarketHistoryRange.twoMonths,
-      _ => MarketHistoryRange.twoMonths,
-    };
     _chartMode = switch (themeCtrl.preferredPriceChartType) {
       UiPriceChartType.candles => 0,
       UiPriceChartType.hollow => 1,
@@ -373,20 +366,21 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                 MarketDividendHistory(dividends: actions['dividends'] as List),
                 UiGap.v(context.ui.spacing.md),
               ],
-              if (actions.isEmpty)
+              if (actions.values.every((v) => v is! List || v.isEmpty))
                 const UiEmptyState(
                   icon: Icons.payments_outlined,
                   title: 'No dividend or split data',
                 )
               else
-                for (final item in actions.entries) ...[
-                  Text(
-                    marketFieldLabel('${item.key}'),
-                    style: context.uiText.bodyStrong,
-                  ),
-                  MarketDataRecords(rows: item.value as List? ?? []),
-                  const UiDivider(),
-                ],
+                for (final item in actions.entries)
+                  if (item.value is List && (item.value as List).isNotEmpty) ...[
+                    Text(
+                      marketFieldLabel('${item.key}'),
+                      style: context.uiText.bodyStrong,
+                    ),
+                    MarketDataRecords(rows: item.value as List),
+                    const UiDivider(),
+                  ],
             ],
           ),
         ),
@@ -409,20 +403,21 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                 ),
                 UiGap.v(context.ui.spacing.md),
               ],
-              if (holders.isEmpty)
+              if (holders.values.every((v) => v is! List || v.isEmpty))
                 const UiEmptyState(
                   icon: Icons.people_outline,
                   title: 'No ownership data',
                 )
               else
-                for (final item in holders.entries) ...[
-                  Text(
-                    marketFieldLabel('${item.key}'),
-                    style: context.uiText.bodyStrong,
-                  ),
-                  MarketDataRecords(rows: item.value as List? ?? []),
-                  const UiDivider(),
-                ],
+                for (final item in holders.entries)
+                  if (item.value is List && (item.value as List).isNotEmpty) ...[
+                    Text(
+                      marketFieldLabel('${item.key}'),
+                      style: context.uiText.bodyStrong,
+                    ),
+                    MarketDataRecords(rows: item.value as List),
+                    const UiDivider(),
+                  ],
             ],
           ),
         ),
@@ -463,8 +458,26 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
       );
       final bool hasChart = allCandles.isNotEmpty;
       final UiCandle? latest = hasChart ? allCandles.last : null;
-      final double price = inst.price != 0 ? inst.price : (latest?.close ?? 0);
-      final UiIntent plIntent = AppTokens.plIntent(inst.changePercent);
+      final quoteMap = detail['quote'] as Map? ?? const {};
+      final double? detailPrice = (quoteMap['price'] as num?)?.toDouble();
+      final double price = inst.price.isFinite && inst.price != 0
+          ? inst.price
+          : (detailPrice != null && detailPrice.isFinite && detailPrice != 0
+                ? detailPrice
+                : (latest?.close ?? 0));
+      final double changePct =
+          (inst.price.isFinite && inst.price != 0)
+              ? inst.changePercent
+              : ((quoteMap['change_pct'] as num?)?.toDouble() ??
+                    inst.changePercent);
+      final double? prevClose =
+          inst.previousClose ?? (quoteMap['previous_close'] as num?)?.toDouble();
+      final String displayName =
+          (inst.name.trim().isNotEmpty &&
+                  inst.name.trim().toUpperCase() != inst.symbol.trim().toUpperCase())
+              ? inst.name
+              : '${summary['name'] ?? quoteMap['name'] ?? inst.name}';
+      final UiIntent plIntent = AppTokens.plIntent(changePct);
       String px(double? v) => v == null || !v.isFinite
           ? 'Quote unavailable'
           : '${inst.currency} ${v.toStringAsFixed(2)}';
@@ -472,8 +485,8 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
         if (latest != null) UiStat(label: 'Open', value: px(latest.open)),
         if (latest != null) UiStat(label: 'High', value: px(latest.high)),
         if (latest != null) UiStat(label: 'Low', value: px(latest.low)),
-        if (inst.previousClose != null)
-          UiStat(label: 'Prev close', value: px(inst.previousClose)),
+        if (prevClose != null)
+          UiStat(label: 'Prev close', value: px(prevClose)),
         if (latest != null)
           UiStat(label: 'Volume', value: AppTokens.count(latest.volume)),
       ];
@@ -517,11 +530,14 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                       ],
                     ),
                     if (hasChart)
-                      Wrap(
-                        spacing: context.sp(context.ui.spacing.sm),
-                        runSpacing: context.sp(context.ui.spacing.xs),
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: context.sp(context.ui.spacing.lg),
+                          runSpacing: context.sp(context.ui.spacing.sm),
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
                           UiToggleGroup<MarketHistoryRange>(
                             key: const ValueKey<String>(
                               'market-history-range-toggle',
@@ -568,6 +584,7 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                           ),
                         ],
                       ),
+                    ),
                   ],
                 ),
                 UiGap.v(context.ui.spacing.md),
@@ -676,12 +693,12 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                   ),
                   UiGap.v(context.ui.spacing.md),
                   Text(inst.symbol, style: context.uiText.display),
-                  if (inst.name.trim().isNotEmpty &&
-                      inst.name.trim().toUpperCase() !=
+                  if (displayName.trim().isNotEmpty &&
+                      displayName.trim().toUpperCase() !=
                           inst.symbol.trim().toUpperCase()) ...[
                     UiGap.v(context.ui.spacing.xxs),
                     Text(
-                      inst.name,
+                      displayName,
                       style: context.uiText.body.copyWith(
                         color: context.ui.colors.foregroundMuted,
                       ),
@@ -696,11 +713,11 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(px(price), style: context.uiText.heading),
-                      if (inst.price.isFinite)
+                      if (price.isFinite && price != 0)
                         UiBadge(
-                          label: AppTokens.signedPercent(inst.changePercent),
+                          label: AppTokens.signedPercent(changePct),
                           intent: plIntent,
-                          icon: AppTokens.plIcon(inst.changePercent),
+                          icon: AppTokens.plIcon(changePct),
                         ),
                     ],
                   ),

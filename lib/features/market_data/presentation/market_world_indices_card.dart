@@ -329,12 +329,24 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
           for (final item in items) ...[
             InkWell(
               onTap: () {
+                if (widget.onInstrument == null) return;
                 final match = widget.instruments
                     .where((inst) => inst.symbol == item.symbol)
                     .firstOrNull;
-                if (match != null && widget.onInstrument != null) {
-                  widget.onInstrument!(match);
-                }
+                widget.onInstrument!(
+                  match ??
+                      MarketInstrument.fromJson(
+                        {
+                          'ticker': item.symbol,
+                          'price': item.price,
+                          'change_pct': item.changePercent,
+                          'market': 'US',
+                          'currency': 'USD',
+                        },
+                        {'name': item.name},
+                        history: item.spark,
+                      ),
+                );
               },
               child: Padding(
                 padding: EdgeInsets.symmetric(

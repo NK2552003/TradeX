@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import '../data/asset_market_repository.dart';
 import '../models/market_snapshot.dart';
 import 'market_movers_panel.dart';
 import 'market_layout.dart';
@@ -172,24 +173,75 @@ class _MarketQuoteResultsState extends State<MarketQuoteResults> {
   );
 }
 
-class MarketCatalogueView extends StatelessWidget {
+class MarketCatalogueView extends StatefulWidget {
   const MarketCatalogueView({
     super.key,
     required this.quotes,
     required this.onInstrument,
+    this.repository,
+    this.searchQuery = '',
+    this.totalCount,
   });
   final List<MarketInstrument> quotes;
   final ValueChanged<MarketInstrument> onInstrument;
+  final AssetMarketRepository? repository;
+  final String searchQuery;
+  final int? totalCount;
 
   @override
-  Widget build(BuildContext context) {
+  State<MarketCatalogueView> createState() => _MarketCatalogueViewState();
+}
+
+class _MarketCatalogueViewState extends State<MarketCatalogueView> {
+  int _page = 0;
+  String _sort = 'rank';
+  Future<MarketPageResult<MarketInstrument>>? _pageFuture;
+
+  bool get _isLazyDatabase => widget.repository?.usesDatabase ?? false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isLazyDatabase) {
+      _loadPage();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant MarketCatalogueView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_isLazyDatabase &&
+        (oldWidget.searchQuery != widget.searchQuery ||
+            oldWidget.repository != widget.repository)) {
+      _page = 0;
+      _loadPage();
+    }
+  }
+
+  void _loadPage() {
+    _pageFuture = widget.repository!.loadInstrumentsPage(
+      page: _page,
+      pageSize: 30,
+      query: widget.searchQuery,
+      sort: _sort,
+    );
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    List<MarketInstrument> visibleQuotes, {
+    int? totalItems,
+    bool loading = false,
+  }) {
     final markets = <String, int>{};
-    for (final q in quotes) {
+    for (final q in visibleQuotes) {
       final label = q.market.isEmpty ? 'Unspecified' : q.market;
       markets.update(label, (n) => n + 1, ifAbsent: () => 1);
     }
-    final advancing = quotes.where((q) => q.changePercent > 0).length;
-    final declining = quotes.where((q) => q.changePercent < 0).length;
+    final advancing = visibleQuotes.where((q) => q.changePercent > 0).length;
+    final declining = visibleQuotes.where((q) => q.changePercent < 0).length;
+    final displayTotal = totalItems ?? widget.totalCount ?? visibleQuotes.length;
+    final pageCount = ((totalItems ?? 0) / 30).ceil();
 
     return MarketTwoPanel(
       primary: UiCard(
@@ -218,7 +270,7 @@ class MarketCatalogueView extends StatelessWidget {
                     children: [
                       Text('Instruments', style: context.uiText.title),
                       Text(
-                        '${quotes.length} quotes · ${markets.length} market${markets.length == 1 ? '' : 's'}',
+                        '$displayTotal quotes · ${markets.length} market${markets.length == 1 ? '' : 's'}',
                         style: context.uiText.caption.copyWith(
                           color: context.ui.colors.foregroundMuted,
                         ),
@@ -227,7 +279,7 @@ class MarketCatalogueView extends StatelessWidget {
                   ),
                 ),
                 UiBadge(
-                  label: '${quotes.length}',
+                  label: '$displayTotal',
                   variant: UiBadgeVariant.soft,
                   intent: UiIntent.primary,
                 ),
@@ -249,15 +301,54 @@ class MarketCatalogueView extends StatelessWidget {
                 UiStat(label: 'Markets', value: '${markets.length}'),
               ],
             ),
+            if (_isLazyDatabase) ...[
+              UiGap.v(context.ui.spacing.sm),
+              UiSelect<String>(
+                value: _sort,
+                options: const [
+                  UiOption(label: 'Rank (Market Cap)', value: 'rank'),
+                  UiOption(label: 'Symbol A–Z', value: 'symbol'),
+                  UiOption(label: 'Top Gainers', value: 'change'),
+                  UiOption(label: 'Most Active', value: 'volume'),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _sort = value;
+                    _page = 0;
+                    _loadPage();
+                  });
+                },
+              ),
+            ],
             const UiDivider(),
-            MarketQuoteResults(quotes: quotes, onInstrument: onInstrument),
+            if (loading)
+              UiSkeleton.table(rows: 8, columns: 4)
+            else ...[
+              MarketQuoteResults(
+                quotes: visibleQuotes,
+                onInstrument: widget.onInstrument,
+              ),
+              if (_isLazyDatabase && pageCount > 1) ...[
+                UiGap.v(context.ui.spacing.sm),
+                UiPagination(
+                  page: _page.clamp(0, pageCount - 1),
+                  pageCount: pageCount,
+                  onPageChanged: (next) {
+                    setState(() {
+                      _page = next;
+                      _loadPage();
+                    });
+                  },
+                ),
+              ],
+            ],
           ],
         ),
       ),
       secondary: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          MarketChangeDistribution(instruments: quotes),
+          MarketChangeDistribution(instruments: visibleQuotes),
           UiGap.v(context.ui.spacing.md),
           // Market Composition Donut
           UiCard(
@@ -269,7 +360,7 @@ class MarketCatalogueView extends StatelessWidget {
                 if (markets.isNotEmpty)
                   UiDonutChart(
                     size: 180,
-                    centerLabel: '${quotes.length}',
+                    centerLabel: '${visibleQuotes.length}',
                     slices: [
                       for (final market in markets.entries)
                         UiDonutSlice(
@@ -298,6 +389,34 @@ class MarketCatalogueView extends StatelessWidget {
           UiGap.v(context.ui.spacing.md),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isLazyDatabase) {
+      return _buildContent(context, widget.quotes);
+    }
+    return FutureBuilder<MarketPageResult<MarketInstrument>>(
+      future: _pageFuture,
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return UiEmptyState(
+            title: 'Could not load instruments',
+            actionLabel: 'Retry',
+            onActionPressed: () => setState(_loadPage),
+          );
+        }
+        if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
+          return _buildContent(context, const [], loading: true);
+        }
+        final result = snap.data!;
+        return _buildContent(
+          context,
+          result.items,
+          totalItems: result.totalCount,
+        );
+      },
     );
   }
 }

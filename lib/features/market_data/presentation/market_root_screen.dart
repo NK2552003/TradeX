@@ -51,6 +51,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
   late Future<MarketSnapshot> _future = _repo.snapshot();
   int _tab = 0, _newsLimit = 20;
   bool _loadingMore = false;
+  bool _newsExhausted = false;
   int _newsTotal = 0;
   String _topic = 'all';
   MarketArticle? _article;
@@ -105,6 +106,41 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
     }
   }
 
+  Future<void> _loadMoreNews(MarketSnapshot snapshot) async {
+    if (_loadingMore) return;
+    _loadingMore = true;
+    try {
+      if (_repo.usesDatabase &&
+          !_newsExhausted &&
+          _newsLimit >= snapshot.articles.length) {
+        final more = await _repo.loadMoreNews(
+          offset: snapshot.articles.length,
+          limit: 20,
+        );
+        if (more.isEmpty) {
+          _newsExhausted = true;
+        } else {
+          final seen = snapshot.articles
+              .map((a) => a.link.isEmpty ? a.title : a.link)
+              .toSet();
+          for (final a in more) {
+            final key = a.link.isEmpty ? a.title : a.link;
+            if (seen.add(key)) {
+              snapshot.articles.add(a);
+            }
+          }
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _newsLimit += 20;
+        });
+      }
+    } finally {
+      _loadingMore = false;
+    }
+  }
+
   bool _loadOnScroll(ScrollNotification notification) {
     if (notification.metrics.axis != Axis.vertical ||
         notification.metrics.extentAfter > 500 ||
@@ -112,17 +148,16 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
         _article != null ||
         _instrument != null ||
         _tab != 1 ||
-        _newsLimit >= _newsTotal) {
+        (_newsLimit >= _newsTotal && (!_repo.usesDatabase || _newsExhausted))) {
       return false;
     }
     _loadingMore = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadingMore = false;
-      if (mounted) {
-        setState(() {
-          if (_tab == 1) _newsLimit += 20;
-        });
-      }
+      if (!mounted) return;
+      _future.then((snap) {
+        if (mounted) _loadMoreNews(snap);
+      });
     });
     return false;
   }
@@ -302,7 +337,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
           selectedTopic: _topic,
           limit: _newsLimit,
           pageSize: 10,
-          onMore: () => setState(() => _newsLimit += 20),
+          onMore: () => _loadMoreNews(snapshot),
         ),
         2 => MarketMoversView(
           snapshot: filtered,
@@ -311,6 +346,9 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
         3 => MarketCatalogueView(
           quotes: instruments,
           onInstrument: _openInstrument,
+          repository: _repo,
+          searchQuery: widget.searchQuery,
+          totalCount: (snapshot.manifest['quote_count'] as num?)?.toInt(),
         ),
         5 => MarketCoverageView(
           snapshot: snapshot,

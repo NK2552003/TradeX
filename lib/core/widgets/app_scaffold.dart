@@ -1216,13 +1216,27 @@ class _AppScaffoldState extends State<AppScaffold> {
       widget.onRoleChanged?.call(UserRole.customer);
     }
     _linkedOrigins.add((destination: _selectedId, request: _linkRequest));
+    final bool isRecordSurface = const <String>{
+      'journal',
+      'strategies',
+      'notes',
+    }.contains(destination);
     setState(() {
       if (_selectedId != destination) _rememberDestination(destination);
       _selectedId = destination;
       _showAffiliateApplication = false;
-      _activeSubpageTitle = null;
-      _activeSubpageIcon = null;
-      _activeSubpageOnBack = null;
+      _activeSubpageTitle = isRecordSurface
+          ? (ref.title.trim().isNotEmpty
+                ? ref.title.trim()
+                : switch (resolvedKind) {
+                    AppLinkKind.journal => 'Opening trade entry...',
+                    AppLinkKind.strategy => 'Opening strategy...',
+                    AppLinkKind.note => 'Opening note...',
+                    _ => null,
+                  })
+          : null;
+      _activeSubpageIcon = isRecordSurface ? resolvedKind.icon : null;
+      _activeSubpageOnBack = isRecordSurface ? _returnFromLinkedRecord : null;
       _linkRequest = AppLinkOpenRequest(
         kind: resolvedKind,
         id: ref.id,
