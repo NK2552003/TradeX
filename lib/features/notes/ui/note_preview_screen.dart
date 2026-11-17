@@ -40,6 +40,7 @@ class NotePreviewScreen extends StatefulWidget {
     this.onEditWriting,
     this.onOpenLink,
     this.onAttachToPost,
+    this.linkGraph,
     this.canEdit = true,
     this.isPublicContext = false,
   });
@@ -60,6 +61,7 @@ class NotePreviewScreen extends StatefulWidget {
   /// Future social composer seam. Null keeps the current Writing Desk UI free
   /// of social-post controls until that feature exists.
   final AppWritingPostAttachmentHandler? onAttachToPost;
+  final AppLinkGraph? linkGraph;
   final bool canEdit;
   final bool isPublicContext;
 
@@ -73,16 +75,19 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   final AppLinkGraphService _links = AppLinkGraphScope.service;
 
   late AppNote _activeNote = widget.note;
-  late AppLinkGraph _graph = _links.current;
+  late AppLinkGraph _graph;
   StreamSubscription<AppLinkGraph>? _graphSub;
   StreamSubscription<List<AppNote>>? _notesSub;
 
   @override
   void initState() {
     super.initState();
-    _graphSub = _links.watch().listen((AppLinkGraph graph) {
-      if (mounted) setState(() => _graph = graph);
-    });
+    _graph = widget.linkGraph ?? _links.current;
+    if (widget.linkGraph == null) {
+      _graphSub = _links.watch().listen((AppLinkGraph graph) {
+        if (mounted) setState(() => _graph = graph);
+      });
+    }
     _notesSub = _repo.watchAll().listen((List<AppNote> notes) {
       final AppNote? match = notes
           .where((AppNote n) => n.id == _activeNote.id)
@@ -117,6 +122,9 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
     if (oldWidget.note.id != widget.note.id) {
       _activeNote = widget.note;
     }
+    if (widget.linkGraph != null && oldWidget.linkGraph != widget.linkGraph) {
+      _graph = widget.linkGraph!;
+    }
   }
 
   @override
@@ -137,6 +145,9 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
       widget.canEdit &&
       !widget.isPublicContext &&
       RecordAccess.owns(_note.userId);
+
+  bool get _canOpenWorkspaceEditor =>
+      widget.onEditWriting != null && RecordAccess.owns(_note.userId);
 
   bool get _isPublicViewer => widget.isPublicContext || !_canEdit;
 
@@ -457,6 +468,15 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           size: UiSize.sm,
           variant: UiVariant.primary,
           onPressed: widget.onEdit,
+        ),
+      ] else if (_canOpenWorkspaceEditor) ...<Widget>[
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        UiIconButton(
+          icon: Icons.edit_note_rounded,
+          tooltip: 'Edit in Writing Desk',
+          size: UiSize.sm,
+          variant: UiVariant.primary,
+          onPressed: widget.onEditWriting,
         ),
       ],
     ];

@@ -338,6 +338,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
             }
           },
           selectedTopic: _topic,
+          searchQuery: query,
           limit: _newsLimit,
           pageSize: 10,
           onMore: () => _loadMoreNews(snapshot, forceFetch: true),
@@ -356,7 +357,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
         5 => MarketCoverageView(
           snapshot: snapshot,
           repository: _repo,
-        onInstrument: _openInstrument,
+          onInstrument: _openInstrument,
           searchQuery: widget.searchQuery,
         ),
         _ => MarketScreenersView(
@@ -422,12 +423,14 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
                                   ),
                                   UiGap.h(context.ui.spacing.xs),
                                   UiBadge(
-                                    label: snapshot.manifest['data_source'] ==
+                                    label:
+                                        snapshot.manifest['data_source'] ==
                                             'supabase_live'
                                         ? 'LIVE DATABASE'
                                         : 'SNAPSHOT',
                                     variant: UiBadgeVariant.soft,
-                                    intent: snapshot.manifest['data_source'] ==
+                                    intent:
+                                        snapshot.manifest['data_source'] ==
                                             'supabase_live'
                                         ? UiIntent.success
                                         : UiIntent.primary,

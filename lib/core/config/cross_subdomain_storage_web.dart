@@ -8,7 +8,6 @@ import 'package:web/web.dart' as web;
 external _JsNavTransition? get _jsNavTransition;
 
 extension type _JsNavTransition._(JSObject _) implements JSObject {
-  external void startOutgoing(String url);
   external void syncTheme(String mode, String density, bool isLight);
 }
 
@@ -294,56 +293,20 @@ void syncWebTheme({
   } catch (_) {}
 }
 
-void _showOutgoingNavigationVeil(String url) {
-  try {
-    final transition = _jsNavTransition;
-    if (transition != null) {
-      transition.startOutgoing(url);
-      return;
-    }
-  } catch (_) {}
-
-  // Minimal fallback if nav_transition.js has not been loaded yet.
-  try {
-    final doc = web.document;
-    final body = doc.body;
-    if (body == null) return;
-    doc.getElementById('aj-nav-veil')?.remove();
-    final cookies = SubdomainCookieCodec.parseCookieString(doc.cookie);
-    final rawMode =
-        (cookies['ax_theme_mode'] ?? getLocalPreferenceFallback('ax_theme_mode') ?? '')
-            .trim()
-            .toLowerCase();
-    final isLight = switch (rawMode) {
-      'light' => true,
-      'dark' => false,
-      'system' => web.window.matchMedia('(prefers-color-scheme: light)').matches,
-      _ => doc.documentElement?.classList.contains('aj-light') ?? false,
-    };
-    final veil = doc.createElement('div') as web.HTMLElement;
-    veil.id = 'aj-nav-veil';
-    veil.style.cssText =
-        'position:fixed;inset:0;z-index:2147483647;'
-        'background:${isLight ? '#FAFAF9' : '#0D0C0B'};'
-        'pointer-events:auto;';
-    body.appendChild(veil);
-  } catch (_) {}
-}
-
 void navigateBrowserUrl(String url) {
   final silentValue = SubdomainCookieCodec.silentNavValueForUrl(url);
   final cookies = SubdomainCookieCodec.parseCookieString(web.document.cookie);
   final bool hasActiveSession =
       (cookies['ax_sb_auth.n']?.isNotEmpty ?? false) &&
       cookies['ax_sb_auth_off'] != '1';
-  final bool useSilentUiLoader = hasActiveSession && silentValue != '0';
+  final bool useSilentNavigation = hasActiveSession && silentValue != '0';
   if (SubdomainCookieCodec.isProductionDomain(web.window.location.hostname)) {
     final secure = web.window.location.protocol == 'https:';
     web.document.cookie = SubdomainCookieCodec.formatDeleteCookie(
       'ax_silent_nav',
       secure: secure,
     );
-    if (useSilentUiLoader) {
+    if (useSilentNavigation) {
       web.document.cookie = SubdomainCookieCodec.formatSetCookie(
         'ax_silent_nav',
         silentValue,
@@ -358,9 +321,6 @@ void navigateBrowserUrl(String url) {
         secure: secure,
       );
     }
-  }
-  if (useSilentUiLoader) {
-    _showOutgoingNavigationVeil(url);
   }
   web.window.location.assign(url);
 }

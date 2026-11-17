@@ -42,6 +42,7 @@ class JournalEntryScreen extends StatefulWidget {
     this.onOpenLink,
     this.onEditWriting,
     this.onAttachToPost,
+    this.linkGraph,
     this.canEdit = true,
     this.isPublicContext = false,
   });
@@ -57,6 +58,7 @@ class JournalEntryScreen extends StatefulWidget {
   /// which is how a preview embedded somewhere without a navigator behaves.
   final void Function(AppLinkRef ref)? onOpenLink;
   final AppWritingPostAttachmentHandler? onAttachToPost;
+  final AppLinkGraph? linkGraph;
   final bool canEdit;
   final bool isPublicContext;
 
@@ -70,7 +72,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
   final JournalRepository _repo = JournalRepositoryScope.repository;
 
   StreamSubscription<AppLinkGraph>? _graphSub;
-  late AppLinkGraph _graph = _links.current;
+  late AppLinkGraph _graph;
   bool _busy = false;
 
   Future<void> _guard(Future<void> Function() action) async {
@@ -94,11 +96,14 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
   @override
   void initState() {
     super.initState();
+    _graph = widget.linkGraph ?? _links.current;
     // Subscribed rather than read once: linking a note from this screen mutates
     // the graph, and so does an edit made in another pane of the workbench.
-    _graphSub = _links.watch().listen((AppLinkGraph graph) {
-      if (mounted) setState(() => _graph = graph);
-    });
+    if (widget.linkGraph == null) {
+      _graphSub = _links.watch().listen((AppLinkGraph graph) {
+        if (mounted) setState(() => _graph = graph);
+      });
+    }
     _loadComments();
   }
 
@@ -129,6 +134,9 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     if (oldWidget.entry.id != widget.entry.id ||
         oldWidget.entry.isPublic != widget.entry.isPublic) {
       _activeEntry = widget.entry;
+    }
+    if (widget.linkGraph != null && oldWidget.linkGraph != widget.linkGraph) {
+      _graph = widget.linkGraph!;
     }
   }
 
@@ -166,6 +174,9 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       widget.canEdit &&
       !widget.isPublicContext &&
       RecordAccess.owns(_entry.userId);
+
+  bool get _canOpenWorkspaceEditor =>
+      widget.onEditWriting != null && RecordAccess.owns(_entry.userId);
 
   bool get _isPublicViewer => widget.isPublicContext || !_canEdit;
 
@@ -662,6 +673,15 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
           size: UiSize.sm,
           variant: UiVariant.primary,
           onPressed: widget.onEdit,
+        ),
+      ] else if (_canOpenWorkspaceEditor) ...<Widget>[
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        UiIconButton(
+          icon: Icons.edit_note_rounded,
+          tooltip: 'Edit in Writing Desk',
+          size: UiSize.sm,
+          variant: UiVariant.primary,
+          onPressed: widget.onEditWriting,
         ),
       ],
     ];

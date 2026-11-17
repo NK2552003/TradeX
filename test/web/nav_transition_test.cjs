@@ -703,3 +703,13 @@ test('clicking Community renders full Trader sidebar with expanded Community sub
     ['Feed'],
   );
 });
+
+test('production subdomain navigation does not mount outgoing or incoming loaders', () => {
+  const html = fs.readFileSync(path.resolve(__dirname, '../../web/index.html'), 'utf8');
+  const navigation = fs.readFileSync(path.resolve(__dirname, '../../lib/core/config/cross_subdomain_storage_web.dart'), 'utf8');
+  assert.doesNotMatch(html, /\.mountIncoming\(/);
+  assert.match(html, /html\.aj-silent-nav #splash-loader\s*\{\s*display:\s*none/);
+  assert.doesNotMatch(navigation, /startOutgoing\(|_showOutgoingNavigationVeil/);
+  assert.match(navigation, /web\.window\.location\.assign\(url\)/);
+  assert.match(navigation, /ax_silent_nav/);
+});

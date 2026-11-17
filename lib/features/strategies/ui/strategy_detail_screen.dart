@@ -49,6 +49,7 @@ class StrategyDetailScreen extends StatefulWidget {
     this.onOpenLink,
     this.onEditWriting,
     this.onAttachToPost,
+    this.linkGraph,
     this.canEdit = true,
     this.isPublicContext = false,
     this.initialTab = StrategyDetailTab.playbook,
@@ -65,6 +66,7 @@ class StrategyDetailScreen extends StatefulWidget {
   /// which is how a preview embedded somewhere without a navigator behaves.
   final void Function(AppLinkRef ref)? onOpenLink;
   final AppWritingPostAttachmentHandler? onAttachToPost;
+  final AppLinkGraph? linkGraph;
   final bool canEdit;
   final bool isPublicContext;
 
@@ -85,7 +87,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   final StrategiesRepository _repo = StrategiesRepositoryScope.repository;
 
   StreamSubscription<AppLinkGraph>? _graphSub;
-  late AppLinkGraph _graph = _links.current;
+  late AppLinkGraph _graph;
 
   List<AppStrategyVersion> _versions = const <AppStrategyVersion>[];
   bool _loadingVersions = true;
@@ -148,6 +150,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _graph = widget.linkGraph ?? _links.current;
     _tab = switch (widget.initialTab) {
       StrategyDetailTab.playbook => _StrategyTab.playbook,
       StrategyDetailTab.history => _StrategyTab.history,
@@ -155,9 +158,11 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
     };
     // Subscribed rather than read once: filing a trade under this playbook from
     // anywhere in the app changes both its links and its win rate.
-    _graphSub = _links.watch().listen((AppLinkGraph graph) {
-      if (mounted) setState(() => _graph = graph);
-    });
+    if (widget.linkGraph == null) {
+      _graphSub = _links.watch().listen((AppLinkGraph graph) {
+        if (mounted) setState(() => _graph = graph);
+      });
+    }
     _loadVersions();
     _loadStrategyComments();
   }
@@ -170,6 +175,9 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
     if (oldWidget.strategy.id != widget.strategy.id ||
         oldWidget.strategy.versionCount != widget.strategy.versionCount) {
       _loadVersions();
+    }
+    if (widget.linkGraph != null && oldWidget.linkGraph != widget.linkGraph) {
+      _graph = widget.linkGraph!;
     }
   }
 
@@ -186,6 +194,9 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
       widget.canEdit &&
       !widget.isPublicContext &&
       RecordAccess.owns(_strategy.userId);
+
+  bool get _canOpenWorkspaceEditor =>
+      widget.onEditWriting != null && RecordAccess.owns(_strategy.userId);
 
   bool get _isPublicViewer => widget.isPublicContext || !_canEdit;
 
@@ -742,6 +753,15 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           size: UiSize.sm,
           variant: UiVariant.primary,
           onPressed: _busy ? null : widget.onEdit,
+        ),
+      ] else if (_canOpenWorkspaceEditor) ...<Widget>[
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        UiIconButton(
+          icon: Icons.edit_note_rounded,
+          tooltip: 'Edit in Writing Desk',
+          size: UiSize.sm,
+          variant: UiVariant.primary,
+          onPressed: _busy ? null : widget.onEditWriting,
         ),
       ],
     ];

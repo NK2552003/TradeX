@@ -178,9 +178,10 @@ class _UiTableState<T> extends State<UiTable<T>> {
   @override
   void didUpdateWidget(UiTable<T> old) {
     super.didUpdateWidget(old);
-    if (old.rows.length != widget.rows.length ||
-        old.pageSize != widget.pageSize) {
+    if (old.pageSize != widget.pageSize) {
       _page = 0;
+    } else {
+      _page = _page.clamp(0, _pageCount - 1);
     }
     _expanded.removeWhere((row) => !widget.rows.contains(row));
   }

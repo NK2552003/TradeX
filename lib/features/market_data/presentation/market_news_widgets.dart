@@ -496,6 +496,7 @@ class MarketNewsView extends StatefulWidget {
     this.onInstrument,
     this.onTopicSelected,
     this.selectedTopic = 'all',
+    this.searchQuery = '',
     this.isLiked,
     this.onLike,
   });
@@ -507,6 +508,7 @@ class MarketNewsView extends StatefulWidget {
   final ValueChanged<MarketInstrument>? onInstrument;
   final ValueChanged<String>? onTopicSelected;
   final String selectedTopic;
+  final String searchQuery;
   final bool Function(MarketArticle)? isLiked;
   final ValueChanged<MarketArticle>? onLike;
 
@@ -526,8 +528,12 @@ class _MarketNewsViewState extends State<MarketNewsView> {
 
   Future<void> _fetchLiveNews() async {
     try {
-      final query = widget.selectedTopic == 'all' ? 'stock' : widget.selectedTopic;
-      final live = await YahooFinanceService.instance.fetchLiveNews(query: query);
+      final query = widget.selectedTopic == 'all'
+          ? 'stock'
+          : widget.selectedTopic;
+      final live = await YahooFinanceService.instance.fetchLiveNews(
+        query: query,
+      );
       if (live.isNotEmpty && mounted) {
         setState(() {
           _liveArticles = live;
@@ -539,23 +545,32 @@ class _MarketNewsViewState extends State<MarketNewsView> {
   @override
   void didUpdateWidget(covariant MarketNewsView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedTopic != widget.selectedTopic ||
-        oldWidget.snapshot.articles.length != widget.snapshot.articles.length ||
-        oldWidget.snapshot.articles.firstOrNull?.title !=
-            widget.snapshot.articles.firstOrNull?.title) {
+    if (oldWidget.selectedTopic != widget.selectedTopic) {
       _page = 0;
+      _liveArticles = [];
       _fetchLiveNews();
+    } else if (oldWidget.searchQuery != widget.searchQuery ||
+        oldWidget.pageSize != widget.pageSize) {
+      _page = 0;
     }
+    // Appending or refreshing articles must not undo a page selection.
   }
 
   @override
   Widget build(BuildContext context) {
     // Combine live fetched Yahoo Finance articles with snapshot baseline without duplication
     final seen = <String>{};
-    final articles = [
-      ..._liveArticles,
-      ...widget.snapshot.articles,
-    ].where((a) => seen.add(a.title.toLowerCase().trim())).toList();
+    final query = widget.searchQuery.trim().toLowerCase();
+    final articles = [..._liveArticles, ...widget.snapshot.articles]
+        .where(
+          (a) =>
+              (query.isEmpty ||
+                  '${a.title} ${a.summary} ${a.tickers.join(' ')}'
+                      .toLowerCase()
+                      .contains(query)) &&
+              seen.add(a.title.toLowerCase().trim()),
+        )
+        .toList();
 
     final publishers = <String, num>{};
     for (final article in articles) {
@@ -567,7 +582,8 @@ class _MarketNewsViewState extends State<MarketNewsView> {
 
     final pageSize = widget.pageSize;
     final count = (articles.length / pageSize).ceil();
-    final page = count == 0 ? 0 : _page.clamp(0, count - 1);
+    _page = count == 0 ? 0 : _page.clamp(0, count - 1);
+    final page = _page;
     final startIndex = page * pageSize;
     final endIndex = (startIndex + pageSize).clamp(0, articles.length);
     final pageArticles =

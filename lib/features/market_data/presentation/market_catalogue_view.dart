@@ -31,10 +31,13 @@ class _MarketQuoteResultsState extends State<MarketQuoteResults> {
   @override
   void didUpdateWidget(covariant MarketQuoteResults oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.quotes.length != widget.quotes.length ||
+    if (oldWidget.mobilePageSize != widget.mobilePageSize ||
         oldWidget.quotes.firstOrNull?.symbol !=
             widget.quotes.firstOrNull?.symbol) {
       _page = 0;
+    } else {
+      final count = (widget.quotes.length / widget.mobilePageSize).ceil();
+      _page = count == 0 ? 0 : _page.clamp(0, count - 1);
     }
   }
 
@@ -249,7 +252,8 @@ class _MarketCatalogueViewState extends State<MarketCatalogueView> {
     }
     final advancing = visibleQuotes.where((q) => q.changePercent > 0).length;
     final declining = visibleQuotes.where((q) => q.changePercent < 0).length;
-    final displayTotal = totalItems ?? widget.totalCount ?? visibleQuotes.length;
+    final displayTotal =
+        totalItems ?? widget.totalCount ?? visibleQuotes.length;
     final pageCount = ((totalItems ?? 0) / 30).ceil();
 
     return MarketTwoPanel(

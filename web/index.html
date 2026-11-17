@@ -173,6 +173,7 @@
     }
     .aj-silent-shell { display: none; }
     html.aj-silent-nav #splash-loader {
+      display: none;
       background: var(--aj-bg, var(--bg));
       transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     }
@@ -287,9 +288,6 @@
   </style>
   <script>
     (function() {
-      if (window.__ajSilentNav && window.alphajournalTransition) {
-        window.alphajournalTransition.mountIncoming();
-      }
       const TEXT = "ALPHAJOURNAL";
       const word = document.getElementById("word");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");

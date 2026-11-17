@@ -3,6 +3,7 @@ import 'package:tradex/features/market_data/presentation/market_root_screen.dart
     deferred as deferred_market_root;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:tradex/features/community/presentation/widgets/public_record_detail_modal.dart';
 import 'package:tradex/core/ads/ad_config.dart';
 import 'package:tradex/core/ads/ad_scope.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -1164,12 +1165,29 @@ class _AppScaffoldState extends State<AppScaffold> {
   void _openLinkRef(AppLinkRef ref, {bool writing = false}) {
     final AppLinkKind resolvedKind = _resolveRefKind(ref);
     final bool isPublic =
-        ref.isPublicContext ||
-        _selectedId == 'community' ||
-        _selectedId == 'community_feed';
+        !writing &&
+        (ref.isPublicContext ||
+            _selectedId == 'community' ||
+            _selectedId.startsWith('community_'));
 
-    // When user clicks a public record from Community Explore, route directly
-    // to the full detail view (Journal, Strategy, Notes main feature).
+    // Public reading stays inside the current surface and never redirects to
+    // the author's private Workspace destination.
+    if (!writing &&
+        isPublic &&
+        (resolvedKind == AppLinkKind.note ||
+            resolvedKind == AppLinkKind.journal ||
+            resolvedKind == AppLinkKind.strategy)) {
+      PublicRecordDetailModal.show(
+        context,
+        ref: ref.copyWith(kind: resolvedKind, isPublicContext: true),
+        onOpenEditor: () => _openLinkRef(
+          ref.copyWith(kind: resolvedKind, isPublicContext: false),
+          writing: true,
+        ),
+        onOpenRef: _openLinkRef,
+      );
+      return;
+    }
 
     final String destination = writing
         ? (resolvedKind == AppLinkKind.journal
@@ -1504,6 +1522,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       currentTrader: _chromeIdentity,
       onSubpageChanged: _onSubpageChanged,
       onOpenRef: _openLinkRef,
+      onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
       onNavigateToMessages: () => _go('messages'),
       onOpenThread: _openMessagesThread,
       onStartDirectMessage: _startDirectMessage,

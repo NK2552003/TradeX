@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
+import 'package:tradex/features/community/presentation/widgets/public_record_detail_modal.dart';
 import 'package:tradex/core/ads/ad_config.dart';
 import 'package:tradex/core/ads/ad_slot.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -56,6 +57,7 @@ class CommunityRootScreen extends StatefulWidget {
     this.onOpenThread,
     this.onStartDirectMessage,
     this.onOpenRef,
+    this.onOpenWriting,
     this.initialTabIndex = 0,
     this.onTabChanged,
     this.embedInScaffold = true,
@@ -72,9 +74,11 @@ class CommunityRootScreen extends StatefulWidget {
   final void Function(String)? onOpenThread;
   final void Function(AppTrader)? onStartDirectMessage;
 
-  /// Opens a linked Writing-Desk record (note / journal / strategy) in its own
-  /// destination when a post attachment is tapped. Supplied by the app shell.
+  /// Handles links outside Community. Shared records open locally in a reader.
   final void Function(AppLinkRef ref)? onOpenRef;
+
+  /// Opens an owned shared record in its real Workspace editor.
+  final ValueChanged<AppLinkRef>? onOpenWriting;
 
   /// Which tab to show on first render. Driven by the global sidebar sub-item
   /// selection (0 = Feed, 1 = Explore, 2 = Network, 3 = My Profile, 4 = Bookmarks).
@@ -548,7 +552,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         : _startDirectMessage,
     onBack: _closeSubpage,
     showHeader: !widget.embedInScaffold,
-    onOpenRef: widget.onOpenRef == null ? null : _openLinkedFeature,
+    onOpenRef: _openLinkedFeature,
     onTagTap: _handleTagTap,
     onPostTap: _openPostDetail,
   );
@@ -562,6 +566,22 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   }
 
   void _openLinkedFeature(AppLinkRef ref) {
+    if (ref.kind == AppLinkKind.note ||
+        ref.kind == AppLinkKind.journal ||
+        ref.kind == AppLinkKind.strategy) {
+      unawaited(
+        PublicRecordDetailModal.show(
+          context,
+          ref: ref.copyWith(isPublicContext: true),
+          onOpenRef: _openLinkedFeature,
+          onOpenEditor: widget.onOpenWriting == null
+              ? null
+              : () =>
+                    widget.onOpenWriting!(ref.copyWith(isPublicContext: false)),
+        ),
+      );
+      return;
+    }
     _dismissPostPanel();
     widget.onOpenRef?.call(ref);
   }
@@ -594,7 +614,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         showHeader: !widget.embedInScaffold,
         onBack: _closeSubpage,
         onPostTap: _openPostDetail,
-        onOpenRef: widget.onOpenRef == null ? null : _openLinkedFeature,
+        onOpenRef: _openLinkedFeature,
         onDirectMessage: widget.onStartDirectMessage == null
             ? null
             : _startDirectMessage,
@@ -633,7 +653,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         onPostTap: _openPostDetail,
         onAuthorTap: _openAuthorProfile,
         onBack: _closeSubpage,
-        onOpenRef: widget.onOpenRef,
+        onOpenRef: _openLinkedFeature,
         onTagTap: _handleTagTap,
       ),
     );
@@ -649,7 +669,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         onAuthorTap: _openAuthorProfile,
         onHashtagTap: _handleTagTap,
         onBack: _closeSubpage,
-        onOpenRef: widget.onOpenRef,
+        onOpenRef: _openLinkedFeature,
       ),
     );
   }
@@ -681,7 +701,9 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // Mobile compose
   // -------------------------------------------------------------------------
 
-  Future<void> _showComposer({ComposerMode initialMode = ComposerMode.post}) async {
+  Future<void> _showComposer({
+    ComposerMode initialMode = ComposerMode.post,
+  }) async {
     final allowed = await CustomerLimitations.checkCanCreateCommunityPost(
       context,
       todayPostCount: _repo.todayPostCountForAuthor(_currentAuthor.id),
@@ -806,7 +828,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       onPostTap: _openPostDetail,
       onAuthorTap: _openAuthorProfile,
       onCompose: _showComposer,
-      onOpenRef: widget.onOpenRef,
+      onOpenRef: _openLinkedFeature,
       onTagTap: _handleTagTap,
       searchQuery: widget.searchQuery,
     ),
@@ -815,7 +837,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       repository: _repo,
       onPostTap: _openPostDetail,
       onAuthorTap: _openAuthorProfile,
-      onOpenRef: widget.onOpenRef,
+      onOpenRef: _openLinkedFeature,
       onTagTap: _handleTagTap,
       onSearchTap: _openSearchPage,
       searchQuery: widget.searchQuery,
@@ -833,7 +855,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       isCurrentUser: true,
       onBack: null,
       onPostTap: _openPostDetail,
-      onOpenRef: widget.onOpenRef,
+      onOpenRef: _openLinkedFeature,
     ),
     // 4 — Bookmarks (tablet/desktop only; not in mobile bottom nav)
     CommunityBookmarksView(
@@ -841,7 +863,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       currentUser: _currentAuthor,
       onPostTap: _openPostDetail,
       onAuthorTap: _openAuthorProfile,
-      onOpenRef: widget.onOpenRef,
+      onOpenRef: _openLinkedFeature,
       onTagTap: _handleTagTap,
     ),
   ];
@@ -1089,9 +1111,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                                 .where(
                                   (p) =>
                                       p.isPublic &&
-                                      p.moderationStatus
-                                              .trim()
-                                              .toLowerCase() ==
+                                      p.moderationStatus.trim().toLowerCase() ==
                                           'approved',
                                 )
                                 .length >=
