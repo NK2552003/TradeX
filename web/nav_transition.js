@@ -1776,12 +1776,12 @@
       location.search,
       location.hash,
     );
+    var isCrossSubdomainHandoff =
+      sameRootRef && sameRootCur && Boolean(refHost) && refHost !== curHost;
     var isSilent =
-      hasActiveSession &&
       !isAuthRoute &&
       !silent.isSuppressed &&
-      (silent.hasFlag ||
-        (sameRootRef && sameRootCur && Boolean(refHost) && refHost !== curHost));
+      (silent.hasFlag || isCrossSubdomainHandoff);
 
     var rootEl = document.documentElement;
     if (rootEl) {

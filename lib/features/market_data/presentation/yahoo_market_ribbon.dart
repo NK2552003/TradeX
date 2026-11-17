@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import '../models/market_snapshot.dart';
+
 import '../data/yahoo_finance_service.dart';
+import '../models/market_snapshot.dart';
 
 /// Single market item for the Market Ribbon with freshness tracking.
 class YahooMarketItem {
@@ -42,19 +44,18 @@ class YahooMarketItem {
     bool? isLive,
     DateTime? timestamp,
     String? source,
-  }) =>
-      YahooMarketItem(
-        symbol: symbol,
-        name: name,
-        price: price ?? this.price,
-        change: change ?? this.change,
-        changePercent: changePercent ?? this.changePercent,
-        spark: spark ?? this.spark,
-        category: category ?? this.category,
-        isLive: isLive ?? this.isLive,
-        timestamp: timestamp ?? this.timestamp,
-        source: source ?? this.source,
-      );
+  }) => YahooMarketItem(
+    symbol: symbol,
+    name: name,
+    price: price ?? this.price,
+    change: change ?? this.change,
+    changePercent: changePercent ?? this.changePercent,
+    spark: spark ?? this.spark,
+    category: category ?? this.category,
+    isLive: isLive ?? this.isLive,
+    timestamp: timestamp ?? this.timestamp,
+    source: source ?? this.source,
+  );
 }
 
 /// Real-time market analytics ribbon powered by Yahoo Finance API.
@@ -86,7 +87,8 @@ class _YahooMarketRibbonState extends State<YahooMarketRibbon> {
     'Commodities',
   ];
 
-  static const Map<String, List<(String symbol, String name, double basePrice)>> kCategoryDefinitions = {
+  static const Map<String, List<(String symbol, String name, double basePrice)>>
+  kCategoryDefinitions = {
     'US Markets': [
       ('^GSPC', 'S&P 500', 5842.10),
       ('^DJI', 'Dow 30', 42600.50),
@@ -157,7 +159,8 @@ class _YahooMarketRibbonState extends State<YahooMarketRibbon> {
 
   void _syncQuotesFromInstruments() {
     if (widget.instruments.isEmpty) return;
-    final totalAvg = widget.instruments.fold<double>(
+    final totalAvg =
+        widget.instruments.fold<double>(
           0.0,
           (sum, inst) => sum + inst.changePercent,
         ) /
@@ -171,9 +174,11 @@ class _YahooMarketRibbonState extends State<YahooMarketRibbon> {
       for (var i = 0; i < list.length; i++) {
         final item = list[i];
         final match = widget.instruments
-            .where((inst) =>
-                inst.symbol == item.symbol ||
-                inst.name.toLowerCase() == item.name.toLowerCase())
+            .where(
+              (inst) =>
+                  inst.symbol == item.symbol ||
+                  inst.name.toLowerCase() == item.name.toLowerCase(),
+            )
             .firstOrNull;
         if (match != null && match.price > 0) {
           list[i] = item.copyWith(
@@ -226,21 +231,34 @@ class _YahooMarketRibbonState extends State<YahooMarketRibbon> {
   }
 
   void _scrollLeft() {
+    if (!_scrollController.hasClients) return;
     _scrollController.animateTo(
-      (_scrollController.offset - 260)
-          .clamp(0, _scrollController.position.maxScrollExtent),
+      (_scrollController.offset - 260).clamp(
+        0,
+        _scrollController.position.maxScrollExtent,
+      ),
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
   }
 
   void _scrollRight() {
+    if (!_scrollController.hasClients) return;
     _scrollController.animateTo(
-      (_scrollController.offset + 260)
-          .clamp(0, _scrollController.position.maxScrollExtent),
+      (_scrollController.offset + 260).clamp(
+        0,
+        _scrollController.position.maxScrollExtent,
+      ),
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
+  }
+
+  void _selectCategory(String category) {
+    if (category == _selectedCategory) return;
+    setState(() => _selectedCategory = category);
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    _fetchLiveYahooQuotes();
   }
 
   @override
@@ -254,233 +272,197 @@ class _YahooMarketRibbonState extends State<YahooMarketRibbon> {
     final theme = context.ui;
     final items = _marketData[_selectedCategory] ?? [];
 
-    return Container(
-      height: context.sz(60),
-      decoration: BoxDecoration(
-        color: theme.colors.surfaceMuted,
-        borderRadius: context.radius(theme.radii.sm),
-        border: Border.all(
-          color: theme.colors.border,
-          width: theme.borders.hairline,
-        ),
-      ),
-      child: Row(
-        children: [
-          // Left: Category Selector Dropdown with Radar Icon
+    return UiCard(
+      key: const ValueKey<String>('market-ribbon'),
+      variant: UiCardVariant.subtle,
+      radius: theme.radii.sm,
+      padding: EdgeInsets.zero,
+      semanticLabel: 'Live market ribbon',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
           Padding(
-            padding:
-                EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.xs)),
-            child: UiDropdownMenu(
-              actions: [
-                for (final cat in kCategories)
-                  UiMenuItem(
-                    label: cat,
-                    selected: cat == _selectedCategory,
-                    onPressed: () {
-                      setState(() => _selectedCategory = cat);
-                      _fetchLiveYahooQuotes();
+            padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
+            child: UiToggleGroup<String>(
+              key: const ValueKey<String>('market-ribbon-category-toggle'),
+              options: <UiOption<String>>[
+                for (final String category in kCategories)
+                  UiOption<String>(value: category, label: category),
+              ],
+              value: _selectedCategory,
+              onChanged: _selectCategory,
+              size: UiSize.xs,
+              density: UiDensity.compact,
+              variant: UiToggleGroupVariant.joined,
+              expand: true,
+              scrollWhenTight: false,
+              semanticLabel: 'Market category',
+            ),
+          ),
+          const UiDivider(spacing: 0),
+          SizedBox(
+            height: context.sz(60),
+            child: Row(
+              children: <Widget>[
+                Padding(
+                  padding: EdgeInsets.only(left: context.sp(theme.spacing.xxs)),
+                  child: UiIconButton(
+                    key: const ValueKey<String>('market-ribbon-scroll-left'),
+                    icon: Icons.chevron_left,
+                    size: UiSize.xs,
+                    tooltip: 'Scroll left',
+                    onPressed: _scrollLeft,
+                  ),
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    key: const ValueKey<String>('market-ribbon-quotes'),
+                    controller: _scrollController,
+                    scrollDirection: Axis.horizontal,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.sp(theme.spacing.xs),
+                    ),
+                    itemCount: items.length,
+                    separatorBuilder: (context, _) => UiDivider(
+                      vertical: true,
+                      spacing: theme.spacing.xs,
+                      height: context.sz(24),
+                    ),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+
+                      // Sleek placeholder while live quote is connecting
+                      if (item.price == 0.0) {
+                        return Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: context.sp(theme.spacing.xs),
+                            vertical: context.sp(theme.spacing.xxs),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                item.name,
+                                style: context.uiText.caption.copyWith(
+                                  color: theme.colors.foregroundMuted,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: context.fs(11),
+                                ),
+                              ),
+                              UiGap.v(theme.spacing.xxs),
+                              UiSkeleton(
+                                width: context.sz(48),
+                                height: context.sz(11),
+                              ),
+                              UiGap.v(theme.spacing.xxs),
+                              UiSkeleton(
+                                width: context.sz(38),
+                                height: context.sz(9),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final isPos = item.isPositive;
+                      final color = isPos
+                          ? theme.colors.success
+                          : theme.colors.danger;
+
+                      return InkWell(
+                        onTap: () {
+                          if (widget.onSelectInstrument == null) return;
+                          final match = widget.instruments
+                              .where((inst) => inst.symbol == item.symbol)
+                              .firstOrNull;
+                          widget.onSelectInstrument!(
+                            match ??
+                                MarketInstrument.fromJson(
+                                  {
+                                    'ticker': item.symbol,
+                                    'price': item.price,
+                                    'change_pct': item.changePercent,
+                                    'market': 'US',
+                                    'currency': 'USD',
+                                  },
+                                  {'name': item.name},
+                                  history: item.spark,
+                                ),
+                          );
+                        },
+                        borderRadius: context.radius(theme.radii.sm),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: context.sp(theme.spacing.xs),
+                            vertical: context.sp(theme.spacing.xxs),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    item.name,
+                                    style: context.uiText.caption.copyWith(
+                                      color: theme.colors.foregroundMuted,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: context.fs(11),
+                                    ),
+                                  ),
+                                  Text(
+                                    item.price.toStringAsFixed(
+                                      item.price < 10 ? 4 : 2,
+                                    ),
+                                    style: context.uiText.caption.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: context.fs(12),
+                                      color: theme.colors.foreground,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${isPos ? '+' : ''}${item.change.toStringAsFixed(item.price < 10 ? 4 : 2)} (${isPos ? '+' : ''}${item.changePercent.toStringAsFixed(2)}%)',
+                                    style: context.uiText.caption.copyWith(
+                                      fontSize: context.fs(10),
+                                      fontWeight: FontWeight.w600,
+                                      color: color,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (item.spark.isNotEmpty) ...[
+                                UiGap.h(theme.spacing.xs),
+                                SizedBox(
+                                  width: context.sz(40),
+                                  height: context.sz(22),
+                                  child: UiSparkChart(
+                                    values: item.spark,
+                                    color: color,
+                                    height: context.sz(22),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
                     },
                   ),
-              ],
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
-                  vertical: context.sp(theme.spacing.xs),
                 ),
-                decoration: BoxDecoration(
-                  color: theme.colors.surface,
-                  borderRadius: context.radius(theme.radii.pill),
-                  border: Border.all(
-                    color: theme.colors.border,
-                    width: theme.borders.hairline,
+                Padding(
+                  padding: EdgeInsets.only(
+                    right: context.sp(theme.spacing.xxs),
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.sensors,
-                      size: context.sz(14),
-                      color: theme.colors.bullish,
-                    ),
-                    UiGap.h(theme.spacing.xs),
-                    Text(
-                      _selectedCategory,
-                      style: context.uiText.caption.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colors.foreground,
-                      ),
-                    ),
-                    UiGap.h(theme.spacing.xxs),
-                    Icon(
-                      Icons.arrow_drop_down,
-                      size: context.sz(16),
-                      color: theme.colors.foregroundMuted,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Vertical divider between Category and Ticker Items
-          Container(
-            width: 1,
-            height: context.sz(28),
-            color: theme.colors.border,
-          ),
-
-          // Horizontal Scrolling Quotes Strip
-          Expanded(
-            child: ListView.separated(
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(
-                horizontal: context.sp(theme.spacing.sm),
-              ),
-              itemCount: items.length,
-              separatorBuilder: (context, _) => Container(
-                width: 1,
-                height: context.sz(24),
-                margin: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.xs),
-                  vertical: context.sp(theme.spacing.sm),
-                ),
-                color: theme.colors.border,
-              ),
-              itemBuilder: (context, index) {
-                final item = items[index];
-
-                // Sleek placeholder while live quote is connecting
-                if (item.price == 0.0) {
-                  return Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.sp(theme.spacing.xs),
-                      vertical: context.sp(theme.spacing.xxs),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          item.name,
-                          style: context.uiText.caption.copyWith(
-                            color: theme.colors.foregroundMuted,
-                            fontWeight: FontWeight.w600,
-                            fontSize: context.fs(11),
-                          ),
-                        ),
-                        UiGap.v(theme.spacing.xxs),
-                        UiSkeleton(width: context.sz(48), height: context.sz(11)),
-                        UiGap.v(theme.spacing.xxs),
-                        UiSkeleton(width: context.sz(38), height: context.sz(9)),
-                      ],
-                    ),
-                  );
-                }
-
-                final isPos = item.isPositive;
-                final color = isPos ? theme.colors.success : theme.colors.danger;
-
-                return InkWell(
-                  onTap: () {
-                    if (widget.onSelectInstrument == null) return;
-                    final match = widget.instruments
-                        .where((inst) => inst.symbol == item.symbol)
-                        .firstOrNull;
-                    widget.onSelectInstrument!(
-                      match ??
-                          MarketInstrument.fromJson(
-                            {
-                              'ticker': item.symbol,
-                              'price': item.price,
-                              'change_pct': item.changePercent,
-                              'market': 'US',
-                              'currency': 'USD',
-                            },
-                            {'name': item.name},
-                            history: item.spark,
-                          ),
-                    );
-                  },
-                  borderRadius: context.radius(theme.radii.sm),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.sp(theme.spacing.xs),
-                      vertical: context.sp(theme.spacing.xxs),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              item.name,
-                              style: context.uiText.caption.copyWith(
-                                color: theme.colors.foregroundMuted,
-                                fontWeight: FontWeight.w600,
-                                fontSize: context.fs(11),
-                              ),
-                            ),
-                            Text(
-                              item.price
-                                  .toStringAsFixed(item.price < 10 ? 4 : 2),
-                              style: context.uiText.caption.copyWith(
-                                fontWeight: FontWeight.w700,
-                                fontSize: context.fs(12),
-                                color: theme.colors.foreground,
-                              ),
-                            ),
-                            Text(
-                              '${isPos ? '+' : ''}${item.change.toStringAsFixed(item.price < 10 ? 4 : 2)} (${isPos ? '+' : ''}${item.changePercent.toStringAsFixed(2)}%)',
-                              style: context.uiText.caption.copyWith(
-                                fontSize: context.fs(10),
-                                fontWeight: FontWeight.w600,
-                                color: color,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (item.spark.isNotEmpty) ...[
-                          UiGap.h(theme.spacing.xs),
-                          SizedBox(
-                            width: context.sz(40),
-                            height: context.sz(22),
-                            child: UiSparkChart(
-                              values: item.spark,
-                              color: color,
-                              height: context.sz(22),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                  child: UiIconButton(
+                    key: const ValueKey<String>('market-ribbon-scroll-right'),
+                    icon: Icons.chevron_right,
+                    size: UiSize.xs,
+                    tooltip: 'Scroll right',
+                    onPressed: _scrollRight,
                   ),
-                );
-              },
-            ),
-          ),
-
-          // Right: Left & Right navigation chevrons
-          Padding(
-            padding:
-                EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.xxs)),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                UiIconButton(
-                  icon: Icons.chevron_left,
-                  size: UiSize.xs,
-                  tooltip: 'Scroll left',
-                  onPressed: _scrollLeft,
-                ),
-                UiIconButton(
-                  icon: Icons.chevron_right,
-                  size: UiSize.xs,
-                  tooltip: 'Scroll right',
-                  onPressed: _scrollRight,
                 ),
               ],
             ),

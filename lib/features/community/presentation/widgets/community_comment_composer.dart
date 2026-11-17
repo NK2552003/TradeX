@@ -42,10 +42,6 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
     super.initState();
     _focus = widget.focusNode ?? FocusNode();
     if (widget.replyTo != null) {
-      _controller.text = '${widget.replyTo!.displayHandle} ';
-      _controller.selection = TextSelection.collapsed(
-        offset: _controller.text.length,
-      );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _focus.requestFocus();
@@ -67,7 +63,7 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
 
   Future<void> _submit() async {
     final body = _controller.text.trim();
-    if (_sending || body.isEmpty || body == widget.replyTo?.displayHandle) {
+    if (_sending || body.isEmpty) {
       return;
     }
     setState(() {
@@ -152,10 +148,7 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
                 child: ValueListenableBuilder<TextEditingValue>(
                   valueListenable: _controller,
                   builder: (context, value, _) {
-                    final canSend =
-                        !_sending &&
-                        value.text.trim().isNotEmpty &&
-                        value.text.trim() != widget.replyTo?.displayHandle;
+                    final canSend = !_sending && value.text.trim().isNotEmpty;
                     final emoji = CommunityEmojiPicker(
                       forComposer: true,
                       enabled: !_sending,

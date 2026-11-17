@@ -95,9 +95,14 @@ class UiTable<T> extends StatefulWidget {
     this.expandableWhen,
     this.expandedBuilder,
     this.stickyHeader = false,
+    this.minBodyHeight,
     this.maxBodyHeight,
     this.density = UiDensity.comfortable,
-  });
+  }) : assert(
+         minBodyHeight == null ||
+             maxBodyHeight == null ||
+             minBodyHeight <= maxBodyHeight,
+       );
 
   final List<UiTableColumn<T>> columns;
   final List<T> rows;
@@ -138,6 +143,11 @@ class UiTable<T> extends StatefulWidget {
 
   /// Keeps the header visible while the body scrolls within [maxBodyHeight].
   final bool stickyHeader;
+
+  /// Reserves a consistent row viewport across adjacent tables. Combine with
+  /// [maxBodyHeight] at the same value to keep cards aligned while longer row
+  /// sets scroll beneath the fixed header.
+  final double? minBodyHeight;
   final double? maxBodyHeight;
 
   /// Row padding density.
@@ -435,10 +445,15 @@ class _UiTableState<T> extends State<UiTable<T>> {
     Widget bodyContent = Column(children: bodyRows);
     // When a max body height is supplied (or a sticky header is requested),
     // the header row above stays put while only the row list scrolls.
-    if (widget.maxBodyHeight != null) {
+    if (widget.minBodyHeight != null || widget.maxBodyHeight != null) {
       bodyContent = ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: context.sp(widget.maxBodyHeight!),
+          minHeight: widget.minBodyHeight == null
+              ? 0
+              : context.sp(widget.minBodyHeight!),
+          maxHeight: widget.maxBodyHeight == null
+              ? double.infinity
+              : context.sp(widget.maxBodyHeight!),
         ),
         child: SingleChildScrollView(child: bodyContent),
       );

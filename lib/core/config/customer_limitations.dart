@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/config/customer_quota_usage.dart';
+import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
 import 'package:tradex/features/public_site/data/public_site_repository.dart';
@@ -1003,10 +1004,23 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                 ],
                 UiDataPanel(
                   label: 'Customer Plan & Workspace Allowances',
-                  hint: '${quota.planName} Tier · ${quota.priceLabel}',
                   leadingIcon: Icons.account_balance_wallet_outlined,
-                  trailing: tier != AppTier.enterprise
-                      ? UiButton(
+                  trailing: Wrap(
+                    spacing: context.sp(theme.spacing.xs),
+                    runSpacing: context.sp(theme.spacing.xxs),
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: <Widget>[
+                      UiBadge(
+                        label: '${quota.planName} Tier · ${quota.priceLabel}',
+                        icon: Icons.workspace_premium_outlined,
+                        intent: tier == AppTier.free
+                            ? UiIntent.neutral
+                            : UiIntent.primary,
+                        variant: UiBadgeVariant.ghost,
+                        size: UiSize.sm,
+                      ),
+                      if (tier != AppTier.enterprise)
+                        UiButton(
                           label: tier == AppTier.free
                               ? 'Upgrade Plan'
                               : 'Manage Tier',
@@ -1021,8 +1035,9 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                                 reason:
                                     'Manage your alphajournal subscription tier and workspace quotas in Indian Rupees (₹). Monthly subscriptions for Basic and Pro are disabled for now.',
                               ),
-                        )
-                      : null,
+                        ),
+                    ],
+                  ),
                   padding: EdgeInsets.zero,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

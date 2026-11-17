@@ -228,6 +228,52 @@ void main() {
     expect(find.text('Americas'), findsOneWidget);
     expect(find.text('Europe'), findsOneWidget);
     expect(find.text('Asia'), findsOneWidget);
+    final List<UiTable<MarketIndexItem>> tables = tester
+        .widgetList<UiTable<MarketIndexItem>>(
+          find.byType(UiTable<MarketIndexItem>),
+        )
+        .toList(growable: false);
+    expect(tables, hasLength(6));
+    expect(
+      tables.take(3).map((UiTable<MarketIndexItem> table) => table.minBodyHeight),
+      everyElement(tables.first.minBodyHeight),
+    );
+    expect(tables.first.minBodyHeight, tables.first.maxBodyHeight);
+    expect(tables.first.rows.length, greaterThan(tables[1].rows.length));
+    final double americasHeight = tester
+        .getSize(
+          find.byKey(
+            const ValueKey<String>('market-overview-table-Americas'),
+          ),
+        )
+        .height;
+    expect(
+      tester
+          .getSize(
+            find.byKey(
+              const ValueKey<String>('market-overview-table-Europe'),
+            ),
+          )
+          .height,
+      closeTo(americasHeight, 0.1),
+    );
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey<String>('market-overview-table-Asia')),
+          )
+          .height,
+      closeTo(americasHeight, 0.1),
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(
+          const ValueKey<String>('market-overview-table-Americas'),
+        ),
+        matching: find.byType(SingleChildScrollView),
+      ),
+      findsWidgets,
+    );
     expect(find.byTooltip('Previous'), findsNothing);
     expect(find.byTooltip('Next'), findsNothing);
     expect(tester.takeException(), isNull);

@@ -295,11 +295,10 @@ void syncWebTheme({
 
 void navigateBrowserUrl(String url) {
   final silentValue = SubdomainCookieCodec.silentNavValueForUrl(url);
-  final cookies = SubdomainCookieCodec.parseCookieString(web.document.cookie);
-  final bool hasActiveSession =
-      (cookies['ax_sb_auth.n']?.isNotEmpty ?? false) &&
-      cookies['ax_sb_auth_off'] != '1';
-  final bool useSilentNavigation = hasActiveSession && silentValue != '0';
+  // This function is called by the running Flutter app. Trust that explicit
+  // handoff even when the destination document has not restored its auth cookie
+  // yet, so cross-subdomain switches never flash the cold-launch brand splash.
+  final bool useSilentNavigation = silentValue != '0';
   if (SubdomainCookieCodec.isProductionDomain(web.window.location.hostname)) {
     final secure = web.window.location.protocol == 'https:';
     web.document.cookie = SubdomainCookieCodec.formatDeleteCookie(

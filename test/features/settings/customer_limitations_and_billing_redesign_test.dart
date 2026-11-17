@@ -21,13 +21,13 @@ class _FakeBillingSettingsRepository implements BillingSettingsRepository {
       monthlyAmount: 0,
       annualMonthsBilled: 12,
       usage: const <String, dynamic>{
-            'notes': 1,
-            'trades_this_month': 2,
-            'live_playbooks': 0,
-            'ai_tokens': 3,
-            'seats': 1,
-          },
-        );
+        'notes': 1,
+        'trades_this_month': 2,
+        'live_playbooks': 0,
+        'ai_tokens': 3,
+        'seats': 1,
+      },
+    );
   }
 
   @override
@@ -36,87 +36,107 @@ class _FakeBillingSettingsRepository implements BillingSettingsRepository {
 
 void main() {
   group('CustomerLimitationsBanner & BillingSettingsPage Redesign', () {
-    testWidgets('CustomerLimitationsBanner renders UiDataPanel and UiStatStrip with 4 stats', (tester) async {
-      tester.view.physicalSize = const Size(1200, 800);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
+    testWidgets(
+      'CustomerLimitationsBanner renders UiDataPanel and UiStatStrip with 4 stats',
+      (tester) async {
+        tester.view.physicalSize = const Size(1200, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
 
-      AppSession.instance.tier.value = AppTier.free;
+        AppSession.instance.tier.value = AppTier.free;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData.dark(),
-          home: const Scaffold(
-            body: SingleChildScrollView(
-              child: CustomerLimitationsBanner(
-                noteCount: 1,
-                tradeCount: 4,
-                liveStrategyCount: 0,
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData.dark(),
+            home: const Scaffold(
+              body: SingleChildScrollView(
+                child: CustomerLimitationsBanner(
+                  noteCount: 1,
+                  tradeCount: 4,
+                  liveStrategyCount: 0,
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      // Should render UiDataPanel and UiStatStrip
-      expect(find.byType(UiDataPanel), findsOneWidget);
-      expect(find.byType(UiStatStrip), findsOneWidget);
+        // Should render UiDataPanel and UiStatStrip
+        expect(find.byType(UiDataPanel), findsOneWidget);
+        expect(find.byType(UiStatStrip), findsOneWidget);
 
-      // Verify header title
-      expect(find.text('CUSTOMER PLAN & WORKSPACE ALLOWANCES'), findsOneWidget);
+        // Verify header title
+        expect(
+          find.text('CUSTOMER PLAN & WORKSPACE ALLOWANCES'),
+          findsOneWidget,
+        );
 
-      // Verify all 8 quota metric cards & feature capability badges are present
-      expect(find.text('RESEARCH NOTES'), findsOneWidget);
-      expect(find.text('JOURNAL TRADES'), findsOneWidget);
-      expect(find.text('LIVE PLAYBOOKS'), findsOneWidget);
-      expect(find.text('AI COPILOT QUERIES'), findsOneWidget);
-      expect(find.text('WATCHLISTS'), findsOneWidget);
-      expect(find.text('PRICE ALERTS'), findsOneWidget);
-      expect(find.text('COMMUNITY POSTS / DAY'), findsOneWidget);
-      expect(find.text('COMMENTS / DAY'), findsOneWidget);
-      expect(find.textContaining('PDF & CSV Exports'), findsOneWidget);
-      expect(find.textContaining('Advanced Backtest'), findsOneWidget);
+        // Verify all 8 quota metric cards & feature capability badges are present
+        expect(find.text('RESEARCH NOTES'), findsOneWidget);
+        expect(find.text('JOURNAL TRADES'), findsOneWidget);
+        expect(find.text('LIVE PLAYBOOKS'), findsOneWidget);
+        expect(find.text('AI COPILOT QUERIES'), findsOneWidget);
+        expect(find.text('WATCHLISTS'), findsOneWidget);
+        expect(find.text('PRICE ALERTS'), findsOneWidget);
+        expect(find.text('COMMUNITY POSTS / DAY'), findsOneWidget);
+        expect(find.text('COMMENTS / DAY'), findsOneWidget);
+        expect(find.textContaining('PDF & CSV Exports'), findsOneWidget);
+        expect(find.textContaining('Advanced Backtest'), findsOneWidget);
 
-      // Verify upgrade plan button is present
-      expect(find.widgetWithText(UiButton, 'Upgrade Plan'), findsOneWidget);
-    });
+        // Verify upgrade plan button is present
+        expect(find.widgetWithText(UiButton, 'Upgrade Plan'), findsOneWidget);
+        final CustomerTierQuota freeQuota = CustomerTierQuota.forTier(
+          AppTier.free,
+        );
+        final Finder planBadge = find.byWidgetPredicate(
+          (Widget widget) =>
+              widget is UiBadge &&
+              widget.label ==
+                  '${freeQuota.planName} Tier · ${freeQuota.priceLabel}',
+        );
+        expect(planBadge, findsOneWidget);
+        final Rect panelRect = tester.getRect(find.byType(UiDataPanel));
+        final Rect upgradeRect = tester.getRect(
+          find.widgetWithText(UiButton, 'Upgrade Plan'),
+        );
+        expect(panelRect.right - upgradeRect.right, lessThan(36));
+      },
+    );
 
-    testWidgets('BillingSettingsPage renders CustomerLimitationsBanner data panel', (tester) async {
-      tester.view.physicalSize = const Size(1200, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
+    testWidgets(
+      'BillingSettingsPage renders CustomerLimitationsBanner data panel',
+      (tester) async {
+        tester.view.physicalSize = const Size(1200, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
 
-      final repo = _FakeBillingSettingsRepository();
+        final repo = _FakeBillingSettingsRepository();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData.dark(),
-          home: Scaffold(
-            body: BillingSettingsPage(
-              repository: repo,
-            ),
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData.dark(),
+            home: Scaffold(body: BillingSettingsPage(repository: repo)),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      // Should render CustomerLimitationsBanner
-      expect(find.byType(CustomerLimitationsBanner), findsOneWidget);
-      expect(find.byType(UiDataPanel), findsOneWidget);
-      expect(find.byType(UiStatStrip), findsOneWidget);
+        // Should render CustomerLimitationsBanner
+        expect(find.byType(CustomerLimitationsBanner), findsOneWidget);
+        expect(find.byType(UiDataPanel), findsOneWidget);
+        expect(find.byType(UiStatStrip), findsOneWidget);
 
-      // Verify metric labels
-      expect(find.text('RESEARCH NOTES'), findsOneWidget);
-      expect(find.text('JOURNAL TRADES'), findsOneWidget);
-      expect(find.text('LIVE PLAYBOOKS'), findsOneWidget);
-      expect(find.text('AI COPILOT QUERIES'), findsOneWidget);
-      expect(find.text('WATCHLISTS'), findsOneWidget);
-      expect(find.text('PRICE ALERTS'), findsOneWidget);
-      expect(find.text('COMMUNITY POSTS / DAY'), findsOneWidget);
-      expect(find.text('COMMENTS / DAY'), findsOneWidget);
-    });
+        // Verify metric labels
+        expect(find.text('RESEARCH NOTES'), findsOneWidget);
+        expect(find.text('JOURNAL TRADES'), findsOneWidget);
+        expect(find.text('LIVE PLAYBOOKS'), findsOneWidget);
+        expect(find.text('AI COPILOT QUERIES'), findsOneWidget);
+        expect(find.text('WATCHLISTS'), findsOneWidget);
+        expect(find.text('PRICE ALERTS'), findsOneWidget);
+        expect(find.text('COMMUNITY POSTS / DAY'), findsOneWidget);
+        expect(find.text('COMMENTS / DAY'), findsOneWidget);
+      },
+    );
   });
 }

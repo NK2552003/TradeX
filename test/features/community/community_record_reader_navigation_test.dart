@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
+import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/community_root_screen.dart';
 import 'package:tradex/features/community/presentation/views/community_feed_view.dart';
 import 'package:tradex/features/community/presentation/widgets/public_record_detail_modal.dart';
@@ -114,6 +115,45 @@ void main() {
       expect(find.byType(CommunityRootScreen), findsOneWidget);
     },
   );
+
+  testWidgets('app shell shared-record save updates Community bookmarks', (
+    tester,
+  ) async {
+    viewport(tester, 1440);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AppScaffold(initialDestination: 'community'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final CommunityRootScreen community = tester.widget<CommunityRootScreen>(
+      find.byType(CommunityRootScreen),
+    );
+    final CommunityRepository repository = community.repository!;
+    final post = repository.forYouPosts.first;
+
+    community.onOpenRef!(
+      AppLinkRef(
+        kind: AppLinkKind.note,
+        id: 'missing-shared-note',
+        title: 'Shared note',
+        originPostId: post.id,
+      ),
+    );
+    await tester.pump();
+
+    final PublicRecordDetailModal modal = tester.widget<PublicRecordDetailModal>(
+      find.byType(PublicRecordDetailModal),
+    );
+    expect(modal.onSaveChanged, isNotNull);
+    await modal.onSaveChanged!(true);
+    expect(
+      repository.bookmarkedPosts.any(
+        (CommunityPost bookmarked) => bookmarked.id == post.id,
+      ),
+      isTrue,
+    );
+  });
 
   testWidgets('mobile shared note keeps title and close action inside sheet', (
     tester,

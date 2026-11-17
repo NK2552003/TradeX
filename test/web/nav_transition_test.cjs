@@ -440,6 +440,25 @@ test('authenticated app and community cross-subdomain routes activate silent nav
   assert.equal(veil.children[0].getAttribute('data-dock-variant'), 'community');
 });
 
+test('cross-subdomain handoff never flashes the cold-launch brand splash while auth cookies restore', () => {
+  const referrerEnv = createFakeDom({
+    url: 'https://community.alphajournal.in/community_feed',
+    referrer: 'https://app.alphajournal.in/workspace',
+    cookies: 'ax_theme_mode=dark',
+  });
+  assert.equal(referrerEnv.api.initHead().isSilent, true);
+  assert.equal(
+    referrerEnv.document.documentElement.classList.contains('aj-silent-nav'),
+    true,
+  );
+
+  const explicitFlagEnv = createFakeDom({
+    url: 'https://community.alphajournal.in/community_feed',
+    cookies: 'ax_silent_nav=1%7Ccommunity_feed%7CCommunity',
+  });
+  assert.equal(explicitFlagEnv.api.initHead().isSilent, true);
+});
+
 test('transition chrome mirrors AppTopBar card, swap_vert, desktop/mobile titles, 17px sidebar icons, light skeleton tokens, and Material SVG icons', () => {
   const env = createFakeDom({
     url: 'https://app.alphajournal.in/workspace',

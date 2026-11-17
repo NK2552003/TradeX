@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -11,6 +13,30 @@ import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/notes/ui/note_preview_screen.dart';
 import 'package:tradex/features/strategies/data/strategies_repository.dart';
 import 'package:tradex/features/strategies/ui/strategy_detail_screen.dart';
+
+class _DelayedLikeNotes extends Fake implements NotesRepository {
+  _DelayedLikeNotes(this.note);
+
+  AppNote note;
+  final Completer<AppNote> likeResult = Completer<AppNote>();
+
+  @override
+  Stream<List<AppNote>> watchAll() => Stream<List<AppNote>>.value(<AppNote>[
+    note,
+  ]);
+
+  @override
+  Stream<AppNote> watchById(String id) => Stream<AppNote>.value(note);
+
+  @override
+  Future<AppNote?> getById(String id) async => note;
+
+  @override
+  Future<AppNote> recordView(String id) async => note;
+
+  @override
+  Future<AppNote> toggleLike(String id) => likeResult.future;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -142,6 +168,55 @@ void main() {
   });
 
   group('PublicRecordDetailModal Post-Style Open Window', () {
+    testWidgets('public note like updates immediately before the server reply', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final AppNote note = AppNote(
+        id: 'note-like-test',
+        userId: 'trader-01',
+        title: 'Live engagement note',
+        content: 'Public research content.',
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        isPublic: true,
+        liked: false,
+        likeCount: 0,
+      );
+      final _DelayedLikeNotes repository = _DelayedLikeNotes(note);
+      NotesRepositoryScope.override(repository);
+      addTearDown(() => NotesRepositoryScope.override(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: NotePreviewScreen(
+              note: note,
+              onClose: () {},
+              onEdit: () {},
+              canEdit: false,
+              isPublicContext: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.widgetWithText(UiButton, 'Like'));
+      await tester.pump();
+
+      expect(find.widgetWithText(UiButton, 'Liked'), findsOneWidget);
+      expect(find.textContaining('1 likes'), findsOneWidget);
+
+      repository.likeResult.complete(
+        note.copyWith(liked: true, likeCount: 1),
+      );
+      await tester.pump();
+      expect(find.widgetWithText(UiButton, 'Liked'), findsOneWidget);
+    });
+
     testWidgets('renders public research note as a community post open window', (
       tester,
     ) async {

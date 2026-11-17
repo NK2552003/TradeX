@@ -21,6 +21,7 @@ class CommunityDiscussionComment extends StatefulWidget {
     this.onLike,
     this.onAuthorTap,
     this.onTagTap,
+    this.replyingTo,
     this.depth = 0,
     this.replyComposerBuilder,
   });
@@ -32,6 +33,7 @@ class CommunityDiscussionComment extends StatefulWidget {
   final void Function(String id, {String? reaction})? onLike;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<String>? onTagTap;
+  final CommunityAuthor? replyingTo;
   final int depth;
   final Widget? Function(CommunityComment)? replyComposerBuilder;
 
@@ -71,6 +73,26 @@ class _CommunityDiscussionCommentState
   }
 
   int _visibleReplies = 2;
+
+  String get _displayBody {
+    final CommunityAuthor? parentAuthor = widget.replyingTo;
+    final String body = widget.comment.body.trim();
+    if (parentAuthor == null || body.isEmpty) return body;
+    final Set<String> handles = <String>{
+      parentAuthor.displayHandle.trim(),
+      '@${parentAuthor.handle.replaceFirst('@', '').trim()}',
+    }..removeWhere((String value) => value == '@' || value.isEmpty);
+    for (final String handle in handles) {
+      final RegExp leadingMention = RegExp(
+        '^${RegExp.escape(handle)}(?:\\s*[:,—-])?\\s+',
+        caseSensitive: false,
+      );
+      if (leadingMention.hasMatch(body)) {
+        return body.replaceFirst(leadingMention, '').trimLeft();
+      }
+    }
+    return body;
+  }
 
   @override
   void didUpdateWidget(CommunityDiscussionComment oldWidget) {
@@ -156,7 +178,7 @@ class _CommunityDiscussionCommentState
                     ),
                     UiGap.v(theme.spacing.xs),
                     CommunityHighlightedText(
-                      text: comment.body,
+                      text: _displayBody,
                       style: context.uiText.body,
                       onTagTap: widget.onTagTap,
                     ),
@@ -271,6 +293,7 @@ class _CommunityDiscussionCommentState
                                       onLike: widget.onLike,
                                       onAuthorTap: widget.onAuthorTap,
                                       onTagTap: widget.onTagTap,
+                                      replyingTo: comment.author,
                                       depth: widget.depth + 1,
                                       replyComposerBuilder:
                                           widget.replyComposerBuilder,

@@ -29,6 +29,10 @@ abstract class NotesRepository {
   /// the editor is reflected the moment the reader navigates back.
   Stream<List<AppNote>> watchAll();
 
+  /// Emits one note immediately and whenever its aggregate engagement row
+  /// changes, including while a public reader is viewing another user's note.
+  Stream<AppNote> watchById(String id);
+
   Stream<List<AppNote>> watchPublic();
 
   Future<List<AppNote>> fetchAll();
@@ -93,6 +97,7 @@ class NotesRepositoryImpl implements NotesRepository {
   bool _initialized = false;
   String? _cacheActor;
   bool _subscribedToRealtime = false;
+  int _noteWatchSerial = 0;
   RealtimeChannel? _realtimeChannel;
 
   RealtimeChannel? get realtimeChannel => _realtimeChannel;
@@ -448,6 +453,53 @@ class NotesRepositoryImpl implements NotesRepository {
     if (!_changes.isClosed) _changes.add(_snapshot());
   }
 
+  void _replaceCachedNote(AppNote note) {
+    final int index = _notes.indexWhere((AppNote item) => item.id == note.id);
+    if (index < 0) return;
+    _notes[index] = note;
+    _publish();
+  }
+
+  Future<void> _refreshLikedState(String noteId) async {
+    if (!SupabaseConfig.isConfigured) return;
+    final String userId = _resolveUserId();
+    if (!_isUuid(userId)) return;
+    try {
+      final dynamic result = await SupabaseConfig.client!
+          .from('trader_note_likes')
+          .select('note_id')
+          .eq('note_id', noteId)
+          .eq('user_id', userId)
+          .limit(1);
+      final bool isLiked = result is List && result.isNotEmpty;
+      if (isLiked) {
+        _likedNoteIds.add(noteId);
+      } else {
+        _likedNoteIds.remove(noteId);
+      }
+    } catch (error) {
+      debugPrint('[NotesRepository] note like refresh error: $error');
+    }
+  }
+
+  Future<AppNote?> _fetchRemoteNote(String id) async {
+    if (!SupabaseConfig.isConfigured || !_isUuid(id)) return null;
+    try {
+      final Map<String, dynamic>? row = await SupabaseConfig.client!
+          .from('trader_notes')
+          .select(_selectColumns)
+          .eq('id', id)
+          .maybeSingle();
+      if (row == null) return null;
+      final AppNote note = _mapRowToNote(row);
+      if (!RecordAccess.canRead(note.userId, note.isPublic)) return null;
+      return note;
+    } catch (error) {
+      debugPrint('[NotesRepository] remote note fetch error: $error');
+      return null;
+    }
+  }
+
   @override
   Stream<List<AppNote>> watchAll() {
     _init();
@@ -461,6 +513,66 @@ class NotesRepositoryImpl implements NotesRepository {
       );
       controller.onCancel = sub.cancel;
     });
+  }
+
+  @override
+  Stream<AppNote> watchById(String id) async* {
+    await _init();
+    final AppNote? initial = await getById(id);
+    if (initial != null) yield initial;
+
+    if (!SupabaseConfig.isConfigured || !_isUuid(id)) {
+      await for (final List<AppNote> notes in _changes.stream) {
+        final AppNote? match = notes
+            .where((AppNote note) => note.id == id)
+            .firstOrNull;
+        if (match != null) yield match;
+      }
+      return;
+    }
+
+    final SupabaseClient client = SupabaseConfig.client!;
+    final StreamController<AppNote> controller = StreamController<AppNote>();
+    final StreamSubscription<List<AppNote>> localSubscription = _changes.stream
+        .listen((List<AppNote> notes) {
+          final AppNote? match = notes
+              .where((AppNote note) => note.id == id)
+              .firstOrNull;
+          if (match != null && !controller.isClosed) controller.add(match);
+        });
+    final RealtimeChannel channel = client
+        .channel('public:trader_note:$id:${_noteWatchSerial++}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'trader_notes',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: id,
+          ),
+          callback: (PostgresChangePayload payload) {
+            unawaited(() async {
+              final Map<String, dynamic> row = payload.newRecord;
+              if (row.isEmpty) return;
+              await _refreshLikedState(id);
+              final AppNote note = await _fetchRemoteNote(id) ??
+                  _mapRowToNote(row);
+              if (!RecordAccess.canRead(note.userId, note.isPublic)) return;
+              _replaceCachedNote(note);
+              if (!controller.isClosed) controller.add(note);
+            }());
+          },
+        )
+      ..subscribe();
+
+    try {
+      yield* controller.stream;
+    } finally {
+      await localSubscription.cancel();
+      await client.removeChannel(channel);
+      await controller.close();
+    }
   }
 
   @override
@@ -507,33 +619,20 @@ class NotesRepositoryImpl implements NotesRepository {
       if (note.id == id) return note;
     }
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
-      try {
-        final client = SupabaseConfig.client!;
-        final res = await client
-            .from('trader_notes')
-            .select(_selectColumns)
-            .eq('id', id)
-            .maybeSingle();
-        if (res != null) {
-          final note = _mapRowToNote(res);
-          if (!RecordAccess.canRead(note.userId, note.isPublic)) {
-            return null;
+      final AppNote? note = await _fetchRemoteNote(id);
+      if (note != null) {
+        final String currentUserId = _resolveUserId();
+        if (note.userId == currentUserId) {
+          final int at = _notes.indexWhere((AppNote n) => n.id == note.id);
+          if (at != -1) {
+            _notes[at] = note;
+          } else {
+            _notes.insert(0, note);
           }
-          final currentUserId = _resolveUserId();
-          if (note.userId == currentUserId) {
-            final at = _notes.indexWhere((n) => n.id == note.id);
-            if (at != -1) {
-              _notes[at] = note;
-            } else {
-              _notes.insert(0, note);
-            }
-            _recordTickerLinks(note);
-            _publish();
-          }
-          return note;
+          _recordTickerLinks(note);
+          _publish();
         }
-      } catch (e) {
-        debugPrint('[NotesRepository] getById error: $e');
+        return note;
       }
     }
     return null;
@@ -744,13 +843,36 @@ class NotesRepositoryImpl implements NotesRepository {
       throw StateError('Only a public note can be liked.');
     }
     final isLikedNow = !_likedNoteIds.contains(id);
-    if (SupabaseConfig.isConfigured) {
-      final actor = SupabaseConfig.client?.auth.currentUser?.id;
-      if (actor == null) throw StateError('Sign in to like a note.');
+    final AppNote optimistic = current.copyWith(
+      liked: isLikedNow,
+      likeCount: (current.likeCount + (isLikedNow ? 1 : -1)).clamp(
+        0,
+        1 << 30,
+      ),
+    );
+    if (isLikedNow) {
+      _likedNoteIds.add(id);
+    } else {
+      _likedNoteIds.remove(id);
+    }
+    _replaceCachedNote(optimistic);
+
+    if (!SupabaseConfig.isConfigured) {
+      return _mutate(id, (AppNote note) => optimistic);
+    }
+
+    final String? actor = SupabaseConfig.client?.auth.currentUser?.id;
+    if (actor == null) {
+      isLikedNow ? _likedNoteIds.remove(id) : _likedNoteIds.add(id);
+      _replaceCachedNote(current);
+      throw StateError('Sign in to like a note.');
+    }
+
+    try {
       final query = SupabaseConfig.client!.from('trader_note_likes');
       if (isLikedNow) {
         await query
-            .insert({'note_id': id, 'user_id': actor})
+            .insert(<String, dynamic>{'note_id': id, 'user_id': actor})
             .select('note_id')
             .single();
       } else {
@@ -761,22 +883,16 @@ class NotesRepositoryImpl implements NotesRepository {
             .select('note_id')
             .single();
       }
+      // The database trigger owns the aggregate count. Query the row directly
+      // instead of getById(), which may legitimately return an older cache.
+      final AppNote authoritative = await _fetchRemoteNote(id) ?? optimistic;
+      _replaceCachedNote(authoritative);
+      return authoritative;
+    } catch (error, stackTrace) {
+      isLikedNow ? _likedNoteIds.remove(id) : _likedNoteIds.add(id);
+      _replaceCachedNote(current);
+      Error.throwWithStackTrace(error, stackTrace);
     }
-    if (isLikedNow) {
-      _likedNoteIds.add(id);
-    } else {
-      _likedNoteIds.remove(id);
-    }
-    // The database trigger owns aggregate counts. Never overwrite them with a
-    // stale client-side increment or modify another author's note row.
-    if (SupabaseConfig.isConfigured) return await getById(id) ?? current;
-    return _mutate(
-      id,
-      (note) => note.copyWith(
-        liked: isLikedNow,
-        likeCount: (note.likeCount + (isLikedNow ? 1 : -1)).clamp(0, 1 << 30),
-      ),
-    );
   }
 
   @override

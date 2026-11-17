@@ -81,7 +81,9 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   late AppNote _activeNote = widget.note;
   late AppLinkGraph _graph;
   StreamSubscription<AppLinkGraph>? _graphSub;
+  StreamSubscription<AppNote>? _noteSub;
   StreamSubscription<List<AppNote>>? _notesSub;
+  bool _likePending = false;
 
   @override
   void initState() {
@@ -92,14 +94,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         if (mounted) setState(() => _graph = graph);
       });
     }
-    _notesSub = _repo.watchAll().listen((List<AppNote> notes) {
-      final AppNote? match = notes
-          .where((AppNote n) => n.id == _activeNote.id)
-          .firstOrNull;
-      if (match != null && mounted) {
-        setState(() => _activeNote = match);
-      }
-    });
+    _subscribeToNote(widget.note.id);
     if (widget.note.isPublic && widget.note.id.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _repo.recordView(widget.note.id).ignore();
@@ -125,6 +120,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.note.id != widget.note.id) {
       _activeNote = widget.note;
+      _subscribeToNote(widget.note.id);
     }
     if (widget.linkGraph != null && oldWidget.linkGraph != widget.linkGraph) {
       _graph = widget.linkGraph!;
@@ -134,6 +130,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   @override
   void dispose() {
     _graphSub?.cancel();
+    _noteSub?.cancel();
     _notesSub?.cancel();
     _outline.dispose();
     super.dispose();
@@ -155,6 +152,30 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
       widget.onEditWriting != null && RecordAccess.owns(_note.userId);
 
   bool get _isPublicViewer => widget.isPublicContext || !_canEdit;
+
+  void _subscribeToNote(String noteId) {
+    unawaited(_noteSub?.cancel());
+    unawaited(_notesSub?.cancel());
+    _noteSub = null;
+    _notesSub = null;
+    try {
+      _noteSub = _repo.watchById(noteId).listen((AppNote note) {
+        if (mounted && note.id == _activeNote.id) {
+          setState(() => _activeNote = note);
+        }
+      });
+    } catch (_) {
+      // Lightweight test and offline repositories may only implement watchAll.
+      _notesSub = _repo.watchAll().listen((List<AppNote> notes) {
+        final AppNote? match = notes
+            .where((AppNote note) => note.id == _activeNote.id)
+            .firstOrNull;
+        if (match != null && mounted) {
+          setState(() => _activeNote = match);
+        }
+      });
+    }
+  }
 
   void _handleOpenLink(AppLinkRef ref) {
     if (widget.onOpenLink == null) return;
@@ -248,6 +269,35 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           message: '$error',
         );
       }
+    }
+  }
+
+  Future<void> _toggleLikeNote() async {
+    if (_likePending) return;
+    final AppNote previous = _note;
+    final bool isLiked = !previous.liked;
+    final AppNote optimistic = previous.copyWith(
+      liked: isLiked,
+      likeCount: (previous.likeCount + (isLiked ? 1 : -1)).clamp(0, 1 << 30),
+    );
+    setState(() {
+      _likePending = true;
+      _activeNote = optimistic;
+    });
+    try {
+      final AppNote updated = await _repo.toggleLike(previous.id);
+      if (mounted) setState(() => _activeNote = updated);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _activeNote = previous);
+        UiToast.error(
+          context,
+          title: 'Like was not saved',
+          message: '$error',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _likePending = false);
     }
   }
 
@@ -651,8 +701,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
                   variant: _note.liked ? UiVariant.soft : UiVariant.outline,
                   intent: UiIntent.danger,
                   size: UiSize.sm,
-                  onPressed: () =>
-                      _noteAction(() => _repo.toggleLike(_note.id)),
+                  onPressed: _likePending ? null : _toggleLikeNote,
                 ),
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),

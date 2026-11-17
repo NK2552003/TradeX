@@ -28,7 +28,10 @@ void main() {
     (tester) async {
       final writer = AiTypewriter();
       addTearDown(writer.dispose);
-      final longAnswer = List.filled(50, 'Strong earnings momentum across AI infra. ').join();
+      final longAnswer = List.filled(
+        50,
+        'Strong earnings momentum across AI infra. ',
+      ).join();
       writer.reset(longAnswer, animate: true);
       expect(writer.visibleText, '');
       await tester.pump(aiTypingCharacterInterval);
@@ -219,24 +222,22 @@ void main() {
   testWidgets(
     'streaming unclosed code fences and trailing blocks do not trip _inlines.isEmpty',
     (tester) async {
-      Future<void> pumpPreview(
-        String data, {
-        required bool streaming,
-      }) => tester.pumpWidget(
-        MaterialApp(
-          theme: UiTheme.dark().toThemeData(),
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: RichMarkdownPreview(
-                data: data,
-                emptyPlaceholder: '',
-                selectable: !streaming,
-                showTypingCursor: streaming,
+      Future<void> pumpPreview(String data, {required bool streaming}) =>
+          tester.pumpWidget(
+            MaterialApp(
+              theme: UiTheme.dark().toThemeData(),
+              home: Scaffold(
+                body: SingleChildScrollView(
+                  child: RichMarkdownPreview(
+                    data: data,
+                    emptyPlaceholder: '',
+                    selectable: !streaming,
+                    showTypingCursor: streaming,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      );
+          );
 
       final samples = <String>[
         'Analysis:\n```dart\nvoid main() {',
@@ -291,9 +292,7 @@ void main() {
           MaterialApp(
             theme: UiTheme.dark().toThemeData(),
             home: Scaffold(
-              body: SingleChildScrollView(
-                child: RichMarkdownPreview(data: md),
-              ),
+              body: SingleChildScrollView(child: RichMarkdownPreview(data: md)),
             ),
           ),
         );
@@ -321,9 +320,7 @@ Summary text.
         MaterialApp(
           theme: UiTheme.dark().toThemeData(),
           home: const Scaffold(
-            body: SingleChildScrollView(
-              child: RichMarkdownPreview(data: md),
-            ),
+            body: SingleChildScrollView(child: RichMarkdownPreview(data: md)),
           ),
         ),
       );
@@ -414,7 +411,10 @@ Here are the latest updates on Intel Corporation (INTC):
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Intel Corporation – Latest News & Insights'), findsOneWidget);
+      expect(
+        find.text('Intel Corporation – Latest News & Insights'),
+        findsOneWidget,
+      );
       expect(find.text('4 stories'), findsOneWidget);
       expect(find.text('Intel Reports Q3 Earnings'), findsOneWidget);
       expect(find.text('Data Center Segment Growth'), findsOneWidget);
@@ -487,15 +487,16 @@ Here are the latest updates on Intel Corporation (INTC):
         MaterialApp(
           theme: UiTheme.dark().toThemeData(),
           home: const Scaffold(
-            body: SingleChildScrollView(
-              child: RichMarkdownPreview(data: md),
-            ),
+            body: SingleChildScrollView(child: RichMarkdownPreview(data: md)),
           ),
         ),
       );
       await tester.pumpAndSettle();
       expect(find.text('\$55.47'), findsOneWidget);
-      expect(find.text('-7.00%'), findsOneWidget);
+      expect(find.text('Bearish · -7.00%'), findsOneWidget);
+      final Rect priceRect = tester.getRect(find.text('\$55.47'));
+      final Rect sentimentRect = tester.getRect(find.text('Bearish · -7.00%'));
+      expect(sentimentRect.top, greaterThan(priceRect.bottom));
       expect(find.textContaining('{value:'), findsNothing);
       expect(tester.takeException(), isNull);
     },

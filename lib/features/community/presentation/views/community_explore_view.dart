@@ -1,20 +1,21 @@
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
 import 'package:flutter/material.dart';
+
+import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_view.dart'
-    show marketFieldLabel;
-import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_hashtag_page.dart';
 import 'package:tradex/features/community/presentation/widgets/community_follow_button.dart';
 import 'package:tradex/features/community/presentation/widgets/community_widgets.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:tradex/features/market_data/models/market_snapshot.dart';
+import 'package:tradex/features/market_data/presentation/market_instrument_view.dart'
+    show marketFieldLabel;
+import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
+import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:tradex/features/strategies/data/strategies_repository.dart';
 
 /// One Explore category tab (X-style), mapped to real posts, trends and wire news.
 class ExploreTabSpec {
@@ -42,8 +43,19 @@ const List<ExploreTabSpec> kExploreTabs = <ExploreTabSpec>[
     'stocks',
     'Stocks',
     keywords: <String>[
-      'stock', 'equit', 'nifty', 'sensex', 'nse', 'bse', 'earnings', 'nasdaq',
-      'nyse', 'ipo', 'dividend', 'technology', 'business',
+      'stock',
+      'equit',
+      'nifty',
+      'sensex',
+      'nse',
+      'bse',
+      'earnings',
+      'nasdaq',
+      'nyse',
+      'ipo',
+      'dividend',
+      'technology',
+      'business',
     ],
     wireKeys: <String>['stock', 'equit', 'india', 'us_', 'earnings'],
   ),
@@ -51,7 +63,14 @@ const List<ExploreTabSpec> kExploreTabs = <ExploreTabSpec>[
     'crypto',
     'Crypto',
     keywords: <String>[
-      'crypto', 'btc', 'eth', 'bitcoin', 'ethereum', 'sol', 'defi', 'altcoin',
+      'crypto',
+      'btc',
+      'eth',
+      'bitcoin',
+      'ethereum',
+      'sol',
+      'defi',
+      'altcoin',
     ],
     wireKeys: <String>['crypto'],
   ),
@@ -59,15 +78,31 @@ const List<ExploreTabSpec> kExploreTabs = <ExploreTabSpec>[
     'options',
     'Options',
     keywords: <String>[
-      'option', 'calls?', 'puts?', 'theta', 'gamma', 'delta', 'expiry',
-      'straddle', 'strangle', 'iv',
+      'option',
+      'calls?',
+      'puts?',
+      'theta',
+      'gamma',
+      'delta',
+      'expiry',
+      'straddle',
+      'strangle',
+      'iv',
     ],
   ),
   ExploreTabSpec(
     'forex',
     'Forex',
     keywords: <String>[
-      'forex', 'fx', 'usd', 'eur', 'gbp', 'jpy', 'inr', 'currenc', 'dollar',
+      'forex',
+      'fx',
+      'usd',
+      'eur',
+      'gbp',
+      'jpy',
+      'inr',
+      'currenc',
+      'dollar',
     ],
     wireKeys: <String>['forex', 'currenc', 'fx'],
   ),
@@ -75,7 +110,14 @@ const List<ExploreTabSpec> kExploreTabs = <ExploreTabSpec>[
     'futures',
     'Futures',
     keywords: <String>[
-      'future', 'commodit', 'gold', 'crude', 'oil', 'silver', 'es', 'nq',
+      'future',
+      'commodit',
+      'gold',
+      'crude',
+      'oil',
+      'silver',
+      'es',
+      'nq',
     ],
     wireKeys: <String>['commod', 'futur'],
   ),
@@ -83,8 +125,14 @@ const List<ExploreTabSpec> kExploreTabs = <ExploreTabSpec>[
     'strategies',
     'Strategies',
     keywords: <String>[
-      'strateg', 'setup', 'playbook', 'backtest', 'swing', 'breakout',
-      'scalp', 'signal',
+      'strateg',
+      'setup',
+      'playbook',
+      'backtest',
+      'swing',
+      'breakout',
+      'scalp',
+      'signal',
     ],
   ),
 ];
@@ -238,7 +286,9 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
   List<CommunityPost> _postsFor(ExploreTabSpec spec) {
     final pattern = spec.pattern;
     return widget.repository.forYouPosts.where((p) {
-      if (!_matchesQuery('${p.body} ${p.tags.join(' ')} ${p.tickers.join(' ')}')) {
+      if (!_matchesQuery(
+        '${p.body} ${p.tags.join(' ')} ${p.tickers.join(' ')}',
+      )) {
         return false;
       }
       if (pattern == null) return true;
@@ -601,79 +651,25 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
     return UiCard(
       key: ValueKey('explore-trends-$title'),
       title: title,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < shown.length; i++)
-            _trendRow(context, shown[i], i + 1),
-          if (limit != null && trends.length > limit)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: UiButton(
-                key: const ValueKey('explore-trends-show-more'),
-                label: 'Show more',
-                variant: UiVariant.link,
-                size: UiSize.sm,
-                onPressed: () => setState(() {
-                  _tab = 1;
-                  _built.add(1);
-                }),
-              ),
-            ),
+      trailing: limit != null && trends.length > limit
+          ? UiButton(
+              key: const ValueKey('explore-trends-show-more'),
+              label: 'Show more',
+              variant: UiVariant.link,
+              size: UiSize.sm,
+              onPressed: () => setState(() {
+                _tab = 1;
+                _built.add(1);
+              }),
+            )
+          : null,
+      child: Wrap(
+        spacing: context.sp(theme.spacing.sm),
+        runSpacing: context.sp(theme.spacing.sm),
+        children: <Widget>[
+          for (final CommunityTrendItem item in shown)
+            _ExploreTrendTag(item: item, onTap: () => _openTopic(item.topic)),
         ],
-      ),
-    );
-  }
-
-  Widget _trendRow(BuildContext context, CommunityTrendItem item, int rank) {
-    final UiTheme theme = context.ui;
-    final category = item.category.toLowerCase().contains('trending')
-        ? item.category
-        : '${item.category} · Trending';
-    return InkWell(
-      key: ValueKey('explore-trend-${item.id}'),
-      onTap: () => _openTopic(item.topic),
-      borderRadius: context.radius(theme.radii.sm),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    '$rank · $category',
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.foregroundMuted,
-                    ),
-                  ),
-                  Text(
-                    item.topic,
-                    style: context.uiText.bodyStrong.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (item.postCount != null)
-                    Text(
-                      item.postCount!.contains('post')
-                          ? item.postCount!
-                          : '${item.postCount} posts',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundSubtle,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.more_horiz_rounded,
-              size: context.sz(18),
-              color: theme.colors.foregroundMuted,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1049,7 +1045,6 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
     ),
   );
 
-
   Widget _newsItem(BuildContext context, CommunityNewsItem item) =>
       MarketNewsCard(
         article: communityMarketArticle(item),
@@ -1063,6 +1058,38 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
           snapshot: widget.repository.marketSnapshot,
         ),
       );
+}
+
+class _ExploreTrendTag extends StatelessWidget {
+  const _ExploreTrendTag({required this.item, required this.onTap});
+
+  final CommunityTrendItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isTicker = item.topic.trimLeft().startsWith(r'$');
+    final String postLabel = switch (item.postCount?.trim()) {
+      null || '' => 'Open trend',
+      final String value when value.contains('post') => value,
+      final String value => '$value posts',
+    };
+    final String category = item.category.toLowerCase().contains('trending')
+        ? item.category
+        : '${item.category} · Trending';
+
+    return UiBadge(
+      key: ValueKey('explore-trend-${item.id}'),
+      label: item.topic,
+      icon: isTicker ? Icons.candlestick_chart_rounded : Icons.tag_rounded,
+      trailingIcon: Icons.arrow_outward_rounded,
+      intent: isTicker ? UiIntent.primary : UiIntent.info,
+      variant: UiBadgeVariant.soft,
+      size: UiSize.md,
+      tooltip: '$category · $postLabel',
+      onTap: onTap,
+    );
+  }
 }
 
 /// A category-specific feed: only visible rows are built, with automatic batches.

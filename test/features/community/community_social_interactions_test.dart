@@ -328,6 +328,44 @@ void main() {
     expect(find.text('Comment 1'), findsNothing);
   });
 
+  testWidgets('nested replies omit the duplicated parent handle', (
+    tester,
+  ) async {
+    final reply = CommunityComment(
+      id: 'reply',
+      postId: 'post',
+      author: viewer,
+      body: '@priya is that really okay',
+      createdAt: DateTime(2026, 11, 2),
+      parentCommentId: 'root',
+    );
+    await tester.pumpWidget(
+      host(
+        CommunityPostDiscussion(
+          comments: <CommunityComment>[
+            comment('root', replies: <CommunityComment>[reply]),
+          ],
+          currentUser: viewer,
+          onAddComment: (_, {parentCommentId, sentiment}) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('@priya is that really okay'), findsNothing);
+    expect(find.text('is that really okay'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(UiButton, 'Reply').first);
+    await tester.pumpAndSettle();
+    final EditableText editor = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('reply-editor-root')),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(editor.controller.text, isEmpty);
+  });
+
   testWidgets(
     'failed comment preserves draft and successful reply uses correct parent',
     (tester) async {

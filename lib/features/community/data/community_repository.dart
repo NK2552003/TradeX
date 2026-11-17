@@ -254,10 +254,19 @@ class CommunityRepository extends ChangeNotifier {
     required int offset,
     required int limit,
     String? authorId,
+    List<String>? postIds,
   }) async {
     final scopedAuthorId = authorId?.trim() ?? '';
     final dynamic res;
-    if (scopedAuthorId.isEmpty) {
+    if (postIds != null && postIds.isNotEmpty) {
+      res = await client
+          .from('community_posts')
+          .select(_postSelectColumns)
+          .inFilter('id', postIds)
+          .or('is_public.eq.true,author_id.eq.$targetUserId')
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+    } else if (scopedAuthorId.isEmpty) {
       res = await client
           .from('community_posts')
           .select(_postSelectColumns)
@@ -711,6 +720,47 @@ class CommunityRepository extends ChangeNotifier {
     return (posts: posts, comments: pageComments, rawRowCount: rawRows.length);
   }
 
+  Future<List<CommunityPost>?> _fetchBookmarkedPosts(
+    SupabaseClient client,
+    String targetUserId,
+  ) async {
+    if (targetUserId.isEmpty) return const <CommunityPost>[];
+    try {
+      final dynamic response = await client
+          .from('community_bookmarks')
+          .select('post_id')
+          .eq('user_id', targetUserId)
+          .order('created_at', ascending: false)
+          .limit(200);
+      final List<String> ids = (response as List)
+          .map((dynamic row) => row['post_id']?.toString() ?? '')
+          .where((String id) => id.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+      if (ids.isEmpty) return const <CommunityPost>[];
+
+      final List<CommunityPost> posts = <CommunityPost>[];
+      for (int start = 0; start < ids.length; start += _postsPageSize) {
+        final List<String> chunk = ids.sublist(
+          start,
+          math.min(start + _postsPageSize, ids.length),
+        );
+        final page = await _fetchPostsPage(
+          client: client,
+          targetUserId: targetUserId,
+          offset: 0,
+          limit: chunk.length,
+          postIds: chunk,
+        );
+        posts.addAll(page.posts.where((CommunityPost post) => post.bookmarked));
+      }
+      return posts;
+    } catch (error) {
+      debugPrint('[CommunityRepository] Error fetching saved posts: $error');
+      return null;
+    }
+  }
+
   Future<
     ({Map<String, int> followers, Map<String, int> following, bool succeeded})
   >
@@ -1118,6 +1168,11 @@ class CommunityRepository extends ChangeNotifier {
 
       await _fetchNetworkActivity(page.posts);
       if (_disposed) return;
+      final List<CommunityPost>? savedPosts = await _fetchBookmarkedPosts(
+        client,
+        targetUserId,
+      );
+      if (_disposed) return;
 
       _forYouPosts = page.posts;
       _followingPosts = page.posts
@@ -1130,6 +1185,7 @@ class CommunityRepository extends ChangeNotifier {
           .toList();
       _signalPosts = page.posts.where((p) => p.tradeSetup != null).toList();
       _commentsByPost = page.comments;
+      if (savedPosts != null) _bookmarkedPosts = savedPosts;
       _rebuildBookmarks();
 
       await fetchLiveRooms();
@@ -2855,12 +2911,20 @@ class CommunityRepository extends ChangeNotifier {
     _signalPosts = _signalPosts
         .map((p) => p.id == postId ? p.copyWith(bookmarked: isBookmarked) : p)
         .toList();
+    _bookmarkedPosts = _bookmarkedPosts
+        .map((p) => p.id == postId ? p.copyWith(bookmarked: isBookmarked) : p)
+        .toList();
     _rebuildBookmarks();
     notifyListeners();
   }
 
   void _rebuildBookmarks() {
-    final all = <CommunityPost>[..._forYouPosts, ..._signalPosts];
+    final all = <CommunityPost>[
+      ..._forYouPosts,
+      ..._followingPosts,
+      ..._signalPosts,
+      ..._bookmarkedPosts,
+    ];
     final seen = <String>{};
     _bookmarkedPosts = all.where((p) => p.bookmarked && seen.add(p.id)).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));

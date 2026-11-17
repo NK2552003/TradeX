@@ -1177,6 +1177,10 @@ class _AppScaffoldState extends State<AppScaffold> {
         (resolvedKind == AppLinkKind.note ||
             resolvedKind == AppLinkKind.journal ||
             resolvedKind == AppLinkKind.strategy)) {
+      final String? originPostId = ref.originPostId;
+      final CommunityPost? originPost = originPostId == null
+          ? null
+          : _communityRepo.loadPostById(originPostId);
       PublicRecordDetailModal.show(
         context,
         ref: ref.copyWith(kind: resolvedKind, isPublicContext: true),
@@ -1185,6 +1189,17 @@ class _AppScaffoldState extends State<AppScaffold> {
           writing: true,
         ),
         onOpenRef: _openLinkRef,
+        initiallySaved: originPost?.bookmarked ?? false,
+        onSaveChanged: originPostId == null
+            ? null
+            : (bool saved) async {
+                final CommunityPost? current = _communityRepo.loadPostById(
+                  originPostId,
+                );
+                if (current?.bookmarked != saved) {
+                  await _communityRepo.setBookmark(originPostId, saved);
+                }
+              },
       );
       return;
     }

@@ -404,10 +404,9 @@ class PerplexityCompanyCard extends StatelessWidget {
                 alignment: WrapAlignment.spaceBetween,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: <Widget>[
-                  Wrap(
-                    spacing: context.sp(theme.spacing.sm),
-                    runSpacing: context.sp(theme.spacing.xs),
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       if (priceStr != null)
                         Text(
@@ -427,25 +426,37 @@ class PerplexityCompanyCard extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      if (changePct != null)
-                        UiBadge.delta(changePct)
-                      else if (changeLabel != null)
-                        UiBadge(
-                          label: changeLabel,
-                          intent: priceIntent,
-                          icon: isPositive == true
-                              ? Icons.trending_up
-                              : (isPositive == false
-                                    ? Icons.trending_down
-                                    : null),
+                      if (changePct != null || changeLabel != null) ...<Widget>[
+                        if (priceStr != null) UiGap.v(theme.spacing.xxs),
+                        Wrap(
+                          spacing: context.sp(theme.spacing.xs),
+                          runSpacing: context.sp(theme.spacing.xxs),
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: <Widget>[
+                            UiBadge(
+                              label: changePct != null
+                                  ? '${isPositive == true ? 'Bullish' : 'Bearish'} · ${uiSignedPercent(changePct)}'
+                                  : isPositive == null
+                                  ? changeLabel!
+                                  : '${isPositive ? 'Bullish' : 'Bearish'} · $changeLabel',
+                              intent: priceIntent,
+                              icon: isPositive == true
+                                  ? Icons.trending_up
+                                  : (isPositive == false
+                                        ? Icons.trending_down
+                                        : null),
+                              variant: UiBadgeVariant.soft,
+                            ),
+                            if (priceStr != null && asOf != null)
+                              Text(
+                                'As of $asOf',
+                                style: context.uiText.caption.copyWith(
+                                  color: theme.colors.foregroundSubtle,
+                                ),
+                              ),
+                          ],
                         ),
-                      if (priceStr != null && asOf != null)
-                        Text(
-                          'As of $asOf',
-                          style: context.uiText.caption.copyWith(
-                            color: theme.colors.foregroundSubtle,
-                          ),
-                        ),
+                      ],
                     ],
                   ),
                   if (sparkline.length >= 2)
@@ -696,7 +707,8 @@ class PerplexityCompanyCard extends StatelessWidget {
                   if (websiteUrl != null && onTapUrl != null)
                     AppSiteLinkChip(
                       url: websiteUrl,
-                      title: PerplexityCardDataUtils.domainOf(websiteUrl).isEmpty
+                      title:
+                          PerplexityCardDataUtils.domainOf(websiteUrl).isEmpty
                           ? 'Website'
                           : PerplexityCardDataUtils.domainOf(websiteUrl),
                       onTap: () => onTapUrl!(websiteUrl),

@@ -38,17 +38,16 @@ class MarketIndexItem {
     bool? isLive,
     DateTime? timestamp,
     String? source,
-  }) =>
-      MarketIndexItem(
-        symbol: symbol ?? this.symbol,
-        name: name ?? this.name,
-        price: price ?? this.price,
-        changePercent: changePercent ?? this.changePercent,
-        spark: spark ?? this.spark,
-        isLive: isLive ?? this.isLive,
-        timestamp: timestamp ?? this.timestamp,
-        source: source ?? this.source,
-      );
+  }) => MarketIndexItem(
+    symbol: symbol ?? this.symbol,
+    name: name ?? this.name,
+    price: price ?? this.price,
+    changePercent: changePercent ?? this.changePercent,
+    spark: spark ?? this.spark,
+    isLive: isLive ?? this.isLive,
+    timestamp: timestamp ?? this.timestamp,
+    source: source ?? this.source,
+  );
 }
 
 /// World Indices and Assets Overview Card matching Image 2.
@@ -129,17 +128,18 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
     ('^IRX', '13-Week Bill Yield', 4.62),
   ];
 
-  static List<MarketIndexItem> _initList(List<(String, String, double)> defs) => defs
-      .map(
-        (d) => MarketIndexItem(
-          symbol: d.$1,
-          name: d.$2,
-          price: d.$3,
-          changePercent: 0.0,
-          spark: [d.$3 * 0.99, d.$3 * 0.995, d.$3 * 1.002, d.$3],
-        ),
-      )
-      .toList();
+  static List<MarketIndexItem> _initList(List<(String, String, double)> defs) =>
+      defs
+          .map(
+            (d) => MarketIndexItem(
+              symbol: d.$1,
+              name: d.$2,
+              price: d.$3,
+              changePercent: 0.0,
+              spark: [d.$3 * 0.99, d.$3 * 0.995, d.$3 * 1.002, d.$3],
+            ),
+          )
+          .toList();
 
   @override
   void initState() {
@@ -171,7 +171,8 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
   void _syncFromInstruments() {
     if (widget.instruments.isEmpty) return;
 
-    final totalAvg = widget.instruments.fold<double>(
+    final totalAvg =
+        widget.instruments.fold<double>(
           0.0,
           (sum, inst) => sum + inst.changePercent,
         ) /
@@ -184,9 +185,11 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
       for (var i = 0; i < list.length; i++) {
         final item = list[i];
         final match = widget.instruments
-            .where((inst) =>
-                inst.symbol == item.symbol ||
-                inst.name.toLowerCase() == item.name.toLowerCase())
+            .where(
+              (inst) =>
+                  inst.symbol == item.symbol ||
+                  inst.name.toLowerCase() == item.name.toLowerCase(),
+            )
             .firstOrNull;
         if (match != null && match.price > 0) {
           list[i] = item.copyWith(
@@ -254,201 +257,126 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
   Widget _buildTable(
     BuildContext context,
     String title,
-    List<MarketIndexItem> items,
-  ) {
+    List<MarketIndexItem> items, {
+    double? bodyHeight,
+  }) {
     final theme = context.ui;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colors.surfaceMuted,
-        borderRadius: context.radius(theme.radii.sm),
-        border: Border.all(
-          color: theme.colors.border,
-          width: theme.borders.hairline,
+    return UiTable<MarketIndexItem>(
+      key: ValueKey<String>('market-overview-table-$title'),
+      rows: items,
+      rowKey: (MarketIndexItem item) => item.symbol,
+      onRowTap: widget.onInstrument == null ? null : _openInstrument,
+      density: UiDensity.compact,
+      stickyHeader: bodyHeight != null,
+      minBodyHeight: bodyHeight,
+      maxBodyHeight: bodyHeight,
+      columns: <UiTableColumn<MarketIndexItem>>[
+        UiTableColumn<MarketIndexItem>(
+          header: title,
+          flex: 5,
+          cell: (BuildContext context, MarketIndexItem item) => Row(
+            children: <Widget>[
+              Flexible(
+                child: Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (item.spark.isNotEmpty) ...<Widget>[
+                UiGap.h(theme.spacing.xs),
+                SizedBox(
+                  width: context.sz(28),
+                  height: context.sz(14),
+                  child: UiSparkChart(
+                    values: item.spark,
+                    color: item.isPositive
+                        ? theme.colors.bullish
+                        : theme.colors.bearish,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Table Group Header
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.sm),
-              vertical: context.sp(theme.spacing.xs),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 5,
+        UiTableColumn<MarketIndexItem>(
+          header: 'Price',
+          numeric: true,
+          flex: 3,
+          cell: (BuildContext context, MarketIndexItem item) =>
+              item.price == 0.0
+              ? UiSkeleton(width: context.sz(35), height: context.sz(12))
+              : FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
                   child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    item.price.toStringAsFixed(item.price < 10 ? 4 : 2),
                     style: context.uiText.caption.copyWith(
                       fontWeight: FontWeight.w700,
                       color: theme.colors.foreground,
                     ),
                   ),
                 ),
-                Expanded(
-                  flex: 3,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      'Price',
-                      textAlign: TextAlign.right,
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                        fontSize: context.fs(11),
-                      ),
+        ),
+        UiTableColumn<MarketIndexItem>(
+          header: 'Change %',
+          numeric: true,
+          flex: 3,
+          cell: (BuildContext context, MarketIndexItem item) =>
+              item.price == 0.0
+              ? UiSkeleton(width: context.sz(30), height: context.sz(12))
+              : FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '${item.isPositive ? '+' : ''}${item.changePercent.toStringAsFixed(2)}%',
+                    style: context.uiText.caption.copyWith(
+                      color: item.isPositive
+                          ? theme.colors.bullish
+                          : theme.colors.bearish,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                UiGap.h(theme.spacing.xs),
-                Expanded(
-                  flex: 3,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      'Change %',
-                      textAlign: TextAlign.right,
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                        fontSize: context.fs(11),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const UiDivider(spacing: 0),
-          // Table Rows
-          for (final item in items) ...[
-            InkWell(
-              onTap: () {
-                if (widget.onInstrument == null) return;
-                final match = widget.instruments
-                    .where((inst) => inst.symbol == item.symbol)
-                    .firstOrNull;
-                widget.onInstrument!(
-                  match ??
-                      MarketInstrument.fromJson(
-                        {
-                          'ticker': item.symbol,
-                          'price': item.price,
-                          'change_pct': item.changePercent,
-                          'market': 'US',
-                          'currency': 'USD',
-                        },
-                        {'name': item.name},
-                        history: item.spark,
-                      ),
-                );
-              },
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
-                  vertical: context.sp(theme.spacing.xs),
-                ),
-                child: Row(
-                  children: [
-                    // Symbol name with sparkline
-                    Expanded(
-                      flex: 5,
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              item.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.uiText.caption.copyWith(
-                                color: theme.colors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          if (item.spark.isNotEmpty) ...[
-                            UiGap.h(theme.spacing.xs),
-                            SizedBox(
-                              width: context.sz(28),
-                              height: context.sz(14),
-                              child: UiSparkChart(
-                                values: item.spark,
-                                color: item.isPositive
-                                    ? theme.colors.bullish
-                                    : theme.colors.bearish,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    // Price
-                    Expanded(
-                      flex: 3,
-                      child: item.price == 0.0
-                          ? Align(
-                              alignment: Alignment.centerRight,
-                              child: UiSkeleton(
-                                width: context.sz(35),
-                                height: context.sz(12),
-                              ),
-                            )
-                          : FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                item.price.toStringAsFixed(
-                                  item.price < 10 ? 4 : 2,
-                                ),
-                                textAlign: TextAlign.right,
-                                style: context.uiText.caption.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: theme.colors.foreground,
-                                ),
-                              ),
-                            ),
-                    ),
-                    UiGap.h(theme.spacing.xs),
-                    // Change Percent
-                    Expanded(
-                      flex: 3,
-                      child: item.price == 0.0
-                          ? Align(
-                              alignment: Alignment.centerRight,
-                              child: UiSkeleton(
-                                width: context.sz(30),
-                                height: context.sz(12),
-                              ),
-                            )
-                          : FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                '${item.isPositive ? '+' : ''}${item.changePercent.toStringAsFixed(2)}%',
-                                textAlign: TextAlign.right,
-                                style: context.uiText.caption.copyWith(
-                                  color: item.isPositive
-                                      ? theme.colors.bullish
-                                      : theme.colors.bearish,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const UiDivider(spacing: 0),
-          ],
-        ],
-      ),
+        ),
+      ],
     );
+  }
+
+  void _openInstrument(MarketIndexItem item) {
+    final MarketInstrument? match = widget.instruments
+        .where(
+          (MarketInstrument instrument) => instrument.symbol == item.symbol,
+        )
+        .firstOrNull;
+    widget.onInstrument?.call(
+      match ??
+          MarketInstrument.fromJson(
+            <String, dynamic>{
+              'ticker': item.symbol,
+              'price': item.price,
+              'change_pct': item.changePercent,
+              'market': 'US',
+              'currency': 'USD',
+            },
+            <String, dynamic>{'name': item.name},
+            history: item.spark,
+          ),
+    );
+  }
+
+  double _sharedBodyHeight(
+    BuildContext context,
+    List<List<MarketIndexItem>> groups,
+  ) {
+    final int visibleRows = groups
+        .map((List<MarketIndexItem> group) => group.length)
+        .reduce((int a, int b) => a < b ? a : b);
+    return context.ui.sizes.minTapTarget * visibleRows;
   }
 
   @override
@@ -502,14 +430,39 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
                 ],
               );
             }
+            final double bodyHeight = _sharedBodyHeight(
+              context,
+              <List<MarketIndexItem>>[_americas, _europe, _asia],
+            );
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _buildTable(context, 'Americas', _americas)),
+                Expanded(
+                  child: _buildTable(
+                    context,
+                    'Americas',
+                    _americas,
+                    bodyHeight: bodyHeight,
+                  ),
+                ),
                 UiGap.h(theme.spacing.sm),
-                Expanded(child: _buildTable(context, 'Europe', _europe)),
+                Expanded(
+                  child: _buildTable(
+                    context,
+                    'Europe',
+                    _europe,
+                    bodyHeight: bodyHeight,
+                  ),
+                ),
                 UiGap.h(theme.spacing.sm),
-                Expanded(child: _buildTable(context, 'Asia', _asia)),
+                Expanded(
+                  child: _buildTable(
+                    context,
+                    'Asia',
+                    _asia,
+                    bodyHeight: bodyHeight,
+                  ),
+                ),
               ],
             );
           },
@@ -547,19 +500,38 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
                 ],
               );
             }
+            final double bodyHeight = _sharedBodyHeight(
+              context,
+              <List<MarketIndexItem>>[_commodities, _currencies, _bonds],
+            );
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: _buildTable(context, 'Commodities', _commodities),
+                  child: _buildTable(
+                    context,
+                    'Commodities',
+                    _commodities,
+                    bodyHeight: bodyHeight,
+                  ),
                 ),
                 UiGap.h(theme.spacing.sm),
                 Expanded(
-                  child: _buildTable(context, 'Currencies', _currencies),
+                  child: _buildTable(
+                    context,
+                    'Currencies',
+                    _currencies,
+                    bodyHeight: bodyHeight,
+                  ),
                 ),
                 UiGap.h(theme.spacing.sm),
                 Expanded(
-                  child: _buildTable(context, 'US Treasury Bonds', _bonds),
+                  child: _buildTable(
+                    context,
+                    'US Treasury Bonds',
+                    _bonds,
+                    bodyHeight: bodyHeight,
+                  ),
                 ),
               ],
             );

@@ -40,14 +40,25 @@ void main() {
     }
     expect(find.text('Trends for you'), findsOneWidget);
     expect(find.text('Who to follow'), findsOneWidget);
-    expect(find.textContaining('1 · '), findsWidgets);
+    expect(
+      find.byKey(ValueKey('explore-trend-${repo.trending.first.id}')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widgetList<UiBadge>(find.byType(UiBadge))
+          .any((UiBadge badge) => badge.label == repo.trending.first.topic),
+      isTrue,
+    );
 
     await tester.tap(find.byKey(const ValueKey('explore-search-bar')));
     expect(searchTaps, 1);
 
     if (repo.suggestedTraders.isNotEmpty) {
       await tester.tap(
-        find.byKey(ValueKey('explore-author-${repo.suggestedTraders.first.id}')),
+        find.byKey(
+          ValueKey('explore-author-${repo.suggestedTraders.first.id}'),
+        ),
       );
       expect(authorTapped, isNotNull);
     }
@@ -70,7 +81,10 @@ void main() {
       app(CommunityExploreView(repository: repo, searchQuery: 'zzzqqq')),
     );
     await tester.pump();
-    await tester.tap(find.text('Futures').first);
+    final Finder futuresTab = find.text('Futures').first;
+    await tester.ensureVisible(futuresTab);
+    await tester.pump();
+    await tester.tap(futuresTab);
     await tester.pump();
     expect(find.byType(UiEmptyState), findsWidgets);
   });
