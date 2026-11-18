@@ -82,6 +82,7 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
   late List<MarketIndexItem> _commodities;
   late List<MarketIndexItem> _currencies;
   late List<MarketIndexItem> _bonds;
+  bool _loadingQuotes = true;
 
   @override
   void initState() {
@@ -150,10 +151,16 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
         if (match == null || !match.price.isFinite || match.price <= 0) {
           continue;
         }
+        final currentTimestamp = current.timestamp;
+        if (currentTimestamp != null &&
+            match.updatedAt?.isAfter(currentTimestamp) != true) {
+          continue;
+        }
         group[index] = current.copyWith(
           price: match.price,
           changePercent: match.changePercent,
           spark: match.spark,
+          isLive: false,
           timestamp: match.updatedAt,
           source: 'Market snapshot',
         );
@@ -168,21 +175,31 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
             for (final MarketIndexItem item in group)
               (symbol: item.symbol, name: item.name),
         ];
+    var latest = const <String, MarketIndexItem>{};
     try {
-      final Map<String, MarketIndexItem> latest = await YahooFinanceService
+      latest = await YahooFinanceService
           .instance
           .fetchIndexItems(requested);
-      if (!mounted || latest.isEmpty) return;
-      setState(() {
-        for (final List<MarketIndexItem> group in _groups) {
-          for (int index = 0; index < group.length; index++) {
-            group[index] = latest[group[index].symbol] ?? group[index];
-          }
-        }
-      });
     } catch (_) {
       // Existing snapshot values remain visible when the live quote proxy fails.
     }
+    if (!mounted) return;
+    setState(() {
+      _loadingQuotes = false;
+      for (final List<MarketIndexItem> group in _groups) {
+        for (int index = 0; index < group.length; index++) {
+          final current = group[index];
+          final quote = latest[current.symbol];
+          if (quote == null || !quote.hasQuote) continue;
+          final currentTimestamp = current.timestamp;
+          if (currentTimestamp != null &&
+              quote.timestamp?.isBefore(currentTimestamp) != false) {
+            continue;
+          }
+          group[index] = quote;
+        }
+      }
+    });
   }
 
   void _openInstrument(MarketIndexItem item) {
@@ -231,16 +248,19 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
             MarketIndexGroupCard(
               title: 'Americas',
               items: _americas,
+              loading: _loadingQuotes,
               onItemTap: widget.onInstrument == null ? null : _openInstrument,
             ),
             MarketIndexGroupCard(
               title: 'Europe',
               items: _europe,
+              loading: _loadingQuotes,
               onItemTap: widget.onInstrument == null ? null : _openInstrument,
             ),
             MarketIndexGroupCard(
               title: 'Asia',
               items: _asia,
+              loading: _loadingQuotes,
               onItemTap: widget.onInstrument == null ? null : _openInstrument,
             ),
           ],
@@ -262,16 +282,19 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
             MarketIndexGroupCard(
               title: 'Commodities',
               items: _commodities,
+              loading: _loadingQuotes,
               onItemTap: widget.onInstrument == null ? null : _openInstrument,
             ),
             MarketIndexGroupCard(
               title: 'Currencies & Crypto',
               items: _currencies,
+              loading: _loadingQuotes,
               onItemTap: widget.onInstrument == null ? null : _openInstrument,
             ),
             MarketIndexGroupCard(
               title: 'US Treasury Yields',
               items: _bonds,
+              loading: _loadingQuotes,
               onItemTap: widget.onInstrument == null ? null : _openInstrument,
             ),
           ],

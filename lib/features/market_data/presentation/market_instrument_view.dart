@@ -130,7 +130,7 @@ List<UiCandle> filterMarketHistoryCandles(
   final sorted = List<UiCandle>.from(candles)
     ..sort((a, b) => a.time.compareTo(b.time));
   final DateTime latest = sorted.last.time;
-  final DateTime latestDay = DateTime(latest.year, latest.month, latest.day);
+  final DateTime latestDay = DateTime.utc(latest.year, latest.month, latest.day);
   final DateTime cutoff = switch (range) {
     MarketHistoryRange.day => latestDay,
     MarketHistoryRange.week => latestDay.subtract(const Duration(days: 6)),
@@ -139,7 +139,7 @@ List<UiCandle> filterMarketHistoryCandles(
     MarketHistoryRange.twoMonths => latestDay.subtract(const Duration(days: 59)),
   };
   final filtered = sorted.where((c) {
-    final day = DateTime(c.time.year, c.time.month, c.time.day);
+    final day = DateTime.utc(c.time.year, c.time.month, c.time.day);
     return !day.isBefore(cutoff);
   }).toList();
   return filtered.isNotEmpty ? filtered : <UiCandle>[sorted.last];
@@ -177,6 +177,10 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
     final themeCtrl = AppThemeController.maybeOf(context);
     if (themeCtrl == null) return;
     _appliedThemeDefaults = true;
+    _historyRange = MarketHistoryRange.values.firstWhere(
+      (range) => marketHistoryRangeLabel(range) == themeCtrl.chartRange,
+      orElse: () => MarketHistoryRange.twoMonths,
+    );
     _chartMode = switch (themeCtrl.preferredPriceChartType) {
       UiPriceChartType.candles => 0,
       UiPriceChartType.hollow => 1,
@@ -459,25 +463,47 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
       final bool hasChart = allCandles.isNotEmpty;
       final UiCandle? latest = hasChart ? allCandles.last : null;
       final quoteMap = detail['quote'] as Map? ?? const {};
-      final double? detailPrice = (quoteMap['price'] as num?)?.toDouble();
-      final double price = inst.price.isFinite && inst.price != 0
-          ? inst.price
-          : (detailPrice != null && detailPrice.isFinite && detailPrice != 0
-                ? detailPrice
-                : (latest?.close ?? 0));
-      final double changePct =
-          (inst.price.isFinite && inst.price != 0)
-              ? inst.changePercent
-              : ((quoteMap['change_pct'] as num?)?.toDouble() ??
-                    inst.changePercent);
-      final double? prevClose =
-          inst.previousClose ?? (quoteMap['previous_close'] as num?)?.toDouble();
+      double? finiteNumber(Object? value) {
+        final parsed = value is num ? value.toDouble() : double.tryParse('$value');
+        return parsed?.isFinite == true ? parsed : null;
+      }
+      final instrumentPrice = finiteNumber(inst.price);
+      final detailPrice = finiteNumber(quoteMap['price']);
+      final hasInstrumentQuote = instrumentPrice != null && instrumentPrice != 0;
+      final hasDetailQuote = detailPrice != null && detailPrice != 0;
+      final price = hasInstrumentQuote
+          ? instrumentPrice
+          : hasDetailQuote
+          ? detailPrice
+          : finiteNumber(latest?.close);
+      final changePct = hasInstrumentQuote
+          ? finiteNumber(inst.changePercent)
+          : hasDetailQuote
+          ? finiteNumber(quoteMap['change_pct'])
+          : null;
+      final prevClose = hasInstrumentQuote
+          ? finiteNumber(inst.previousClose)
+          : hasDetailQuote
+          ? finiteNumber(quoteMap['previous_close'])
+          : null;
+      final quoteTime = hasInstrumentQuote
+          ? inst.updatedAt
+          : hasDetailQuote
+          ? DateTime.tryParse('${quoteMap['updated_at']}')
+          : latest?.time;
+      final priceTimeLabel = hasInstrumentQuote || hasDetailQuote
+          ? 'Quote time'
+          : price != null
+          ? 'Last historical close'
+          : 'Quote time';
       final String displayName =
           (inst.name.trim().isNotEmpty &&
                   inst.name.trim().toUpperCase() != inst.symbol.trim().toUpperCase())
               ? inst.name
               : '${summary['name'] ?? quoteMap['name'] ?? inst.name}';
-      final UiIntent plIntent = AppTokens.plIntent(changePct);
+      final UiIntent plIntent = changePct == null
+          ? UiIntent.neutral
+          : AppTokens.plIntent(changePct);
       String px(double? v) => v == null || !v.isFinite
           ? 'Quote unavailable'
           : '${inst.currency} ${v.toStringAsFixed(2)}';
@@ -713,7 +739,7 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(px(price), style: context.uiText.heading),
-                      if (price.isFinite && price != 0)
+                      if (changePct != null)
                         UiBadge(
                           label: AppTokens.signedPercent(changePct),
                           intent: plIntent,
@@ -724,19 +750,16 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                   UiGap.v(context.ui.spacing.sm),
                   Text(
                     () {
-                      final raw =
-                          '${detail['quote']?['updated_at'] ?? inst.updatedAt?.toIso8601String() ?? ''}'
-                              .trim();
-                      final parsed = DateTime.tryParse(raw)?.toUtc();
+                      final parsed = quoteTime?.toUtc();
                       if (parsed != null) {
                         final y = parsed.year.toString().padLeft(4, '0');
                         final m = parsed.month.toString().padLeft(2, '0');
                         final d = parsed.day.toString().padLeft(2, '0');
                         final hh = parsed.hour.toString().padLeft(2, '0');
                         final mm = parsed.minute.toString().padLeft(2, '0');
-                        return 'Updated: $y-$m-$d · $hh:$mm UTC';
+                        return '$priceTimeLabel: $y-$m-$d · $hh:$mm UTC';
                       }
-                      return 'Updated: ${raw.isEmpty ? 'Unavailable' : raw}';
+                      return '$priceTimeLabel unavailable';
                     }(),
                     style: context.uiText.caption.copyWith(
                       color: context.ui.colors.foregroundMuted,

@@ -205,11 +205,7 @@ class _TradeXAppState extends State<TradeXApp> with WidgetsBindingObserver {
           activeRole: roleOverride ?? _activeRole,
         );
         if (redirect != null) {
-          final targetUrl = redirect.toString();
-          if (_pendingExternalRedirect != targetUrl) {
-            _pendingExternalRedirect = targetUrl;
-            CrossSubdomainState.navigateExternal(targetUrl);
-          }
+          CrossSubdomainState.navigateExternal(redirect.toString());
           return;
         }
       }

@@ -12,6 +12,38 @@ import 'package:tradex/features/market_data/presentation/yahoo_market_ribbon.dar
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('missing quotes stop showing loading once the request ends', (
+    tester,
+  ) async {
+    Future<void> render({required bool loading}) => tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MarketIndexGroupCard(
+            title: 'Indices',
+            loading: loading,
+            items: const [
+              MarketIndexItem(
+                symbol: 'TEST',
+                name: 'Example Index',
+                price: 0,
+                changePercent: 0,
+                spark: [],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await render(loading: true);
+    expect(find.text('Updating latest quotes'), findsOneWidget);
+    expect(find.byType(UiSkeleton), findsWidgets);
+
+    await render(loading: false);
+    expect(find.text('Quotes unavailable'), findsOneWidget);
+    expect(find.byType(UiSkeleton), findsNothing);
+  });
+
   group(
     'Issue #41: Work Item 1 - Truthful Quote Delivery, Freshness & Timestamps',
     () {

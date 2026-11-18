@@ -12,28 +12,32 @@ class MarketIndexGroupCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.items,
+    this.loading = false,
     this.onItemTap,
   });
 
   final String title;
   final List<MarketIndexItem> items;
+  final bool loading;
   final ValueChanged<MarketIndexItem>? onItemTap;
 
   @override
   Widget build(BuildContext context) {
     final int liveCount = items
-        .where((MarketIndexItem item) => item.isLive)
+        .where((MarketIndexItem item) => item.hasQuote && item.isLive)
         .length;
     final int quotedCount = items
         .where((MarketIndexItem item) => item.hasQuote)
         .length;
-    final bool isUpdating = quotedCount == 0;
+    final bool isUpdating = quotedCount == 0 && loading;
 
     return UiCard(
       key: ValueKey<String>('market-overview-group-$title'),
       title: title,
       subtitle: isUpdating
           ? 'Updating latest quotes'
+          : quotedCount == 0
+          ? 'Quotes unavailable'
           : '$quotedCount instruments · Latest available',
       trailing: isUpdating
           ? const UiBadge(
@@ -42,12 +46,14 @@ class MarketIndexGroupCard extends StatelessWidget {
               variant: UiBadgeVariant.soft,
               size: UiSize.xs,
             )
-          : UiBadge.status(
+          : quotedCount > 0
+          ? UiBadge.status(
               liveCount > 0 ? '$liveCount live' : 'Latest',
               intent: liveCount > 0 ? UiIntent.success : UiIntent.neutral,
               size: UiSize.xs,
               pulse: liveCount > 0,
-            ),
+            )
+          : null,
       density: UiDensity.compact,
       semanticLabel: '$title market instruments',
       child: Column(
@@ -60,6 +66,7 @@ class MarketIndexGroupCard extends StatelessWidget {
                 'market-overview-row-$title-${items[index].symbol}',
               ),
               item: items[index],
+              loading: loading,
               onTap: onItemTap == null || !items[index].hasQuote
                   ? null
                   : () => onItemTap!(items[index]),
@@ -72,9 +79,15 @@ class MarketIndexGroupCard extends StatelessWidget {
 }
 
 class _MarketIndexRow extends StatelessWidget {
-  const _MarketIndexRow({super.key, required this.item, this.onTap});
+  const _MarketIndexRow({
+    super.key,
+    required this.item,
+    required this.loading,
+    this.onTap,
+  });
 
   final MarketIndexItem item;
+  final bool loading;
   final VoidCallback? onTap;
 
   @override
@@ -92,7 +105,7 @@ class _MarketIndexRow extends StatelessWidget {
       onTap: onTap,
       semanticLabel: item.hasQuote
           ? '${item.name}, ${_formatPrice(item.price)}, ${AppTokens.signedPercent(item.changePercent)}'
-          : '${item.name}, quote updating',
+          : '${item.name}, quote ${loading ? 'updating' : 'unavailable'}',
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           final bool showSpark = constraints.maxWidth >= context.sz(330);
@@ -156,13 +169,15 @@ class _MarketIndexRow extends StatelessWidget {
                           ],
                         ),
                       )
-                    : Align(
+                    : loading
+                    ? Align(
                         alignment: Alignment.centerRight,
                         child: UiSkeleton(
                           width: context.sz(58),
                           height: context.sz(14),
                         ),
-                      ),
+                      )
+                    : const Text('—', textAlign: TextAlign.right),
               ),
               UiGap.h(theme.spacing.sm),
               SizedBox(
@@ -176,13 +191,15 @@ class _MarketIndexRow extends StatelessWidget {
                           showIcon: false,
                         ),
                       )
-                    : Align(
+                    : loading
+                    ? Align(
                         alignment: Alignment.centerRight,
                         child: UiSkeleton(
                           width: context.sz(52),
                           height: context.sz(20),
                         ),
-                      ),
+                      )
+                    : const Text('—', textAlign: TextAlign.right),
               ),
             ],
           );

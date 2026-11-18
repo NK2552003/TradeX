@@ -69,6 +69,9 @@ void main() {
       );
       expect(RecordAccess.canRead('owner', true, actorId: 'viewer'), isTrue);
       expect(RecordAccess.owns('owner', actorId: 'viewer'), isFalse);
+      expect(RecordAccess.owns('', actorId: 'viewer'), isFalse);
+      expect(RecordAccess.canRead('', false, actorId: 'viewer'), isFalse);
+      expect(RecordAccess.canRead('', true, actorId: 'viewer'), isTrue);
     },
   );
   for (final published in [false, true]) {

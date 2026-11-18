@@ -13,6 +13,7 @@ class AppQuietDockScaffold extends StatefulWidget {
     required this.pageBuilder,
     this.controller,
     this.initialIndex = 0,
+    this.onDestinationTap,
     this.onDestinationSelected,
     this.centerAction,
     this.centerActionActive = false,
@@ -27,6 +28,9 @@ class AppQuietDockScaffold extends StatefulWidget {
   final IndexedWidgetBuilder pageBuilder;
   final QuietDockController? controller;
   final int initialIndex;
+
+  /// Returns true when the parent handles a tap outside this dock.
+  final bool Function(int)? onDestinationTap;
   final ValueChanged<int>? onDestinationSelected;
   final QuietDockCenterAction? centerAction;
   final bool centerActionActive;
@@ -106,6 +110,11 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
 
   void _toggleMenu() => setState(() => _menuOpen = !_menuOpen);
 
+  void _handleDestinationTap(int index) {
+    if (index != _index && widget.onDestinationTap?.call(index) == true) return;
+    _select(index);
+  }
+
   Widget _buildPage(BuildContext context, int index) {
     if (widget.lazy && !_visited.contains(index)) {
       return const SizedBox.shrink();
@@ -173,7 +182,7 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
       bottomNavigationBar: QuietDock(
         destinations: widget.destinations,
         selectedIndex: _index,
-        onDestinationSelected: _select,
+        onDestinationSelected: _handleDestinationTap,
         centerAction: action,
         centerActionActive: _menuOpen || widget.centerActionActive,
         onCenterActionPressed: _toggleMenu,

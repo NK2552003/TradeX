@@ -4,6 +4,63 @@ import 'package:quiet_dock/quiet_dock.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 
 void main() {
+  testWidgets('Dock keeps the current page until navigation commits', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const items = [
+      AppNavItem(id: 'workspace', label: 'Workspace', icon: Icons.notes),
+      AppNavItem(id: 'community', label: 'Community', icon: Icons.forum),
+      AppNavItem(id: 'messages', label: 'Messages', icon: Icons.chat),
+    ];
+    var selected = 'workspace';
+    final requested = <String>[];
+    final selectedLocally = <String>[];
+    await tester.pumpWidget(
+      UiApp(
+        theme: UiTheme.dark(),
+        builder: (_) => MaterialApp(
+          home: StatefulBuilder(
+            builder: (context, setState) => AppShell(
+              sections: const [AppNavSection(title: 'Workspace', items: items)],
+              mobilePrimaryItems: items,
+              selectedId: selected,
+              onExternalSelect: (id) {
+                if (id != 'community') return false;
+                requested.add(id);
+                return true;
+              },
+              onSelect: (id) {
+                selectedLocally.add(id);
+                setState(() => selected = id);
+              },
+              child: Text('Current page: $selected'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.forum).last);
+    await tester.pumpAndSettle();
+    expect(requested, ['community']);
+    expect(selectedLocally, isEmpty);
+    expect(tester.widget<QuietDock>(find.byType(QuietDock)).selectedIndex, 0);
+    expect(find.text('Current page: workspace').hitTestable(), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.chat).last);
+    await tester.pumpAndSettle();
+    expect(requested, ['community']);
+    expect(selectedLocally, ['messages']);
+    expect(tester.widget<QuietDock>(find.byType(QuietDock)).selectedIndex, 2);
+    expect(find.text('Current page: messages').hitTestable(), findsOneWidget);
+  });
+
   testWidgets(
     'AppShell mobile extends body edge-to-edge behind frosted QuietDock and blurs quick-grid tiles',
     (WidgetTester tester) async {

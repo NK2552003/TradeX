@@ -1,7 +1,9 @@
+import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Native/VM fallback Supabase [LocalStorage] using [SharedPreferences].
+/// Stores the native Supabase session in the OS credential store.
 class CrossSubdomainLocalStorage extends LocalStorage {
   CrossSubdomainLocalStorage({required this.persistSessionKey});
 
@@ -12,38 +14,72 @@ class CrossSubdomainLocalStorage extends LocalStorage {
   }
 
   final String persistSessionKey;
-  late final SharedPreferences _preferences;
-  bool _initialized = false;
+  static const _storage = FlutterSecureStorage();
+  Future<void>? _initialization;
+  Future<void> _pendingWrite = Future.value();
 
   @override
-  Future<void> initialize() async {
-    if (_initialized) return;
-    _preferences = await SharedPreferences.getInstance();
-    _initialized = true;
+  Future<void> initialize() => _initialization ??= _migrateLegacySession();
+
+  Future<void> _migrateLegacySession() async {
+    final preferences = await SharedPreferences.getInstance();
+    final legacySession = preferences.getString(persistSessionKey);
+    if (legacySession == null) return;
+    try {
+      final secureSession = await _storage.read(key: persistSessionKey);
+      if (secureSession == null) {
+        await _storage.write(key: persistSessionKey, value: legacySession);
+      }
+      await preferences.remove(persistSessionKey);
+    } on PlatformException {
+      // Retry migration at the next launch if the credential store was locked.
+    } on MissingPluginException {
+      // This runtime has no platform credential store.
+    }
   }
 
   @override
-  Future<bool> hasAccessToken() async {
-    if (!_initialized) await initialize();
-    return _preferences.containsKey(persistSessionKey);
-  }
+  Future<bool> hasAccessToken() async => await accessToken() != null;
 
   @override
   Future<String?> accessToken() async {
-    if (!_initialized) await initialize();
-    return _preferences.getString(persistSessionKey);
+    await initialize();
+    await _pendingWrite;
+    try {
+      return await _storage.read(key: persistSessionKey);
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
   }
 
   @override
-  Future<void> removePersistedSession() async {
-    if (!_initialized) await initialize();
-    await _preferences.remove(persistSessionKey);
-  }
+  Future<void> removePersistedSession() => _writeSession(null);
 
   @override
-  Future<void> persistSession(String persistSessionString) async {
-    if (!_initialized) await initialize();
-    await _preferences.setString(persistSessionKey, persistSessionString);
+  Future<void> persistSession(String persistSessionString) =>
+      _writeSession(persistSessionString);
+
+  Future<void> _writeSession(String? session) {
+    final operation = _pendingWrite.then((_) => _storeSession(session));
+    _pendingWrite = operation.then<void>((_) {}, onError: (Object _) {});
+    return operation;
+  }
+
+  Future<void> _storeSession(String? session) async {
+    await initialize();
+    final preferences = await SharedPreferences.getInstance();
+    if (session == null) {
+      try {
+        await preferences.remove(persistSessionKey);
+      } finally {
+        await _storage.delete(key: persistSessionKey);
+      }
+      return;
+    }
+    await _storage.write(key: persistSessionKey, value: session);
+    await preferences.remove(persistSessionKey);
   }
 }
 

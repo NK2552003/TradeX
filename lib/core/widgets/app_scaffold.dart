@@ -234,8 +234,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       return;
     }
     if (widget.userRole == UserRole.userAdmin ||
-        loadedProfile?.role == UserRole.userAdmin ||
-        (loadedProfile?.adminKey?.trim().isNotEmpty ?? false)) {
+        loadedProfile?.role == UserRole.userAdmin) {
       _hasEverOwnedAdminRole = true;
       _hasEverOwnedAffiliateRole = true;
     }
@@ -941,6 +940,25 @@ class _AppScaffoldState extends State<AppScaffold> {
     }
   }
 
+  bool _navigateAcrossSubdomains(String id) {
+    final onDestinationChanged = widget.onDestinationChanged;
+    if (!kIsWeb ||
+        onDestinationChanged == null ||
+        Uri.base.queryParameters.containsKey('preview') ||
+        !_canReach(id) ||
+        CustomerRoute.crossOriginRedirectUri(
+              Uri(path: '/$id'),
+              currentHost: Uri.base.host,
+              activeRole: _effectiveRole,
+            ) ==
+            null) {
+      return false;
+    }
+    AuthSessionStorage.saveLastDestination(id);
+    onDestinationChanged(id);
+    return true;
+  }
+
   /// The one way a destination changes.
   void _go(String id, {String? aiPrompt}) {
     if (id == 'switch_role_customer') {
@@ -997,24 +1015,7 @@ class _AppScaffoldState extends State<AppScaffold> {
         !id.startsWith('community')) {
       return;
     }
-    if (kIsWeb &&
-        widget.onDestinationChanged != null &&
-        CustomerRoute.crossOriginRedirectUri(
-              Uri(path: '/$id'),
-              currentHost: Uri.base.host,
-              activeRole: _effectiveRole,
-            ) !=
-            null) {
-      AuthSessionStorage.saveLastDestination(id);
-      setState(() {
-        _selectedId = id;
-        _activeSubpageTitle = null;
-        _activeSubpageIcon = null;
-        _activeSubpageOnBack = null;
-      });
-      widget.onDestinationChanged?.call(id);
-      return;
-    }
+    if (_navigateAcrossSubdomains(id)) return;
     _linkedOrigins.clear();
     AuthSessionStorage.saveLastDestination(id);
     setState(() {
@@ -2252,6 +2253,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                 ? 'affiliate_application'
                 : _selectedId,
             onSelect: _go,
+            onExternalSelect: _navigateAcrossSubdomains,
             onSearch: _isMarketFeature
                 ? _showMarketSearch
                 : _isWritingFeature

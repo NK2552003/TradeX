@@ -7,10 +7,8 @@ import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 
-/// Secure local persistent storage for authentication sessions and user identity.
-///
-/// Persists the active user profile, role, access tokens, and last visited
-/// destination across browser reloads (F5) and app restarts.
+/// Caches profile and workspace preferences across reloads. The auth SDK
+/// owns the session credentials.
 class AuthSessionStorage {
   AuthSessionStorage._();
 
@@ -28,10 +26,10 @@ class AuthSessionStorage {
   static Future<void> saveSession({
     required UserProfileModel profile,
     AffiliateProfileModel? affiliateProfile,
-    String? token,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyToken);
       final sanitizedProfile = profile.adminKey != null
           ? profile.copyWith(adminKey: '')
           : profile;
@@ -49,10 +47,6 @@ class AuthSessionStorage {
         );
       } else {
         await prefs.remove(_keyAffiliateProfile);
-      }
-
-      if (token != null && token.isNotEmpty) {
-        await prefs.setString(_keyToken, token);
       }
 
       await prefs.setString(_keyTimestamp, DateTime.now().toIso8601String());
@@ -128,14 +122,11 @@ class AuthSessionStorage {
     }
   }
 
-  /// Retrieves the stored auth token.
-  static Future<String?> getStoredToken() async {
+  static Future<void> removeLegacyToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(_keyToken);
-    } catch (_) {
-      return null;
-    }
+      await prefs.remove(_keyToken);
+    } catch (_) {}
   }
 
   /// Remembers whether the user has finished or dismissed the onboarding flow.
@@ -185,9 +176,7 @@ class AuthSessionStorage {
     UserProfileModel profile, {
     bool hasAffiliateAccess = false,
   }) async {
-    final bool isAdminAccount =
-        profile.role == UserRole.userAdmin ||
-        (profile.adminKey?.trim().isNotEmpty ?? false);
+    final bool isAdminAccount = profile.role == UserRole.userAdmin;
     final bool isAffiliateEligible =
         isAdminAccount ||
         profile.role == UserRole.affiliate ||

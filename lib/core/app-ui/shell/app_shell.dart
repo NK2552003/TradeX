@@ -22,6 +22,7 @@ class AppShell extends StatefulWidget {
     required this.selectedId,
     required this.onSelect,
     required this.child,
+    this.onExternalSelect,
     this.trader,
     this.tier = AppTier.free,
     this.onSearch,
@@ -61,6 +62,10 @@ class AppShell extends StatefulWidget {
   final List<AppNavSection> sections;
   final String selectedId;
   final ValueChanged<String> onSelect;
+
+  /// Handles navigation that leaves the current application before the dock
+  /// starts a local page transition.
+  final bool Function(String)? onExternalSelect;
   final Widget child;
 
   /// Full-height companion panel, outside the page and its header. The builder
@@ -484,6 +489,8 @@ class _AppShellState extends State<AppShell> {
             .toList(),
         initialIndex: activeIndex,
         controller: _activeDockController,
+        onDestinationTap: (index) =>
+            widget.onExternalSelect?.call(destinations[index].id) ?? false,
         onDestinationSelected: (int index) {
           if (index >= 0 && index < destinations.length) {
             widget.onSelect(destinations[index].id);

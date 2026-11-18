@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/cross_subdomain_storage.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
 import 'package:tradex/features/auth/auth.dart';
@@ -44,8 +48,28 @@ void main() {
   }
 
   group('Authentication Session Persistence Tests', () {
+    test('native session storage migrates credentials and serializes logout', () async {
+      const key = 'sb-test-auth-token';
+      SharedPreferences.setMockInitialValues({key: 'legacy-session'});
+      FlutterSecureStorage.setMockInitialValues({});
+      final storage = CrossSubdomainLocalStorage(persistSessionKey: key);
+      final preferences = await SharedPreferences.getInstance();
+
+      expect(await storage.accessToken(), 'legacy-session');
+      expect(preferences.containsKey(key), isFalse);
+
+      await Future.wait([
+        storage.persistSession('refreshed-session'),
+        storage.removePersistedSession(),
+      ]);
+      expect(await storage.hasAccessToken(), isFalse);
+      expect(preferences.containsKey(key), isFalse);
+    }, skip: kIsWeb);
+
     test('1. AuthSessionStorage correctly saves, reads, and clears sessions', () async {
-      SharedPreferences.setMockInitialValues({});
+      SharedPreferences.setMockInitialValues({
+        'auth_session_token': 'legacy_token',
+      });
 
       // Initially no session
       final initialProfile = await AuthSessionStorage.getStoredProfile();
@@ -54,7 +78,6 @@ void main() {
       // Save session
       await AuthSessionStorage.saveSession(
         profile: testProfile,
-        token: 'mock_jwt_token_xyz',
       );
 
       final loadedProfile = await AuthSessionStorage.getStoredProfile();
@@ -63,8 +86,8 @@ void main() {
       expect(loadedProfile?.email, testProfile.email);
       expect(loadedProfile?.handle, testProfile.handle);
 
-      final token = await AuthSessionStorage.getStoredToken();
-      expect(token, 'mock_jwt_token_xyz');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('auth_session_token'), isNull);
 
       // Clear session
       await AuthSessionStorage.clearSession();
@@ -123,8 +146,12 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
+      CustomerDataPolicy.allowDemo = false;
+      addTearDown(() => CustomerDataPolicy.allowDemo = true);
       SharedPreferences.setMockInitialValues({
         'auth_has_seen_onboarding': true,
+        'auth_session_profile': jsonEncode(testProfile.toJson()),
+        'auth_session_token': 'legacy_token',
       });
 
       await tester.pumpWidget(
@@ -138,6 +165,10 @@ void main() {
       // Routes directly to login
       expect(find.byType(LoginPage), findsOneWidget);
       expect(find.byType(AppScaffold), findsNothing);
+      expect(
+        (await SharedPreferences.getInstance()).getString('auth_session_token'),
+        isNull,
+      );
     });
 
     testWidgets('5. Reloading on a protected subpage (e.g. journal) restores user on that exact page', (

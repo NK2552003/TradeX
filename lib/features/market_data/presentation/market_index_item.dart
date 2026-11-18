@@ -8,7 +8,7 @@ class MarketIndexItem {
     required this.spark,
     this.isLive = false,
     this.timestamp,
-    this.source = 'Latest available',
+    this.source = 'Offline Snapshot',
   });
 
   final String symbol;

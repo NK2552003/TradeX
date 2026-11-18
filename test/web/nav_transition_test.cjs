@@ -723,12 +723,45 @@ test('clicking Community renders full Trader sidebar with expanded Community sub
   );
 });
 
-test('production subdomain navigation does not mount outgoing or incoming loaders', () => {
+test('production subdomain navigation keeps a plain cover over Flutter until the destination paints', () => {
   const html = fs.readFileSync(path.resolve(__dirname, '../../web/index.html'), 'utf8');
   const navigation = fs.readFileSync(path.resolve(__dirname, '../../lib/core/config/cross_subdomain_storage_web.dart'), 'utf8');
   assert.doesNotMatch(html, /\.mountIncoming\(/);
-  assert.match(html, /html\.aj-silent-nav #splash-loader\s*\{\s*display:\s*none/);
+  assert.doesNotMatch(html, /html\.aj-silent-nav #splash-loader\s*\{[^}]*display:\s*none/);
   assert.doesNotMatch(navigation, /startOutgoing\(|_showOutgoingNavigationVeil/);
   assert.match(navigation, /web\.window\.location\.assign\(url\)/);
   assert.match(navigation, /ax_silent_nav/);
+
+  const { api, document, window } = createFakeDom({
+    url: 'https://community.alphajournal.in/community_feed',
+    referrer: 'https://app.alphajournal.in/workspace',
+  });
+  assert.equal(api.initHead().isSilent, true);
+  const splash = document.createElement('div');
+  splash.id = 'splash-loader';
+  splash.remove = () => document.body.removeChild(splash);
+  document.body.appendChild(splash);
+  const frames = [];
+  const clearedTimers = [];
+  const recoveryFlags = new Set(['aj_startup_reload_v1', 'aj_flutter_worker_cleanup_v1']);
+  const [, startup] = html.match(/<script>\s*(\(function\(\) \{[\s\S]*?)<\/script>/);
+  vm.runInNewContext(startup, {
+    window,
+    document,
+    sessionStorage: { removeItem: (name) => recoveryFlags.delete(name) },
+    setTimeout: () => 1,
+    clearTimeout: (timer) => clearedTimers.push(timer),
+    requestAnimationFrame: (callback) => frames.push(callback),
+  });
+
+  assert.equal(document.getElementById('splash-loader'), splash);
+  window.alphajournalReady();
+  window.alphajournalReady();
+  assert.deepEqual(clearedTimers, [1]);
+  assert.equal(recoveryFlags.size, 0);
+  assert.equal(frames.length, 1);
+  frames.shift()();
+  assert.equal(document.getElementById('splash-loader'), splash);
+  frames.shift()();
+  assert.equal(document.getElementById('splash-loader'), null);
 });

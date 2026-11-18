@@ -35,6 +35,9 @@ class SupabaseAuthBackendService implements AuthRepository {
   AffiliateProfileModel? _currentAffiliateProfile;
   String? _pendingSignupEmail;
   String? _pendingSignupPassword;
+  bool _passwordSignInPending = false;
+
+  bool get passwordSignInPending => _passwordSignInPending;
 
   /// Clears any ephemeral signup password cached in memory while awaiting OTP
   /// confirmation.
@@ -62,11 +65,17 @@ class SupabaseAuthBackendService implements AuthRepository {
   }
 
   UserProfileModel? get currentUserProfile =>
-      _currentUserProfile ?? AuthBackendService.instance.currentUserProfile;
+      _currentUserProfile ??
+      (_useDemoProfile ? AuthBackendService.instance.currentUserProfile : null);
 
   AffiliateProfileModel? get currentAffiliateProfile =>
       _currentAffiliateProfile ??
-      AuthBackendService.instance.currentAffiliateProfile;
+      (_useDemoProfile
+          ? AuthBackendService.instance.currentAffiliateProfile
+          : null);
+
+  bool get _useDemoProfile =>
+      CustomerDataPolicy.allowDemo && !SupabaseConfig.isConfigured;
 
   void setCurrentProfile(
     UserProfileModel? profile, {
@@ -232,12 +241,10 @@ class SupabaseAuthBackendService implements AuthRepository {
         }
       }
 
-      _currentUserProfile = userProfile;
+      setCurrentProfile(userProfile);
 
       await AuthSessionStorage.saveSession(
         profile: userProfile,
-        affiliateProfile: _currentAffiliateProfile,
-        token: authResponse.session?.accessToken,
       );
 
       // Affiliate profile/commission records are created by the admin approval
@@ -334,6 +341,12 @@ class SupabaseAuthBackendService implements AuthRepository {
     }
 
     final client = SupabaseConfig.client!;
+    if (_passwordSignInPending) {
+      return AuthResult.failure('Sign-in is already in progress.');
+    }
+    _passwordSignInPending = true;
+    String? signedInUserId;
+    var accepted = false;
     String targetEmail = cleanInput.toLowerCase();
 
     try {
@@ -372,6 +385,7 @@ class SupabaseAuthBackendService implements AuthRepository {
           'Authentication failed. Please verify credentials.',
         );
       }
+      signedInUserId = user.id;
 
       // 3. Fetch User Profile from Postgres
       final profileData = await client
@@ -390,7 +404,7 @@ class SupabaseAuthBackendService implements AuthRepository {
           email: targetEmail,
           displayName:
               (user.userMetadata?['display_name'] as String?) ?? 'Trader',
-          role: role,
+          role: UserRole.customer,
           status: ProfileStatus.active,
           createdAt: DateTime.now(),
         );
@@ -406,25 +420,17 @@ class SupabaseAuthBackendService implements AuthRepository {
       // 4. Validate Admin Role Requirement & Security Clearance Key
       if (role == UserRole.userAdmin) {
         if (userProfile.role != UserRole.userAdmin) {
-          await client.auth.signOut();
           return AuthResult.failure(
             'Access Denied: Account lacks User Admin security clearance.',
           );
         }
         final suppliedKey = adminKey?.trim() ?? '';
-        final expectedKey =
-            (userProfile.adminKey?.trim().isNotEmpty == true
-                ? userProfile.adminKey!.trim()
-                : (user.userMetadata?['admin_key'] as String?)?.trim()) ??
-            '';
-        if (suppliedKey.isEmpty ||
-            (expectedKey.isNotEmpty && suppliedKey != expectedKey)) {
-          await client.auth.signOut();
+        final expectedKey = userProfile.adminKey?.trim() ?? '';
+        if (expectedKey.isEmpty || suppliedKey != expectedKey) {
           return AuthResult.failure(
             'Invalid Admin Security Clearance Key for this administrator account.',
           );
         }
-        userProfile = userProfile.copyWith(adminKey: suppliedKey);
       }
 
       if (role == UserRole.affiliate) {
@@ -448,9 +454,8 @@ class SupabaseAuthBackendService implements AuthRepository {
         }
       }
 
-      _currentUserProfile = userProfile;
-
       // 5. Fetch Affiliate Profile if role is affiliate
+      AffiliateProfileModel? affiliateProfile;
       if (role == UserRole.affiliate) {
         final affData = await client
             .from('affiliate_profiles')
@@ -459,14 +464,14 @@ class SupabaseAuthBackendService implements AuthRepository {
             .maybeSingle();
 
         if (affData != null) {
-          _currentAffiliateProfile = AffiliateProfileModel.fromJson(affData);
+          affiliateProfile = AffiliateProfileModel.fromJson(affData);
         }
       }
 
+      setCurrentProfile(userProfile, affiliateProfile: affiliateProfile);
       await AuthSessionStorage.saveSession(
         profile: userProfile,
-        affiliateProfile: _currentAffiliateProfile,
-        token: authResponse.session?.accessToken,
+        affiliateProfile: affiliateProfile,
       );
 
       clearPendingSignupEncryption();
@@ -474,9 +479,11 @@ class SupabaseAuthBackendService implements AuthRepository {
         password,
       );
 
+      accepted = true;
       return AuthResult.success(
         profile: userProfile,
-        affiliateProfile: _currentAffiliateProfile,
+        affiliateProfile: affiliateProfile,
+        workspaceRole: role,
         message: 'Successfully signed in with Supabase backend!',
       );
     } on AuthException catch (e) {
@@ -494,21 +501,21 @@ class SupabaseAuthBackendService implements AuthRepository {
         );
       }
       return AuthResult.failure(e.message, errorCode: e.code);
-    } catch (e) {
-      debugPrint(
-        '[SupabaseAuthBackendService] SignIn Exception: $e. Falling back to local store.',
+    } catch (_) {
+      return AuthResult.failure(
+        'Authentication service is unavailable. Please try again later.',
       );
-      if (!CustomerDataPolicy.allowDemo) {
-        return AuthResult.failure(
-          'Authentication service is unavailable. Please try again later.',
-        );
+    } finally {
+      if (!accepted &&
+          signedInUserId != null &&
+          client.auth.currentUser?.id == signedInUserId) {
+        setCurrentProfile(null);
+        try {
+          await client.auth.signOut();
+        } catch (_) {}
+        await AuthSessionStorage.clearSession();
       }
-      return AuthBackendService.instance.signIn(
-        role: role,
-        emailOrHandle: cleanInput,
-        password: password,
-        adminKey: adminKey,
-      );
+      _passwordSignInPending = false;
     }
   }
 

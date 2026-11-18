@@ -27,6 +27,10 @@ test('Flutter runtime files always revalidate across deployments', async () => {
     '/main.dart.js_1.part.js',
     '/flutter_bootstrap.js',
     '/flutter_service_worker.js',
+    '/assets/AssetManifest.bin.json',
+    '/assets/FontManifest.json',
+    '/assets/assets/config/client.env',
+    '/nav_transition.js',
   ]) {
     const response = await worker.fetch(
       new Request(`https://app.alphajournal.in${pathname}`),

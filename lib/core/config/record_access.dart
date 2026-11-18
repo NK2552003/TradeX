@@ -8,16 +8,20 @@ class RecordAccess {
   RecordAccess._();
 
   static bool owns(String ownerId, {String? actorId}) {
-    if (ownerId.isEmpty) return true;
+    final isLocalDemo =
+        CustomerDataPolicy.allowDemo && !SupabaseConfig.isConfigured;
+    if (ownerId.trim().isEmpty) return isLocalDemo;
     final actor =
         actorId ??
         SupabaseConfig.client?.auth.currentUser?.id ??
-        SupabaseAuthBackendService.instance.currentUserProfile?.id ??
-        AuthBackendService.instance.currentUserProfile?.id;
+        (isLocalDemo
+            ? SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+                  AuthBackendService.instance.currentUserProfile?.id
+            : null);
     if (actor != null && actor.isNotEmpty) {
       return ownerId == actor;
     }
-    return CustomerDataPolicy.allowDemo &&
+    return isLocalDemo &&
         (ownerId == 'demo_user' ||
             ownerId == '00000000-0000-0000-0000-000000000001');
   }

@@ -1,8 +1,5 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/theme/app_tokens.dart';
-import 'package:tradex/core/config/cross_subdomain_storage.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 
@@ -59,49 +56,6 @@ class AccountAccessRepository {
   AccountAccessRepository({this._client});
   final SupabaseClient? _client;
 
-  static const String _sharedAccessCookie = 'ax_access_v1';
-  static final Map<String, AccountAccess> _memoryCache =
-      <String, AccountAccess>{};
-
-  static AccountAccess? cachedForCurrentUser() {
-    if (!SupabaseConfig.isConfigured) return null;
-    final actor = SupabaseConfig.client?.auth.currentUser?.id;
-    if (actor == null || actor.isEmpty) return null;
-    final inMemory = _memoryCache[actor];
-    if (inMemory != null && inMemory.isActive) return inMemory;
-    if (kIsWeb) {
-      final raw = CrossSubdomainState.getFlag(_sharedAccessCookie);
-      if (raw != null && raw.isNotEmpty) {
-        try {
-          final parsed = AccountAccess.fromJson(
-            Map<String, dynamic>.from(jsonDecode(raw) as Map),
-          );
-          if (parsed.userId == actor && parsed.isActive) {
-            _memoryCache[actor] = parsed;
-            return parsed;
-          }
-        } catch (_) {}
-      }
-    }
-    return null;
-  }
-
-  static void rememberAccess(AccountAccess access) {
-    if (!access.isActive) {
-      _memoryCache.remove(access.userId);
-      CrossSubdomainState.removeFlag(_sharedAccessCookie);
-      return;
-    }
-    _memoryCache[access.userId] = access;
-    if (kIsWeb) {
-      CrossSubdomainState.setFlag(
-        _sharedAccessCookie,
-        jsonEncode(access.toJson()),
-        maxAgeDays: 1,
-      );
-    }
-  }
-
   SupabaseClient get _connection =>
       _client ??
       SupabaseConfig.client ??
@@ -119,7 +73,6 @@ class AccountAccessRepository {
     if (access.userId != actor || client.auth.currentUser?.id != actor) {
       throw StateError('Your account changed. Please sign in again.');
     }
-    rememberAccess(access);
     return access;
   }
 

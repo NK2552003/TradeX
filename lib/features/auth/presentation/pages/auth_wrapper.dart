@@ -173,32 +173,33 @@ class _AuthWrapperState extends State<AuthWrapper> {
       if (client != null) {
         _authSubscription = client.auth.onAuthStateChange.listen((data) {
           final event = data.event;
+          if (event == AuthChangeEvent.signedIn &&
+              (SupabaseAuthBackendService.instance.passwordSignInPending ||
+                  _sessionState.stage == AuthStage.forgotPassword)) {
+            return;
+          }
           if (event == AuthChangeEvent.passwordRecovery) {
             if (mounted) {
-              setState(() {
-                _sessionState = _sessionState.copyWith(
-                  stage: AuthStage.forgotPassword,
-                );
-              });
+              _restoreGeneration++;
+              _restoreTimeoutTimer?.cancel();
+              _splashCompleted = true;
+              _resolveTo(AuthStage.forgotPassword);
               widget.onStageChanged?.call(AuthStage.forgotPassword);
             }
+            return;
+          }
+          final changedAccount =
+              event == AuthChangeEvent.signedIn &&
+              data.session?.user.id != _sessionState.userId;
+          if (changedAccount && _sessionState.stage == AuthStage.authenticated) {
+            if (mounted) setState(() => _isAuthLoading = true);
           }
           if ((event == AuthChangeEvent.signedIn &&
                   (_sessionState.stage != AuthStage.authenticated ||
-                      data.session?.user.id != _sessionState.userId)) ||
+                      changedAccount)) ||
               (event == AuthChangeEvent.userUpdated &&
                   _sessionState.stage == AuthStage.authenticated)) {
-            unawaited(
-              _restoreActiveSession().then((_) {
-                if (mounted && _sessionState.stage == AuthStage.authenticated) {
-                  widget.onStageChanged?.call(AuthStage.authenticated);
-                }
-              }),
-            );
-          }
-          if (event == AuthChangeEvent.signedIn &&
-              data.session?.user.id != null) {
-            unawaited(RevenueCatBilling.identify(data.session!.user.id));
+            unawaited(_restoreActiveSession());
           }
           if (event == AuthChangeEvent.signedOut &&
               _sessionState.stage != AuthStage.forgotPassword) {
@@ -231,12 +232,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
     setState(() {
       _isAuthLoading = false;
       if (stage == AuthStage.authenticated && _authenticatedProfile != null) {
-        _sessionState = _sessionState.copyWith(
+        _sessionState = AuthSessionState(
           stage: AuthStage.authenticated,
           userId: _authenticatedProfile!.id,
           email: _authenticatedProfile!.email,
           displayName: _authenticatedProfile!.displayName,
           role: _authenticatedRole ?? _sessionState.role,
+          hasCompletedOnboarding: _sessionState.hasCompletedOnboarding,
           profile: _authenticatedProfile,
           affiliateProfile: _authenticatedAffProfile,
         );
@@ -357,6 +359,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
     _restoreTimeoutTimer?.cancel();
     _restoreTimeoutTimer = restoreTimeout;
     try {
+      await AuthSessionStorage.removeLegacyToken();
+      if (!mounted || gen != _restoreGeneration) return;
+
       // 0. On Web, if URL contains OAuth callback code or access token, exchange it first:
       if (kIsWeb && SupabaseConfig.isConfigured) {
         final uri = Uri.base;
@@ -472,13 +477,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
             await AuthSessionStorage.saveSession(
               profile: profile,
               affiliateProfile: affProfile,
-              token: client.auth.currentSession?.accessToken,
             );
             if (!mounted || gen != _restoreGeneration) return;
 
-            final bool isAdminAccount =
-                profile.role == UserRole.userAdmin ||
-                (profile.adminKey?.trim().isNotEmpty ?? false);
+            final bool isAdminAccount = profile.role == UserRole.userAdmin;
             var workspaceRole = await AuthSessionStorage.workspaceRoleFor(
               profile,
               hasAffiliateAccess:
@@ -535,14 +537,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
       }
 
-      // 2. Persistent Local Storage Fallback (offline mode / local mock store)
-      final storedProfile = await AuthSessionStorage.getStoredProfile();
-      if (!mounted || gen != _restoreGeneration) return;
-      if (storedProfile != null) {
-        final token = await AuthSessionStorage.getStoredToken();
+      // Demo sessions are local. Production restores via the auth SDK above.
+      if (CustomerDataPolicy.allowDemo && !SupabaseConfig.isConfigured) {
+        final storedProfile = await AuthSessionStorage.getStoredProfile();
         if (!mounted || gen != _restoreGeneration) return;
-        if (token != null ||
-            (!SupabaseConfig.isConfigured && CustomerDataPolicy.allowDemo)) {
+        if (storedProfile != null) {
           final affProfile =
               await AuthSessionStorage.getStoredAffiliateProfile();
           if (!mounted || gen != _restoreGeneration) return;
@@ -579,7 +578,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
       final hasSeenOnboarding =
           await AuthSessionStorage.hasCompletedOnboarding();
       if (!mounted || gen != _restoreGeneration) return;
-      final targetStage = widget.initialStage != AuthStage.splash
+      final targetStage =
+          widget.initialStage != AuthStage.splash &&
+              widget.initialStage != AuthStage.authenticated
           ? widget.initialStage
           : hasSeenOnboarding
           ? AuthStage.login
@@ -611,18 +612,20 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   void _navigateToStage(AuthStage stage, {UserRole? role, String? email}) {
     final activeService = SupabaseAuthBackendService.instance;
+    final profile = activeService.currentUserProfile;
     if (stage == AuthStage.authenticated && role != null) {
-      AuthSessionStorage.saveWorkspaceRole(
-        activeService.currentUserProfile?.id ?? _sessionState.userId,
-        role,
-      );
+      final userId = profile?.id ?? _sessionState.userId;
+      AuthSessionStorage.saveWorkspaceRole(userId, role);
+      if (userId.isNotEmpty) unawaited(RevenueCatBilling.identify(userId));
     }
     setState(() {
       _sessionState = _sessionState.copyWith(
         stage: stage,
         role: role ?? _sessionState.role,
         email: email ?? _sessionState.email,
-        profile: activeService.currentUserProfile,
+        userId: profile?.id,
+        displayName: profile?.displayName,
+        profile: profile,
         affiliateProfile: activeService.currentAffiliateProfile,
       );
     });
@@ -881,8 +884,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               final String host = Uri.base.host.toLowerCase();
               final bool isAdminUser =
                   _sessionState.role == UserRole.userAdmin ||
-                  activeProfile?.role == UserRole.userAdmin ||
-                  (activeProfile?.adminKey?.trim().isNotEmpty ?? false);
+                  activeProfile?.role == UserRole.userAdmin;
               final bool isAffiliateUser =
                   isAdminUser ||
                   _sessionState.role == UserRole.affiliate ||
@@ -951,6 +953,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   : requestedDest;
 
               return AppScaffold(
+                key: ValueKey(activeProfile?.id ?? _sessionState.userId),
                 userRole: _sessionState.role,
                 userId: activeProfile?.id ?? _sessionState.userId,
                 userDisplayName:

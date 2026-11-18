@@ -45,7 +45,6 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
   void initState() {
     super.initState();
     AppVisibility.instance.addListener(_onVisibilityChanged);
-    _access = AccountAccessRepository.cachedForCurrentUser();
     _refresh();
   }
 
@@ -57,6 +56,7 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
       _generation++;
       _consecutiveFailures = 0;
       _access = null;
+      _error = null;
       _loading = false;
       _refresh();
     } else if (oldWidget.destination != widget.destination) {
@@ -142,9 +142,11 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) finishWebStartup();
-    });
+    if (!_loading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) finishWebStartup();
+      });
+    }
     if (_loading && _access == null && _error == null) {
       return Scaffold(
         backgroundColor: context.uiColors.background,

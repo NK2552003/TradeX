@@ -1,6 +1,13 @@
+import 'dart:convert';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/data/repositories/supabase_auth_otp_repository.dart';
 import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
@@ -104,10 +111,7 @@ void main() {
         createdAt: DateTime(2026, 1, 1),
       );
 
-      await AuthSessionStorage.saveSession(
-        profile: adminProfile,
-        token: 'admin_bearer_jwt_token',
-      );
+      await AuthSessionStorage.saveSession(profile: adminProfile);
 
       final stored = await AuthSessionStorage.getStoredProfile();
       expect(stored, isNotNull);
@@ -117,6 +121,7 @@ void main() {
       expect(stored?.adminKey, isNot(contains('top_secret')));
 
       // Customer preference cannot elevate to admin role
+      await AuthSessionStorage.saveWorkspaceRole(adminProfile.id, UserRole.userAdmin);
       final elevatedRole = await AuthSessionStorage.workspaceRoleFor(adminProfile);
       expect(elevatedRole, equals(UserRole.userAdmin));
 
@@ -124,5 +129,64 @@ void main() {
       final customerRole = await AuthSessionStorage.workspaceRoleFor(customerProfile);
       expect(customerRole, equals(UserRole.customer));
     });
+  });
+
+  test('a rejected workspace sign-in discards the provisional SDK session', () async {
+    SharedPreferences.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({});
+    const userId = '876c5649-5698-443d-8908-dc9a73b62d06';
+    const email = 'trader@example.test';
+    String jwtPart(Map<String, Object> value) =>
+        base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
+    final header = jwtPart({'alg': 'HS256'});
+    final payload = jwtPart({
+      'sub': userId,
+      'exp': DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600,
+    });
+    final auth = SupabaseAuthBackendService.instance;
+    await http.runWithClient(() async {
+      await SupabaseConfig.initialize(
+        customUrl: 'https://mock.example.test',
+        customKey: 'synthetic-frontend-test-key',
+      );
+      expect(SupabaseConfig.isConfigured, isTrue);
+      addTearDown(() => Supabase.instance.dispose());
+
+      final result = await auth.signIn(
+        role: UserRole.affiliate,
+        emailOrHandle: email,
+        password: 'test-password',
+      );
+
+      expect(result.errorCode, 'affiliate_not_approved', reason: result.message);
+      expect(SupabaseConfig.client!.auth.currentSession, isNull);
+      expect(await AuthSessionStorage.getStoredProfile(), isNull);
+      expect(auth.passwordSignInPending, isFalse);
+    }, () => MockClient((request) async {
+      expect(request.url.host, 'mock.example.test');
+      final Object? response = switch (request.url.path) {
+        '/auth/v1/token' => {
+          'access_token': '$header.$payload.synthetic',
+          'refresh_token': 'synthetic-refresh-token',
+          'token_type': 'bearer',
+          'user': {'id': userId, 'email': email},
+        },
+        '/rest/v1/profiles' => [
+          {'id': userId, 'email': email, 'role': 'customer', 'handle': '@trader'},
+        ],
+        '/rest/v1/affiliate_applications' => [
+          {'status': 'pending'},
+        ],
+        '/auth/v1/logout' => null,
+        _ => fail('Unexpected auth test path ${request.url.path}'),
+      };
+      expect(auth.passwordSignInPending, isTrue);
+      return http.Response(
+        response == null ? '' : jsonEncode(response),
+        response == null ? 204 : 200,
+        headers: {'content-type': 'application/json'},
+        request: request,
+      );
+    }));
   });
 }

@@ -4,7 +4,6 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/navigation/customer_routes.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/presentation/community_root_screen.dart';
 import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
 import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/notes/ui/note_preview_screen.dart';
@@ -19,6 +18,7 @@ void main() {
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
         final source = CommunityRepository();
+        addTearDown(source.dispose);
         final post = source.forYouPosts.first;
         var notes = await NotesRepositoryScope.repository.fetchAll();
         if (!notes.any((note) => note.isPublic)) {
@@ -62,10 +62,10 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        final community = tester.widget<CommunityRootScreen>(
-          find.byType(CommunityRootScreen),
+        final postDetail = tester.widget<CommunityPostDetailView>(
+          find.byType(CommunityPostDetailView),
         );
-        community.onOpenRef!(
+        postDetail.onOpenRef!(
           AppLinkRef(
             kind: AppLinkKind.note,
             id: note.id,
@@ -75,12 +75,14 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.byType(NotePreviewScreen), findsOneWidget);
-        expect(location.value.request?.id, note.id);
-        final backButtons = find.byWidgetPredicate(
-          (w) =>
-              w is UiIconButton &&
-              (w.tooltip == 'Back' || w.tooltip == 'Back to notes'),
-        );
+        expect(location.value.request?.id, post.id);
+        final backButtons = find
+            .byWidgetPredicate(
+              (w) =>
+                  w is UiIconButton &&
+                  (w.tooltip == 'Back' || w.tooltip == 'Back to notes'),
+            )
+            .hitTestable();
         expect(
           backButtons,
           findsOneWidget,
@@ -105,7 +107,6 @@ void main() {
         );
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
-        source.dispose();
       },
     );
   }

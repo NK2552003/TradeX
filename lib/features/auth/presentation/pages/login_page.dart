@@ -79,9 +79,11 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _handleSubmit() async {
+  Future<void> _handleSubmit() async {
+    if (_isLoading) return;
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    final submittedRole = _selectedRole;
 
     if (email.isEmpty) {
       setState(
@@ -94,7 +96,7 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    if (_selectedRole == UserRole.userAdmin &&
+    if (submittedRole == UserRole.userAdmin &&
         _adminKeyController.text.trim().isEmpty) {
       setState(
         () => _errorText =
@@ -108,14 +110,25 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = true;
     });
 
-    final result = await _repository.signIn(
-      role: _selectedRole,
-      emailOrHandle: email,
-      password: password,
-      adminKey: _selectedRole == UserRole.userAdmin
-          ? _adminKeyController.text.trim()
-          : null,
-    );
+    final AuthResult result;
+    try {
+      result = await _repository.signIn(
+        role: submittedRole,
+        emailOrHandle: email,
+        password: password,
+        adminKey: submittedRole == UserRole.userAdmin
+            ? _adminKeyController.text.trim()
+            : null,
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorText = 'Sign-in is temporarily unavailable. Please try again.';
+        });
+      }
+      return;
+    }
 
     if (!mounted) return;
 
@@ -135,7 +148,7 @@ class _LoginPageState extends State<LoginPage> {
           intent: UiIntent.info,
         );
         widget.onRequiresVerification!(
-          _selectedRole,
+          submittedRole,
           result.profile?.email ?? email,
         );
         return;
@@ -153,10 +166,11 @@ class _LoginPageState extends State<LoginPage> {
     );
 
     final UserRole verifiedRole =
+        result.workspaceRole ??
         result.profile?.role ??
-        (_selectedRole == UserRole.userAdmin
+        (submittedRole == UserRole.userAdmin
             ? UserRole.customer
-            : _selectedRole);
+            : submittedRole);
 
     widget.onLoginSuccess(verifiedRole, result.profile?.email ?? email);
   }

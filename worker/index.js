@@ -17,10 +17,16 @@ const ASSET_PREFIXES = ['/assets/', '/canvaskit/', '/icons/', '/.well-known/'];
 const NEUTRAL_PREFIXES = ['/auth/', '/r/', '/join/', '/help'];
 const FLUTTER_RUNTIME_PATH = /^\/main\.dart\.js(?:_\d+\.part\.js)?$/;
 const FRESH_RUNTIME_PATHS = new Set([
+  '/assets/AssetManifest.bin',
+  '/assets/AssetManifest.bin.json',
+  '/assets/AssetManifest.json',
+  '/assets/FontManifest.json',
+  '/assets/assets/config/client.env',
   '/flutter.js',
   '/flutter_bootstrap.js',
   '/flutter_service_worker.js',
   '/manifest.json',
+  '/nav_transition.js',
   '/version.json',
 ]);
 

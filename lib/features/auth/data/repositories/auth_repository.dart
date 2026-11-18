@@ -9,6 +9,7 @@ class AuthResult {
     required this.message,
     this.profile,
     this.affiliateProfile,
+    this.workspaceRole,
     this.errorCode,
     this.requiresEmailVerification = false,
   });
@@ -17,6 +18,7 @@ class AuthResult {
   final String message;
   final UserProfileModel? profile;
   final AffiliateProfileModel? affiliateProfile;
+  final UserRole? workspaceRole;
   final String? errorCode;
   final bool requiresEmailVerification;
 
@@ -24,6 +26,7 @@ class AuthResult {
     required String message,
     required UserProfileModel profile,
     AffiliateProfileModel? affiliateProfile,
+    UserRole? workspaceRole,
     bool requiresEmailVerification = false,
   }) {
     return AuthResult(
@@ -31,6 +34,7 @@ class AuthResult {
       message: message,
       profile: profile,
       affiliateProfile: affiliateProfile,
+      workspaceRole: workspaceRole,
       requiresEmailVerification: requiresEmailVerification,
     );
   }

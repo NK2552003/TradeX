@@ -148,7 +148,6 @@
     </div>
     <h1 class="word" id="word" aria-label="AlphaJournal">ALPHAJOURNAL</h1>
     <p class="soon">Intelligent market execution</p>
-    <div class="aj-silent-shell" id="aj-silent-shell" aria-hidden="true"></div>
   </div>
   <style>
     :root {
@@ -171,22 +170,10 @@
       padding: 0;
       overflow: hidden;
     }
-    .aj-silent-shell { display: none; }
-    html.aj-silent-nav #splash-loader {
-      display: none;
-      background: var(--aj-bg, var(--bg));
-      transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-    }
     html.aj-silent-nav .splash-threads,
     html.aj-silent-nav .word,
     html.aj-silent-nav .soon {
       display: none !important;
-    }
-    html.aj-silent-nav .aj-silent-shell {
-      display: block;
-      inset: 0;
-      position: fixed;
-      pointer-events: auto;
     }
     #splash-loader {
       position: fixed;
@@ -352,6 +339,7 @@
       const startupReloadKey = 'aj_startup_reload_v1';
       const workerCleanupKey = 'aj_flutter_worker_cleanup_v1';
       let startupWatchdog;
+      let startupReady = false;
 
       function clearRecoveryFlag(name) {
         try { sessionStorage.removeItem(name); } catch (_) {}
@@ -381,7 +369,7 @@
       }
 
       function recoverStartup() {
-        if (!document.getElementById('splash-loader')) return;
+        if (startupReady || !document.getElementById('splash-loader')) return;
         if (!hasRecoveryFlag(startupReloadKey)) {
           setRecoveryFlag(startupReloadKey);
           window.location.reload();
@@ -391,15 +379,20 @@
       }
 
       function hideSplash() {
+        if (startupReady) return;
+        startupReady = true;
         clearTimeout(startupWatchdog);
         clearRecoveryFlag(startupReloadKey);
         clearRecoveryFlag(workerCleanupKey);
-        var splash = document.getElementById('splash-loader');
-        if (splash && splash.style.opacity !== '0') {
+        const splash = document.getElementById('splash-loader');
+        if (!splash) return;
+        const removeSplash = () => splash.remove();
+        if (window.__ajSilentNav) {
+          // Give Flutter's destination frame a paint before revealing it.
+          requestAnimationFrame(() => requestAnimationFrame(removeSplash));
+        } else {
           splash.style.opacity = '0';
-          setTimeout(function() {
-            if (splash.parentNode) splash.parentNode.removeChild(splash);
-          }, window.__ajSilentNav ? 220 : 450);
+          setTimeout(removeSplash, 450);
         }
       }
       // Flutter calls this after authentication AND account access resolve.
