@@ -158,18 +158,24 @@ void main() {
     expect(find.byType(UiCandleChart), findsOneWidget);
     expect(find.byType(MarketFundamentalVisuals), findsOneWidget);
     expect(find.text('52-week position'), findsOneWidget);
-    await tester.ensureVisible(find.text('Options chains').first);
-    await tester.tap(find.text('Options chains').first);
+    await tester.tap(find.text('Options'));
     await tester.pump();
     expect(find.byType(MarketOptionsInterest), findsOneWidget);
+    await tester.ensureVisible(find.text('Puts').last);
+    await tester.tap(find.text('Puts').last);
+    await tester.pump();
+    expect(find.text('9.2K'), findsOneWidget);
     await tester.ensureVisible(find.text('Dividends & splits').first);
     await tester.tap(find.text('Dividends & splits').first);
     await tester.pump();
     expect(find.byType(MarketDividendHistory), findsOneWidget);
-    await tester.ensureVisible(find.text('Ownership & holders').first);
-    await tester.tap(find.text('Ownership & holders').first);
+    await tester.tap(find.text('Ownership'));
     await tester.pump();
-    expect(find.byType(MarketInstitutionalHolders), findsOneWidget);
+    expect(find.text('Ownership map'), findsOneWidget);
+    expect(find.byType(UiDonutChart), findsOneWidget);
+    await tester.tap(find.text('Mutual funds'));
+    await tester.pump();
+    expect(find.text('Vanguard 500 Index'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
   for (final width in [320.0, 390.0, 768.0, 1440.0]) {
@@ -234,8 +240,7 @@ void main() {
       } else {
         expect(find.byType(UiCandleChart), findsOneWidget);
       }
-      expect(find.text('Options chains'), findsWidgets);
-      expect(find.text('Ownership & holders'), findsWidgets);
+      expect(find.byType(MarketInstrumentView), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('Back'));
       await tester.pump();
@@ -300,7 +305,7 @@ void main() {
     await tester.ensureVisible(find.text(symbol));
     await tester.tap(find.text(symbol));
     await settleAssets(tester);
-    expect(find.text('Snapshot & availability'), findsWidgets);
+    expect(find.byType(MarketInstrumentView), findsOneWidget);
     await tester.tap(find.text('Back'));
     await tester.pump();
     expect(find.text('Page 2 of 4'), findsOneWidget);

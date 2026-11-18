@@ -30,9 +30,10 @@ class UiCardGrid extends StatelessWidget {
   final bool adaptiveSingleColumn;
 
   /// Keep editorial cards at their natural height as content changes.
+  /// With [equalHeight], use intrinsic sizing for cards with vertical flex.
   final bool intrinsicHeight;
 
-  /// Align variable-height card actions across each responsive row.
+  /// Size the cards in each responsive row to match its tallest card.
   final bool equalHeight;
 
   @override
@@ -85,21 +86,7 @@ class UiCardGrid extends StatelessWidget {
             children: [
               for (int start = 0; start < children.length; start += cols) ...[
                 if (start > 0) SizedBox(height: gap),
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (
-                        int column = 0;
-                        column < cols && start + column < children.length;
-                        column++
-                      ) ...[
-                        if (column > 0) SizedBox(width: gap),
-                        Expanded(child: children[start + column]),
-                      ],
-                    ],
-                  ),
-                ),
+                _equalHeightRow(children.skip(start).take(cols).toList(), gap),
               ],
             ],
           );
@@ -114,7 +101,10 @@ class UiCardGrid extends StatelessWidget {
             runSpacing: gap,
             children: [
               for (final child in children)
-                SizedBox(width: width > 0 ? width : constraints.maxWidth, child: child),
+                SizedBox(
+                  width: width > 0 ? width : constraints.maxWidth,
+                  child: child,
+                ),
             ],
           );
         }
@@ -137,6 +127,42 @@ class UiCardGrid extends StatelessWidget {
           itemBuilder: (BuildContext _, int i) => children[i],
         );
       },
+    );
+  }
+
+  Widget _equalHeightRow(List<Widget> cards, double gap) {
+    if (intrinsicHeight) {
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (index, card) in cards.indexed) ...[
+              if (index > 0) SizedBox(width: gap),
+              Expanded(child: card),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // Measure through layout so responsive card contents can use LayoutBuilder.
+    return Table(
+      defaultColumnWidth: const FlexColumnWidth(),
+      defaultVerticalAlignment: TableCellVerticalAlignment.intrinsicHeight,
+      columnWidths: {
+        for (int column = 1; column < cards.length; column++)
+          column * 2 - 1: FixedColumnWidth(gap),
+      },
+      children: [
+        TableRow(
+          children: [
+            for (final (index, card) in cards.indexed) ...[
+              if (index > 0) const SizedBox.shrink(),
+              card,
+            ],
+          ],
+        ),
+      ],
     );
   }
 }

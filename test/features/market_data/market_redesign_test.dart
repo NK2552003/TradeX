@@ -87,7 +87,7 @@ void main() {
     }
   }
 
-  for (final width in [390.0, 768.0, 1440.0]) {
+  for (final width in [320.0, 390.0, 768.0, 1440.0]) {
     testWidgets('instrument charts and every research section work at $width', (
       tester,
     ) async {
@@ -101,6 +101,12 @@ void main() {
       final instrument = data.instruments.firstWhere((q) => q.symbol == 'AAPL');
       await tester.pumpWidget(
         MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(width == 320 ? 1.4 : 1)),
+            child: child!,
+          ),
           home: Scaffold(
             body: MarketInstrumentView(
               instrument: instrument,
@@ -111,8 +117,24 @@ void main() {
         ),
       );
       await settle(tester);
+      final sections = find.byKey(const ValueKey('instrument-section-toggle'));
+      expect(sections, findsOneWidget);
       expect(find.byType(MarketTwoPanel), findsOneWidget);
       expect(find.byType(UiCandleChart), findsOneWidget);
+      final rangeControls = tester.getRect(
+        find.byKey(const ValueKey('market-history-range-toggle')),
+      );
+      final chartControls = tester.getRect(
+        find.byType(UiToggleGroup<UiPriceChartType>),
+      );
+      if (width == 1440) {
+        final chart = tester.getRect(find.byType(UiCandleChart));
+        expect(rangeControls.left, closeTo(chart.left, 0.5));
+        expect(chartControls.right, closeTo(chart.right, 0.5));
+        expect(chartControls.center.dy, closeTo(rangeControls.center.dy, 0.5));
+      } else if (width <= 390) {
+        expect(chartControls.top, greaterThanOrEqualTo(rangeControls.bottom));
+      }
       for (final label in ['1D', '1W', '2W', '1M', '2M']) {
         final rangeBtn = find.text(label);
         expect(rangeBtn, findsOneWidget);
@@ -133,20 +155,25 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'Line $label');
       }
       expect(tester.takeException(), isNull);
-      for (final title in [
-        'Company news',
-        'Price history',
-        'Options chains',
-        'Dividends & splits',
-        'Analyst recommendations',
-        'Ownership & holders',
-        'Snapshot & availability',
-      ]) {
-        final label = find.text(title).last;
+      for (final entry in {
+        'History': 'Session return heatmap',
+        'Options': 'Options chains',
+        'Dividends & splits': 'Corporate actions',
+        'Analysts': 'Analyst consensus',
+        'Ownership': 'Ownership map',
+        'News': 'No company news in this snapshot',
+        'Data sources': 'Snapshot & availability',
+      }.entries) {
+        final label = find.descendant(
+          of: sections,
+          matching: find.text(entry.key),
+        );
         await tester.ensureVisible(label);
+        await tester.pumpAndSettle();
         await tester.tap(label);
-        await tester.pump(const Duration(milliseconds: 400));
-        expect(tester.takeException(), isNull, reason: title);
+        await tester.pumpAndSettle();
+        expect(find.text(entry.value), findsOneWidget, reason: entry.key);
+        expect(tester.takeException(), isNull, reason: entry.key);
       }
       await tester.pumpWidget(const SizedBox.shrink());
     });
@@ -178,38 +205,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  test('filterMarketHistoryCandles slices 2M history into 1D, 1W, 2W, 1M, 2M', () {
-    final anchor = DateTime(2026, 11, 15);
-    final all = [
-      for (int daysAgo = 59; daysAgo >= 0; daysAgo--)
-        UiCandle(
-          time: anchor.subtract(Duration(days: daysAgo)),
-          open: 100,
-          high: 105,
-          low: 95,
-          close: 102,
-          volume: 1000,
-        ),
-    ];
-    expect(
-      filterMarketHistoryCandles(all, MarketHistoryRange.day).length,
-      1,
-    );
-    expect(
-      filterMarketHistoryCandles(all, MarketHistoryRange.week).length,
-      7,
-    );
-    expect(
-      filterMarketHistoryCandles(all, MarketHistoryRange.twoWeeks).length,
-      14,
-    );
-    expect(
-      filterMarketHistoryCandles(all, MarketHistoryRange.month).length,
-      30,
-    );
-    expect(
-      filterMarketHistoryCandles(all, MarketHistoryRange.twoMonths).length,
-      60,
-    );
-  });
+  test(
+    'filterMarketHistoryCandles slices 2M history into 1D, 1W, 2W, 1M, 2M',
+    () {
+      final anchor = DateTime(2026, 11, 15);
+      final all = [
+        for (int daysAgo = 59; daysAgo >= 0; daysAgo--)
+          UiCandle(
+            time: anchor.subtract(Duration(days: daysAgo)),
+            open: 100,
+            high: 105,
+            low: 95,
+            close: 102,
+            volume: 1000,
+          ),
+      ];
+      expect(filterMarketHistoryCandles(all, MarketHistoryRange.day).length, 1);
+      expect(
+        filterMarketHistoryCandles(all, MarketHistoryRange.week).length,
+        7,
+      );
+      expect(
+        filterMarketHistoryCandles(all, MarketHistoryRange.twoWeeks).length,
+        14,
+      );
+      expect(
+        filterMarketHistoryCandles(all, MarketHistoryRange.month).length,
+        30,
+      );
+      expect(
+        filterMarketHistoryCandles(all, MarketHistoryRange.twoMonths).length,
+        60,
+      );
+    },
+  );
 }

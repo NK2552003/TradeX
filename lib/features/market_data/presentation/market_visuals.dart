@@ -3,6 +3,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import '../models/market_snapshot.dart';
+import 'market_instrument_data.dart';
 
 /// Charted summaries derived only from values present in the asset snapshot.
 class MarketDistributionCard extends StatelessWidget {
@@ -99,18 +100,26 @@ class MarketChangeDistribution extends StatelessWidget {
         ? (distribution!['best_gain'] as num?)?.toDouble() ??
               (gainers.isEmpty
                   ? 0.0
-                  : gainers.map((q) => q.changePercent).reduce((a, b) => a > b ? a : b))
+                  : gainers
+                        .map((q) => q.changePercent)
+                        .reduce((a, b) => a > b ? a : b))
         : (gainers.isEmpty
               ? 0.0
-              : gainers.map((q) => q.changePercent).reduce((a, b) => a > b ? a : b));
+              : gainers
+                    .map((q) => q.changePercent)
+                    .reduce((a, b) => a > b ? a : b));
     final double worstLoss = useGlobal
         ? (distribution!['worst_loss'] as num?)?.toDouble() ??
               (losers.isEmpty
                   ? 0.0
-                  : losers.map((q) => q.changePercent).reduce((a, b) => a < b ? a : b))
+                  : losers
+                        .map((q) => q.changePercent)
+                        .reduce((a, b) => a < b ? a : b))
         : (losers.isEmpty
               ? 0.0
-              : losers.map((q) => q.changePercent).reduce((a, b) => a < b ? a : b));
+              : losers
+                    .map((q) => q.changePercent)
+                    .reduce((a, b) => a < b ? a : b));
 
     final bins = <String, int>{
       '< -5%': 0,
@@ -201,8 +210,16 @@ class MarketChangeDistribution extends StatelessWidget {
                   spacing: context.sp(theme.spacing.sm),
                   runSpacing: context.sp(theme.spacing.xs),
                   children: [
-                    statItem('TOP GAINERS', '$gainersCount', theme.colors.bullish),
-                    statItem('TOP LOSERS', '$losersCount', theme.colors.bearish),
+                    statItem(
+                      'TOP GAINERS',
+                      '$gainersCount',
+                      theme.colors.bullish,
+                    ),
+                    statItem(
+                      'TOP LOSERS',
+                      '$losersCount',
+                      theme.colors.bearish,
+                    ),
                     statItem(
                       'BEST GAIN',
                       '+${bestGain.toStringAsFixed(2)}%',
@@ -219,9 +236,21 @@ class MarketChangeDistribution extends StatelessWidget {
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  Expanded(child: statItem('TOP GAINERS', '$gainersCount', theme.colors.bullish)),
+                  Expanded(
+                    child: statItem(
+                      'TOP GAINERS',
+                      '$gainersCount',
+                      theme.colors.bullish,
+                    ),
+                  ),
                   verticalDivider(),
-                  Expanded(child: statItem('TOP LOSERS', '$losersCount', theme.colors.bearish)),
+                  Expanded(
+                    child: statItem(
+                      'TOP LOSERS',
+                      '$losersCount',
+                      theme.colors.bearish,
+                    ),
+                  ),
                   verticalDivider(),
                   Expanded(
                     child: statItem(
@@ -248,8 +277,7 @@ class MarketChangeDistribution extends StatelessWidget {
         // Distribution Bar Chart Card
         UiCard(
           title: 'Daily change distribution',
-          subtitle:
-              '$totalCount quoted instruments · percentage change',
+          subtitle: '$totalCount quoted instruments · percentage change',
           child: totalCount == 0
               ? const UiEmptyState(title: 'No quotes in this snapshot')
               : UiBarChart(
@@ -276,118 +304,115 @@ class MarketChangeDistribution extends StatelessWidget {
 }
 
 class MarketFundamentalVisuals extends StatelessWidget {
-  const MarketFundamentalVisuals({
-    super.key,
-    required this.instrument,
-    required this.detail,
-  });
-  final MarketInstrument instrument;
-  final Map<String, dynamic> detail;
+  const MarketFundamentalVisuals({super.key, required this.data});
+  final InstrumentDetailData data;
 
   @override
   Widget build(BuildContext context) {
-    final summary = detail['summary'] as Map? ?? {};
-    double? number(String key) => (summary[key] as num?)?.toDouble();
-    final low = number('fifty_two_week_low');
-    final high = number('fifty_two_week_high');
-    final double? detailPrice = ((detail['quote'] as Map?)?['price'] as num?)?.toDouble();
-    final price = instrument.price.isFinite && instrument.price != 0
-        ? instrument.price
-        : (detailPrice ?? 0);
-    final validRange = low != null && high != null && high > low;
-    final recs = (detail['recommendations'] as List? ?? const [])
-        .whereType<Map>();
-    final recent = recs.firstOrNull;
-    final opinions = <String, num>{
-      if (recent != null) 'Strong buy': (recent['strongBuy'] as num?) ?? 0,
-      if (recent != null) 'Buy': (recent['buy'] as num?) ?? 0,
-      if (recent != null) 'Hold': (recent['hold'] as num?) ?? 0,
-      if (recent != null) 'Sell': (recent['sell'] as num?) ?? 0,
-      if (recent != null) 'Strong sell': (recent['strongSell'] as num?) ?? 0,
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        UiCard(
-          title: '52-week position',
-          subtitle: 'Recorded low, current quote, and high',
-          child: validRange
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    UiProgressBar(
-                      value: ((price - low) / (high - low)).clamp(0.0, 1.0),
-                      label:
-                          '${instrument.currency} ${price.toStringAsFixed(2)}',
-                    ),
-                    UiGap.v(context.ui.spacing.sm),
-                    UiStatStrip(
-                      stats: [
-                        UiStat(label: '52w low', value: low.toStringAsFixed(2)),
-                        UiStat(
-                          label: '52w high',
-                          value: high.toStringAsFixed(2),
+    final low = instrumentNumber(data.summary['fifty_two_week_low']);
+    final high = instrumentNumber(data.summary['fifty_two_week_high']);
+    final price = data.hasQuote ? data.price : null;
+    return UiCard(
+      title: '52-week position',
+      leading: const Icon(Icons.straighten_outlined),
+      child: low != null || high != null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (low != null && high != null && high > low) ...[
+                  UiRangeMeter(
+                    min: low,
+                    max: high,
+                    showBounds: false,
+                    valueFormatter: data.formatPrice,
+                    markers: [
+                      if (price != null)
+                        UiRangeMarker(
+                          value: price,
+                          label: 'Quote',
+                          strong: true,
                         ),
-                        if (number('fifty_day_average') != null)
-                          UiStat(
-                            label: '50d average',
-                            value: number(
-                              'fifty_day_average',
-                            )!.toStringAsFixed(2),
-                          ),
-                      ],
-                    ),
+                    ],
+                  ),
+                  UiGap.v(context.ui.spacing.sm),
+                ],
+                UiStatStrip(
+                  minCellWidth: 96,
+                  stats: [
+                    if (low != null)
+                      UiStat(
+                        label: '52-week low',
+                        value: data.formatPrice(low),
+                      ),
+                    if (high != null)
+                      UiStat(
+                        label: '52-week high',
+                        value: data.formatPrice(high),
+                      ),
                   ],
-                )
-              : const UiEmptyState(title: '52-week range unavailable'),
-        ),
-        if (opinions.values.any((v) => v > 0)) ...[
-          UiGap.v(context.ui.spacing.md),
-          MarketDistributionCard(
-            title: 'Analyst recommendations',
-            subtitle: 'Most recent available reporting period',
-            values: opinions,
-          ),
-        ],
-      ],
+                ),
+              ],
+            )
+          : const UiEmptyState(
+              title: '52-week range unavailable',
+              compact: true,
+            ),
     );
   }
 }
 
 class MarketOptionsInterest extends StatelessWidget {
   const MarketOptionsInterest({super.key, required this.chains});
-  final Map chains;
+  final InstrumentRow chains;
 
   @override
   Widget build(BuildContext context) {
     final points = <UiChartPoint>[];
+    var hasOpenInterest = false;
     for (final expiry in chains.entries.take(8)) {
-      final sides = expiry.value as Map? ?? {};
-      double total(String side) =>
-          (sides[side] as List? ?? const []).whereType<Map>().fold<double>(
-            0,
-            (sum, row) =>
-                sum + ((row['openInterest'] as num?)?.toDouble() ?? 0),
-          );
+      final sides = instrumentMap(expiry.value);
+      double total(String side) {
+        var sum = 0.0;
+        for (final row in instrumentRows(sides[side])) {
+          final interest = instrumentNumber(row['openInterest']);
+          if (interest != null && interest >= 0) {
+            sum += interest;
+            hasOpenInterest = true;
+          }
+        }
+        return sum;
+      }
+
+      final expiryDate = DateTime.tryParse(expiry.key);
       points.add(
         UiChartPoint(
-          label: '${expiry.key}',
+          label: expiryDate == null
+              ? expiry.key
+              : MaterialLocalizations.of(
+                  context,
+                ).formatShortMonthDay(expiryDate),
           values: [total('calls'), total('puts')],
         ),
       );
     }
-    if (points.isEmpty) return const SizedBox.shrink();
     return UiCard(
       title: 'Options open interest',
-      subtitle: 'Calls and puts across the first ${points.length} expirations',
-      child: UiBarChart(
-        data: points,
-        series: [
-          UiChartSeries(name: 'Calls', color: context.ui.colors.success),
-          UiChartSeries(name: 'Puts', color: context.ui.colors.danger),
-        ],
-        height: 240,
-      ),
+      subtitle: points.length == 1
+          ? 'Reported contracts for one expiration'
+          : 'Reported contracts across ${points.length} expirations',
+      child: !hasOpenInterest
+          ? const UiEmptyState(
+              title: 'Open interest unavailable',
+              compact: true,
+            )
+          : UiBarChart(
+              data: points,
+              series: [
+                UiChartSeries(name: 'Calls', color: context.ui.colors.success),
+                UiChartSeries(name: 'Puts', color: context.ui.colors.danger),
+              ],
+              height: 240,
+            ),
     );
   }
 }
@@ -421,40 +446,6 @@ class MarketDividendHistory extends StatelessWidget {
         ],
         series: [
           UiChartSeries(name: 'Dividend', color: context.ui.colors.primary),
-        ],
-      ),
-    );
-  }
-}
-
-class MarketInstitutionalHolders extends StatelessWidget {
-  const MarketInstitutionalHolders({super.key, required this.holders});
-  final List holders;
-
-  @override
-  Widget build(BuildContext context) {
-    final rows =
-        holders.whereType<Map>().where((r) => r['Holder'] != null).toList()
-          ..sort(
-            (a, b) => ((b['pctHeld'] as num?) ?? 0).compareTo(
-              (a['pctHeld'] as num?) ?? 0,
-            ),
-          );
-    if (rows.isEmpty) return const SizedBox.shrink();
-    return UiCard(
-      title: 'Institutional ownership',
-      subtitle: 'Largest disclosed holders',
-      child: UiBarList(
-        items: [
-          for (final row in rows.take(8))
-            UiBarListItem(
-              label: '${row['Holder']}',
-              value: ((row['pctHeld'] as num?) ?? 0) * 100,
-              percentage: ((row['pctHeld'] as num?)?.toDouble() ?? 0).clamp(
-                0,
-                1,
-              ),
-            ),
         ],
       ),
     );
@@ -509,10 +500,9 @@ class MarketRelatedMoves extends StatelessWidget {
                   child: UiBadge(
                     label:
                         '${q.symbol} ${q.changePercent >= 0 ? '+' : ''}${q.changePercent.toStringAsFixed(2)}%',
-                    intent:
-                        q.changePercent >= 0
-                            ? UiIntent.success
-                            : UiIntent.danger,
+                    intent: q.changePercent >= 0
+                        ? UiIntent.success
+                        : UiIntent.danger,
                     variant: UiBadgeVariant.soft,
                   ),
                 ),

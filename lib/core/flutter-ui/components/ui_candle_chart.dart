@@ -112,6 +112,7 @@ class UiCandleChart extends StatefulWidget {
     this.showGrid = true,
     this.interactive = true,
     this.priceFormatter,
+    this.volumeFormatter,
     this.onHoverIndex,
   }) : candles = candles ?? data ?? const <UiCandle>[];
 
@@ -127,6 +128,7 @@ class UiCandleChart extends StatefulWidget {
   final bool showGrid;
   final bool interactive;
   final UiValueFormatter? priceFormatter;
+  final UiValueFormatter? volumeFormatter;
   final ValueChanged<int?>? onHoverIndex;
 
   @override
@@ -175,7 +177,11 @@ class _UiCandleChartState extends State<UiCandleChart> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        _UiCandleReadout(candle: active ?? widget.candles.last, format: _fmt),
+        _UiCandleReadout(
+          candle: active ?? widget.candles.last,
+          format: _fmt,
+          volumeFormatter: widget.volumeFormatter ?? _fmt,
+        ),
         SizedBox(height: context.sp(theme.spacing.sm)),
         SizedBox(
           height: height,
@@ -274,16 +280,21 @@ class _UiCandleChartState extends State<UiCandleChart> {
 }
 
 class _UiCandleReadout extends StatelessWidget {
-  const _UiCandleReadout({required this.candle, required this.format});
+  const _UiCandleReadout({
+    required this.candle,
+    required this.format,
+    required this.volumeFormatter,
+  });
 
   final UiCandle candle;
   final String Function(num value) format;
+  final UiValueFormatter volumeFormatter;
 
   @override
   Widget build(BuildContext context) {
     final UiColors c = context.uiColors;
     final Color tint = candle.bullish ? c.bullish : c.bearish;
-    Widget pair(String label, double value, {Color? color}) => Row(
+    Widget pair(String label, String value, {Color? color}) => Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Text(
@@ -295,7 +306,7 @@ class _UiCandleReadout extends StatelessWidget {
         // the read-out row.
         Flexible(
           child: Text(
-            format(value),
+            value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: context.uiText.numeric.copyWith(
@@ -311,11 +322,11 @@ class _UiCandleReadout extends StatelessWidget {
       spacing: context.sp(context.uiSpace.md),
       runSpacing: context.sp(context.uiSpace.xs),
       children: <Widget>[
-        pair('O', candle.open),
-        pair('H', candle.high),
-        pair('L', candle.low),
-        pair('C', candle.close, color: tint),
-        if (candle.volume > 0) pair('V', candle.volume),
+        pair('O', format(candle.open)),
+        pair('H', format(candle.high)),
+        pair('L', format(candle.low)),
+        pair('C', format(candle.close), color: tint),
+        if (candle.volume > 0) pair('V', volumeFormatter(candle.volume)),
       ],
     );
   }
