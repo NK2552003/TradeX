@@ -84,6 +84,8 @@ test('web deployment declares transport and content security headers', () => {
   assert.match(headers, /Content-Security-Policy:/);
   assert.match(headers, /frame-ancestors 'none'/);
   assert.match(headers, /object-src 'none'/);
+  assert.match(headers, /script-src[^;]*https:\/\/www\.gstatic\.com/);
+  assert.match(headers, /connect-src[^;]*https:\/\/www\.gstatic\.com/);
 });
 
 test('authenticated Edge Functions do not publish wildcard CORS', () => {
@@ -115,7 +117,7 @@ test('database migration removes implicit SECURITY DEFINER execution', () => {
     migration,
     /ALTER DEFAULT PRIVILEGES IN SCHEMA public[\s\S]*REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC/,
   );
-  assert.match(migration, /public\.public_document\(text, uuid\)/);
+  assert.match(migration, /public\.public_document\(text,\s*uuid\)/);
   assert.match(migration, /public\.is_admin_caller\(\)/);
 });
 
