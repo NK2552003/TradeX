@@ -1,12 +1,12 @@
-# TradeX Database
+# AlphaJournal Database
 
 Source references:
 - 02-architecture/API_DATA_MODEL.md
 - 02-architecture/DATABASE_ERD.md
 - 01-product/PRD.md
-- [docs_/LINKED_NOTES_BACKEND_HANDOFF.md](../docs_/LINKED_NOTES_BACKEND_HANDOFF.md) — the contract behind migrations 009–012
+- [Linked Writing Backend Handoff](../backend_handoff/ISSUE_LINKED_WRITING_BACKEND.md) — the contract behind migrations 009–012
 
-This folder provides the Supabase database setup for TradeX.
+This folder provides the Supabase database setup for AlphaJournal.
 
 ## Folder Layout
 
@@ -139,10 +139,10 @@ public_document(kind, id) (SECURITY DEFINER: the only door an anon reader has)
 
 - profiles: public/private account profile + tier copy for fast RLS checks.
 - subscriptions: billing source of truth from RevenueCat webhook.
-- journal_entries: a trade **and** its write-up, in one row. Never two. Performance columns (`pnl`, `r_multiple`, `outcome`) are per-trade facts; the playbook-level figures derived from them are not stored anywhere. See [docs_/LINKED_NOTES_BACKEND_HANDOFF.md](../docs_/LINKED_NOTES_BACKEND_HANDOFF.md).
+- journal_entries: a trade **and** its write-up, in one row. Never two. Performance columns (`pnl`, `r_multiple`, `outcome`) are per-trade facts; the playbook-level figures derived from them are not stored anywhere. See the [Linked Writing Backend Handoff](../backend_handoff/ISSUE_LINKED_WRITING_BACKEND.md).
 - journal_entry_attachments: media embedded in a journal body. Owner-only at every depth — there is no public journal route, so there is no reader to grant.
 - note_journal_links: the note ⇄ journal edge, and its source of truth. `user_id` is denormalised onto the row so the RLS check is one comparison; it is assigned by trigger and a client-supplied value is discarded. Cross-owner edges are rejected before the row lands.
-- trader_notes/trader_note_attachments/trader_note_likes/trader_note_comments/trader_note_views: markdown notes with uploaded media and public engagement. Available to every role; public notes are readable and interactable by signed-in users. See [docs_/NOTES_BACKEND_HANDOFF.md](../docs_/NOTES_BACKEND_HANDOFF.md).
+- trader_notes/trader_note_attachments/trader_note_likes/trader_note_comments/trader_note_views: markdown notes with uploaded media and public engagement. Available to every role; public notes are readable and interactable by signed-in users. See the [Trader Notes Handoff](../backend_handoff/02-Trader_Notes/HOW_IT_WORKS.md).
 - strategies/strategy_versions: playbooks as markdown, with version history. Exactly one version per playbook may carry `is_current` — enforced by a partial unique index, not by application code.
 - strategy_attachments: diagrams and charts embedded in a playbook body. Travel with a published playbook, or it renders with broken images for every reader but its author.
 - watchlists/watchlist_items: ticker tracking with threshold alert state.
@@ -200,8 +200,8 @@ both a row policy and an object policy exist for each public bucket.
 ## Refreshed finance assets and public pricing
 
 After installing the schema/migrations, apply `seeds/03_public_site.sql` and
-`seeds/04_pricing_catalogue.sql`. The latter publishes the current Free, Pro,
-and Business plans, including the four server-enforced quota limits. The app
+`seeds/04_pricing_catalogue.sql`. The latter publishes the current Free, Basic,
+and Pro plans, including the server-enforced workspace quota limits. The app
 reads published pricing from Supabase; the bundled JSON is a development/demo
 fixture and an admin editor starting point.
 

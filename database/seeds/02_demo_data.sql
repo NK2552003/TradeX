@@ -27,7 +27,7 @@ BEGIN
       '00000000-0000-0000-0000-000000000001',
       'authenticated',
       'authenticated',
-      'demo@tradex.ai',
+      'demo@alphajournal.in',
       crypt('demo123456', gen_salt('bf')),
       now(),
       '{"provider": "email", "providers": ["email"]}'::jsonb,
@@ -89,7 +89,7 @@ VALUES
 (
   '00000000-0000-0000-0000-000000000001',
   'demo_trader',
-  'demo@tradex.ai',
+  'demo@alphajournal.in',
   'Nitish Kumar',
   'customer',
   'active',
@@ -97,7 +97,7 @@ VALUES
   'swing',
   'Quantitative momentum trader focused on US Equities and Crypto breakouts.',
   'Mumbai, IN',
-  'tradex.io/@nitish_trader',
+  'alphajournal.in/@nitish_trader',
   '45 mins',
   'Equities & Index Options',
   'ORB Breakout',
@@ -637,7 +637,7 @@ INSERT INTO affiliate_profiles (
 VALUES
 (
   '00000000-0000-0000-0000-000000000001',
-  'TRADEX-ALPHA-2026',
+  'ALPHAJOURNAL-ALPHA-2026',
   'nitish_alpha',
   'gold',
   0.30,
@@ -671,7 +671,7 @@ VALUES
   'cccccccc-cccc-cccc-cccc-cccccccccc11',
   '00000000-0000-0000-0000-000000000001',
   '00000000-0000-0000-0000-000000000002',
-  'TRADEX-ALPHA-2026',
+  'ALPHAJOURNAL-ALPHA-2026',
   'converted',
   50.00
 ),
@@ -679,7 +679,7 @@ VALUES
   'cccccccc-cccc-cccc-cccc-cccccccccc12',
   '00000000-0000-0000-0000-000000000001',
   '00000000-0000-0000-0000-000000000003',
-  'TRADEX-ALPHA-2026',
+  'ALPHAJOURNAL-ALPHA-2026',
   'converted',
   50.00
 )
@@ -698,7 +698,7 @@ VALUES
 (
   'e0000000-0000-0000-0000-000000000001',
   'alphajournal Institutional Alpha',
-  'tradex-institutional-alpha',
+  'alphajournal-institutional-alpha',
   '00000000-0000-0000-0000-000000000001',
   '{"logo_url": null, "primary_color": "#00F0FF"}'::jsonb
 )
@@ -810,7 +810,7 @@ VALUES
   2499.0,
   'INR',
   'paid',
-  'https://tradex.ai/invoices/2026_09.pdf',
+  'https://alphajournal.in/invoices/2026_09.pdf',
   '[{"description": "Pro Plan (Monthly subscription)", "amount": 2499.0, "quantity": 1}]'::jsonb,
   now() - INTERVAL '10 days'
 ),
@@ -821,7 +821,7 @@ VALUES
   2499.0,
   'INR',
   'paid',
-  'https://tradex.ai/invoices/2026_08.pdf',
+  'https://alphajournal.in/invoices/2026_08.pdf',
   '[{"description": "Pro Plan (Monthly subscription)", "amount": 2499.0, "quantity": 1}]'::jsonb,
   now() - INTERVAL '40 days'
 )
@@ -843,7 +843,7 @@ VALUES
   'f1000000-0000-0000-0000-000000000001',
   '00000000-0000-0000-0000-000000000001',
   'ready',
-  'https://tradex.ai/exports/tradex_export_usr_mock_01.zip',
+  'https://alphajournal.in/exports/alphajournal_export_usr_mock_01.zip',
   now() - INTERVAL '2 hours',
   now() - INTERVAL '1 hour',
   now() + INTERVAL '7 days'

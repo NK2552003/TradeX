@@ -1,6 +1,6 @@
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
 
 /// Parses the tier string stored on the profile into the design-system enum.
 AppTier appTierFromId(String id) => switch (id.trim().toLowerCase()) {

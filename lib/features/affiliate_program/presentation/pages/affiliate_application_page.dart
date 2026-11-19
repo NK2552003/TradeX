@@ -2,13 +2,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // Required unified primitive import for feature UI.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
-import 'package:tradex/features/auth/widgets/auth_step_icon.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_application_repository.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:alphajournal/features/auth/widgets/auth_step_icon.dart';
 
 /// Shared affiliate application used after affiliate signup and when an
 /// existing trader chooses to add the affiliate capability.
@@ -715,7 +715,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                       SizedBox(width: context.sp(theme.spacing.xs)),
                       Flexible(
                         child: Text(
-                          'Manage your account and privacy settings in alphajournal',
+                          'Manage your account and privacy settings in AlphaJournal',
                           overflow: TextOverflow.ellipsis,
                           style: context.uiText.caption.copyWith(
                             color: colors.foregroundSubtle,
@@ -867,7 +867,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
         ),
         SizedBox(height: context.sp(theme.spacing.xxs)),
         Text(
-          'Tell reviewers where and how you plan to introduce alphajournal.',
+          'Tell reviewers where and how you plan to introduce AlphaJournal.',
           style: context.uiText.caption.copyWith(
             color: theme.colors.foregroundMuted,
           ),
@@ -1121,7 +1121,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
         const UiCallout(
           title: 'Review and access policy',
           message:
-              'Submitting does not grant immediate Partner Hub access. An administrator must approve the application first. You can continue using alphajournal as a customer/trader while it is pending.',
+              'Submitting does not grant immediate Partner Hub access. An administrator must approve the application first. You can continue using AlphaJournal as a customer/trader while it is pending.',
           intent: UiIntent.warning,
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
@@ -1129,7 +1129,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
           value: _termsAccepted,
           asCard: true,
           label:
-              'I confirm these details are accurate and accept the alphajournal Affiliate Program terms.',
+              'I confirm these details are accurate and accept the AlphaJournal Affiliate Program terms.',
           description:
               'I understand that approval can be refused or suspended for policy violations.',
           onChanged: (bool value) => setState(() => _termsAccepted = value),
@@ -1255,7 +1255,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                     const AppLogoMark(size: 20),
                     SizedBox(width: context.sp(theme.spacing.xs)),
                     Text(
-                      'alphajournal',
+                      'AlphaJournal',
                       style: context.uiText.bodyStrong.copyWith(
                         fontSize: 16,
                         letterSpacing: -0.2,
@@ -1355,7 +1355,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                                       AffiliateApplicationStatus.approved &&
                                   widget.onOpenPartnerHub != null
                               ? 'Open Partner Hub'
-                              : 'Continue to alphajournal',
+                              : 'Continue to AlphaJournal',
                           trailingIcon: Icons.arrow_forward_rounded,
                           variant: UiVariant.primary,
                           intent: UiIntent.primary,
@@ -1383,7 +1383,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                     SizedBox(width: context.sp(theme.spacing.xs)),
                     Flexible(
                       child: Text(
-                        'Manage your account and privacy settings in alphajournal',
+                        'Manage your account and privacy settings in AlphaJournal',
                         textAlign: TextAlign.center,
                         style: context.uiText.caption.copyWith(
                           color: colors.foregroundSubtle,

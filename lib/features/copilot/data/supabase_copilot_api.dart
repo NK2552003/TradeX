@@ -4,11 +4,11 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/env_config.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/core/markdown_kit/perplexity_parser.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/env_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/core/markdown_kit/perplexity_parser.dart';
 
 import '../models/research_router.dart';
 import '../models/trader_skill.dart';

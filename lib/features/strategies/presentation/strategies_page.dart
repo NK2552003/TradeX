@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/strategies/data/strategy_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/strategies/data/strategy_repository.dart';
 
 class StrategiesPage extends StatefulWidget {
   const StrategiesPage({super.key, this.repository});

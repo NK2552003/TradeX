@@ -19,6 +19,7 @@ class UiTheme extends ThemeExtension<UiTheme> {
     required this.breakpoints,
     required this.scaleConfig,
     required this.brightness,
+    this.zoom = 1,
   });
 
   final UiColors colors;
@@ -32,6 +33,7 @@ class UiTheme extends ThemeExtension<UiTheme> {
   final UiBreakpoints breakpoints;
   final UiScaleConfig scaleConfig;
   final Brightness brightness;
+  final double zoom;
 
   static UiTheme light({
     UiColors? colors,
@@ -86,6 +88,7 @@ class UiTheme extends ThemeExtension<UiTheme> {
   /// Builds a Material [ThemeData] that carries this design system, so plain
   /// Material widgets match the custom components.
   ThemeData toThemeData() {
+    final effectiveTypography = _uiScaledTypography(typography, zoom);
     final ColorScheme scheme = ColorScheme(
       brightness: brightness,
       primary: colors.primary,
@@ -112,13 +115,25 @@ class UiTheme extends ThemeExtension<UiTheme> {
       hoverColor: colors.surfaceHover,
       focusColor: colors.surfaceHover,
       textTheme: TextTheme(
-        displaySmall: typography.display.copyWith(color: colors.foreground),
-        headlineSmall: typography.title.copyWith(color: colors.foreground),
-        titleLarge: typography.heading.copyWith(color: colors.foreground),
-        titleMedium: typography.subheading.copyWith(color: colors.foreground),
-        bodyMedium: typography.body.copyWith(color: colors.foreground),
-        labelLarge: typography.label.copyWith(color: colors.foreground),
-        bodySmall: typography.caption.copyWith(color: colors.foregroundMuted),
+        displaySmall: effectiveTypography.display.copyWith(
+          color: colors.foreground,
+        ),
+        headlineSmall: effectiveTypography.title.copyWith(
+          color: colors.foreground,
+        ),
+        titleLarge: effectiveTypography.heading.copyWith(
+          color: colors.foreground,
+        ),
+        titleMedium: effectiveTypography.subheading.copyWith(
+          color: colors.foreground,
+        ),
+        bodyMedium: effectiveTypography.body.copyWith(color: colors.foreground),
+        labelLarge: effectiveTypography.label.copyWith(
+          color: colors.foreground,
+        ),
+        bodySmall: effectiveTypography.caption.copyWith(
+          color: colors.foregroundMuted,
+        ),
       ),
 
       scrollbarTheme: ScrollbarThemeData(
@@ -168,6 +183,7 @@ class UiTheme extends ThemeExtension<UiTheme> {
     UiBreakpoints? breakpoints,
     UiScaleConfig? scaleConfig,
     Brightness? brightness,
+    double? zoom,
   }) => UiTheme(
     colors: colors ?? this.colors,
     typography: typography ?? this.typography,
@@ -180,6 +196,7 @@ class UiTheme extends ThemeExtension<UiTheme> {
     breakpoints: breakpoints ?? this.breakpoints,
     scaleConfig: scaleConfig ?? this.scaleConfig,
     brightness: brightness ?? this.brightness,
+    zoom: zoom ?? this.zoom,
   );
 
   @override
@@ -188,6 +205,7 @@ class UiTheme extends ThemeExtension<UiTheme> {
     return copyWith(
       colors: colors.lerpTo(other.colors, t),
       brightness: t < 0.5 ? brightness : other.brightness,
+      zoom: t < 0.5 ? zoom : other.zoom,
     );
   }
 }
@@ -247,11 +265,15 @@ extension UiThemeContext on BuildContext {
   UiMotion get uiMotion => ui.motion;
   UiShadows get uiShadows => ui.shadows;
 
-  UiResponsive get uiRes => UiResponsive.of(
-    this,
-    breakpoints: ui.breakpoints,
-    scaleConfig: ui.scaleConfig,
-  );
+  UiResponsive get uiRes {
+    final theme = ui;
+    return UiResponsive.of(
+      this,
+      breakpoints: theme.breakpoints,
+      scaleConfig: theme.scaleConfig,
+      zoom: theme.zoom,
+    );
+  }
 
   /// Device-scaled typography.
   ///
@@ -261,24 +283,15 @@ extension UiThemeContext on BuildContext {
   /// change still produces fresh styles.
   UiTypography get uiText {
     final UiTheme theme = ui;
-    final UiResponsive r = UiResponsive.of(
-      this,
-      breakpoints: theme.breakpoints,
-      scaleConfig: theme.scaleConfig,
-    );
-    return _uiScaledTypography(
-      theme.typography,
-      r.scale.text * r.textScaleFactor,
-    );
+    final UiResponsive r = uiRes;
+    return _uiScaledTypography(theme.typography, r.scale.text);
   }
 
   double sp(double v) => uiRes.sp(v);
   double sz(double v) => uiRes.sz(v);
 
-  /// Device- and accessibility-scaled font size, for the rare literal that has
-  /// no token behind it (a 10pt uppercase eyebrow, a badge overline). Every raw
-  /// `fontSize:` should go through this, or that one piece of text stays put
-  /// while the rest of the screen grows with the reader's chosen text size.
+  /// Responsive size for a literal font value. Text widgets apply the current
+  /// [TextScaler] after the viewport and zoom adjustments.
   double fs(double v) => uiRes.fs(v);
 
   BorderRadius radius(double v) => BorderRadius.circular(sz(v));

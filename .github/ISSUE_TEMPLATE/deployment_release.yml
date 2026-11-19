@@ -1,0 +1,92 @@
+name: Deployment, CI/CD, or release issue
+description: Report workflow, migration, environment, signing, store, Cloudflare, Supabase deployment, or release-gate problems.
+title: "[Release]: "
+labels:
+  - deployment
+  - triage
+body:
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage
+      multiple: true
+      options:
+        - Pull request validation
+        - Flutter build/test/analyze
+        - Database migration/advisors
+        - Edge Function deploy
+        - Market sync workflow
+        - Web/Cloudflare deploy
+        - Android signing/Play
+        - iOS signing/TestFlight/App Store
+        - Secrets/environment
+        - Rollback/incident
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Local
+        - Pull request
+        - Staging
+        - Internal testing
+        - Production
+        - Multiple
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit, release, or workflow run
+      placeholder: Sanitized link, commit SHA, build number, or migration name
+    validations:
+      required: true
+  - type: textarea
+    id: failed_gate
+    attributes:
+      label: Failed gate or operation
+      placeholder: Command/job, expected artifact, and the step where it failed.
+    validations:
+      required: true
+  - type: textarea
+    id: sanitized_logs
+    attributes:
+      label: Sanitized log excerpt
+      description: Remove secrets, tokens, signing material, account IDs, project credentials, and private URLs.
+    validations:
+      required: true
+  - type: dropdown
+    id: release_impact
+    attributes:
+      label: Release impact
+      options:
+        - Stop release
+        - Blocks one platform/feature
+        - Degraded but recoverable
+        - Non-blocking
+    validations:
+      required: true
+  - type: textarea
+    id: rollback
+    attributes:
+      label: Rollback or recovery state
+      placeholder: Last known-good version, whether rollback was attempted, and current user impact.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance and verification
+      placeholder: Required green jobs, artifacts, migration checks, smoke tests, and rollback proof.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Secret safety
+      options:
+        - label: I removed credentials, environment values, certificates, signing keys, and provider secrets from this report.
+          required: true
+

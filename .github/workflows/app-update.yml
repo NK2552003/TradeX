@@ -1,0 +1,75 @@
+name: Application version and update checks
+
+on:
+  pull_request:
+    paths:
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'CHANGELOG.md'
+      - 'lib/app.dart'
+      - 'lib/core/config/env_config.dart'
+      - 'lib/core/update/**'
+      - 'lib/features/settings/presentation/pages/shared/help_about_page.dart'
+      - 'scripts/generate_app_update_manifest.py'
+      - 'scripts/prepare_client_config.py'
+      - 'test/core/update/**'
+      - 'test/scripts/test_generate_app_update_manifest.py'
+      - 'test/web/app_update_test.cjs'
+      - 'web/app-update.json'
+      - 'web/app_update.js'
+      - 'web/index.html'
+      - 'web/_headers'
+      - '.github/workflows/app-update.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'CHANGELOG.md'
+      - 'lib/app.dart'
+      - 'lib/core/config/env_config.dart'
+      - 'lib/core/update/**'
+      - 'lib/features/settings/presentation/pages/shared/help_about_page.dart'
+      - 'scripts/generate_app_update_manifest.py'
+      - 'scripts/prepare_client_config.py'
+      - 'test/core/update/**'
+      - 'test/scripts/test_generate_app_update_manifest.py'
+      - 'test/web/app_update_test.cjs'
+      - 'web/app-update.json'
+      - 'web/app_update.js'
+      - 'web/index.html'
+      - 'web/_headers'
+      - '.github/workflows/app-update.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: flutter pub get
+      - name: Verify public release metadata
+        run: python3 scripts/generate_app_update_manifest.py --platform web --check
+      - name: Test release manifest generator
+        run: python3 test/scripts/test_generate_app_update_manifest.py
+      - name: Test update decision logic
+        run: flutter test test/core/update
+      - name: Test safe web reload bridge
+        run: node --test test/web/app_update_test.cjs
+      - name: Analyze update integration
+        run: dart analyze lib/core/update lib/core/config/env_config.dart lib/features/settings/presentation/pages/shared/help_about_page.dart lib/app.dart

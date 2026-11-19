@@ -1,4 +1,4 @@
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -243,11 +243,11 @@ class MacroBenchmarks {
   );
 }
 
-/// Free, unlimited real-time market and macro data service.
+/// Bounded market and macro benchmark service for calculator inputs.
 ///
 /// Backed by:
-/// 1. Yahoo Finance v8 API (unlimited, no API key, live quotes & OHLC)
-/// 2. World Bank Open Data API (unlimited, no API key, official India CPI)
+/// 1. The authenticated AlphaJournal quote proxy with short-lived caching.
+/// 2. Bounded public quote/macro fallbacks when the proxy is unavailable.
 class MarketDataService {
   MarketDataService({http.Client? client}) : _client = client ?? http.Client();
 
@@ -256,7 +256,8 @@ class MarketDataService {
   final http.Client _client;
 
   final Map<String, MarketQuote> _quoteCache = <String, MarketQuote>{};
-  final Map<String, Future<MarketQuote>> _inFlight = <String, Future<MarketQuote>>{};
+  final Map<String, Future<MarketQuote>> _inFlight =
+      <String, Future<MarketQuote>>{};
   MacroBenchmarks _macroBenchmarks = MacroBenchmarks.fallback;
 
   // Proxy circuit breaker with exponential backoff so failed requests do not loop
@@ -280,7 +281,10 @@ class MarketDataService {
 
   void _recordProxyFailure() {
     _proxyFailures += 1;
-    final int idx = (_proxyFailures - 1).clamp(0, _proxyBackoffSeconds.length - 1);
+    final int idx = (_proxyFailures - 1).clamp(
+      0,
+      _proxyBackoffSeconds.length - 1,
+    );
     final int secs = _proxyFailures >= _maxProxyConsecutiveFailures
         ? _proxyBackoffSeconds.last
         : _proxyBackoffSeconds[idx];
@@ -336,7 +340,8 @@ class MarketDataService {
     final double low = (q['low'] as num?)?.toDouble() ?? price;
     final double h52 = (q['fiftyTwoWeekHigh'] as num?)?.toDouble() ?? price;
     final double l52 = (q['fiftyTwoWeekLow'] as num?)?.toDouble() ?? price;
-    final double pct = (q['changePercent'] as num?)?.toDouble() ??
+    final double pct =
+        (q['changePercent'] as num?)?.toDouble() ??
         (prevClose == 0 ? 0.0 : (price - prevClose) / prevClose * 100);
     final String name = (q['name'] as String?) ?? key;
     final bool isLive = q['isLive'] as bool? ?? false;
@@ -370,13 +375,15 @@ class MarketDataService {
     if (SupabaseConfig.isConfigured && _canCallProxy) {
       try {
         final client = SupabaseConfig.client!;
-        final res = await client.functions.invoke(
-          'market-quote-proxy',
-          body: {
-            'action': 'quotes',
-            'symbols': [ticker],
-          },
-        ).timeout(_requestTimeout);
+        final res = await client.functions
+            .invoke(
+              'market-quote-proxy',
+              body: {
+                'action': 'quotes',
+                'symbols': [ticker],
+              },
+            )
+            .timeout(_requestTimeout);
 
         if (res.status == 200 && res.data is Map) {
           _recordProxySuccess();
@@ -407,7 +414,7 @@ class MarketDataService {
               uri,
               headers: const <String, String>{
                 'Accept': 'application/json',
-                'User-Agent': 'TradeX/1.0',
+                'User-Agent': 'AlphaJournal/1.0',
               },
             )
             .timeout(_requestTimeout);
@@ -521,13 +528,15 @@ class MarketDataService {
           continue;
         }
         try {
-          final res = await client.functions.invoke(
-            'market-quote-proxy',
-            body: {
-              'action': 'quotes',
-              'symbols': chunk.map((e) => e.ticker).toList(),
-            },
-          ).timeout(_requestTimeout);
+          final res = await client.functions
+              .invoke(
+                'market-quote-proxy',
+                body: {
+                  'action': 'quotes',
+                  'symbols': chunk.map((e) => e.ticker).toList(),
+                },
+              )
+              .timeout(_requestTimeout);
           if (res.status == 200 && res.data is Map) {
             _recordProxySuccess();
             final quotesMap = res.data['quotes'];

@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/navigation/role_navigation_config.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/presentation/market_root_screen.dart';
-import 'package:tradex/features/market_data/presentation/market_movers_panel.dart';
-import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
-import 'package:tradex/features/market_data/presentation/market_visuals.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/navigation/role_navigation_config.dart';
+import 'package:alphajournal/core/widgets/app_scaffold.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/presentation/market_root_screen.dart';
+import 'package:alphajournal/features/market_data/presentation/market_movers_panel.dart';
+import 'package:alphajournal/features/market_data/presentation/market_news_widgets.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_view.dart';
+import 'package:alphajournal/features/market_data/presentation/market_visuals.dart';
 import '../public_site/public_content_test.dart' show FileAssets;
 
 void main() {
@@ -353,6 +353,7 @@ void main() {
         home: AppScaffold(
           initialDestination: 'community_feed',
           userRole: UserRole.customer,
+          subscriptionTier: AppTier.premium,
         ),
       ),
     );

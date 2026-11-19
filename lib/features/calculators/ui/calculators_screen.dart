@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/data/app_entitlements.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+// Required unified primitive import for application UI.
+// ignore: unnecessary_import
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../calculator_registry.dart';
 import 'black_scholes_screen.dart';
@@ -61,11 +67,21 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
   late String _activeId;
   late bool _opened;
 
+  AppTier get _tier => AppSession.instance.tier.value;
+  bool _canOpen(String id) => AppEntitlement.calculatorAllowed(id, _tier);
+
   @override
   void initState() {
     super.initState();
     _activeId = widget.initialCalculatorId ?? kAllCalculators.first.id;
-    _opened = widget.initiallyOpened || widget.initialCalculatorId != null;
+    final requestedOpen =
+        widget.initiallyOpened || widget.initialCalculatorId != null;
+    _opened = requestedOpen && _canOpen(_activeId);
+    if (requestedOpen && !_opened) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showAdvancedUpgrade();
+      });
+    }
     if (_opened) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -75,7 +91,11 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
     }
   }
 
-  void _openTool(String id) {
+  Future<void> _openTool(String id) async {
+    if (!_canOpen(id)) {
+      await _showAdvancedUpgrade();
+      return;
+    }
     setState(() {
       _activeId = id;
       _opened = true;
@@ -83,6 +103,13 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
     final AppCalculatorMeta meta = calculatorMetaById(id);
     widget.onSubpageChanged?.call(meta.name, meta.icon, _closeTool);
   }
+
+  Future<void> _showAdvancedUpgrade() =>
+      CustomerLimitations.showPlanUpgradeDialog(
+        context,
+        featureTitle: 'Advanced calculators · Basic or Pro',
+        reason: AppEntitlement.advancedCalculators.reason,
+      );
 
   void _closeTool() {
     if (!mounted) return;
@@ -231,6 +258,8 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
                     tools: visible,
                     selectedId: null,
                     showDescription: true,
+                    isEnabled: (AppCalculatorMeta m) => _canOpen(m.id),
+                    onDisabledSelect: (_) => _showAdvancedUpgrade(),
                     onSelect: (AppCalculatorMeta m) => _openTool(m.id),
                     onClear: _clearFilters,
                   ),

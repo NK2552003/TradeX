@@ -1,0 +1,102 @@
+name: Database, Supabase, or egress issue
+description: Report RLS, query, migration, Storage, caching, duplicate reads, or excessive database/network egress.
+title: "[Database/Egress]: "
+labels:
+  - database
+  - supabase
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste database passwords, connection strings, service-role keys, JWTs, signed URLs, or private rows. Use a private advisory for authorization bypass or cross-user access.
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      multiple: true
+      options:
+        - RLS/policy behavior
+        - Schema/migration
+        - Query correctness
+        - Query performance/index
+        - Duplicate reads/realtime subscriptions
+        - Database egress
+        - Storage egress/cache
+        - Edge Function/RPC
+        - Data API exposure/grants
+        - Retention/cleanup
+    validations:
+      required: true
+  - type: input
+    id: object
+    attributes:
+      label: Affected object
+      placeholder: Sanitized table, view, bucket, function, RPC, repository, or route
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment and version
+      placeholder: Local/staging/production, migration name, app version/commit
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Database/API role
+      options:
+        - anon
+        - authenticated Free
+        - authenticated Basic/Pro
+        - service role/server job
+        - database owner/local test
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      placeholder: Include sanitized counts, timing, request frequency, or policy result.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected boundary or budget
+      placeholder: Expected rows, ownership rule, cache hit behavior, freshness window, or egress ceiling.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Sanitized reproduction/query shape
+      description: Use placeholders and remove credentials and private data.
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Before/after metrics
+      placeholder: Requests, rows, bytes, cache hits, latency, query plan summary, or dashboard window.
+  - type: textarea
+    id: policy
+    attributes:
+      label: RLS and ownership notes
+      placeholder: Relevant policy intent; do not include a working bypass publicly.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance and regression tests
+      placeholder: State the bounded result and the direct-API negative test.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Data safety
+      options:
+        - label: I used sanitized test data and removed credentials, tokens, signed URLs, and private rows.
+          required: true

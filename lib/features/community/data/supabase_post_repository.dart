@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/config/supabase_storage_egress.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_storage_egress.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:uuid/uuid.dart';
 
 abstract class SupabasePostRepository {
@@ -144,7 +144,8 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
           }
 
           final rawAvatarUrl = profile?['avatar_url'] as String?;
-          final resolvedAvatarUrl = rawAvatarUrl != null && rawAvatarUrl.isNotEmpty
+          final resolvedAvatarUrl =
+              rawAvatarUrl != null && rawAvatarUrl.isNotEmpty
               ? SupabaseStorageEgress.resolvePublicCdnUrl(
                   client: client,
                   bucket: SupabaseStorageEgress.avatars.bucketId,
@@ -259,8 +260,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
           comments: 0,
           tickers: ticker != null ? [ticker] : const [],
           imageUrl: imageUrl,
-          moderationStatus:
-              res['moderation_status']?.toString() ?? 'approved',
+          moderationStatus: res['moderation_status']?.toString() ?? 'approved',
         );
       } catch (e) {
         debugPrint('[SupabasePostRepository] createPost error: $e');

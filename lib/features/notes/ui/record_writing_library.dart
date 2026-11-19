@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/linking/link_graph_service.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/linking/link_graph_service.dart';
 
 /// References the source documents directly; no copied note bodies or tickers.
 class RecordWritingLibrary extends StatefulWidget {

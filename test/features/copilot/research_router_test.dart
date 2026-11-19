@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/features/copilot/models/research_format.dart';
-import 'package:tradex/features/copilot/models/research_router.dart';
+import 'package:alphajournal/features/copilot/models/research_format.dart';
+import 'package:alphajournal/features/copilot/models/research_router.dart';
 
 void main() {
   test(

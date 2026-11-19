@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/journal/ui/journal_screen.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/journal/ui/journal_screen.dart';
 
 void main() {
   group('JournalScreen Dashboard Redesign', () {
@@ -88,15 +88,17 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      await JournalRepositoryImpl.instance.create(AppTrade(
-        id: 'trade-table-test-1',
-        ticker: 'RELIANCE',
-        side: AppSide.long,
-        entry: 2500.0,
-        exit: null,
-        openedAt: DateTime.now(),
-        outcome: AppOutcome.open,
-      ));
+      await JournalRepositoryImpl.instance.create(
+        AppTrade(
+          id: 'trade-table-test-1',
+          ticker: 'RELIANCE',
+          side: AppSide.long,
+          entry: 2500.0,
+          exit: null,
+          openedAt: DateTime.now(),
+          outcome: AppOutcome.open,
+        ),
+      );
 
       await tester.pumpWidget(
         const MaterialApp(home: Scaffold(body: JournalScreen())),

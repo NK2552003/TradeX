@@ -4,31 +4,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/features/public_site/data/public_site_repository.dart';
+import 'package:alphajournal/features/public_site/data/public_site_repository.dart';
 
 void main() {
-  test(
-    'pricing fails closed when database tables are unseeded',
-    () async {
-      final client = SupabaseClient(
-        'https://example.test',
-        'test-key',
-        httpClient: MockClient(
-          (_) async => http.Response(
-            '{"code":"PGRST205","message":"pricing_catalogues missing"}',
-            404,
-            headers: {'content-type': 'application/json'},
-          ),
+  test('pricing fails closed when database tables are unseeded', () async {
+    final client = SupabaseClient(
+      'https://example.test',
+      'test-key',
+      httpClient: MockClient(
+        (_) async => http.Response(
+          '{"code":"PGRST205","message":"pricing_catalogues missing"}',
+          404,
+          headers: {'content-type': 'application/json'},
         ),
-      );
-      final repo = DatabasePublicSiteRepository(
-        client,
-        fallback: MockPublicSiteRepository(bundle: FileAssets()),
-      );
-      await expectLater(repo.pricing(), throwsA(isA<Object>()));
-      await client.dispose();
-    },
-  );
+      ),
+    );
+    final repo = DatabasePublicSiteRepository(
+      client,
+      fallback: MockPublicSiteRepository(bundle: FileAssets()),
+    );
+    await expectLater(repo.pricing(), throwsA(isA<Object>()));
+    await client.dispose();
+  });
   test('stalled database pricing request times out', () async {
     final client = SupabaseClient(
       'https://example.test',

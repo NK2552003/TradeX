@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/journal/data/supabase_trade_repository.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/journal/data/supabase_trade_repository.dart';
 
 class JournalPage extends StatefulWidget {
   const JournalPage({super.key, this.repository});

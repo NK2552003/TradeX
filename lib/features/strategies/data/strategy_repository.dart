@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:tradex/core/app-ui/models/app_models.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
+import 'package:alphajournal/core/app-ui/models/app_models.dart';
+import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
 
 abstract class StrategyRepository {
   Future<List<AppStrategy>> getStrategies();

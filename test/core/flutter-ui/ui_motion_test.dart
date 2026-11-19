@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 Widget host(Widget child, {bool reduced = false}) => MaterialApp(
   home: MediaQuery(

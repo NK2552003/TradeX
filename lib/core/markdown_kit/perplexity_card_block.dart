@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/models/app_models.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/models/app_models.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import 'chart_block.dart';
 import 'research/research_panel.dart';

@@ -207,6 +207,7 @@ class _UiGraphCanvasState extends State<UiGraphCanvas> {
                       positions: _positions,
                       colors: theme.colors,
                       selectedId: widget.selectedId,
+                      textScaler: MediaQuery.textScalerOf(ctx),
                       labelStyle: ctx.uiText.caption.copyWith(
                         color: theme.colors.foreground,
                       ),
@@ -230,6 +231,7 @@ class _UiGraphPainter extends CustomPainter {
     required this.positions,
     required this.colors,
     required this.selectedId,
+    required this.textScaler,
     required this.labelStyle,
     required this.radiusOf,
   });
@@ -239,6 +241,7 @@ class _UiGraphPainter extends CustomPainter {
   final Map<String, Offset> positions;
   final UiColors colors;
   final String? selectedId;
+  final TextScaler textScaler;
   final TextStyle labelStyle;
   final double Function(UiGraphNode node) radiusOf;
 
@@ -305,6 +308,7 @@ class _UiGraphPainter extends CustomPainter {
       final TextPainter tp = TextPainter(
         text: TextSpan(text: n.label, style: labelStyle),
         textDirection: TextDirection.ltr,
+        textScaler: textScaler,
         maxLines: 1,
         ellipsis: '…',
       )..layout(maxWidth: 110);
@@ -316,6 +320,8 @@ class _UiGraphPainter extends CustomPainter {
   bool shouldRepaint(covariant _UiGraphPainter old) =>
       old.positions != positions ||
       old.selectedId != selectedId ||
+      old.textScaler != textScaler ||
+      old.labelStyle != labelStyle ||
       old.nodes != nodes ||
       old.edges != edges;
 }

@@ -2,15 +2,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
-import 'package:tradex/features/auth/models/pricing_models.dart';
-import 'package:tradex/features/auth/presentation/pages/get_started_page.dart';
-import 'package:tradex/features/auth/presentation/pages/subscription_pricing_page.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/presentation/market_sidebar.dart';
-import 'package:tradex/features/public_site/data/public_site_repository.dart';
-import 'package:tradex/features/public_site/models/public_site_content.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/data/repositories/subscription_pricing_repository.dart';
+import 'package:alphajournal/features/auth/models/pricing_models.dart';
+import 'package:alphajournal/features/auth/presentation/pages/get_started_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/subscription_pricing_page.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/presentation/market_sidebar.dart';
+import 'package:alphajournal/features/public_site/data/public_site_repository.dart';
+import 'package:alphajournal/features/public_site/models/public_site_content.dart';
 
 class FileAssets extends CachingAssetBundle {
   static final List<Map<String, dynamic>> _sampleInstruments = [
@@ -106,9 +106,11 @@ class FileAssets extends CachingAssetBundle {
   static final List<Map<String, dynamic>> _sampleCandles = [
     for (int i = 0; i < 45; i++)
       {
-        'date': DateTime.utc(2026, 8, 1)
-            .add(Duration(days: i))
-            .toIso8601String(),
+        'date': DateTime.utc(
+          2026,
+          8,
+          1,
+        ).add(Duration(days: i)).toIso8601String(),
         'open': 142.0 + i * 0.15,
         'high': 145.0 + i * 0.15,
         'low': 141.0 + i * 0.15,
@@ -207,10 +209,7 @@ class FileAssets extends CachingAssetBundle {
       },
     ]),
     'assets/data/screeners.json': jsonEncode({
-      'top_gainers': [
-        _sampleInstruments[0],
-        _sampleInstruments[1],
-      ],
+      'top_gainers': [_sampleInstruments[0], _sampleInstruments[1]],
       'most_active': _sampleInstruments,
     }),
     'assets/data/screeners/top_gainers.json': jsonEncode({
@@ -339,9 +338,11 @@ class FileAssets extends CachingAssetBundle {
       'data': [
         for (int i = 0; i < 45; i++)
           {
-            'date': DateTime.utc(2026, 8, 1)
-                .add(Duration(days: i))
-                .toIso8601String(),
+            'date': DateTime.utc(
+              2026,
+              8,
+              1,
+            ).add(Duration(days: i)).toIso8601String(),
             'open': 61000.0 + i * 80.0,
             'high': 62000.0 + i * 80.0,
             'low': 60500.0 + i * 80.0,
@@ -496,7 +497,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
-  testWidgets('market sidebar reads asset tickers and opens full chart', (
+  testWidgets('community market sidebar opens only the limited preview', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 900);
@@ -505,8 +506,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final source = AssetMarketRepository(bundle: FileAssets());
     await tester.runAsync(() async {
-      await source.snapshot();
-      await source.detail((await source.snapshot()).gainers.first.symbol);
+      await source.communityPreview();
     });
     await tester.pumpWidget(
       MaterialApp(
@@ -525,7 +525,7 @@ void main() {
     expect(find.text('Top losers'), findsOneWidget);
     expect(find.text('Latest Market News'), findsNothing);
     final symbol = (await tester.runAsync(
-      () => source.snapshot(),
+      () => source.communityPreview(),
     ))!.gainers.first.symbol;
     await tester.ensureVisible(find.text(symbol));
     await tester.tap(find.text(symbol));
@@ -535,15 +535,8 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    final detail = await tester.runAsync(() => source.detail(symbol));
-    final hasHistory = ((detail!['chart'] as Map)['data'] as List).isNotEmpty;
-    expect(
-      find.byType(UiCandleChart),
-      hasHistory ? findsOneWidget : findsNothing,
-    );
-    if (!hasHistory) {
-      expect(find.text('No price history in this snapshot'), findsOneWidget);
-    }
+    expect(find.text('Community market preview'), findsOneWidget);
+    expect(find.byType(UiCandleChart), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

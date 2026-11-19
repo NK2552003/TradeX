@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_design.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_design.dart';
 
 /// Redesigned notification item card with unread accent indicator, type icon container,
 /// actor attribution, and relative timestamp.
@@ -62,7 +62,7 @@ class CommunityNotificationCard extends StatelessWidget {
                         text:
                             notification.actor?.displayName ??
                             notification.title ??
-                            'alphajournal System',
+                            'AlphaJournal System',
                         style: context.uiText.bodyStrong.copyWith(
                           fontWeight: FontWeight.w700,
                           color: theme.colors.foreground,

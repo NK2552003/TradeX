@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
 
 /// Modal dialog for generating and sharing interactive technical charts in messages.
 class MessageShareChartDialog extends StatefulWidget {
@@ -97,7 +97,9 @@ class _MessageShareChartDialogState extends State<MessageShareChartDialog> {
 
     double current = base;
     final int count = 22;
-    final math.Random rng = math.Random(symbol.hashCode ^ _selectedPattern.hashCode);
+    final math.Random rng = math.Random(
+      symbol.hashCode ^ _selectedPattern.hashCode,
+    );
 
     for (int i = 0; i < count; i++) {
       final double volatility = base * 0.004;
@@ -115,8 +117,10 @@ class _MessageShareChartDialogState extends State<MessageShareChartDialog> {
 
       final double open = current;
       final double close = open + delta;
-      final double high = math.max(open, close) + rng.nextDouble() * volatility * 0.6;
-      final double low = math.min(open, close) - rng.nextDouble() * volatility * 0.6;
+      final double high =
+          math.max(open, close) + rng.nextDouble() * volatility * 0.6;
+      final double low =
+          math.min(open, close) - rng.nextDouble() * volatility * 0.6;
       final double volume = 1000 + rng.nextDouble() * 5000;
 
       result.add(
@@ -166,7 +170,9 @@ class _MessageShareChartDialogState extends State<MessageShareChartDialog> {
 
     final double lastClose = _candles.isNotEmpty ? _candles.last.close : 0.0;
     final double firstOpen = _candles.isNotEmpty ? _candles.first.open : 0.0;
-    final double changePct = firstOpen > 0 ? ((lastClose - firstOpen) / firstOpen) * 100 : 0.0;
+    final double changePct = firstOpen > 0
+        ? ((lastClose - firstOpen) / firstOpen) * 100
+        : 0.0;
     final bool isBullish = changePct >= 0;
 
     return ConstrainedBox(
@@ -364,7 +370,9 @@ class _MessageShareChartDialogState extends State<MessageShareChartDialog> {
 
                   // Live Chart Preview Card
                   UiCard(
-                    accentColor: isBullish ? colors.success : colors.destructive,
+                    accentColor: isBullish
+                        ? colors.success
+                        : colors.destructive,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
@@ -394,8 +402,11 @@ class _MessageShareChartDialogState extends State<MessageShareChartDialog> {
                             ),
                             SizedBox(width: context.sp(theme.spacing.xs)),
                             UiBadge(
-                              label: '${isBullish ? '+' : ''}${changePct.toStringAsFixed(2)}%',
-                              intent: isBullish ? UiIntent.success : UiIntent.danger,
+                              label:
+                                  '${isBullish ? '+' : ''}${changePct.toStringAsFixed(2)}%',
+                              intent: isBullish
+                                  ? UiIntent.success
+                                  : UiIntent.danger,
                               size: UiSize.xs,
                             ),
                           ],
@@ -429,7 +440,8 @@ class _MessageShareChartDialogState extends State<MessageShareChartDialog> {
                   SizedBox(height: context.sp(theme.spacing.xxs)),
                   UiTextarea(
                     controller: _notesController,
-                    hintText: 'e.g. Breakout retest verified, looking for continuation target.',
+                    hintText:
+                        'e.g. Breakout retest verified, looking for continuation target.',
                     maxLines: 2,
                   ),
                 ],

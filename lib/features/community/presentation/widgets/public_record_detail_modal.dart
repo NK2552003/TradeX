@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/record_access.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/record_access.dart';
 // Required unified UI surfaces for feature layouts.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/journal/ui/journal_entry_screen.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/notes/ui/note_preview_screen.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
-import 'package:tradex/features/strategies/ui/strategy_detail_screen.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/journal/ui/journal_entry_screen.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/notes/ui/note_preview_screen.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
+import 'package:alphajournal/features/strategies/ui/strategy_detail_screen.dart';
 
 /// Reads a shared Writing Desk record inside Community using the same detail
 /// screen as its real Notes, Journal, or Strategies workspace.

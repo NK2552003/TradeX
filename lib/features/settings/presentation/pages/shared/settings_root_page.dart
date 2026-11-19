@@ -1,29 +1,29 @@
-import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_application_model.dart';
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/admin/desk_risk_page.dart';
-import 'package:tradex/features/settings/presentation/pages/admin/organization_settings_page.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/copilot/data/copilot_controller.dart';
-import 'package:tradex/features/settings/presentation/pages/affiliate/affiliate_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/account_security_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/ai_copilot_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/appearance_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/delete_account_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/help_about_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/notifications_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/privacy_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/profile_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/trader/billing_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/trader/trader_affiliate_perks_page.dart';
-import 'package:tradex/features/settings/presentation/pages/trader/trading_preferences_page.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/admin/desk_risk_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/admin/organization_settings_page.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/copilot/data/copilot_controller.dart';
+import 'package:alphajournal/features/settings/presentation/pages/affiliate/affiliate_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/account_security_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/ai_copilot_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/appearance_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/delete_account_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/help_about_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/notifications_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/privacy_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/profile_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/trader/billing_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/trader/trader_affiliate_perks_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/trader/trading_preferences_page.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_nav_row.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class SettingsRootPage extends StatefulWidget {
   const SettingsRootPage({
@@ -574,7 +574,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                       'Revise affiliate application',
                     AffiliateApplicationStatus.suspended =>
                       'Affiliate access status',
-                    _ => 'Become a alphajournal Affiliate',
+                    _ => 'Become an AlphaJournal Affiliate',
                   },
                   subtitle:
                       'Complete the partner application and keep all trader tools',
@@ -596,7 +596,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                         });
                       },
                     ),
-                    'alphajournal Affiliate Program',
+                    'AlphaJournal Affiliate Program',
                     Icons.handshake_outlined,
                   ),
                 ),

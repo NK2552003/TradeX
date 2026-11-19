@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_workspace.dart';
 
 /// Formats large INR amounts in Indian Lakh (`L`) / Crore (`Cr`) notation or full `₹` commas.
 String formatInrCompact(num amount, {bool signed = false}) {
@@ -126,7 +126,7 @@ class AdminTraderSeat {
       userId: json['user_id']?.toString() ?? '',
       handle: json['handle']?.toString() ?? 'trader',
       displayName: json['display_name']?.toString() ?? 'Trader',
-      email: json['email']?.toString() ?? 'trader@tradex.in',
+      email: json['email']?.toString() ?? 'trader@alphajournal.in',
       role: json['role']?.toString() ?? 'trader',
       deskDivision: json['desk_division']?.toString() ?? 'Index & Options Desk',
       allocatedCapitalInr:
@@ -230,7 +230,7 @@ class AdminConsumerAccount {
       userId: json['user_id']?.toString() ?? '',
       handle: json['handle']?.toString() ?? 'trader',
       displayName: json['display_name']?.toString() ?? 'Trader',
-      email: json['email']?.toString() ?? 'trader@tradex.in',
+      email: json['email']?.toString() ?? 'trader@alphajournal.in',
       subscriptionTier: json['subscription_tier']?.toString() ?? 'Pro',
       monthlySubscriptionInr:
           (json['monthly_subscription_inr'] as num?)?.toDouble() ?? 2499.0,

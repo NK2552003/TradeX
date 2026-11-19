@@ -6,9 +6,14 @@ enabled = true
 [auth]
 site_url = "https://app.alphajournal.in"
 additional_redirect_urls = [
+  "https://alphajournal.in/**",
+  "https://www.alphajournal.in/**",
   "https://app.alphajournal.in/**",
+  "https://community.alphajournal.in/**",
+  "https://affiliate.alphajournal.in/**",
+  "https://admin.alphajournal.in/**",
   "http://localhost:*/**",
-  "tradex://auth/callback",
+  "alphajournal://auth/callback",
 ]
 enable_manual_linking = true
 

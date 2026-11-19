@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quiet_dock/quiet_dock.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 
 void main() {
   testWidgets('Dock keeps the current page until navigation commits', (
@@ -130,7 +130,9 @@ void main() {
               onSelect: (_) {},
               child: Builder(
                 builder: (BuildContext context) {
-                  reportedMediaPaddingBottom = MediaQuery.paddingOf(context).bottom;
+                  reportedMediaPaddingBottom = MediaQuery.paddingOf(
+                    context,
+                  ).bottom;
                   return Container(
                     key: bodyKey,
                     width: double.infinity,
@@ -147,21 +149,26 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final RenderBox bodyBox =
-          tester.renderObject<RenderBox>(find.byKey(bodyKey));
-      final Offset bodyBottomLeft =
-          bodyBox.localToGlobal(Offset(0, bodyBox.size.height));
+      final RenderBox bodyBox = tester.renderObject<RenderBox>(
+        find.byKey(bodyKey),
+      );
+      final Offset bodyBottomLeft = bodyBox.localToGlobal(
+        Offset(0, bodyBox.size.height),
+      );
       reportedChildBottom = bodyBottomLeft.dy;
 
       // Body extends all the way behind QuietDock (844px) instead of stopping
       // ~90px short in a blank dark container, while passing dock clearance via MediaQuery.
       expect(reportedChildBottom, closeTo(844.0, 0.5));
-      expect(reportedMediaPaddingBottom, greaterThan(70.0));
-
       // QuietDock uses frosted translucent BackdropFilter blur.
       final QuietDock dock = tester.widget<QuietDock>(find.byType(QuietDock));
-      final QuietDockTheme resolvedTheme =
-          dock.theme.resolve(tester.element(find.byType(QuietDock)));
+      final QuietDockTheme resolvedTheme = dock.theme.resolve(
+        tester.element(find.byType(QuietDock)),
+      );
+      expect(
+        reportedMediaPaddingBottom,
+        resolvedTheme.height + resolvedTheme.margin,
+      );
       expect(resolvedTheme.frosted, isTrue);
       expect(resolvedTheme.blur, greaterThan(0));
       expect(resolvedTheme.background!.a, lessThan(1.0));
@@ -178,7 +185,85 @@ void main() {
       expect(find.text('Settings'), findsOneWidget);
 
       final int openFilters = find.byType(BackdropFilter).evaluate().length;
-      expect(openFilters, greaterThanOrEqualTo(initialFilters + moreItems.length));
+      expect(
+        openFilters,
+        greaterThanOrEqualTo(initialFilters + moreItems.length),
+      );
+    },
+  );
+
+  testWidgets(
+    'Android header consumes its inset and the dock slides with scroll',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 28, bottom: 24);
+      tester.view.viewPadding = tester.view.padding;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPadding);
+      addTearDown(tester.view.resetViewPadding);
+
+      const items = [
+        AppNavItem(id: 'workspace', label: 'Writing Desk', icon: Icons.notes),
+        AppNavItem(id: 'messages', label: 'Messages', icon: Icons.chat),
+      ];
+      const listKey = ValueKey('test-scrollable-page');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AppShell(
+            sections: const [AppNavSection(title: 'Workspace', items: items)],
+            selectedId: 'workspace',
+            onSelect: (_) {},
+            onSearch: () {},
+            child: SafeArea(
+              bottom: false,
+              child: ListView.builder(
+                key: listKey,
+                itemExtent: 60,
+                itemCount: 40,
+                itemBuilder: (_, index) => Text('Record $index'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final header = find.byType(AppTopBar);
+      final surface = find.byKey(const ValueKey('app-header-surface'));
+      final list = find.byKey(listKey);
+      final dock = find.byType(QuietDock);
+      final dockSlide = find.byKey(const ValueKey('app-dock-slide'));
+      final pageBounds = tester.getRect(list);
+      final dockTop = tester.getTopLeft(dock).dy;
+      expect(tester.getTopLeft(surface).dy, greaterThanOrEqualTo(28));
+      expect(tester.getSize(header).height - 28, lessThan(50));
+      expect(pageBounds.top, tester.getBottomLeft(header).dy);
+
+      final gesture = await tester.startGesture(pageBounds.center);
+      await gesture.moveBy(const Offset(0, -100));
+      await gesture.moveBy(const Offset(0, -10));
+      await tester.pump();
+      expect(
+        tester.widget<AnimatedSlide>(dockSlide).offset,
+        const Offset(0, 1),
+      );
+      await tester.pump(const Duration(milliseconds: 75));
+      final movingTop = tester.getTopLeft(dock).dy;
+      expect(movingTop, greaterThan(dockTop));
+      expect(movingTop, lessThan(844));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(dock).dy, greaterThanOrEqualTo(844));
+      expect(tester.getRect(list), pageBounds);
+
+      await gesture.moveBy(const Offset(0, 3));
+      await tester.pump();
+      expect(tester.widget<AnimatedSlide>(dockSlide).offset, Offset.zero);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(dock).dy, dockTop);
+      expect(tester.getRect(list), pageBounds);
     },
   );
 }

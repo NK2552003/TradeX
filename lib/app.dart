@@ -1,39 +1,53 @@
-// ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/help_about_page.dart';
-import 'package:tradex/features/settings/presentation/widgets/help/publication_reader.dart';
-import 'package:tradex/features/settings/presentation/widgets/help/browser_experience_gate.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dart';
-import 'core/navigation/feature_location_scope.dart';
-import 'package:flutter_web_plugins/url_strategy.dart';
-import 'package:go_router/go_router.dart';
-import 'package:tradex/core/config/cross_subdomain_storage.dart';
-import 'package:tradex/core/navigation/customer_routes.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/app_constants.dart';
-import 'package:tradex/core/config/startup_ready.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/auth/auth.dart';
-import 'package:tradex/core/widgets/not_found_page.dart';
-import 'package:tradex/core/widgets/record_unavailable.dart';
-import 'package:tradex/core/linking/link_graph.dart';
 
-class TradeXApp extends StatefulWidget {
-  const TradeXApp({super.key});
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
+import 'package:alphajournal/core/config/cross_subdomain_storage.dart';
+import 'package:alphajournal/core/config/env_config.dart';
+import 'package:alphajournal/core/config/startup_ready.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+// ignore: unnecessary_import
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/core/navigation/customer_routes.dart';
+import 'package:alphajournal/core/navigation/feature_location_scope.dart';
+import 'package:alphajournal/core/update/app_update.dart';
+import 'package:alphajournal/core/widgets/not_found_page.dart';
+import 'package:alphajournal/core/widgets/record_unavailable.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_attribution.dart';
+import 'package:alphajournal/features/auth/auth.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/help_about_page.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/help/browser_experience_gate.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/help/publication_reader.dart';
+
+class AlphaJournalApp extends StatefulWidget {
+  const AlphaJournalApp({
+    super.key,
+    this.initialZoom = AppZoom.system,
+    this.initialTextSize = AppTextSize.system,
+  });
+
+  final AppZoom initialZoom;
+  final AppTextSize initialTextSize;
 
   @override
-  State<TradeXApp> createState() => _TradeXAppState();
+  State<AlphaJournalApp> createState() => _AlphaJournalAppState();
 }
 
-class _TradeXAppState extends State<TradeXApp> with WidgetsBindingObserver {
+class _AlphaJournalAppState extends State<AlphaJournalApp>
+    with WidgetsBindingObserver {
   UserRole? _activeRole;
   String? _pendingExternalRedirect;
+  final GlobalKey<NavigatorState> _rootNavigatorKey =
+      GlobalKey<NavigatorState>();
 
   late final GoRouter _router = GoRouter(
+    navigatorKey: _rootNavigatorKey,
     routes: [
       GoRoute(
         path: '/help',
@@ -118,7 +132,9 @@ class _TradeXAppState extends State<TradeXApp> with WidgetsBindingObserver {
         : route.request;
     final profile = route.profileHandle;
     if (target == null && profile == null) return null;
-    final label = profile != null ? 'profile' : target!.kind.label.toLowerCase();
+    final label = profile != null
+        ? 'profile'
+        : target!.kind.label.toLowerCase();
     return 'Please sign in or create an account to view this $label. '
         "You'll be taken straight to it after you sign in.";
   }
@@ -265,9 +281,8 @@ class _TradeXAppState extends State<TradeXApp> with WidgetsBindingObserver {
                               _activeRole == UserRole.userAdmin)
                           ? 'overview'
                           : 'affiliate_application',
-                    CustomerSubdomain.root || CustomerSubdomain.app => switch (
-                      _activeRole
-                    ) {
+                    CustomerSubdomain.root ||
+                    CustomerSubdomain.app => switch (_activeRole) {
                       UserRole.userAdmin => 'overview',
                       UserRole.affiliate => 'overview',
                       _ => route.destination ?? 'workspace',
@@ -326,36 +341,33 @@ class _TradeXAppState extends State<TradeXApp> with WidgetsBindingObserver {
     _ => null,
   };
 
-  static AppThemeController _createThemeController() {
+  AppThemeController _createThemeController() {
     final savedMode = _readInitialPref('ax_theme_mode');
     final mode = _parseThemeMode(savedMode) ?? ThemeMode.dark;
     final savedDensity = _readInitialPref('ax_theme_density');
     final density = savedDensity == 'Compact' ? 'Compact' : 'Comfortable';
     final savedRange = _readInitialPref('ax_chart_range');
-    final chartRange = const <String>{
-      '1D',
-      '1W',
-      '1M',
-      '1Y',
-      'ALL',
-    }.contains(savedRange)
+    final chartRange =
+        const <String>{'1D', '1W', '1M', '1Y', 'ALL'}.contains(savedRange)
         ? savedRange!
         : '1D';
     final savedStyle = _readInitialPref('ax_chart_style');
-    final chartStyle = const <String>{
-      'Candlestick',
-      'Line',
-      'Area',
-      'Bars',
-    }.contains(savedStyle)
+    final chartStyle =
+        const <String>{
+          'Candlestick',
+          'Line',
+          'Area',
+          'Bars',
+        }.contains(savedStyle)
         ? savedStyle!
         : 'Candlestick';
     final savedColors = _readInitialPref('ax_chart_colors');
-    final colorConvention = const <String>{
-      'Standard (Green/Red)',
-      'Colorblind-Safe (Blue/Orange)',
-      'Monochrome (High Contrast)',
-    }.contains(savedColors)
+    final colorConvention =
+        const <String>{
+          'Standard (Green/Red)',
+          'Colorblind-Safe (Blue/Orange)',
+          'Monochrome (High Contrast)',
+        }.contains(savedColors)
         ? savedColors!
         : 'Standard (Green/Red)';
     return AppThemeController(
@@ -364,6 +376,10 @@ class _TradeXAppState extends State<TradeXApp> with WidgetsBindingObserver {
       chartRange,
       chartStyle,
       colorConvention,
+      AppZoom.fromPreference(_readInitialPref(AppZoom.preferenceKey)) ??
+          widget.initialZoom,
+      AppTextSize.fromPreference(_readInitialPref(AppTextSize.preferenceKey)) ??
+          widget.initialTextSize,
     );
   }
 
@@ -473,7 +489,8 @@ class _TradeXAppState extends State<TradeXApp> with WidgetsBindingObserver {
   }
 
   Future<void> _hydrateAppearancePrefs() async {
-    bool appliedLocal = CrossSubdomainState.getLocalPreferenceFallback('ax_theme_mode') != null;
+    bool appliedLocal =
+        CrossSubdomainState.getLocalPreferenceFallback('ax_theme_mode') != null;
     try {
       final sp = await SharedPreferences.getInstance();
       if (!mounted) return;
@@ -543,8 +560,7 @@ class _TradeXAppState extends State<TradeXApp> with WidgetsBindingObserver {
     super.initState();
     usePathUrlStrategy();
     _hadThemeModeCookie = CrossSubdomainState.getFlag('ax_theme_mode') != null;
-    _hadDensityCookie =
-        CrossSubdomainState.getFlag('ax_theme_density') != null;
+    _hadDensityCookie = CrossSubdomainState.getFlag('ax_theme_density') != null;
     _hadRangeCookie = CrossSubdomainState.getFlag('ax_chart_range') != null;
     _hadStyleCookie = CrossSubdomainState.getFlag('ax_chart_style') != null;
     _hadColorsCookie = CrossSubdomainState.getFlag('ax_chart_colors') != null;
@@ -609,33 +625,49 @@ class _TradeXAppState extends State<TradeXApp> with WidgetsBindingObserver {
             _themeController.colorConvention,
             Brightness.dark,
           );
-          final UiTheme theme = isDark
-              ? UiTheme.dark(colors: darkColors, spacing: spacing)
-              : UiTheme.light(colors: lightColors, spacing: spacing);
+          final zoom = _themeController.zoom.factor;
+          final lightTheme = UiTheme.light(
+            colors: lightColors,
+            spacing: spacing,
+          ).copyWith(zoom: zoom);
+          final darkTheme = UiTheme.dark(
+            colors: darkColors,
+            spacing: spacing,
+          ).copyWith(zoom: zoom);
 
           return UiApp(
-            theme: theme,
+            theme: isDark ? darkTheme : lightTheme,
             builder: (context) => MaterialApp.router(
               title: AppConstants.appName,
               debugShowCheckedModeBanner: false,
-              theme: UiTheme.light(
-                colors: lightColors,
-                spacing: spacing,
-              ).toThemeData(),
-              darkTheme: UiTheme.dark(
-                colors: darkColors,
-                spacing: spacing,
-              ).toThemeData(),
+              theme: lightTheme.toThemeData(),
+              darkTheme: darkTheme.toThemeData(),
               themeMode: _themeController.value,
-              builder: (context, child) => UiToastScope(
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: DefaultTextStyle.merge(
-                    style: const TextStyle(decoration: TextDecoration.none),
-                    child: child ?? const SizedBox.shrink(),
+              builder: (context, child) {
+                final media = MediaQuery.of(context);
+                return MediaQuery(
+                  data: media.copyWith(
+                    textScaler: _themeController.textSize.resolve(
+                      media.textScaler,
+                    ),
                   ),
-                ),
-              ),
+                  child: AppUpdateCoordinator(
+                    navigatorKey: _rootNavigatorKey,
+                    enabled: EnvConfig.appUpdateChecksEnabled,
+                    child: UiToastScope(
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: DefaultTextStyle.merge(
+                          style: const TextStyle(
+                            decoration: TextDecoration.none,
+                          ),
+                          child: child ?? const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
               routerConfig: _router,
             ),
           );

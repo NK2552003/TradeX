@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../models/research_router.dart';
 
@@ -25,9 +25,7 @@ class ResearchRoutingHint extends StatelessWidget {
           return UiTooltip(
             message: '${route.reason} (Tap to change format)',
             child: UiButton(
-              label: route.explicit
-                  ? route.label
-                  : 'Auto · ${route.label}',
+              label: route.explicit ? route.label : 'Auto · ${route.label}',
               icon: Icons.auto_awesome_outlined,
               trailingIcon: Icons.expand_more,
               variant: UiVariant.soft,

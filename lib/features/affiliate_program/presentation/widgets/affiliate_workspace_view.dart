@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import '../../data/affiliate_workspace_repository.dart';
 import '../../models/affiliate_workspace.dart';
 

@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 Future<void> openInstrumentLink(

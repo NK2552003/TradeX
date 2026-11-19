@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 
 /// Represents a persistent link between a market ticker symbol and an entity
 /// across alphajournal (trader note, trade journal entry, strategy playbook,

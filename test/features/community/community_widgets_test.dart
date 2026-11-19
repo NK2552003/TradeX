@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/views/community_hashtag_page.dart';
-import 'package:tradex/features/community/presentation/views/community_inbox_view.dart';
-import 'package:tradex/features/community/presentation/views/community_moderation_list_page.dart';
-import 'package:tradex/features/community/presentation/views/community_notification_settings_page.dart';
-import 'package:tradex/features/community/presentation/views/community_search_page.dart';
-import 'package:tradex/features/community/presentation/widgets/community_widgets.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart' hide CommunityPostCard;
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/views/community_hashtag_page.dart';
+import 'package:alphajournal/features/community/presentation/views/community_inbox_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_moderation_list_page.dart';
+import 'package:alphajournal/features/community/presentation/views/community_notification_settings_page.dart';
+import 'package:alphajournal/features/community/presentation/views/community_search_page.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_widgets.dart';
 
 void main() {
   group('CommunityAttachmentTile Tests', () {

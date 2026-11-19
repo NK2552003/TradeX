@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/copilot/data/copilot_controller.dart';
-import 'package:tradex/features/settings/models/ai_settings_model.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/copilot/data/copilot_controller.dart';
+import 'package:alphajournal/features/settings/models/ai_settings_model.dart';
 
 abstract class AiSettingsRepository extends ChangeNotifier {
   AiSettingsModel get cachedSettings;
@@ -17,13 +17,15 @@ abstract class AiSettingsRepository extends ChangeNotifier {
     CopilotController? copilotController,
     bool syncCopilotWorkspace = true,
   });
-  Future<void> syncCopilotWorkspace(CopilotController copilotController) async {}
+  Future<void> syncCopilotWorkspace(
+    CopilotController copilotController,
+  ) async {}
 }
 
 /// Persistent store for AI & Copilot settings, bridging `SharedPreferences`,
 /// Supabase `user_app_preferences`, and the live `CopilotController` workspace.
 class AiSettingsRepositoryImpl extends AiSettingsRepository {
-  static const String _prefsKey = 'tradex_ai_settings_v1';
+  static const String _prefsKey = 'alphajournal_ai_settings_v1';
 
   static final AiSettingsRepositoryImpl instance = AiSettingsRepositoryImpl._();
   AiSettingsRepositoryImpl._() {
@@ -64,7 +66,8 @@ class AiSettingsRepositoryImpl extends AiSettingsRepository {
 
   static String _describeSyncError(Object error) {
     if (error is PostgrestException) {
-      final combined = '${error.code ?? ''} ${error.message} ${error.details ?? ''}';
+      final combined =
+          '${error.code ?? ''} ${error.message} ${error.details ?? ''}';
       if (combined.contains('PGRST205') ||
           combined.contains('42P01') ||
           combined.contains('user_app_preferences')) {
@@ -144,7 +147,10 @@ class AiSettingsRepositoryImpl extends AiSettingsRepository {
     if (!copilotController.connected) return;
     if (_hasExplicitCloudRow) {
       final payload = _cached.toWorkspaceSettingsPayload();
-      if (_workspaceNeedsSettings(copilotController.workspace.settings, payload)) {
+      if (_workspaceNeedsSettings(
+        copilotController.workspace.settings,
+        payload,
+      )) {
         await _pushToCopilotWorkspace(
           copilotController,
           _cached,

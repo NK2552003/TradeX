@@ -206,6 +206,7 @@ class _UiChartState extends State<UiChart> {
             gridColor: theme.colors.border,
             axisTextColor: theme.colors.foregroundSubtle,
             axisTextStyle: ctx.uiText.caption,
+            textScaler: MediaQuery.textScalerOf(ctx),
             showGrid: widget.showGrid && !widget.minimal,
             showAxisLabels: axes,
             curved: widget.curved,
@@ -444,6 +445,7 @@ class _ChartPainter extends CustomPainter {
     required this.gridColor,
     required this.axisTextColor,
     required this.axisTextStyle,
+    required this.textScaler,
     required this.showGrid,
     required this.showAxisLabels,
     required this.curved,
@@ -471,6 +473,7 @@ class _ChartPainter extends CustomPainter {
   final Color gridColor;
   final Color axisTextColor;
   final TextStyle axisTextStyle;
+  final TextScaler textScaler;
   final bool showGrid;
   final bool showAxisLabels;
   final bool curved;
@@ -612,8 +615,8 @@ class _ChartPainter extends CustomPainter {
             final bool isNeg = v < 0;
             final Color barColor =
                 (isNeg && currentSeries.negativeColor != null)
-                    ? currentSeries.negativeColor!
-                    : colors[barIdx[b]];
+                ? currentSeries.negativeColor!
+                : colors[barIdx[b]];
             final Paint barPaint = Paint()..color = barColor;
             final double r = math.min(strokeWidth, (bar.height / 2).abs());
             canvas.drawRRect(
@@ -818,6 +821,7 @@ class _ChartPainter extends CustomPainter {
       ),
       textAlign: align,
       textDirection: TextDirection.ltr,
+      textScaler: textScaler,
       maxLines: 1,
       ellipsis: '…',
     )..layout(maxWidth: math.max(0, maxWidth));
@@ -829,5 +833,7 @@ class _ChartPainter extends CustomPainter {
       old.data != data ||
       old.series != series ||
       old.colors != colors ||
+      old.axisTextStyle != axisTextStyle ||
+      old.textScaler != textScaler ||
       old.activeIndex != activeIndex;
 }

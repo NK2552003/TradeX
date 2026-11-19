@@ -272,7 +272,8 @@ class AppTokens {
   ];
 
   /// Three-letter weekday, e.g. "Mon".
-  static String weekdayShort(DateTime date) => weekdayLabels[date.toLocal().weekday - 1];
+  static String weekdayShort(DateTime date) =>
+      weekdayLabels[date.toLocal().weekday - 1];
 
   /// Single-letter weekday for dense date chips, e.g. "M".
   static String weekdayInitial(DateTime date) =>

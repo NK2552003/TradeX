@@ -1,10 +1,34 @@
 # Environment variables & secrets
 .env
+.env.*
 .env*.local
+!.env.example
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+service-account*.json
+firebase-adminsdk*.json
+credentials*.json
+*.pem
+*.der
+.envrc
+.envrc.*
+
+# Editor, OS, package-manager, and local service state
+.DS_Store
+.idea/
+*.iml
+node_modules/
+.npm/
+.wrangler/
+.firebase/
+.supabase/
+supabase/.temp/
 
 # Miscellaneous
 *.class
-*.lock
 *.log
 *.pyc
 *.swp
@@ -12,8 +36,6 @@
 .history
 .venv/
 venv/
-
-
 
 # Flutter repo-specific
 /bin/cache/
@@ -31,8 +53,8 @@ venv/
 /dev/integration_tests/**/xcuserdata
 /dev/integration_tests/**/Pods
 /packages/flutter/coverage/
-version
-analysis_benchmark.json
+/version
+/analysis_benchmark.json
 
 # packages file containing multi-root paths
 .packages.generated
@@ -53,11 +75,8 @@ unlinked.ds
 unlinked_spec.ds
 
 # Android related
-**/android/**/gradle-wrapper.jar
 .gradle/
 **/android/captures/
-**/android/gradlew
-**/android/gradlew.bat
 **/android/local.properties
 **/android/**/GeneratedPluginRegistrant.java
 **/android/key.properties
@@ -115,6 +134,7 @@ coverage/
 
 # Symbols
 app.*.symbols
+app.*.map.json
 
 # Exceptions to above rules.
 !**/ios/**/default.mode1v3
@@ -129,5 +149,9 @@ app.*.symbols
 # Local copilot workspace and integration credentials
 .copilot-data/
 
-# Keep dependency resolution reproducible for encryption and push delivery.
-!pubspec.lock
+# Source code, CI workflows, documentation, tests, lockfiles, database
+# migrations, and release metadata are intentionally not ignored. Avoid broad
+# exclusions for .github/, lib/, scripts/, supabase/, test/, or web/.
+
+# The official Flutter Android Gradle wrapper is intentionally tracked for
+# reproducible local and GitHub Actions builds.

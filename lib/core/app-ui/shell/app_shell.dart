@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quiet_dock/quiet_dock.dart';
 
@@ -9,6 +10,9 @@ import '../motion/app_motion.dart';
 import '../motion/page_transition.dart';
 import '../theme/app_tokens.dart';
 import 'app_quiet_dock.dart';
+
+bool get _isNativeAndroid =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
 /// Adaptive application shell.
 ///
@@ -434,21 +438,19 @@ class _AppShellState extends State<AppShell> {
       // dock. Reserve the complete dock footprint here so every page (even a
       // page with its own ScrollView) receives safe layout constraints.
       const double dockHeight = 56;
-      const double dockMargin = 16;
+      final double dockMargin = _isNativeAndroid ? 8 : 16;
       final double dockClearance = keyboardVisible
           ? mediaQuery.padding.bottom
-          : dockHeight +
-                dockMargin +
-                mediaQuery.padding.bottom +
-                context.sp(theme.spacing.xs);
+          : dockHeight + dockMargin + mediaQuery.padding.bottom;
       // Expose the dock footprint via MediaQuery padding so scrollable views
       // and inner SafeArea footers keep their last items reachable above the
       // dock while allowing page content to flow transparently behind it.
-      final MediaQueryData dockSafeMedia = mediaQuery
+      final pageMedia = mediaQuery.removePadding(
+        removeTop: !widget.hideMobileTopBar,
+      );
+      final MediaQueryData dockSafeMedia = pageMedia
           .removeViewInsets(removeBottom: true)
-          .copyWith(
-            padding: mediaQuery.padding.copyWith(bottom: dockClearance),
-          );
+          .copyWith(padding: pageMedia.padding.copyWith(bottom: dockClearance));
       final Widget dockSafeContent = MediaQuery(
         data: dockSafeMedia,
         child: contentSurface,
@@ -477,6 +479,7 @@ class _AppShellState extends State<AppShell> {
         key: ValueKey<String>(
           'quiet_dock_${_isCommunityRoute ? "community" : "main"}',
         ),
+        activeDestination: surfaceKey,
         destinations: destinations
             .map(
               (AppNavItem item) => QuietDockDestination(
@@ -596,41 +599,6 @@ class _AppShellState extends State<AppShell> {
           pageDuration: theme.motion.normal,
         ),
       );
-      // The selected More destination owns the center slot. Keep the dock's
-      // original hit target underneath so tapping it reopens the chooser, and
-      // add a small arrow overlay to communicate that it can be changed.
-      // Keep this Stack mounted when the keyboard opens. Switching between
-      // Stack -> dock and a bare dock disposes the page (including form state).
-      const double centerSlotSize = 56;
-      final Widget dockLayer = Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          dockScaffold,
-          if (moreRouteSelected && !keyboardVisible)
-            Positioned(
-              left: (mediaQuery.size.width - centerSlotSize) / 2,
-              bottom: mediaQuery.padding.bottom + dockMargin,
-              width: centerSlotSize,
-              height: dockHeight,
-              child: IgnorePointer(
-                child: Stack(
-                  children: <Widget>[
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Icon(
-                        Icons.arrow_back_rounded,
-                        size: context.sz(11),
-                        color: theme.colors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      );
-
       // The header is intentionally outside QuietDockScaffold's PageView so
       // only screen content participates in destination swipe transitions.
       final Widget mobileShell = Column(
@@ -641,7 +609,7 @@ class _AppShellState extends State<AppShell> {
                   ? null
                   : openResearchOverlay,
             ),
-          Expanded(child: dockLayer),
+          Expanded(child: dockScaffold),
         ],
       );
       // Let Scaffold resize the workspace and consume the IME inset for its
@@ -732,7 +700,13 @@ class _AppShellState extends State<AppShell> {
                                     }
                                   },
                           ),
-                          Expanded(child: contentSurface),
+                          Expanded(
+                            child: MediaQuery.removePadding(
+                              context: context,
+                              removeTop: true,
+                              child: contentSurface,
+                            ),
+                          ),
                         ],
                       );
                       // Keep the primary branch mounted when Focus mode changes width.
@@ -1055,8 +1029,8 @@ class AppSidebar extends StatelessWidget {
                   (trader?.tier == AppTier.enterprise
                       ? 'Institutional Desk'
                       : (trader?.tier == AppTier.premium
-                            ? 'alphajournal Pro Terminal'
-                            : 'alphajournal Desk')),
+                            ? 'AlphaJournal Pro Terminal'
+                            : 'AlphaJournal Desk')),
               tierLabel:
                   tierLabel ??
                   (trader?.tier == AppTier.enterprise
@@ -1638,6 +1612,7 @@ class AppTopBar extends StatelessWidget {
   Widget _buildHeader(BuildContext context, double availableWidth) {
     final UiTheme theme = context.ui;
     final bool isMobile = context.uiRes.isMobile;
+    final bool compactAndroid = isMobile && _isNativeAndroid;
     final bool isCompactHeader =
         isMobile || context.uiRes.isTablet || availableWidth < context.sz(860);
 
@@ -1724,15 +1699,17 @@ class AppTopBar extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           context.sp(theme.spacing.sm),
-          context.sp(theme.spacing.xs),
+          context.sp(compactAndroid ? theme.spacing.xxs : theme.spacing.xs),
           context.sp(theme.spacing.sm),
-          context.sp(theme.spacing.xs),
+          compactAndroid ? 0 : context.sp(theme.spacing.xs),
         ),
         child: UiCard(
           key: const ValueKey<String>('app-header-surface'),
           padding: EdgeInsets.symmetric(
             horizontal: context.sp(theme.spacing.sm),
-            vertical: context.sp(theme.spacing.xs),
+            vertical: context.sp(
+              compactAndroid ? theme.spacing.xxs : theme.spacing.xs,
+            ),
           ),
           borderRadius: context.radius(theme.radii.lg),
           child: Row(

@@ -6,10 +6,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/presentation/pages/auth_wrapper.dart';
-import 'package:tradex/features/auth/presentation/pages/login_page.dart';
-import 'package:tradex/features/auth/presentation/pages/splash_screen.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/presentation/pages/auth_wrapper.dart';
+import 'package:alphajournal/features/auth/presentation/pages/login_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/splash_screen.dart';
 
 class DelayedPreferences extends InMemorySharedPreferencesStore {
   DelayedPreferences()

@@ -1,16 +1,16 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/public_site/data/public_site_repository.dart';
-import 'package:tradex/features/public_site/models/public_site_content.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/pricing_models.dart';
-import 'package:tradex/features/auth/presentation/widgets/tradex_footer.dart';
-import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/public_site/data/public_site_repository.dart';
+import 'package:alphajournal/features/public_site/models/public_site_content.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/features/auth/data/repositories/subscription_pricing_repository.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/pricing_models.dart';
+import 'package:alphajournal/features/auth/presentation/widgets/alphajournal_footer.dart';
+import 'package:alphajournal/features/auth/widgets/auth_carousel_panel.dart';
 
 /// Records for the marketing preview. They come from the same source the
 /// signed-in app reads, so the landing page cannot show a US ticker or a strategy
@@ -249,136 +249,143 @@ class _GetStartedPageState extends State<GetStartedPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                            _buildHero(context, theme, colors, responsive),
-                            SizedBox(
-                              height: context.sp(theme.spacing.xxxl) * 2,
-                            ),
+                                  _buildHero(
+                                    context,
+                                    theme,
+                                    colors,
+                                    responsive,
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxxl) * 2,
+                                  ),
 
-                            // Real App Components Showcase Grid
-                            KeyedSubtree(
-                              key: _showcaseKey,
-                              child: UiDeferred(
-                                estimatedHeight: 500,
-                                builder: (_) => _buildShowcaseGrid(
-                                  context,
-                                  theme,
-                                  colors,
-                                  responsive,
-                                ),
+                                  // Real App Components Showcase Grid
+                                  KeyedSubtree(
+                                    key: _showcaseKey,
+                                    child: UiDeferred(
+                                      estimatedHeight: 500,
+                                      builder: (_) => _buildShowcaseGrid(
+                                        context,
+                                        theme,
+                                        colors,
+                                        responsive,
+                                      ),
+                                    ),
+                                  ),
+
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxxl) * 2,
+                                  ),
+
+                                  // 2 Types of Users / Personas Section
+                                  KeyedSubtree(
+                                    key: _personasKey,
+                                    child: UiDeferred(
+                                      estimatedHeight: 500,
+                                      builder: (_) => _buildUserTypesSection(
+                                        context,
+                                        theme,
+                                        colors,
+                                        responsive,
+                                      ),
+                                    ),
+                                  ),
+
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxxl) * 2,
+                                  ),
+
+                                  // Feature Cards below showcase
+                                  KeyedSubtree(
+                                    key: _featuresKey,
+                                    child: UiDeferred(
+                                      estimatedHeight: 400,
+                                      builder: (_) => _buildFeaturesGrid(
+                                        context,
+                                        theme,
+                                        colors,
+                                        responsive,
+                                      ),
+                                    ),
+                                  ),
+
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxxl) * 2,
+                                  ),
+
+                                  // Dedicated Desktop Pricing Section
+                                  KeyedSubtree(
+                                    key: _pricingKey,
+                                    child: UiDeferred(
+                                      estimatedHeight: 500,
+                                      builder: (_) => _buildPricingSection(
+                                        context,
+                                        theme,
+                                        colors,
+                                        responsive,
+                                      ),
+                                    ),
+                                  ),
+
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxxl) * 2,
+                                  ),
+
+                                  // Landing Page FAQ Section
+                                  KeyedSubtree(
+                                    key: _faqKey,
+                                    child: UiDeferred(
+                                      estimatedHeight: 400,
+                                      builder: (_) => _buildFaqSection(
+                                        context,
+                                        theme,
+                                        colors,
+                                        responsive,
+                                      ),
+                                    ),
+                                  ),
+
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxxl) * 2,
+                                  ),
+                                ],
                               ),
-                            ),
-
-                            SizedBox(
-                              height: context.sp(theme.spacing.xxxl) * 2,
-                            ),
-
-                            // 2 Types of Users / Personas Section
-                            KeyedSubtree(
-                              key: _personasKey,
-                              child: UiDeferred(
-                                estimatedHeight: 500,
-                                builder: (_) => _buildUserTypesSection(
-                                  context,
-                                  theme,
-                                  colors,
-                                  responsive,
-                                ),
-                              ),
-                            ),
-
-                            SizedBox(
-                              height: context.sp(theme.spacing.xxxl) * 2,
-                            ),
-
-                            // Feature Cards below showcase
-                            KeyedSubtree(
-                              key: _featuresKey,
-                              child: UiDeferred(
-                                estimatedHeight: 400,
-                                builder: (_) => _buildFeaturesGrid(
-                                  context,
-                                  theme,
-                                  colors,
-                                  responsive,
-                                ),
-                              ),
-                            ),
-
-                            SizedBox(
-                              height: context.sp(theme.spacing.xxxl) * 2,
-                            ),
-
-                            // Dedicated Desktop Pricing Section
-                            KeyedSubtree(
-                              key: _pricingKey,
-                              child: UiDeferred(
-                                estimatedHeight: 500,
-                                builder: (_) => _buildPricingSection(
-                                  context,
-                                  theme,
-                                  colors,
-                                  responsive,
-                                ),
-                              ),
-                            ),
-
-                            SizedBox(
-                              height: context.sp(theme.spacing.xxxl) * 2,
-                            ),
-
-                            // Landing Page FAQ Section
-                            KeyedSubtree(
-                              key: _faqKey,
-                              child: UiDeferred(
-                                estimatedHeight: 400,
-                                builder: (_) => _buildFaqSection(
-                                  context,
-                                  theme,
-                                  colors,
-                                  responsive,
-                                ),
-                              ),
-                            ),
-
-                            SizedBox(
-                              height: context.sp(theme.spacing.xxxl) * 2,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Full-width Bottom-originating AlphaThread ribbon (no left/right padding, flush against footer line)
-                  LayoutBuilder(
-                    builder: (BuildContext ctx, BoxConstraints constraints) {
-                      final bool isDesktop = constraints.maxWidth >= 900;
-                      if (!isDesktop) return const SizedBox.shrink();
-                      final height = context.sz(220);
-                      return UiDeferred(
-                        estimatedHeight: height,
-                        preloadExtent: 0,
-                        builder: (_) => SizedBox(
-                          height: height,
-                          width: double.infinity,
-                          child: const RotatedBox(
-                            quarterTurns: 2,
-                            child: AlphaThread(
-                              phase: 84.6,
-                              thickness: 60,
-                              animate: true,
                             ),
                           ),
                         ),
-                      );
-                    },
-                  ),
 
-                  // Bottom Bar: Copyright & Legal quick actions (stuck directly to bottom of ribbon)
-                  const TradeXFooter(),
-                ],
-              ),
-            ),
+                        // Full-width Bottom-originating AlphaThread ribbon (no left/right padding, flush against footer line)
+                        LayoutBuilder(
+                          builder:
+                              (BuildContext ctx, BoxConstraints constraints) {
+                                final bool isDesktop =
+                                    constraints.maxWidth >= 900;
+                                if (!isDesktop) return const SizedBox.shrink();
+                                final height = context.sz(220);
+                                return UiDeferred(
+                                  estimatedHeight: height,
+                                  preloadExtent: 0,
+                                  builder: (_) => SizedBox(
+                                    height: height,
+                                    width: double.infinity,
+                                    child: const RotatedBox(
+                                      quarterTurns: 2,
+                                      child: AlphaThread(
+                                        phase: 84.6,
+                                        thickness: 60,
+                                        animate: true,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                        ),
+
+                        // Bottom Bar: Copyright & Legal quick actions (stuck directly to bottom of ribbon)
+                        const AlphaJournalFooter(),
+                      ],
+                    ),
+                  ),
                 ),
               ),
 
@@ -475,8 +482,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   variant: UiVariant.primary,
                   intent: UiIntent.primary,
                   size: UiSize.lg,
-                  onPressed: () =>
-                      widget.onGetStarted(UserRole.customer),
+                  onPressed: () => widget.onGetStarted(UserRole.customer),
                 ),
               ),
               SizedBox(height: context.sp(theme.spacing.md)),
@@ -488,8 +494,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   intent: UiIntent.primary,
                   size: UiSize.lg,
                   leadingIcon: Icons.handshake_outlined,
-                  onPressed: () =>
-                      widget.onGetStarted(UserRole.affiliate),
+                  onPressed: () => widget.onGetStarted(UserRole.affiliate),
                 ),
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
@@ -518,14 +523,10 @@ class _GetStartedPageState extends State<GetStartedPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // Top clearance for the prominent AlphaThread header (thread replaces the logo)
-                SizedBox(
-                  height: context.sz(isLandscapeOrCompact ? 16 : 72),
-                ),
+                SizedBox(height: context.sz(isLandscapeOrCompact ? 16 : 72)),
 
                 // Carousel with text & dots positioned directly above the action buttons
-                AuthCarouselPanel(
-                  bottomAction: actionButtons,
-                ),
+                AuthCarouselPanel(bottomAction: actionButtons),
               ],
             ),
           ),
@@ -640,9 +641,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
   ) {
     return Column(
       children: [
-        SizedBox(
-          height: context.sz(responsive.isTablet ? 48.0 : 84.0),
-        ),
+        SizedBox(height: context.sz(responsive.isTablet ? 48.0 : 84.0)),
         Text(
           _page
                   ?.text('title')
@@ -881,7 +880,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: context.sz(640)),
           child: Text(
-            'Choose the workspace that matches what you do. Trade with more discipline, or grow the alphajournal community as an affiliate.',
+            'Choose the workspace that matches what you do. Trade with more discipline, or grow the AlphaJournal community as an affiliate.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: colors.foregroundMuted,
@@ -940,7 +939,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   badgeIntent: UiIntent.success,
                   title: 'Affiliate',
                   subtitle:
-                      'For partners who introduce serious traders to alphajournal and want transparent referrals, commissions, and campaign reporting.',
+                      'For partners who introduce serious traders to AlphaJournal and want transparent referrals, commissions, and campaign reporting.',
                   features: const <String>[
                     'Share Trackable Links Across Your Audience and Community',
                     'Earn Up to 30% Recurring Commission on Referred Traders',
@@ -1230,7 +1229,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: context.sz(620)),
           child: Text(
-            'Everything you need to know about alphajournal, quantitative journaling, Indian broker connections, security, and AI capabilities.',
+            'Everything you need to know about AlphaJournal, quantitative journaling, Indian broker connections, security, and AI capabilities.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: colors.foregroundMuted,

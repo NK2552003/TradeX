@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/messages/presentation/widgets/messages_widgets.dart';
 
 /// "New message" picker. Searches the trader directory and starts (or reopens)
 /// a direct conversation. The candidate list is supplied by the caller — this

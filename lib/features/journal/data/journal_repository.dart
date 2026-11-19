@@ -1,9 +1,9 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/config/record_access.dart';
-import 'package:tradex/core/utils/attachment_compression_service.dart';
-import 'package:tradex/core/data/owned_record_writer.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/core/config/record_access.dart';
+import 'package:alphajournal/core/utils/attachment_compression_service.dart';
+import 'package:alphajournal/core/data/owned_record_writer.dart';
+import 'package:alphajournal/features/auth/data/services/auth_backend_service.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -11,11 +11,11 @@ import 'package:path/path.dart' as p;
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/config/supabase_storage_egress.dart';
-import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
-import 'package:tradex/features/notes/data/note_attachments.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_storage_egress.dart';
+import 'package:alphajournal/features/linking/entity_ticker_links_repository.dart';
+import 'package:alphajournal/features/notes/data/note_attachments.dart';
 import 'package:uuid/uuid.dart';
 
 /// Everything the journal feature needs from storage.
@@ -159,8 +159,9 @@ class JournalRepositoryImpl implements JournalRepository {
     }
   }
 
-  String _localCacheKey(String actor) =>
-      actor.isEmpty ? 'journal_entries_cache:guest' : 'journal_entries_cache:$actor';
+  String _localCacheKey(String actor) => actor.isEmpty
+      ? 'journal_entries_cache:guest'
+      : 'journal_entries_cache:$actor';
 
   Future<void> _loadLocalCache(
     SharedPreferences preferences,
@@ -402,8 +403,7 @@ class JournalRepositoryImpl implements JournalRepository {
     final List<dynamic>? linkedNotes = row['linked_note_ids'] as List<dynamic>?;
     final List<dynamic>? tagsList = row['tags'] as List<dynamic>?;
 
-    String? strategyName =
-        (row['strategy_name'] ?? row['strategy']) as String?;
+    String? strategyName = (row['strategy_name'] ?? row['strategy']) as String?;
     if (strategyName == null) {
       if (row['strategies'] is Map) {
         final sMap = row['strategies'] as Map;
@@ -444,8 +444,7 @@ class JournalRepositoryImpl implements JournalRepository {
     final String? mistakes = row['mistakes_made'] as String?;
     final String? lessons = row['lessons_learned'] as String?;
     final String? notesField = (row['notes'] ?? row['summary']) as String?;
-    final String? notes =
-        notesField ?? psychology ?? mistakes ?? lessons;
+    final String? notes = notesField ?? psychology ?? mistakes ?? lessons;
 
     return AppTrade(
       id: row['id']?.toString() ?? '',
@@ -769,8 +768,9 @@ class JournalRepositoryImpl implements JournalRepository {
     } else {
       _entries[at] = saved;
     }
-    final removedRefs = NoteAttachments.extractRefs(owned.content)
-        .difference(NoteAttachments.extractRefs(saved.content));
+    final removedRefs = NoteAttachments.extractRefs(
+      owned.content,
+    ).difference(NoteAttachments.extractRefs(saved.content));
     for (final ref in removedRefs) {
       try {
         await deleteAttachment(ref);
@@ -1013,15 +1013,16 @@ class JournalRepositoryImpl implements JournalRepository {
     String? resolvedName = strategyName;
     final validStrategyId =
         strategyId != null && strategyId.isNotEmpty && _isUuid(strategyId)
-            ? strategyId
-            : null;
+        ? strategyId
+        : null;
 
     if (SupabaseConfig.isConfigured && _isUuid(entryId)) {
       try {
         final client = SupabaseConfig.client!;
 
         // If strategyId was provided but name was omitted, fetch title / name from strategies
-        if (validStrategyId != null && (resolvedName == null || resolvedName.isEmpty)) {
+        if (validStrategyId != null &&
+            (resolvedName == null || resolvedName.isEmpty)) {
           try {
             final stratRow = await client
                 .from('strategies')
@@ -1029,7 +1030,8 @@ class JournalRepositoryImpl implements JournalRepository {
                 .eq('id', validStrategyId)
                 .maybeSingle();
             if (stratRow != null) {
-              resolvedName = (stratRow['title'] ?? stratRow['name'])?.toString();
+              resolvedName = (stratRow['title'] ?? stratRow['name'])
+                  ?.toString();
             }
           } catch (_) {}
         }
@@ -1094,8 +1096,10 @@ class JournalRepositoryImpl implements JournalRepository {
       RecordAccess.requireOwner(owner.userId);
     }
 
-    final Uint8List rawBytes = bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
-    final String rawFileName = filename ?? (file != null ? p.basename(file.path) : 'attachment.png');
+    final Uint8List rawBytes =
+        bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
+    final String rawFileName =
+        filename ?? (file != null ? p.basename(file.path) : 'attachment.png');
 
     final compressed = await AttachmentCompressionService.compressAttachment(
       bytes: rawBytes,
@@ -1103,7 +1107,9 @@ class JournalRepositoryImpl implements JournalRepository {
     );
     final Uint8List fileBytes = compressed.bytes;
     final String effectiveFileName = compressed.filename;
-    final rawExt = effectiveFileName.contains('.') ? effectiveFileName.split('.').last : 'webp';
+    final rawExt = effectiveFileName.contains('.')
+        ? effectiveFileName.split('.').last
+        : 'webp';
     final ext = rawExt.toLowerCase().trim();
 
     if (SupabaseConfig.isConfigured) {
@@ -1130,26 +1136,25 @@ class JournalRepositoryImpl implements JournalRepository {
             );
 
         try {
-          await client
-              .from('journal_entry_attachments')
-              .insert({
-                'id': const Uuid().v4(),
-                'entry_id': entryId,
-                'user_id': currentUserId,
-                'storage_path': storagePath,
-                'filename': rawFileName,
-                'mime_type': _resolveMimeType(ext),
-                'byte_size': length,
-                'is_image': _isImageExtension(ext),
-              });
+          await client.from('journal_entry_attachments').insert({
+            'id': const Uuid().v4(),
+            'entry_id': entryId,
+            'user_id': currentUserId,
+            'storage_path': storagePath,
+            'filename': rawFileName,
+            'mime_type': _resolveMimeType(ext),
+            'byte_size': length,
+            'is_image': _isImageExtension(ext),
+          });
         } catch (metaError) {
-          final isMissingTable = metaError is PostgrestException &&
+          final isMissingTable =
+              metaError is PostgrestException &&
               (metaError.code == '42P01' || metaError.code == 'PGRST205');
           if (!isMissingTable) {
             try {
-              await client.storage
-                  .from('journal-attachments')
-                  .remove(<String>[storagePath]);
+              await client.storage.from('journal-attachments').remove(<String>[
+                storagePath,
+              ]);
             } catch (_) {}
             rethrow;
           }
@@ -1180,7 +1185,8 @@ class JournalRepositoryImpl implements JournalRepository {
     // 2. Extract the relative storage path inside journal-attachments bucket
     String storagePath = ref.trim();
 
-    if (storagePath.startsWith('https://') || storagePath.startsWith('http://')) {
+    if (storagePath.startsWith('https://') ||
+        storagePath.startsWith('http://')) {
       final uri = Uri.tryParse(storagePath);
       if (uri != null) {
         final pathSegments = uri.pathSegments;
@@ -1238,7 +1244,9 @@ class JournalRepositoryImpl implements JournalRepository {
             SupabaseStorageEgress.journalAttachments.signedUrlTtlSeconds!,
           );
     } catch (e) {
-      debugPrint('[JournalRepository] resolveAttachmentUrl createSignedUrl error: $e');
+      debugPrint(
+        '[JournalRepository] resolveAttachmentUrl createSignedUrl error: $e',
+      );
       rethrow;
     }
   }
@@ -1282,9 +1290,7 @@ class JournalRepositoryImpl implements JournalRepository {
             .eq('user_id', currentUserId);
 
         // Remove object from private storage bucket
-        await client.storage
-            .from('journal-attachments')
-            .remove([cleanPath]);
+        await client.storage.from('journal-attachments').remove([cleanPath]);
       } catch (e) {
         debugPrint('[JournalRepository] deleteAttachment error: $e');
         rethrow;
@@ -1305,8 +1311,13 @@ class JournalRepositoryImpl implements JournalRepository {
   }
 
   static bool _isImageExtension(String ext) {
-    return const <String>{'png', 'jpg', 'jpeg', 'webp', 'gif'}
-        .contains(ext.toLowerCase());
+    return const <String>{
+      'png',
+      'jpg',
+      'jpeg',
+      'webp',
+      'gif',
+    }.contains(ext.toLowerCase());
   }
 }
 

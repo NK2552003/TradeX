@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-19T00:00:00Z",
+  "release_notes_url": "https://alphajournal.in/help/release-notes",
+  "platforms": {
+    "web": {
+      "enabled": true,
+      "latest_version": "1.0.0",
+      "latest_build_number": 1,
+      "minimum_supported_version": "1.0.0",
+      "minimum_build_number": 1,
+      "update_url": "https://app.alphajournal.in",
+      "summary": "AlphaJournal web updates are applied by securely reloading the latest deployed build."
+    },
+    "android": {
+      "enabled": true,
+      "latest_version": "1.0.0",
+      "latest_build_number": 1,
+      "minimum_supported_version": "1.0.0",
+      "minimum_build_number": 1,
+      "update_url": "https://play.google.com/store/apps/details?id=com.nk2552003.alphajournal",
+      "summary": "Update AlphaJournal through Google Play to keep your workspace and security fixes current."
+    },
+    "ios": {
+      "enabled": true,
+      "latest_version": "1.0.0",
+      "latest_build_number": 1,
+      "minimum_supported_version": "1.0.0",
+      "minimum_build_number": 1,
+      "update_url": "https://alphajournal.in/download",
+      "summary": "Update AlphaJournal through the App Store when the iOS listing is available."
+    },
+    "macos": {
+      "enabled": true,
+      "latest_version": "1.0.0",
+      "latest_build_number": 1,
+      "minimum_supported_version": "1.0.0",
+      "minimum_build_number": 1,
+      "update_url": "https://alphajournal.in/download",
+      "summary": "Download the latest signed AlphaJournal desktop release."
+    },
+    "windows": {
+      "enabled": true,
+      "latest_version": "1.0.0",
+      "latest_build_number": 1,
+      "minimum_supported_version": "1.0.0",
+      "minimum_build_number": 1,
+      "update_url": "https://alphajournal.in/download",
+      "summary": "Download the latest signed AlphaJournal desktop release."
+    },
+    "linux": {
+      "enabled": true,
+      "latest_version": "1.0.0",
+      "latest_build_number": 1,
+      "minimum_supported_version": "1.0.0",
+      "minimum_build_number": 1,
+      "update_url": "https://alphajournal.in/download",
+      "summary": "Download the latest signed AlphaJournal desktop release."
+    }
+  }
+}

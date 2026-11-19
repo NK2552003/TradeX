@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import '../data/asset_market_repository.dart';
 import '../models/market_snapshot.dart';
 import 'market_instrument_view.dart';
@@ -36,7 +36,9 @@ class _MarketScreenersViewState extends State<MarketScreenersView> {
       try {
         final loaded = await widget.repository!.loadScreener(
           value,
-          quotes: {for (final q in widget.snapshot.instruments) q.symbol: q.raw},
+          quotes: {
+            for (final q in widget.snapshot.instruments) q.symbol: q.raw,
+          },
           fundamentals: {
             for (final q in widget.snapshot.instruments) q.symbol: q.raw,
           },
@@ -231,69 +233,72 @@ class _MarketScreenersViewState extends State<MarketScreenersView> {
               emptyLabel: 'No matching instruments',
               onRowTap: widget.onInstrument,
               expandableWhen: (_) => true,
-            expandedBuilder: (c, q) => Padding(
-              padding: EdgeInsets.all(c.sp(c.ui.spacing.md)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('Raw data fields', style: c.uiText.bodyStrong),
-                  UiGap.v(c.ui.spacing.sm),
-                  MarketDataFields(data: q.raw),
-                ],
-              ),
-            ),
-            columns: [
-              UiTableColumn(
-                header: 'Symbol',
-                cell: (c, q) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              expandedBuilder: (c, q) => Padding(
+                padding: EdgeInsets.all(c.sp(c.ui.spacing.md)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(q.symbol, style: c.uiText.bodyStrong),
-                    if (q.market.isNotEmpty)
-                      UiBadge(
-                        label: q.market,
-                        variant: UiBadgeVariant.outline,
-                        size: UiSize.xs,
-                      ),
+                    Text('Raw data fields', style: c.uiText.bodyStrong),
+                    UiGap.v(c.ui.spacing.sm),
+                    MarketDataFields(data: q.raw),
                   ],
                 ),
-                compare: (a, b) => a.symbol.compareTo(b.symbol),
               ),
-              UiTableColumn(
-                header: 'Company',
-                flex: 2,
-                cell: (c, q) =>
-                    Text(q.name, maxLines: 2, overflow: TextOverflow.ellipsis),
-              ),
-              UiTableColumn(
-                header: 'Price',
-                numeric: true,
-                cell: (c, q) => Text(
-                  '${q.currency} ${q.price.toStringAsFixed(2)}',
-                  style: c.uiText.bodyStrong,
-                ),
-                compare: (a, b) => a.price.compareTo(b.price),
-              ),
-              UiTableColumn(
-                header: 'Change %',
-                numeric: true,
-                cell: (c, q) => UiBadge(
-                  label: AppTokens.signedPercent(q.changePercent),
-                  intent: AppTokens.plIntent(q.changePercent),
-                  variant: UiBadgeVariant.soft,
-                  size: UiSize.xs,
-                ),
-                compare: (a, b) => a.changePercent.compareTo(b.changePercent),
-              ),
-              if (quotes.any((q) => q.raw.containsKey('rsi_14')))
+              columns: [
                 UiTableColumn(
-                  header: 'RSI (14)',
-                  numeric: true,
-                  cell: (c, q) =>
-                      Text('${q.raw['rsi_14'] ?? '—'}', style: c.uiText.body),
+                  header: 'Symbol',
+                  cell: (c, q) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(q.symbol, style: c.uiText.bodyStrong),
+                      if (q.market.isNotEmpty)
+                        UiBadge(
+                          label: q.market,
+                          variant: UiBadgeVariant.outline,
+                          size: UiSize.xs,
+                        ),
+                    ],
+                  ),
+                  compare: (a, b) => a.symbol.compareTo(b.symbol),
                 ),
-            ],
-          ),
+                UiTableColumn(
+                  header: 'Company',
+                  flex: 2,
+                  cell: (c, q) => Text(
+                    q.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                UiTableColumn(
+                  header: 'Price',
+                  numeric: true,
+                  cell: (c, q) => Text(
+                    '${q.currency} ${q.price.toStringAsFixed(2)}',
+                    style: c.uiText.bodyStrong,
+                  ),
+                  compare: (a, b) => a.price.compareTo(b.price),
+                ),
+                UiTableColumn(
+                  header: 'Change %',
+                  numeric: true,
+                  cell: (c, q) => UiBadge(
+                    label: AppTokens.signedPercent(q.changePercent),
+                    intent: AppTokens.plIntent(q.changePercent),
+                    variant: UiBadgeVariant.soft,
+                    size: UiSize.xs,
+                  ),
+                  compare: (a, b) => a.changePercent.compareTo(b.changePercent),
+                ),
+                if (quotes.any((q) => q.raw.containsKey('rsi_14')))
+                  UiTableColumn(
+                    header: 'RSI (14)',
+                    numeric: true,
+                    cell: (c, q) =>
+                        Text('${q.raw['rsi_14'] ?? '—'}', style: c.uiText.body),
+                  ),
+              ],
+            ),
         ],
       ),
     );

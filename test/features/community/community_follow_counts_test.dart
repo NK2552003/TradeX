@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/presentation/views/community_follow_view.dart';
-import 'package:tradex/features/community/presentation/widgets/community_trader_card.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/presentation/views/community_follow_view.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_trader_card.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

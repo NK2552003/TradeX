@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_space_history.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
-import 'package:tradex/features/community/presentation/views/community_feed_view.dart';
-import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
-import 'package:tradex/features/community/presentation/community_root_screen.dart';
-import 'package:tradex/features/community/presentation/views/community_follow_view.dart';
-import 'package:tradex/features/community/presentation/views/community_hashtag_page.dart';
-import 'package:tradex/features/community/presentation/views/community_profile_view.dart';
-import 'package:tradex/features/community/presentation/widgets/community_article_sheet.dart';
-import 'package:tradex/features/community/presentation/widgets/community_trader_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
-import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart' hide CommunityPostCard;
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_space_history.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
+import 'package:alphajournal/features/community/presentation/views/community_feed_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_post_detail_view.dart';
+import 'package:alphajournal/features/community/presentation/community_root_screen.dart';
+import 'package:alphajournal/features/community/presentation/views/community_follow_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_hashtag_page.dart';
+import 'package:alphajournal/features/community/presentation/views/community_profile_view.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_article_sheet.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_trader_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_sidebar_widgets.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_composer_card.dart';
 
 void main() {
   late CommunityRepository repo;
@@ -462,10 +462,10 @@ void main() {
         ),
       ),
     );
-    final inline = find.text(
-      'Add a comment…',
+    final inline = find.text('Add a comment…');
+    final sticky = find.text(
+      'Reply to @${author.handle.replaceFirst('@', '')}...',
     );
-    final sticky = find.text('Reply to @${author.handle.replaceFirst('@', '')}...');
     for (final width in [390.0, 800.0, 1400.0, 390.0]) {
       tester.view.physicalSize = Size(width, 900);
       await tester.pumpAndSettle();
@@ -477,49 +477,50 @@ void main() {
     await tester.pump();
     expect(tester.testTextInput.isVisible, isTrue);
   });
-  testWidgets('own post on mobile does not duplicate author name or show follow card', (
-    tester,
-  ) async {
-    viewport(tester, 390);
-    final author = CommunityAuthor(
-      id: 'me',
-      handle: '@nk2552003',
-      displayName: 'nk2552003',
-      userRole: UserRole.customer,
-      followers: 0,
-    );
-    final post = CommunityPost(
-      id: 'own-mobile-post',
-      author: author,
-      body: 'none of the thing is happening properly fix it',
-      createdAt: DateTime(2026, 10, 26),
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: CommunityPostDetailView(
-          post: post,
-          repository: repo,
-          currentUser: author,
-          showHeader: false,
+  testWidgets(
+    'own post on mobile does not duplicate author name or show follow card',
+    (tester) async {
+      viewport(tester, 390);
+      final author = CommunityAuthor(
+        id: 'me',
+        handle: '@nk2552003',
+        displayName: 'nk2552003',
+        userRole: UserRole.customer,
+        followers: 0,
+      );
+      final post = CommunityPost(
+        id: 'own-mobile-post',
+        author: author,
+        body: 'none of the thing is happening properly fix it',
+        createdAt: DateTime(2026, 10, 26),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CommunityPostDetailView(
+            post: post,
+            repository: repo,
+            currentUser: author,
+            showHeader: false,
+          ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    // Author display name should only appear on the post card, not duplicated in a follow card
-    expect(find.text('nk2552003'), findsOneWidget);
+      // Author display name should only appear on the post card, not duplicated in a follow card
+      expect(find.text('nk2552003'), findsOneWidget);
 
-    // Follow and Win Rate stats cards should not be shown on mobile for author's own post
-    expect(find.text('Win Rate'), findsNothing);
-    expect(find.text('Followers'), findsNothing);
+      // Follow and Win Rate stats cards should not be shown on mobile for author's own post
+      expect(find.text('Win Rate'), findsNothing);
+      expect(find.text('Followers'), findsNothing);
 
-    // Floating pill header should not be present
-    expect(find.text('Post Thread'), findsNothing);
+      // Floating pill header should not be present
+      expect(find.text('Post Thread'), findsNothing);
 
-    // Handle should not duplicate @
-    expect(find.textContaining('@@'), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+      // Handle should not duplicate @
+      expect(find.textContaining('@@'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('desktop view does not render floating pill header Post Thread', (
     tester,
   ) async {

@@ -1,6 +1,6 @@
 # 02 Trader Notes
 
-# TradeX trader notes backend integration
+# AlphaJournal trader notes backend integration
 
 The notes feature currently runs against an in-memory demo repository. The UI and presentation layers interact exclusively through an abstract interface. Connecting the live backend requires implementing the repository interface, configuring a storage bucket, deploying one Edge Function, and updating the initialization scope.
 

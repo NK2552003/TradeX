@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import '../models/market_snapshot.dart';
 import '../presentation/market_sector_heatmap_card.dart';
 import '../presentation/market_world_indices_card.dart';
@@ -16,16 +16,20 @@ import '../presentation/yahoo_market_ribbon.dart';
 /// eliminate CORS rejections, prevent browser rate-limit IP blocks, and keep
 /// provider credentials strictly server-side.
 class YahooFinanceService {
-  YahooFinanceService({http.Client? client}) : _client = client ?? http.Client();
+  YahooFinanceService({http.Client? client})
+    : _client = client ?? http.Client();
 
   static final YahooFinanceService instance = YahooFinanceService();
   final http.Client _client;
 
   // In-memory cache structures with TTL
-  final Map<String, ({YahooMarketItem item, DateTime expires})> _quoteCache = {};
-  final Map<String, ({MarketIndexItem item, DateTime expires})> _indexCache = {};
+  final Map<String, ({YahooMarketItem item, DateTime expires})> _quoteCache =
+      {};
+  final Map<String, ({MarketIndexItem item, DateTime expires})> _indexCache =
+      {};
   ({List<SectorPerformanceItem> items, DateTime expires})? _sectorCache;
-  final Map<String, ({List<MarketArticle> items, DateTime expires})> _newsCache = {};
+  final Map<String, ({List<MarketArticle> items, DateTime expires})>
+  _newsCache = {};
 
   // In-flight request deduplication
   final Map<String, Future<YahooMarketItem?>> _inFlightQuotes = {};
@@ -160,7 +164,11 @@ class YahooFinanceService {
     if (SupabaseConfig.isConfigured && _canCallProxy) {
       final client = SupabaseConfig.client!;
       final unresolved = <String>[];
-      for (var offset = 0; offset < remaining.length; offset += _maxProxyBatch) {
+      for (
+        var offset = 0;
+        offset < remaining.length;
+        offset += _maxProxyBatch
+      ) {
         final end = (offset + _maxProxyBatch).clamp(0, remaining.length);
         final chunk = remaining.sublist(offset, end);
         if (!_canCallProxy) {
@@ -168,13 +176,12 @@ class YahooFinanceService {
           continue;
         }
         try {
-          final res = await client.functions.invoke(
-            'market-quote-proxy',
-            body: {
-              'action': 'quotes',
-              'symbols': chunk,
-            },
-          ).timeout(_requestTimeout);
+          final res = await client.functions
+              .invoke(
+                'market-quote-proxy',
+                body: {'action': 'quotes', 'symbols': chunk},
+              )
+              .timeout(_requestTimeout);
 
           if (res.status == 200 && res.data is Map) {
             _recordProxySuccess();
@@ -190,7 +197,8 @@ class YahooFinanceService {
                 final double changePct =
                     (q['changePercent'] as num?)?.toDouble() ??
                     (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
-                final List<double> spark = (q['spark'] as List?)
+                final List<double> spark =
+                    (q['spark'] as List?)
                         ?.whereType<num>()
                         .map((n) => n.toDouble())
                         .toList() ??
@@ -206,7 +214,7 @@ class YahooFinanceService {
                   isLive: q['isLive'] as bool? ?? true,
                   timestamp: q['timestamp'] != null
                       ? DateTime.tryParse(q['timestamp'].toString()) ??
-                          DateTime.now()
+                            DateTime.now()
                       : DateTime.now(),
                   source: (q['source'] as String?) ?? 'Market Quote Proxy',
                 );
@@ -290,13 +298,15 @@ class YahooFinanceService {
             '/v8/finance/chart/$symbol',
             {'interval': '1d', 'range': '5d'},
           );
-          final res = await _client.get(
-            uri,
-            headers: const {
-              'Accept': 'application/json',
-              'User-Agent': 'TradeX/1.0',
-            },
-          ).timeout(_requestTimeout);
+          final res = await _client
+              .get(
+                uri,
+                headers: const {
+                  'Accept': 'application/json',
+                  'User-Agent': 'AlphaJournal/1.0',
+                },
+              )
+              .timeout(_requestTimeout);
 
           if (res.statusCode == 200) {
             final dynamic decoded = jsonDecode(res.body);
@@ -312,7 +322,8 @@ class YahooFinanceService {
               final changePct =
                   (meta?['regularMarketChangePercent'] as num?)?.toDouble() ??
                   (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
-              final closes = (indicators?['close'] as List?)
+              final closes =
+                  (indicators?['close'] as List?)
                       ?.whereType<num>()
                       .map((n) => n.toDouble())
                       .where((v) => v.isFinite)
@@ -428,17 +439,20 @@ class YahooFinanceService {
     String name, {
     bool forceRefresh = false,
   }) async {
-    final map = await fetchIndexItems(
-      [(symbol: symbol, name: name)],
-      forceRefresh: forceRefresh,
-    );
+    final map = await fetchIndexItems([
+      (symbol: symbol, name: name),
+    ], forceRefresh: forceRefresh);
     return map[symbol];
   }
 
   /// Fetches sector performances via backend proxy or baseline calculation.
-  Future<List<SectorPerformanceItem>> fetchSectors({bool forceRefresh = false}) async {
+  Future<List<SectorPerformanceItem>> fetchSectors({
+    bool forceRefresh = false,
+  }) async {
     final cached = _sectorCache;
-    if (!forceRefresh && cached != null && cached.expires.isAfter(DateTime.now())) {
+    if (!forceRefresh &&
+        cached != null &&
+        cached.expires.isAfter(DateTime.now())) {
       return cached.items;
     }
 
@@ -462,10 +476,9 @@ class YahooFinanceService {
     if (SupabaseConfig.isConfigured && _canCallProxy) {
       try {
         final client = SupabaseConfig.client!;
-        final res = await client.functions.invoke(
-          'market-quote-proxy',
-          body: {'action': 'sectors'},
-        ).timeout(_requestTimeout);
+        final res = await client.functions
+            .invoke('market-quote-proxy', body: {'action': 'sectors'})
+            .timeout(_requestTimeout);
 
         if (res.status == 200 && res.data is Map) {
           _recordProxySuccess();
@@ -485,7 +498,10 @@ class YahooFinanceService {
               );
             }).toList();
 
-            _sectorCache = (items: items, expires: DateTime.now().add(_sectorTtl));
+            _sectorCache = (
+              items: items,
+              expires: DateTime.now().add(_sectorTtl),
+            );
             return items;
           }
         } else {
@@ -507,13 +523,15 @@ class YahooFinanceService {
             '/v8/finance/chart/${s.$2}',
             {'interval': '1d', 'range': 'ytd'},
           );
-          final res = await _client.get(
-            uri,
-            headers: const {
-              'Accept': 'application/json',
-              'User-Agent': 'TradeX/1.0',
-            },
-          ).timeout(const Duration(seconds: 3));
+          final res = await _client
+              .get(
+                uri,
+                headers: const {
+                  'Accept': 'application/json',
+                  'User-Agent': 'AlphaJournal/1.0',
+                },
+              )
+              .timeout(const Duration(seconds: 3));
 
           if (res.statusCode == 200) {
             final dynamic decoded = jsonDecode(res.body);
@@ -521,10 +539,13 @@ class YahooFinanceService {
             if (result is Map) {
               final meta = result['meta'] as Map?;
               final indicators = result['indicators']?['quote']?[0] as Map?;
-              final price = (meta?['regularMarketPrice'] as num?)?.toDouble() ?? 0.0;
+              final price =
+                  (meta?['regularMarketPrice'] as num?)?.toDouble() ?? 0.0;
               final dayChangePct =
-                  (meta?['regularMarketChangePercent'] as num?)?.toDouble() ?? 0.0;
-              final closes = (indicators?['close'] as List?)
+                  (meta?['regularMarketChangePercent'] as num?)?.toDouble() ??
+                  0.0;
+              final closes =
+                  (indicators?['close'] as List?)
                       ?.whereType<num>()
                       .map((n) => n.toDouble())
                       .where((v) => v.isFinite)
@@ -535,7 +556,8 @@ class YahooFinanceService {
               if (closes.isNotEmpty && price > 0) {
                 final startOfYearPrice = closes.first;
                 if (startOfYearPrice > 0) {
-                  ytdReturn = ((price - startOfYearPrice) / startOfYearPrice) * 100;
+                  ytdReturn =
+                      ((price - startOfYearPrice) / startOfYearPrice) * 100;
                 }
               }
 
@@ -556,7 +578,10 @@ class YahooFinanceService {
         } catch (_) {}
       }
       if (results.isNotEmpty) {
-        _sectorCache = (items: results, expires: DateTime.now().add(_sectorTtl));
+        _sectorCache = (
+          items: results,
+          expires: DateTime.now().add(_sectorTtl),
+        );
         return results;
       }
     }
@@ -567,16 +592,20 @@ class YahooFinanceService {
     }
 
     // 4. Return offline baseline sectors
-    return kSectorMapping.map((s) => SectorPerformanceItem(
-      name: s.$1,
-      marketWeight: s.$4,
-      ytdReturn: 0.0,
-      dayReturn: 0.0,
-      key: s.$3,
-      isLive: false,
-      timestamp: DateTime.parse('2026-09-04T00:00:00Z'),
-      source: 'Offline Baseline',
-    )).toList();
+    return kSectorMapping
+        .map(
+          (s) => SectorPerformanceItem(
+            name: s.$1,
+            marketWeight: s.$4,
+            ytdReturn: 0.0,
+            dayReturn: 0.0,
+            key: s.$3,
+            isLive: false,
+            timestamp: DateTime.parse('2026-09-04T00:00:00Z'),
+            source: 'Offline Baseline',
+          ),
+        )
+        .toList();
   }
 
   /// Fetches financial news via backend proxy or offline asset cache.
@@ -587,7 +616,9 @@ class YahooFinanceService {
   }) async {
     final cacheKey = '${query}_$count';
     final cached = _newsCache[cacheKey];
-    if (!forceRefresh && cached != null && cached.expires.isAfter(DateTime.now())) {
+    if (!forceRefresh &&
+        cached != null &&
+        cached.expires.isAfter(DateTime.now())) {
       return cached.items;
     }
 
@@ -615,24 +646,29 @@ class YahooFinanceService {
     if (SupabaseConfig.isConfigured && _canCallProxy) {
       try {
         final client = SupabaseConfig.client!;
-        final res = await client.functions.invoke(
-          'market-quote-proxy',
-          body: {
-            'action': 'news',
-            'query': query,
-            'count': count,
-          },
-        ).timeout(_requestTimeout);
+        final res = await client.functions
+            .invoke(
+              'market-quote-proxy',
+              body: {'action': 'news', 'query': query, 'count': count},
+            )
+            .timeout(_requestTimeout);
 
         if (res.status == 200 && res.data is Map) {
           _recordProxySuccess();
           final newsList = res.data['news'];
           if (newsList is List && newsList.isNotEmpty) {
             final articles = newsList
-                .map((raw) => MarketArticle.fromJson(Map<String, dynamic>.from(raw as Map)))
+                .map(
+                  (raw) => MarketArticle.fromJson(
+                    Map<String, dynamic>.from(raw as Map),
+                  ),
+                )
                 .toList();
 
-            _newsCache[cacheKey] = (items: articles, expires: DateTime.now().add(_newsTtl));
+            _newsCache[cacheKey] = (
+              items: articles,
+              expires: DateTime.now().add(_newsTtl),
+            );
             return articles;
           }
         } else {
@@ -658,7 +694,9 @@ class YahooFinanceService {
         if (rows.isNotEmpty) {
           final articles = rows
               .whereType<Map>()
-              .map((raw) => MarketArticle.fromJson(Map<String, dynamic>.from(raw)))
+              .map(
+                (raw) => MarketArticle.fromJson(Map<String, dynamic>.from(raw)),
+              )
               .toList();
           _newsCache[cacheKey] = (
             items: articles,
@@ -672,23 +710,22 @@ class YahooFinanceService {
     // 2. Direct HTTP call on non-web native platforms only
     if (!kIsWeb) {
       try {
-        final uri = Uri.https(
-          'query1.finance.yahoo.com',
-          '/v1/finance/search',
-          {
-            'q': query,
-            'newsCount': '$count',
-            'quotesCount': '0',
-            'enableFuzzyQuery': 'false',
-          },
-        );
-        final res = await _client.get(
-          uri,
-          headers: const {
-            'Accept': 'application/json',
-            'User-Agent': 'TradeX/1.0',
-          },
-        ).timeout(_requestTimeout);
+        final uri =
+            Uri.https('query1.finance.yahoo.com', '/v1/finance/search', {
+              'q': query,
+              'newsCount': '$count',
+              'quotesCount': '0',
+              'enableFuzzyQuery': 'false',
+            });
+        final res = await _client
+            .get(
+              uri,
+              headers: const {
+                'Accept': 'application/json',
+                'User-Agent': 'AlphaJournal/1.0',
+              },
+            )
+            .timeout(_requestTimeout);
 
         if (res.statusCode == 200) {
           final dynamic decoded = jsonDecode(res.body);
@@ -698,7 +735,8 @@ class YahooFinanceService {
             for (final raw in newsList) {
               if (raw is Map) {
                 final title = raw['title'] as String? ?? '';
-                final publisher = raw['publisher'] as String? ?? 'Financial News';
+                final publisher =
+                    raw['publisher'] as String? ?? 'Financial News';
                 final link = raw['link'] as String? ?? '';
                 final pubTime = raw['providerPublishTime'] is num
                     ? DateTime.fromMillisecondsSinceEpoch(
@@ -745,8 +783,8 @@ class YahooFinanceService {
                     (rawSummary != null && rawSummary.trim().isNotEmpty)
                     ? rawSummary.trim()
                     : (tickers.isNotEmpty
-                        ? 'Latest reporting on ${tickers.join(", ")} market developments and earnings outlook.'
-                        : 'Market coverage from $publisher on equities and economic trends.');
+                          ? 'Latest reporting on ${tickers.join(", ")} market developments and earnings outlook.'
+                          : 'Market coverage from $publisher on equities and economic trends.');
 
                 if (title.isNotEmpty) {
                   articles.add(
@@ -764,7 +802,10 @@ class YahooFinanceService {
               }
             }
             if (articles.isNotEmpty) {
-              _newsCache[cacheKey] = (items: articles, expires: DateTime.now().add(_newsTtl));
+              _newsCache[cacheKey] = (
+                items: articles,
+                expires: DateTime.now().add(_newsTtl),
+              );
               return articles;
             }
           }

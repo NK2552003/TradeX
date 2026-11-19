@@ -80,7 +80,7 @@ void _applyRequest(AppLinkOpenRequest request) {
   });
 }
 ```
-- Real post IDs throughout TradeX start with `post_` (e.g. `post_poll_1`, `post_nitish_1`, `post_a1`), `pst_`, or UUIDs from Supabase.
+- Real post IDs throughout AlphaJournal start with `post_` (e.g. `post_poll_1`, `post_nitish_1`, `post_a1`), `pst_`, or UUIDs from Supabase.
 - The check `if (request.id.startsWith('community_'))` failed on 100% of real community posts, preventing `_openPostDetail` from ever firing even if `AppScaffold` correctly selected `community_feed`.
 
 ---

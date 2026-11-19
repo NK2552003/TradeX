@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/presentation/market_news_widgets.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 MarketArticle communityMarketArticle(CommunityNewsItem article) =>
     MarketArticle.fromJson({

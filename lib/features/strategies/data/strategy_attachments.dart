@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/config/supabase_storage_egress.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_storage_egress.dart';
 
 import '../../notes/data/note_attachments.dart';
 import 'strategies_repository.dart';
@@ -43,17 +43,16 @@ class StrategyAttachments {
     final cacheTtl =
         SupabaseStorageEgress.strategyAttachments.clientUrlCacheTtl ??
         const Duration(minutes: 4);
-    _resolved[key] = (
-      url: url,
-      expires: DateTime.now().add(cacheTtl),
-    );
+    _resolved[key] = (url: url, expires: DateTime.now().add(cacheTtl));
   }
 
   static Future<String> _url(String ref) async {
     final key = _cacheKey(ref);
     final cached = _cached(key);
     if (cached != null) return cached;
-    final url = await StrategiesRepositoryScope.repository.resolveAttachmentUrl(ref);
+    final url = await StrategiesRepositoryScope.repository.resolveAttachmentUrl(
+      ref,
+    );
     if (url.isNotEmpty) _remember(key, url);
     return url;
   }
@@ -85,12 +84,8 @@ class StrategyAttachments {
     required Uint8List bytes,
     required String filename,
   }) async {
-    final String ref = await StrategiesRepositoryScope.repository.uploadAttachment(
-      strategyId,
-      null,
-      bytes: bytes,
-      filename: filename,
-    );
+    final String ref = await StrategiesRepositoryScope.repository
+        .uploadAttachment(strategyId, null, bytes: bytes, filename: filename);
     return NoteAttachments.markdownFor(
       ref: ref,
       filename: filename,
@@ -116,7 +111,9 @@ class StrategyAttachments {
 
   /// Invalidates cached URL for a specific attachment [ref].
   static void invalidate(String ref) {
-    _resolved.removeWhere((key, _) => key.endsWith(':$ref') || key.contains(ref));
+    _resolved.removeWhere(
+      (key, _) => key.endsWith(':$ref') || key.contains(ref),
+    );
   }
 
   /// Invalidates all cached attachments for a specific strategy [strategyId].

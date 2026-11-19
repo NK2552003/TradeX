@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/security/message_cipher.dart';
-import 'package:tradex/core/security/private_message_service.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/security/message_cipher.dart';
+import 'package:alphajournal/core/security/private_message_service.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -214,11 +214,7 @@ class UiDataPanel extends StatelessWidget {
             children: <Widget>[
               if (leadingIcon != null) iconWidget,
               if (labelWidget != null)
-                Flexible(
-                  flex: 3,
-                  fit: FlexFit.loose,
-                  child: labelWidget,
-                ),
+                Flexible(flex: 3, fit: FlexFit.loose, child: labelWidget),
               if (hint != null) ...<Widget>[
                 SizedBox(width: context.sp(theme.spacing.sm)),
                 Expanded(

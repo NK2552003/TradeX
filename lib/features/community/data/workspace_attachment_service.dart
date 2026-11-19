@@ -1,10 +1,10 @@
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/record_access.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/record_access.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
 
 class WorkspaceAttachmentService {
   Future<List<AppWritingPostAttachment>> ownedRecords() async {

@@ -1,0 +1,95 @@
+name: Market data, World Indices, or Assets issue
+description: Report quote, news, screener, reference-market, synchronization, freshness, or table defects.
+title: "[Market Data]: "
+labels:
+  - market-data
+  - triage
+body:
+  - type: dropdown
+    id: dataset
+    attributes:
+      label: Dataset
+      multiple: true
+      options:
+        - World Indices
+        - Assets
+        - Quotes
+        - Price history
+        - News
+        - Screeners
+        - Movers
+        - Instrument details
+        - Community preview
+        - Symbol universe
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Problem type
+      multiple: true
+      options:
+        - Missing/stale data
+        - Incorrect mapping/value
+        - Duplicate rows
+        - Consolidated table/layout
+        - Pagination/filter/sort
+        - CI sync failure
+        - Provider parsing
+        - Excess requests/egress
+        - Free-tier scope leak
+    validations:
+      required: true
+  - type: input
+    id: symbols
+    attributes:
+      label: Sanitized symbols or reference entries
+      placeholder: Public ticker/index symbols only
+    validations:
+      required: true
+  - type: input
+    id: freshness
+    attributes:
+      label: Observation time and expected freshness
+      placeholder: UTC timestamp and expected update window
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment and version
+      placeholder: App version/commit, local/staging/production, account tier
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected data and presentation
+      placeholder: Include consolidated-table, cache, or entitlement expectations.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual data and presentation
+    validations:
+      required: true
+  - type: textarea
+    id: pipeline
+    attributes:
+      label: Pipeline/CI evidence
+      description: Add redacted job/run links, report summaries, or provider status. Do not paste secrets.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: Include freshness, coverage, one-table behavior, bounded calls, and regression tests.
+    validations:
+      required: true
+

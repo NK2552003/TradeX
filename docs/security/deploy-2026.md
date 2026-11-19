@@ -1,6 +1,6 @@
 # Cloudflare + Supabase: Push Notifications, Encrypted Messaging, Egress & `app.` Subdomain Deployment
 
-This guide is the unified deployment runbook for TradeX (`alphajournal`), combining:
+This guide is the unified deployment runbook for AlphaJournal (`alphajournal`), combining:
 
 - **Web Push notifications & E2EE messaging** (`message_identities`, `message_public_keys`, `push_subscriptions`, `push_deliveries`, `push-dispatch`)
 - **Database & hosting egress optimizations** (`market-quote-proxy` batching/CORS/server cache, deferred web chunks, immutable asset cache headers, visibility-aware polling)
@@ -28,7 +28,7 @@ Start with a **staging Supabase project containing the existing application sche
 Open a terminal in the repository root, authenticate both CLIs once, and export your target environment variables for the session:
 
 ```bash
-cd /Users/nitishkumar/Downloads/projects/nk2552003/TradeX
+cd /Users/nitishkumar/Downloads/projects/nk2552003/AlphaJournal
 
 export PROJECT_REF="YOUR_SUPABASE_PROJECT_REF"
 export MONITORED_EMAIL="YOUR_MONITORED_EMAIL"
@@ -144,7 +144,7 @@ In **Supabase Dashboard → Authentication → URL Configuration**:
   https://community.alphajournal.in/**
   https://admin.alphajournal.in/**
   https://affiliate.alphajournal.in/**
-  tradex://auth/callback
+  alphajournal://auth/callback
   ```
 
 ---
@@ -183,8 +183,11 @@ npx --yes supabase@3.1.0 functions deploy ai-chat \
 npx --yes supabase@3.1.0 functions deploy ai-gateway \
   --remote="$PROJECT_REF" --use-api
 
-# 4. Sync public client config asset and dependencies
+# 4. Publish and verify database-free web update metadata, then sync public
+#    client config and dependencies
+python3 scripts/generate_app_update_manifest.py --platform web
 python3 scripts/prepare_client_config.py
+python3 scripts/generate_app_update_manifest.py --platform web --check
 flutter pub get
 
 # 5. Clean previous build artifacts so stale removed assets are not uploaded,

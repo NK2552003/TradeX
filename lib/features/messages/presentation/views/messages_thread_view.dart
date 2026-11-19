@@ -5,14 +5,14 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/messages/presentation/overlays/message_actions_sheet.dart';
-import 'package:tradex/features/messages/presentation/overlays/message_share_chart_dialog.dart';
-import 'package:tradex/features/messages/presentation/overlays/message_trade_setup_dialog.dart';
-import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
-import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/message_actions_sheet.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/message_share_chart_dialog.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/message_trade_setup_dialog.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
+import 'package:alphajournal/features/messages/presentation/widgets/messages_widgets.dart';
 
 /// A single open conversation: header, the message history (grouped into
 /// same-sender runs and split by day), a live typing indicator and the
@@ -156,12 +156,16 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
   Future<void> _sendAttachment(MessageAttachmentKind kind) async {
     try {
       if (kind == MessageAttachmentKind.chart) {
-        final MessageAttachment? att = await MessageShareChartDialog.show(context);
+        final MessageAttachment? att = await MessageShareChartDialog.show(
+          context,
+        );
         if (att == null || !mounted) return;
         await _sendWithFeedback(attachment: att);
         return;
       } else if (kind == MessageAttachmentKind.tradeSetup) {
-        final MessageAttachment? att = await MessageTradeSetupDialog.show(context);
+        final MessageAttachment? att = await MessageTradeSetupDialog.show(
+          context,
+        );
         if (att == null || !mounted) return;
         await _sendWithFeedback(attachment: att);
         return;

@@ -1,31 +1,31 @@
 import 'package:flutter/material.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import 'community_post_discussion.dart';
 import 'community_reactions_dialog.dart';
 import 'community_network_activity.dart';
 import 'package:flutter/services.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/views/community_image_viewer_page.dart';
-import 'package:tradex/features/community/presentation/widgets/public_workspace_attachment.dart';
-import 'package:tradex/features/community/presentation/widgets/community_author_header.dart';
-import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
-import 'package:tradex/features/community/presentation/widgets/community_engagement_bar.dart';
-import 'package:tradex/features/community/presentation/widgets/community_highlighted_text.dart';
-import 'package:tradex/features/community/presentation/widgets/community_link_preview_tile.dart';
-import 'package:tradex/features/community/presentation/widgets/community_poll_tile.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_insights_sheet.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_options_sheet.dart';
-import 'package:tradex/features/community/presentation/widgets/community_quote_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
-import 'package:tradex/features/community/presentation/widgets/community_share_sheet.dart';
-import 'package:tradex/features/community/presentation/widgets/community_trade_setup_tile.dart';
-import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_design.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/views/community_image_viewer_page.dart';
+import 'package:alphajournal/features/community/presentation/widgets/public_workspace_attachment.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_author_header.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_edit_post_dialog.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_engagement_bar.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_highlighted_text.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_link_preview_tile.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_poll_tile.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_insights_sheet.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_options_sheet.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_quote_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_repost_dialog.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_share_sheet.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_trade_setup_tile.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_design.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// Visual presentation variant for [CommunityPostCard].
 enum CommunityPostCardVariant {

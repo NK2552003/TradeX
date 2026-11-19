@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/data/repositories/auth_otp_repository.dart';
-import 'package:tradex/features/auth/models/otp_purpose.dart';
-import 'package:tradex/features/auth/presentation/pages/forgot_password_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_otp_repository.dart';
+import 'package:alphajournal/features/auth/models/otp_purpose.dart';
+import 'package:alphajournal/features/auth/presentation/pages/forgot_password_page.dart';
 
 class RecoveryFixture implements AuthOtpRepository {
   int sends = 0;

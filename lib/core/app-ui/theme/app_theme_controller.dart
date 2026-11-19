@@ -1,5 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/flutter-ui/components/ui_candle_chart.dart';
+import 'package:alphajournal/core/flutter-ui/components/ui_candle_chart.dart';
+
+/// App sizing presets that keep the device's accessibility preferences active.
+enum AppZoom {
+  system('System default', 1),
+  compact('Compact', 0.92),
+  comfortable('Comfortable', 1.08),
+  large('Large', 1.16),
+  extraLarge('Extra large', 1.25);
+
+  const AppZoom(this.label, this.factor);
+
+  static const preferenceKey = 'ax_theme_zoom';
+
+  final String label;
+  final double factor;
+
+  static AppZoom? fromPreference(String? value) =>
+      values.where((preset) => preset.name == value).firstOrNull;
+}
+
+enum AppTextSize {
+  system('System default'),
+  small('Small', 0.9),
+  standard('Default', 1),
+  large('Large', 1.15),
+  extraLarge('Extra large', 1.3);
+
+  const AppTextSize(this.label, [this.factor]);
+
+  static const preferenceKey = 'ax_text_size';
+
+  final String label;
+  final double? factor;
+
+  static AppTextSize? fromPreference(String? value) =>
+      values.where((preset) => preset.name == value).firstOrNull;
+
+  TextScaler resolve(TextScaler system) {
+    final preset = factor;
+    return preset == null ? system : TextScaler.linear(preset);
+  }
+}
 
 /// Controller for managing the application theme mode (dark, light, system),
 /// layout spacing density, and global financial chart defaults.
@@ -10,17 +52,23 @@ class AppThemeController extends ChangeNotifier {
     String initialChartRange = '1D',
     String initialChartStyle = 'Candlestick',
     String initialColorConvention = 'Standard (Green/Red)',
+    AppZoom initialZoom = AppZoom.system,
+    AppTextSize initialTextSize = AppTextSize.system,
   ]) : _mode = initialMode,
        _density = initialDensity,
        _chartRange = initialChartRange,
        _chartStyle = initialChartStyle,
-       _colorConvention = initialColorConvention;
+       _colorConvention = initialColorConvention,
+       _zoom = initialZoom,
+       _textSize = initialTextSize;
 
   ThemeMode _mode;
   String _density;
   String _chartRange;
   String _chartStyle;
   String _colorConvention;
+  AppZoom _zoom;
+  AppTextSize _textSize;
 
   ThemeMode get value => _mode;
   ThemeMode get mode => _mode;
@@ -28,6 +76,8 @@ class AppThemeController extends ChangeNotifier {
   String get chartRange => _chartRange;
   String get chartStyle => _chartStyle;
   String get colorConvention => _colorConvention;
+  AppZoom get zoom => _zoom;
+  AppTextSize get textSize => _textSize;
 
   UiPriceChartType get preferredPriceChartType => switch (_chartStyle) {
     'Line' => UiPriceChartType.line,
@@ -64,6 +114,18 @@ class AppThemeController extends ChangeNotifier {
       _density = density;
       notifyListeners();
     }
+  }
+
+  void setZoom(AppZoom zoom) {
+    if (_zoom == zoom) return;
+    _zoom = zoom;
+    notifyListeners();
+  }
+
+  void setTextSize(AppTextSize textSize) {
+    if (_textSize == textSize) return;
+    _textSize = textSize;
+    notifyListeners();
   }
 
   void setChartRange(String range) {

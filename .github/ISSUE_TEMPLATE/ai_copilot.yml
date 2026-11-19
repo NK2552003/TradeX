@@ -1,0 +1,93 @@
+name: Unified AI, copilot, or research issue
+description: Report AI gateway, provider fallback, streaming, voice, research, tool, or quota behavior.
+title: "[AI/Copilot]: "
+labels:
+  - ai
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The Unified AI gateway and multi-provider fallback are intentional. Do not paste provider keys, private prompts, journals, messages, or full upstream payloads.
+  - type: dropdown
+    id: capability
+    attributes:
+      label: Capability
+      multiple: true
+      options:
+        - Unified text completion
+        - Streaming
+        - Voice/transcription/TTS
+        - Copilot chat
+        - Research
+        - Notes/strategy AI
+        - Tool execution/approval
+        - Workspace persistence
+        - Provider fallback
+        - Quota/entitlement
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Failure stage
+      options:
+        - Before request
+        - Gateway request
+        - Primary provider
+        - Fallback provider
+        - Streaming/rendering
+        - Tool call
+        - Persistence/history
+        - Unknown
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Version and environment
+      placeholder: Commit/version, platform, local/staging/production, account tier
+    validations:
+      required: true
+  - type: textarea
+    id: sanitized_input
+    attributes:
+      label: Sanitized input shape
+      description: Replace private content with harmless placeholders and describe size/type.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: Include gateway, fallback, streaming, cancellation, and user-facing error expectations.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted diagnostics
+      description: Remove prompts, completions, API keys, auth headers, user IDs, thread contents, and raw provider payloads.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria and regression test
+      placeholder: The fix must preserve UnifiedAiService behavior unless an architecture change is explicitly approved.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Privacy checks
+      options:
+        - label: I replaced private prompt/user content with synthetic test data.
+          required: true
+        - label: This issue contains no provider credentials or raw private payloads.
+          required: true
+

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/features/community/presentation/widgets/community_copilot_launcher.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_copilot_launcher.dart';
 
 void main() {
   testWidgets('Community opens the new copilot with the requested context', (

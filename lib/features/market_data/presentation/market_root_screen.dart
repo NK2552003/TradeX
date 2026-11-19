@@ -1,15 +1,15 @@
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/presentation/market_news_widgets.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_view.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 import 'market_screeners_view.dart';
 import 'market_catalogue_view.dart';
 import 'market_overview_view.dart';
@@ -377,107 +377,6 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_article == null && _instrument == null) ...[
-              if (_tab == 0) ...[
-                UiCard(
-                  variant: UiCardVariant.surface,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.sp(context.ui.spacing.md),
-                    vertical: context.sp(context.ui.spacing.sm),
-                  ),
-                  child: LayoutBuilder(
-                    builder: (context, headerBox) => Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(
-                            context.sp(context.ui.spacing.xs),
-                          ),
-                          decoration: BoxDecoration(
-                            color: context.ui.colors.primary.withValues(
-                              alpha: 0.12,
-                            ),
-                            borderRadius: context.radius(context.ui.radii.sm),
-                          ),
-                          child: Icon(
-                            Icons.insights,
-                            size: context.sz(20),
-                            color: context.ui.colors.primary,
-                          ),
-                        ),
-                        UiGap.h(context.ui.spacing.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      'Market Intelligence',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: context.uiText.title.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                  UiGap.h(context.ui.spacing.xs),
-                                  UiBadge(
-                                    label:
-                                        snapshot.manifest['data_source'] ==
-                                            'supabase_live'
-                                        ? 'LIVE DATABASE'
-                                        : 'SNAPSHOT',
-                                    variant: UiBadgeVariant.soft,
-                                    intent:
-                                        snapshot.manifest['data_source'] ==
-                                            'supabase_live'
-                                        ? UiIntent.success
-                                        : UiIntent.primary,
-                                    size: UiSize.xs,
-                                  ),
-                                ],
-                              ),
-                              UiGap.v(context.ui.spacing.xxs),
-                              Text(
-                                snapshot.manifest['data_source'] ==
-                                        'supabase_live'
-                                    ? 'Live Database · ${snapshot.manifest['quote_count'] ?? snapshot.instruments.length} Quotes & Analytics'
-                                    : 'Snapshot ${marketSnapshotDate(snapshot.manifest)} · Analytics & Research',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: context.uiText.caption.copyWith(
-                                  color: context.ui.colors.foregroundMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (headerBox.maxWidth >= 550) ...[
-                          Text(
-                            'Analytics only · Not investment advice',
-                            style: context.uiText.caption.copyWith(
-                              color: context.ui.colors.foregroundSubtle,
-                              fontSize: context.fs(11),
-                            ),
-                          ),
-                          UiGap.h(context.ui.spacing.sm),
-                        ],
-                        UiIconButton(
-                          icon: Icons.refresh,
-                          tooltip: 'Reload market assets',
-                          intent: UiIntent.neutral,
-                          onPressed: () => setState(
-                            () => _future = _repo.snapshot(refresh: true),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                UiGap.v(context.ui.spacing.sm),
-              ],
-
               // Real-Time Yahoo Finance Analytics Ribbon across all market sections
               YahooMarketRibbon(
                 instruments: snapshot.instruments,
@@ -507,7 +406,9 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
                     UiTabItem(label: 'Coverage', icon: Icons.dataset_outlined),
                   ],
                   index: _tab,
-                  scrollable: true,
+                  stretch: true,
+                  scrollable: false,
+                  showPanel: false,
                   onChanged: _changeTab,
                 ),
                 UiGap.v(context.ui.spacing.sm),
@@ -599,7 +500,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
                               kind: AppLinkKind.ticker,
                               title: '${inst.symbol} — ${inst.name}',
                               subtitle:
-                                  'Live quotes, charts & fundamentals on alphajournal Markets',
+                                  'Live quotes, charts & fundamentals on AlphaJournal Markets',
                               icon: Icons.candlestick_chart_outlined,
                               isPublicContext: true,
                             ),

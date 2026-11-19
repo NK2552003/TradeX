@@ -1,7 +1,7 @@
 # 12-Unified_Comments_And_Visibility — Backend Architecture & Integration Guide
 
 ## 1. Overview
-This module unifies public and private visibility controls and discussions across all 4 key TraderHub content entities:
+This module unifies public and private visibility controls and discussions across all 4 key AlphaJournal content entities:
 1. **Trader Notes** (`note` / `trader_notes`)
 2. **Strategy Playbooks** (`strategy` / `strategies`)
 3. **Trade Journals** (`journal` / `journal_entries`)

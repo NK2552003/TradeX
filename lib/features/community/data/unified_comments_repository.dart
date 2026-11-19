@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/community/models/community_models.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/auth/data/services/auth_backend_service.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
 import 'package:uuid/uuid.dart';
 
 abstract class UnifiedCommentsRepository {
@@ -159,7 +159,9 @@ class UnifiedCommentsRepositoryImpl implements UnifiedCommentsRepository {
           _ => UserRole.customer,
         };
 
-        final subTier = (profile?['subscription_tier'] as String?)?.toLowerCase().trim() ?? 'free';
+        final subTier =
+            (profile?['subscription_tier'] as String?)?.toLowerCase().trim() ??
+            'free';
         final author = CommunityAuthor(
           id: authorId,
           handle: handle,
@@ -339,7 +341,9 @@ class UnifiedCommentsRepositoryImpl implements UnifiedCommentsRepository {
         }
         synced = true;
       } catch (e) {
-        debugPrint('[UnifiedCommentsRepository] unified_comment_likes error: $e');
+        debugPrint(
+          '[UnifiedCommentsRepository] unified_comment_likes error: $e',
+        );
       }
 
       if (!synced) {
@@ -374,7 +378,9 @@ class UnifiedCommentsRepositoryImpl implements UnifiedCommentsRepository {
             });
           }
         } catch (e2) {
-          debugPrint('[UnifiedCommentsRepository] community_comment_likes fallback error: $e2');
+          debugPrint(
+            '[UnifiedCommentsRepository] community_comment_likes fallback error: $e2',
+          );
         }
       }
     }

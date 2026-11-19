@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/markdown_kit/markdown_kit.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_kit.dart';
 
 /// A starting point for a new note.
 ///

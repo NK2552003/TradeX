@@ -12,6 +12,8 @@
   let pending = null;
   let busy = false;
   let installed = display.matches || navigator.standalone === true;
+  let nativeInstalled = false;
+  let relatedAppsChecked = false;
   let dismissedAt = 0;
 
   const isProdHost = () => {
@@ -78,6 +80,7 @@
 
   const isInstalled = () =>
     installed ||
+    nativeInstalled ||
     display.matches ||
     navigator.standalone === true ||
     readStorage(installedKey) === '1' ||
@@ -94,6 +97,8 @@
     return JSON.stringify({
       available: !!pending && !busy && !currentlyInstalled,
       installed: currentlyInstalled,
+      nativeInstalled,
+      relatedAppsChecked,
       canSuggest:
         !!pending &&
         !busy &&
@@ -118,6 +123,55 @@
     writeCookie(dismissKey, String(dismissedAt), dismissCookieSeconds);
     notify();
   };
+
+  const installedAppLink = () => {
+    try {
+      if (!isProdHost() || typeof location === 'undefined') return '';
+      const url = new URL(location.href);
+      url.searchParams.set('app_handoff', '1');
+      return url.toString();
+    } catch (_) {
+      return '';
+    }
+  };
+
+  const openInstalledApp = () => {
+    const target = installedAppLink();
+    if (!nativeInstalled || !target) return false;
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        if (sessionStorage.getItem('alphajournal_native_handoff_v1') === '1') {
+          return false;
+        }
+        sessionStorage.setItem('alphajournal_native_handoff_v1', '1');
+      }
+      location.assign(target);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const detectRelatedApps = async () => {
+    try {
+      if (typeof navigator.getInstalledRelatedApps !== 'function') return;
+      const apps = await navigator.getInstalledRelatedApps();
+      // The browser only returns apps declared by this site's web manifest and
+      // verified through Digital Asset Links. Avoid coupling detection to a
+      // placeholder package name so release package changes need one manifest
+      // update rather than a second JavaScript deployment.
+      nativeInstalled = Array.isArray(apps) && apps.some(app =>
+        app && app.platform === 'play' && typeof app.id === 'string' && app.id.length > 0);
+    } catch (_) {
+      nativeInstalled = false;
+    } finally {
+      relatedAppsChecked = true;
+      notify();
+      if (nativeInstalled && !display.matches && navigator.standalone !== true) {
+        openInstalledApp();
+      }
+    }
+  };
   window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault();
     pending = event;
@@ -139,10 +193,12 @@
       if (document.visibilityState === 'visible') notify();
     });
   }
+  void detectRelatedApps();
   window.alphajournalInstall = {
     snapshot,
     subscribe: fn => listeners.add(fn),
     dismiss,
+    openInstalledApp,
     async prompt() {
       if (!pending || busy || isInstalled()) return 'unavailable';
       const event = pending;

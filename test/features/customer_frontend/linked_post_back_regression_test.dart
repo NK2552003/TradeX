@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/navigation/customer_routes.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/notes/ui/note_preview_screen.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/navigation/customer_routes.dart';
+import 'package:alphajournal/core/widgets/app_scaffold.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/presentation/views/community_post_detail_view.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/notes/ui/note_preview_screen.dart';
 
 void main() {
   for (final systemBack in [false, true]) {

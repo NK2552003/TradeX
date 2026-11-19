@@ -24,11 +24,15 @@ class AppCalculatorNavItem extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.showDescription = false,
+    this.enabled = true,
+    this.disabledLabel,
   });
 
   final AppCalculatorMeta meta;
   final bool selected;
   final VoidCallback onTap;
+  final bool enabled;
+  final String? disabledLabel;
 
   /// Adds the one-line summary under the name — used in the mobile sheet, where
   /// there is room and no hover to reveal it.
@@ -41,59 +45,78 @@ class AppCalculatorNavItem extends StatelessWidget {
     final Color tint = meta.category.intent.color(context);
 
     if (showDescription || context.uiRes.isMobile) {
-      return UiCard(
-        onTap: onTap,
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.md),
-          vertical: context.sp(theme.spacing.sm + 2),
-        ),
-        child: Row(
-          children: <Widget>[
-            Container(
-              padding: EdgeInsets.all(context.sp(theme.spacing.xs + 2)),
-              decoration: BoxDecoration(
-                color: tint.withValues(alpha: 0.12),
-                borderRadius: context.radius(theme.radii.md),
+      return Opacity(
+        opacity: enabled ? 1 : 0.62,
+        child: UiCard(
+          onTap: onTap,
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(theme.spacing.md),
+            vertical: context.sp(theme.spacing.sm + 2),
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                padding: EdgeInsets.all(context.sp(theme.spacing.xs + 2)),
+                decoration: BoxDecoration(
+                  color: tint.withValues(alpha: 0.12),
+                  borderRadius: context.radius(theme.radii.md),
+                ),
+                child: Icon(
+                  meta.icon,
+                  size: context.sz(theme.sizes.iconSm),
+                  color: tint,
+                ),
               ),
-              child: Icon(
-                meta.icon,
+              SizedBox(width: context.sp(theme.spacing.md)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            meta.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.uiText.bodyStrong.copyWith(
+                              color: c.foreground,
+                            ),
+                          ),
+                        ),
+                        if (!enabled && disabledLabel != null) ...<Widget>[
+                          SizedBox(width: context.sp(theme.spacing.xs)),
+                          UiBadge(
+                            label: disabledLabel!,
+                            icon: Icons.lock_outline_rounded,
+                            size: UiSize.xs,
+                            variant: UiBadgeVariant.soft,
+                            intent: UiIntent.warning,
+                          ),
+                        ],
+                      ],
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.xxs)),
+                    Text(
+                      meta.description,
+                      style: context.uiText.caption.copyWith(
+                        color: c.foregroundMuted,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.sm)),
+              Icon(
+                Icons.chevron_right_rounded,
                 size: context.sz(theme.sizes.iconSm),
-                color: tint,
+                color: c.foregroundSubtle,
               ),
-            ),
-            SizedBox(width: context.sp(theme.spacing.md)),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(
-                    meta.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.uiText.bodyStrong.copyWith(
-                      color: c.foreground,
-                    ),
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.xxs)),
-                  Text(
-                    meta.description,
-                    style: context.uiText.caption.copyWith(
-                      color: c.foregroundMuted,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(width: context.sp(theme.spacing.sm)),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: context.sz(theme.sizes.iconSm),
-              color: c.foregroundSubtle,
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
@@ -129,17 +152,31 @@ class AppCalculatorNavItem extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Text(
-                      meta.name,
-                      style: context.uiText.caption.copyWith(
-                        color: selected ? c.foreground : c.foregroundMuted,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        height: 1.25,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            meta.name,
+                            style: context.uiText.caption.copyWith(
+                              color: selected
+                                  ? c.foreground
+                                  : c.foregroundMuted,
+                              fontWeight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              height: 1.25,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (!enabled)
+                          Icon(
+                            Icons.lock_outline_rounded,
+                            size: context.sz(theme.sizes.iconXs),
+                            color: c.warning,
+                          ),
+                      ],
                     ),
                     if (showDescription)
                       Text(

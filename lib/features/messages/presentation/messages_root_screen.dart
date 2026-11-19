@@ -1,19 +1,19 @@
-import 'package:tradex/core/linking/link_graph.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/messages/presentation/overlays/conversation_info_sheet.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/conversation_info_sheet.dart';
 
-import 'package:tradex/features/messages/presentation/overlays/new_message_dialog.dart';
-import 'package:tradex/features/messages/presentation/views/messages_archived_view.dart';
-import 'package:tradex/features/messages/presentation/views/messages_inbox_view.dart';
-import 'package:tradex/features/messages/presentation/views/messages_requests_view.dart';
-import 'package:tradex/features/messages/presentation/views/messages_thread_view.dart';
-import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/new_message_dialog.dart';
+import 'package:alphajournal/features/messages/presentation/views/messages_archived_view.dart';
+import 'package:alphajournal/features/messages/presentation/views/messages_inbox_view.dart';
+import 'package:alphajournal/features/messages/presentation/views/messages_requests_view.dart';
+import 'package:alphajournal/features/messages/presentation/views/messages_thread_view.dart';
+import 'package:alphajournal/features/messages/presentation/widgets/messages_widgets.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
 
 /// The Messages shell — three-tier responsive direct-messaging layout.
 ///

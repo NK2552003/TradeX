@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/calculators/services/market_data_service.dart';
-import 'package:tradex/features/market_data/data/yahoo_finance_service.dart';
-import 'package:tradex/features/market_data/presentation/market_sector_heatmap_card.dart';
-import 'package:tradex/features/market_data/presentation/market_world_indices_card.dart';
-import 'package:tradex/features/market_data/presentation/yahoo_market_ribbon.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/calculators/services/market_data_service.dart';
+import 'package:alphajournal/features/market_data/data/yahoo_finance_service.dart';
+import 'package:alphajournal/features/market_data/presentation/market_sector_heatmap_card.dart';
+import 'package:alphajournal/features/market_data/presentation/market_world_indices_card.dart';
+import 'package:alphajournal/features/market_data/presentation/yahoo_market_ribbon.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

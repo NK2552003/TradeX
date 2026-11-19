@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../../data/admin_repository.dart';
 import '../../models/admin_records.dart';
@@ -602,9 +602,10 @@ class _AnalyticsBody extends StatelessWidget {
                           ),
                           UiCategorySegment(
                             label: 'Pending queue',
-                            value: (_intOf(data['pending_posts']) +
-                                    _intOf(data['pending_comments']))
-                                .toDouble(),
+                            value:
+                                (_intOf(data['pending_posts']) +
+                                        _intOf(data['pending_comments']))
+                                    .toDouble(),
                             color: colors.warning,
                           ),
                           UiCategorySegment(
@@ -1056,8 +1057,7 @@ List<(String, int)> _breakdownRows(Object? raw) {
   }
   if (raw is Map) {
     return [
-      for (final entry in raw.entries)
-        ('${entry.key}', _intOf(entry.value)),
+      for (final entry in raw.entries) ('${entry.key}', _intOf(entry.value)),
     ];
   }
   return const [];

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/community.dart';
-import 'package:tradex/features/community/presentation/views/community_notification_settings_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/community.dart';
+import 'package:alphajournal/features/community/presentation/views/community_notification_settings_page.dart';
 
 /// Comprehensive Global Notification Center opened from the top header bell.
 ///

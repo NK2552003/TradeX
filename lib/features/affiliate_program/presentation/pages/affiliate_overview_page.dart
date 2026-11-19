@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_workspace_repository.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
-import 'package:tradex/features/affiliate_program/presentation/widgets/affiliate_workspace_view.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_workspace_repository.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_workspace.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/widgets/affiliate_workspace_view.dart';
 
 class AffiliateOverviewPage extends StatelessWidget {
   const AffiliateOverviewPage({

@@ -184,8 +184,12 @@ class _ComposerActions extends StatelessWidget {
                       onPressed: config.onConnectWorkspace!,
                     ),
                   UiMenuItem(
-                    label: dictating ? 'Stop voice dictation' : 'Voice dictation',
-                    icon: dictating ? Icons.mic_off_outlined : Icons.mic_none_rounded,
+                    label: dictating
+                        ? 'Stop voice dictation'
+                        : 'Voice dictation',
+                    icon: dictating
+                        ? Icons.mic_off_outlined
+                        : Icons.mic_none_rounded,
                     enabled: editable,
                     onPressed: onToggleDictation,
                   ),

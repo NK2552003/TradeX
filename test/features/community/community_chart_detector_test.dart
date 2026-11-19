@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/features/community/data/community_chart_detector.dart';
+import 'package:alphajournal/features/community/data/community_chart_detector.dart';
 
 void main() {
   test('non-chart image cannot supply setup or candles', () {

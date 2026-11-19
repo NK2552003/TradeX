@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/utils/zip_archive_builder.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/models/privacy_settings_model.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/utils/zip_archive_builder.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/privacy_settings_model.dart';
 
 abstract class PrivacyRepository {
   Future<PrivacySettingsModel> getPrivacySettings();
@@ -33,7 +33,8 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
 
   factory PrivacyRepositoryImpl() => instance;
 
-  static const String _localPrivacyKeyPrefix = 'tradex_message_privacy_v1:';
+  static const String _localPrivacyKeyPrefix =
+      'alphajournal_message_privacy_v1:';
 
   String _resolveUserId() =>
       SupabaseConfig.client?.auth.currentUser?.id ??
@@ -364,10 +365,7 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
     if (!forceRebuild &&
         _cachedArchiveBytes != null &&
         _cachedArchiveFilename != null) {
-      return (
-        bytes: _cachedArchiveBytes!,
-        filename: _cachedArchiveFilename!,
-      );
+      return (bytes: _cachedArchiveBytes!, filename: _cachedArchiveFilename!);
     }
 
     final client = SupabaseConfig.client;
@@ -375,27 +373,32 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
     final userId = user?.id ?? _resolveUserId();
     final now = DateTime.now().toUtc();
 
-    Map<String, dynamic> profileData = ProfileSettingsRepositoryImpl.instance.cachedProfile.toJson();
+    Map<String, dynamic> profileData = ProfileSettingsRepositoryImpl
+        .instance
+        .cachedProfile
+        .toJson();
     Map<String, dynamic> preferencesData = const <String, dynamic>{};
     List<Map<String, dynamic>> journalRows = JournalRepositoryImpl
         .instance
         .currentEntries
-        .map((e) => <String, dynamic>{
-              'id': e.id,
-              'ticker': e.ticker,
-              'side': e.side.name,
-              'entry_price': e.entry,
-              'exit_price': e.exit,
-              'quantity': e.size,
-              'pnl': e.pnl,
-              'outcome': e.outcome.name,
-              'title': e.title,
-              'content': e.content,
-              'tags': e.tags,
-              'is_public': e.isPublic,
-              'opened_at': e.openedAt.toIso8601String(),
-              'closed_at': e.closedAt?.toIso8601String(),
-            })
+        .map(
+          (e) => <String, dynamic>{
+            'id': e.id,
+            'ticker': e.ticker,
+            'side': e.side.name,
+            'entry_price': e.entry,
+            'exit_price': e.exit,
+            'quantity': e.size,
+            'pnl': e.pnl,
+            'outcome': e.outcome.name,
+            'title': e.title,
+            'content': e.content,
+            'tags': e.tags,
+            'is_public': e.isPublic,
+            'opened_at': e.openedAt.toIso8601String(),
+            'closed_at': e.closedAt?.toIso8601String(),
+          },
+        )
         .toList();
     List<Map<String, dynamic>> noteRows = const <Map<String, dynamic>>[];
     List<Map<String, dynamic>> strategyRows = const <Map<String, dynamic>>[];
@@ -453,17 +456,17 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
     final zip = ZipArchiveBuilder();
     zip.addString(
       'README.txt',
-      'alphajournal / TraderHub GDPR Data Export\n'
-      'Generated (UTC): ${now.toIso8601String()}\n'
-      'Account ID: ${userId.isEmpty ? 'local' : userId}\n'
-      'Email: ${user?.email ?? ProfileSettingsRepositoryImpl.instance.cachedProfile.email}\n\n'
-      'Included Files:\n'
-      '- profile_and_privacy.json: Profile details, preferences, and privacy configuration\n'
-      '- journal_entries.json & trades.csv: Trade journal history\n'
-      '- notes.json: Saved market & execution notes\n'
-      '- strategies.json: Trading playbooks and setups\n'
-      '- community_posts.json: Authored community posts\n'
-      '- blocked_users.json: Moderation & blocked account records\n',
+      'AlphaJournal GDPR Data Export\n'
+          'Generated (UTC): ${now.toIso8601String()}\n'
+          'Account ID: ${userId.isEmpty ? 'local' : userId}\n'
+          'Email: ${user?.email ?? ProfileSettingsRepositoryImpl.instance.cachedProfile.email}\n\n'
+          'Included Files:\n'
+          '- profile_and_privacy.json: Profile details, preferences, and privacy configuration\n'
+          '- journal_entries.json & trades.csv: Trade journal history\n'
+          '- notes.json: Saved market & execution notes\n'
+          '- strategies.json: Trading playbooks and setups\n'
+          '- community_posts.json: Authored community posts\n'
+          '- blocked_users.json: Moderation & blocked account records\n',
     );
     zip.addJson('profile_and_privacy.json', {
       'exported_at_utc': now.toIso8601String(),

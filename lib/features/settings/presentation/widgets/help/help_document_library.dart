@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // Both unified libraries are required by the project UI contract.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/settings/data/publication_library.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/settings/data/publication_library.dart';
 import 'publication_reader.dart';
 import '../settings_nav_row.dart';
 

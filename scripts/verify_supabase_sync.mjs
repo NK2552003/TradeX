@@ -15,7 +15,7 @@ const supabaseUrl = env['NEXT_PUBLIC_SUPABASE_URL'] || env['SUPABASE_URL'];
 const supabaseAnonKey = env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] || env['SUPABASE_ANON_KEY'];
 
 console.log('='.repeat(70));
-console.log('TRADEX SUPABASE BACKEND AUDIT & VERIFICATION');
+console.log('ALPHAJOURNAL SUPABASE BACKEND AUDIT & VERIFICATION');
 console.log('='.repeat(70));
 console.log(`Supabase URL      : ${supabaseUrl}`);
 console.log(`Anon Key Length   : ${supabaseAnonKey ? supabaseAnonKey.length : 0} chars`);
@@ -53,11 +53,11 @@ async function runCheck() {
   const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@tradex.ai', password: 'Admin@TradeX2026!' })
+    body: JSON.stringify({ email: 'admin@alphajournal.ai', password: 'Admin@AlphaJournal2026!' })
   });
   const authData = await authRes.json();
   if (authRes.ok && authData.access_token) {
-    console.log(`  - admin@tradex.ai SignIn: HTTP ${authRes.status} ✓ PASS (User ID: ${authData.user.id})`);
+    console.log(`  - admin@alphajournal.ai SignIn: HTTP ${authRes.status} ✓ PASS (User ID: ${authData.user.id})`);
     
     // Check is_user_admin RPC
     const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/is_user_admin`, {
@@ -72,7 +72,7 @@ async function runCheck() {
     const isAdmin = await rpcRes.json();
     console.log(`  - RPC is_user_admin(): HTTP ${rpcRes.status} -> ${isAdmin} ✓ PASS`);
   } else {
-    console.log(`  - admin@tradex.ai SignIn: HTTP ${authRes.status} ✗ FAIL`, authData);
+    console.log(`  - admin@alphajournal.ai SignIn: HTTP ${authRes.status} ✗ FAIL`, authData);
   }
 
   console.log('\n[3/5] Auditing Remote Tables Status...');

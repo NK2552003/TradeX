@@ -1,10 +1,10 @@
-import 'package:tradex/core/config/record_access.dart';
+import 'package:alphajournal/core/config/record_access.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
 
 /// An editor projection of an existing record, never a second persisted note.
 /// Only the title and prose are written back. Execution, performance, visibility,
@@ -20,7 +20,12 @@ class RecordWritingDocument {
   final AppLinkRef source;
   final AppNote note;
   final Future<AppNote> Function(AppNote draft) save;
-  final Future<String> Function(File? file, {Uint8List? bytes, String? filename}) upload;
+  final Future<String> Function(
+    File? file, {
+    Uint8List? bytes,
+    String? filename,
+  })
+  upload;
   final Future<String> Function(String ref) resolveImage;
 }
 

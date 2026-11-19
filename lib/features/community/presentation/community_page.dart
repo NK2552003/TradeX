@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/community/data/supabase_post_repository.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/community/data/supabase_post_repository.dart';
 
 class CommunityPage extends StatefulWidget {
   const CommunityPage({super.key, this.repository});

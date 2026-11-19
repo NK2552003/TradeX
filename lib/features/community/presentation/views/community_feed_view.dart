@@ -1,15 +1,15 @@
-import 'package:tradex/core/navigation/feature_location_scope.dart';
+import 'package:alphajournal/core/navigation/feature_location_scope.dart';
 import 'dart:async' show unawaited;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
+import 'package:alphajournal/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_widgets.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_widgets.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// The central Home Feed view of the community platform, modeled on Twitter/X.
 class CommunityFeedView extends StatefulWidget {
@@ -122,11 +122,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       await widget.repository.fetchFromSupabase();
     } catch (e) {
       if (mounted) {
-        UiToast.error(
-          context,
-          title: 'Refresh failed',
-          message: '$e',
-        );
+        UiToast.error(context, title: 'Refresh failed', message: '$e');
       }
       return;
     }
@@ -341,7 +337,9 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
         barrierColor: theme.colors.overlay,
         builder: (BuildContext ctx) => CommunityDensityScope(
           child: Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+            ),
             child: SingleChildScrollView(
               child: CommunityComposerCard(
                 author: widget.currentUser,
@@ -373,7 +371,10 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     }
   }
 
-  void _openComposer(BuildContext context, [ComposerMode mode = ComposerMode.post]) {
+  void _openComposer(
+    BuildContext context, [
+    ComposerMode mode = ComposerMode.post,
+  ]) {
     final isMobile = context.uiRes.isMobile;
     if (isMobile) {
       if (widget.onCompose != null && mode == ComposerMode.post) {
@@ -387,7 +388,9 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           barrierColor: theme.colors.overlay,
           builder: (BuildContext ctx) => CommunityDensityScope(
             child: Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+              ),
               child: SingleChildScrollView(
                 child: CommunityComposerCard(
                   author: widget.currentUser,

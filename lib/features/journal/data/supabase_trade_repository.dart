@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/auth/data/services/auth_backend_service.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
 
 abstract class SupabaseTradeRepository {
   Future<List<AppTrade>> getEntries({

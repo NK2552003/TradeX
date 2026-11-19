@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/theme/app_tokens.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_insights_sheet.dart';
+import 'package:alphajournal/core/app-ui/theme/app_tokens.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_insights_sheet.dart';
 
 void main() {
   group('Community Post Analytics & Insights Telemetry Tests', () {
@@ -56,20 +56,28 @@ void main() {
       expect(insights.profileVisits, greaterThanOrEqualTo(1));
     });
 
-    test('recordView, recordShare, recordProfileVisit update telemetry', () async {
-      repository.recordDetailExpand(testPost.id);
-      repository.recordProfileVisit(testPost.id);
-      repository.recordLinkClick(testPost.id);
-      repository.recordShare(testPost.id);
+    test(
+      'recordView, recordShare, recordProfileVisit update telemetry',
+      () async {
+        repository.recordDetailExpand(testPost.id);
+        repository.recordProfileVisit(testPost.id);
+        repository.recordLinkClick(testPost.id);
+        repository.recordShare(testPost.id);
 
-      final insights = repository.getPostInsights(testPost.id, post: testPost);
-      expect(insights.shares, equals(1));
-      expect(insights.detailExpands, greaterThanOrEqualTo(1));
-      expect(insights.profileVisits, greaterThanOrEqualTo(1));
-      expect(insights.linkClicks, greaterThanOrEqualTo(1));
-    });
+        final insights = repository.getPostInsights(
+          testPost.id,
+          post: testPost,
+        );
+        expect(insights.shares, equals(1));
+        expect(insights.detailExpands, greaterThanOrEqualTo(1));
+        expect(insights.profileVisits, greaterThanOrEqualTo(1));
+        expect(insights.linkClicks, greaterThanOrEqualTo(1));
+      },
+    );
 
-    testWidgets('CommunityPostInsightsSheet displays real analytics metrics', (WidgetTester tester) async {
+    testWidgets('CommunityPostInsightsSheet displays real analytics metrics', (
+      WidgetTester tester,
+    ) async {
       tester.view.physicalSize = const Size(600, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {

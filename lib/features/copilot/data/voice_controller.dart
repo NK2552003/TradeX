@@ -8,10 +8,10 @@ import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import 'package:tradex/core/ai/unified_ai_service.dart';
-import 'package:tradex/core/ai/voice_gateway_service.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/env_config.dart';
+import 'package:alphajournal/core/ai/unified_ai_service.dart';
+import 'package:alphajournal/core/ai/voice_gateway_service.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/env_config.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../models/workspace.dart';
@@ -148,10 +148,7 @@ class CopilotVoiceController extends ChangeNotifier {
     if (_channel != null) {
       try {
         _channel!.sink.add(
-          jsonEncode({
-            'type': 'session.update',
-            'voice': model.id,
-          }),
+          jsonEncode({'type': 'session.update', 'voice': model.id}),
         );
       } catch (_) {}
     }
@@ -176,7 +173,8 @@ class CopilotVoiceController extends ChangeNotifier {
   Future<void> start() async {
     await _ending;
     if (active || connecting || controller.voiceBusy) return;
-    if (controller.isAiQuotaBlocked || CustomerLimitations.isAiQuotaExhausted()) {
+    if (controller.isAiQuotaBlocked ||
+        CustomerLimitations.isAiQuotaExhausted()) {
       error =
           'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit}). Upgrade your plan to continue.';
       controller.quotaExceeded = true;
@@ -559,7 +557,8 @@ class CopilotVoiceController extends ChangeNotifier {
   Future<void> submitVoiceTurn(String utterance) async {
     final String trimmed = utterance.trim();
     if (trimmed.isEmpty || _disposed) return;
-    if (controller.isAiQuotaBlocked || CustomerLimitations.isAiQuotaExhausted()) {
+    if (controller.isAiQuotaBlocked ||
+        CustomerLimitations.isAiQuotaExhausted()) {
       error =
           'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit}). Upgrade your plan to continue.';
       controller.quotaExceeded = true;
@@ -582,10 +581,7 @@ class CopilotVoiceController extends ChangeNotifier {
 
     controller.error = null;
     userCaption = trimmed;
-    transcript.add(<String, dynamic>{
-      'role': 'user',
-      'body': trimmed,
-    });
+    transcript.add(<String, dynamic>{'role': 'user', 'body': trimmed});
     stage = CopilotVoiceStage.thinking;
     assistantCaption = 'Thinking…';
     _updateWaveform();
@@ -597,8 +593,7 @@ class CopilotVoiceController extends ChangeNotifier {
       // Also send to the active thread if connected and not currently generating
       final bool wasLocked = controller.voiceBusy;
       if (wasLocked) controller.voiceBusy = false;
-      final bool sentToThread =
-          controller.connected && !controller.generating
+      final bool sentToThread = controller.connected && !controller.generating
           ? await controller.sendPrompt(trimmed, mode: voiceMode)
           : false;
       if (_ownsCall) controller.voiceBusy = true;
@@ -629,9 +624,7 @@ class CopilotVoiceController extends ChangeNotifier {
 
       if (isControllerQuotaError) {
         controller.quotaExceeded = true;
-        CustomerLimitations.markAiQuotaExhausted(
-          limit: controller.quotaLimit,
-        );
+        CustomerLimitations.markAiQuotaExhausted(limit: controller.quotaLimit);
         error =
             controllerErr ??
             'Monthly AI quota reached (${controller.effectiveAiQueriesUsed}/${controller.effectiveAiQueriesLimit}). Upgrade your plan to continue.';
@@ -654,9 +647,12 @@ class CopilotVoiceController extends ChangeNotifier {
               ? 1100
               : (responseStyle == 'concise' ? 350 : 650);
           final String styleInstruction = switch (responseStyle) {
-            'concise' => 'Keep your spoken reply very brief (1-3 crisp sentences).',
-            'detailed' => 'Give a comprehensive, structured spoken explanation with concrete figures and context.',
-            _ => 'Keep your spoken response conversational, insightful, and clear.',
+            'concise' =>
+              'Keep your spoken reply very brief (1-3 crisp sentences).',
+            'detailed' =>
+              'Give a comprehensive, structured spoken explanation with concrete figures and context.',
+            _ =>
+              'Keep your spoken response conversational, insightful, and clear.',
           };
           final String aiReply = await UnifiedAiService.instance.complete(
             prompt: trimmed,
@@ -710,10 +706,11 @@ class CopilotVoiceController extends ChangeNotifier {
           _notify();
           return;
         }
-        reply = await CopilotFeatureConnector.buildConnectedNaturalLanguageReply(
-          trimmed,
-          controller,
-        );
+        reply =
+            await CopilotFeatureConnector.buildConnectedNaturalLanguageReply(
+              trimmed,
+              controller,
+            );
       }
     } catch (e) {
       final errText = '$e';
@@ -721,9 +718,7 @@ class CopilotVoiceController extends ChangeNotifier {
           controller.isAiQuotaBlocked ||
           CustomerLimitations.isAiQuotaExhausted()) {
         controller.quotaExceeded = true;
-        CustomerLimitations.markAiQuotaExhausted(
-          limit: controller.quotaLimit,
-        );
+        CustomerLimitations.markAiQuotaExhausted(limit: controller.quotaLimit);
         error = e is StateError ? e.message : errText;
         assistantCaption = error!;
         stage = CopilotVoiceStage.idle;
@@ -822,9 +817,7 @@ class CopilotVoiceController extends ChangeNotifier {
         if (_disposed || session != _session || speakerMuted) return;
         _player ??= _playerFactory();
         await _player!.stop();
-        await _player!.play(
-          BytesSource(audioBytes, mimeType: 'audio/mp3'),
-        );
+        await _player!.play(BytesSource(audioBytes, mimeType: 'audio/mp3'));
       }
     } on StateError catch (e) {
       if (_disposed || session != _session || speakerMuted) return;
@@ -1109,7 +1102,7 @@ class CopilotVoiceController extends ChangeNotifier {
     }
 
     _notify();
-    if (!_disposed && ! _localNaturalMode) {
+    if (!_disposed && !_localNaturalMode) {
       unawaited(controller.reload(quiet: true));
     }
   }

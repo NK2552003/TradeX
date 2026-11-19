@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
-import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/auth/presentation/pages/forgot_password_page.dart';
-import 'package:tradex/features/auth/presentation/pages/get_started_page.dart';
-import 'package:tradex/features/auth/presentation/pages/login_page.dart';
-import 'package:tradex/features/auth/presentation/pages/signup_page.dart';
-import 'package:tradex/features/auth/presentation/widgets/tradex_footer.dart';
-import 'package:tradex/features/auth/widgets/role_selector_tab.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_repository.dart';
+import 'package:alphajournal/features/auth/models/affiliate_profile_model.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/auth/presentation/pages/forgot_password_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/get_started_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/login_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/signup_page.dart';
+import 'package:alphajournal/features/auth/presentation/widgets/alphajournal_footer.dart';
+import 'package:alphajournal/features/auth/widgets/role_selector_tab.dart';
 
 class _FakeAuthRepository extends AuthRepository {
   _FakeAuthRepository({this.profileRole = UserRole.customer});
@@ -79,8 +79,9 @@ class _FakeAuthRepository extends AuthRepository {
   Future<UserProfileModel?> getProfile(String userId) async => null;
 
   @override
-  Future<AffiliateProfileModel?> getAffiliateProfile(String affiliateId) async =>
-      null;
+  Future<AffiliateProfileModel?> getAffiliateProfile(
+    String affiliateId,
+  ) async => null;
 }
 
 Widget _wrapWithUiTheme(
@@ -161,7 +162,10 @@ void main() {
         await tester.pump();
 
         // Enter valid credentials
-        await tester.enterText(find.byType(UiInput).first, 'trader@tradex.com');
+        await tester.enterText(
+          find.byType(UiInput).first,
+          'trader@alphajournal.com',
+        );
         await tester.enterText(
           find.byType(UiPasswordField).first,
           'Password123!',
@@ -209,14 +213,16 @@ void main() {
     );
 
     testWidgets(
-      '4. TradeXFooter removes client encryption claims and shows Security & Compliance',
+      '4. AlphaJournalFooter removes client encryption claims and shows Security & Compliance',
       (tester) async {
         await tester.binding.setSurfaceSize(const Size(1024, 1200));
         addTearDown(() => tester.binding.setSurfaceSize(null));
 
         await tester.pumpWidget(
           _wrapWithUiTheme(
-            const Scaffold(body: SingleChildScrollView(child: TradeXFooter())),
+            const Scaffold(
+              body: SingleChildScrollView(child: AlphaJournalFooter()),
+            ),
             size: const Size(1024, 1200),
           ),
         );
@@ -259,7 +265,7 @@ void main() {
         // Enter email and request OTP
         await tester.enterText(
           find.byType(UiInput).first,
-          'recovery@tradex.com',
+          'recovery@alphajournal.com',
         );
         await tester.pump();
 
@@ -302,52 +308,53 @@ void main() {
     );
 
     for (final width in [320.0, 390.0, 768.0, 1024.0, 1440.0]) {
-      testWidgets('6. Auth layouts render without overflow across width $width px', (
-        tester,
-      ) async {
-        await tester.binding.setSurfaceSize(Size(width, 800));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+      testWidgets(
+        '6. Auth layouts render without overflow across width $width px',
+        (tester) async {
+          await tester.binding.setSurfaceSize(Size(width, 800));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
 
-        await tester.pumpWidget(
-          _wrapWithUiTheme(
-            LoginPage(
-              initialRole: UserRole.customer,
-              authRepository: _FakeAuthRepository(),
-              onLoginSuccess: (_, _) {},
-              onNavigateToSignup: (_) {},
-              onNavigateToForgotPassword: () {},
-              onNavigateBack: () {},
+          await tester.pumpWidget(
+            _wrapWithUiTheme(
+              LoginPage(
+                initialRole: UserRole.customer,
+                authRepository: _FakeAuthRepository(),
+                onLoginSuccess: (_, _) {},
+                onNavigateToSignup: (_) {},
+                onNavigateToForgotPassword: () {},
+                onNavigateBack: () {},
+              ),
+              size: Size(width, 800),
             ),
-            size: Size(width, 800),
-          ),
-        );
-        await tester.pump();
-        expect(tester.takeException(), isNull);
+          );
+          await tester.pump();
+          expect(tester.takeException(), isNull);
 
-        await tester.pumpWidget(
-          _wrapWithUiTheme(
-            SignupPage(
-              initialRole: UserRole.customer,
-              authRepository: _FakeAuthRepository(),
-              onSignupSuccess: (_, _, {bool requiresVerification = false}) {},
-              onNavigateToLogin: (_) {},
-              onNavigateBack: () {},
+          await tester.pumpWidget(
+            _wrapWithUiTheme(
+              SignupPage(
+                initialRole: UserRole.customer,
+                authRepository: _FakeAuthRepository(),
+                onSignupSuccess: (_, _, {bool requiresVerification = false}) {},
+                onNavigateToLogin: (_) {},
+                onNavigateBack: () {},
+              ),
+              size: Size(width, 800),
             ),
-            size: Size(width, 800),
-          ),
-        );
-        await tester.pump();
-        expect(tester.takeException(), isNull);
+          );
+          await tester.pump();
+          expect(tester.takeException(), isNull);
 
-        await tester.pumpWidget(
-          _wrapWithUiTheme(
-            ForgotPasswordPage(onBackToLogin: () {}),
-            size: Size(width, 800),
-          ),
-        );
-        await tester.pump();
-        expect(tester.takeException(), isNull);
-      });
+          await tester.pumpWidget(
+            _wrapWithUiTheme(
+              ForgotPasswordPage(onBackToLogin: () {}),
+              size: Size(width, 800),
+            ),
+          );
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
 
     testWidgets(

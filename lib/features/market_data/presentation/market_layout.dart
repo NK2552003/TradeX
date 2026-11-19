@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// Two research panels: comparative columns on desktop/tablet with sticky
 /// companion panels, and an ordered responsive stack on mobile.

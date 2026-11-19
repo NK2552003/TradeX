@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// Opens a settings sub-sub page in a sleek, half-open right-sidebar overlay
 /// with smooth ease-out (enter) and ease-in (exit) slide animations.
@@ -208,14 +208,14 @@ Future<T?> showSettingsSideSheet<T>(
                             Expanded(
                               child: scrollable
                                   ? SingleChildScrollView(
-                                        padding: EdgeInsets.only(
-                                          bottom: isMobile
-                                              ? bottomInset + 16.0
-                                              : ctx.sp(theme.spacing.lg),
-                                        ),
-                                        physics:
-                                            const AlwaysScrollableScrollPhysics(),
-                                        child: child,
+                                      padding: EdgeInsets.only(
+                                        bottom: isMobile
+                                            ? bottomInset + 16.0
+                                            : ctx.sp(theme.spacing.lg),
+                                      ),
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      child: child,
                                     )
                                   : child,
                             ),

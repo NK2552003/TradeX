@@ -2,17 +2,17 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/session_trader.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/settings/data/repositories/affiliate_settings_repository.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/data/session_trader.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/affiliate_settings_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class ProfileSettingsPage extends StatefulWidget {
   const ProfileSettingsPage({
@@ -177,7 +177,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     _panController = TextEditingController(text: 'ABCDE1234F');
     _upiController = TextEditingController(text: 'design@upi');
     _referralCodeController = TextEditingController(
-      text: 'TRADEX-PARTNER-2026',
+      text: 'ALPHAJOURNAL-PARTNER-2026',
     );
 
     _adminClearanceLevelController = TextEditingController(
@@ -190,7 +190,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       text: '₹148.2 Cr',
     );
     _adminTerminalUrlController = TextEditingController(
-      text: 'tradex.internal/root',
+      text: 'alphajournal.internal/root',
     );
 
     _applyProfile(_repo.cachedProfile);
@@ -757,8 +757,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         : _profile?.riskMantra;
     final String? activeExperience = widget.userRole == UserRole.customer
         ? (_selectedExperience.trim().isNotEmpty
-            ? _selectedExperience
-            : _profile?.experienceLevel)
+              ? _selectedExperience
+              : _profile?.experienceLevel)
         : null;
     final String? activeStyle = _selectedStyle.trim().isNotEmpty
         ? _selectedStyle
@@ -766,7 +766,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     final String? activeNiche = _selectedNiche.trim().isNotEmpty
         ? _selectedNiche
         : null;
-    final String? activeSampleLink = _sampleLinkController.text.trim().isNotEmpty
+    final String? activeSampleLink =
+        _sampleLinkController.text.trim().isNotEmpty
         ? _sampleLinkController.text.trim()
         : null;
     final String? activePhone = _phoneController.text.trim().isNotEmpty
@@ -775,16 +776,20 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     final String? activeDeskDivision = _selectedDeskDivision.trim().isNotEmpty
         ? _selectedDeskDivision
         : null;
-    final String? activeClearance = _adminClearanceLevelController.text.trim().isNotEmpty
+    final String? activeClearance =
+        _adminClearanceLevelController.text.trim().isNotEmpty
         ? _adminClearanceLevelController.text.trim()
         : null;
-    final String? activeDesignation = _adminDesignationController.text.trim().isNotEmpty
+    final String? activeDesignation =
+        _adminDesignationController.text.trim().isNotEmpty
         ? _adminDesignationController.text.trim()
         : null;
-    final String? activeSupervisedCapital = _adminSupervisedCapitalController.text.trim().isNotEmpty
+    final String? activeSupervisedCapital =
+        _adminSupervisedCapitalController.text.trim().isNotEmpty
         ? _adminSupervisedCapitalController.text.trim()
         : null;
-    final String? activeTerminalUrl = _adminTerminalUrlController.text.trim().isNotEmpty
+    final String? activeTerminalUrl =
+        _adminTerminalUrlController.text.trim().isNotEmpty
         ? _adminTerminalUrlController.text.trim()
         : null;
 
@@ -1113,7 +1118,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                                 child: UiInput(
                                   value: _websiteController.text,
                                   hintText:
-                                      'e.g. alphajournal/@${_profile?.handle ?? "trader"}',
+                                      'e.g. AlphaJournal/@${_profile?.handle ?? "trader"}',
                                   leadingIcon: Icons.link_rounded,
                                   onChanged: (v) => _websiteController.text = v,
                                 ),
@@ -1142,7 +1147,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                                 child: UiInput(
                                   value: _websiteController.text,
                                   hintText:
-                                      'e.g. alphajournal/@${_profile?.handle ?? "trader"}',
+                                      'e.g. AlphaJournal/@${_profile?.handle ?? "trader"}',
                                   leadingIcon: Icons.link_rounded,
                                   onChanged: (v) => _websiteController.text = v,
                                 ),
@@ -2077,10 +2082,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                               UiField(
                                 label: 'Custom Referral Code',
                                 helper:
-                                    'Used in your direct signup links (e.g. alphajournal/join/CODE)',
+                                    'Used in your direct signup links (e.g. AlphaJournal/join/CODE)',
                                 child: UiInput(
                                   value: _referralCodeController.text,
-                                  hintText: 'TRADEX-PARTNER-2026',
+                                  hintText: 'ALPHAJOURNAL-PARTNER-2026',
                                   leadingIcon: Icons.vpn_key_rounded,
                                   onChanged: (v) =>
                                       _referralCodeController.text = v,
@@ -2132,10 +2137,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                               child: UiField(
                                 label: 'Custom Referral Code',
                                 helper:
-                                    'Used in your direct signup links (e.g. alphajournal/join/CODE)',
+                                    'Used in your direct signup links (e.g. AlphaJournal/join/CODE)',
                                 child: UiInput(
                                   value: _referralCodeController.text,
-                                  hintText: 'TRADEX-PARTNER-2026',
+                                  hintText: 'ALPHAJOURNAL-PARTNER-2026',
                                   leadingIcon: Icons.vpn_key_rounded,
                                   onChanged: (v) =>
                                       _referralCodeController.text = v,

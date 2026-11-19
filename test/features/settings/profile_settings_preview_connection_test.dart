@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/profile_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/profile_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(
@@ -50,7 +50,9 @@ void main() {
         expect(find.text('Alex Market Pro'), findsAtLeastNWidgets(1));
         expect(find.text('@alex_trader'), findsAtLeastNWidgets(1));
         expect(
-          find.text('Systematic breakout trader specializing in NIFTY options.'),
+          find.text(
+            'Systematic breakout trader specializing in NIFTY options.',
+          ),
           findsOneWidget,
         );
         expect(find.text('Bangalore, India'), findsOneWidget);
@@ -91,7 +93,7 @@ void main() {
               adminClearanceLevel: 'Level 5 Root Superadmin',
               adminDesignation: 'Chief Risk Officer',
               adminSupervisedCapital: '₹250.0 Cr',
-              adminTerminalUrl: 'tradex.internal/root-alpha',
+              adminTerminalUrl: 'alphajournal.internal/root-alpha',
               adminKillswitchEnabled: true,
               adminPreTradeVaREnabled: true,
               adminAuditHashingEnabled: true,
@@ -108,7 +110,7 @@ void main() {
         expect(find.text('Quantitative Hedge Fund Desk'), findsOneWidget);
         expect(find.text('Chief Risk Officer'), findsOneWidget);
         expect(find.text('Pool: ₹250.0 Cr'), findsOneWidget);
-        expect(find.text('tradex.internal/root-alpha'), findsOneWidget);
+        expect(find.text('alphajournal.internal/root-alpha'), findsOneWidget);
 
         // 2. Command Center metrics reflecting admin state
         expect(find.text('Armed / Active'), findsOneWidget);
@@ -147,15 +149,24 @@ void main() {
         // 1. Partner meta chips
         expect(find.text('Trade Mentor Partner'), findsAtLeastNWidgets(1));
         expect(find.text('@mentortrades'), findsAtLeastNWidgets(1));
-        expect(find.text('Options & Futures Strategies'), findsAtLeastNWidgets(1));
+        expect(
+          find.text('Options & Futures Strategies'),
+          findsAtLeastNWidgets(1),
+        );
         expect(find.text('Reach: 10,000 – 100,000 Traders'), findsOneWidget);
         expect(find.text('Payout: UPI Instant Transfer'), findsOneWidget);
-        expect(find.text('https://youtube.com/@mentortrades'), findsAtLeastNWidgets(1));
+        expect(
+          find.text('https://youtube.com/@mentortrades'),
+          findsAtLeastNWidgets(1),
+        );
 
         // 2. Switch to Community Perks tab
         await tester.tap(find.text('Community Perks'));
         await tester.pumpAndSettle();
-        expect(find.text('Partner Verification & Settlement Rails'), findsOneWidget);
+        expect(
+          find.text('Partner Verification & Settlement Rails'),
+          findsOneWidget,
+        );
         expect(
           find.text('https://alphajournal.in/r/MENTOR-2026'),
           findsAtLeastNWidgets(1),
@@ -318,11 +329,7 @@ void main() {
         );
 
         await tester.pumpWidget(
-          _wrap(
-            const ProfileSettingsPage(
-              userRole: UserRole.customer,
-            ),
-          ),
+          _wrap(const ProfileSettingsPage(userRole: UserRole.customer)),
         );
         await tester.pumpAndSettle();
 

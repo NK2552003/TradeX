@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_composer_card.dart';
 
 /// A compact, LinkedIn-style trigger card for creating community posts.
 ///
@@ -12,8 +12,7 @@ class CommunityComposerTriggerCard extends StatelessWidget {
   const CommunityComposerTriggerCard({
     super.key,
     required this.onTap,
-    this.placeholder =
-        'Start a post, share a setup, or ask the community...',
+    this.placeholder = 'Start a post, share a setup, or ask the community...',
   });
 
   /// Called when the user clicks the input field or any action button,
@@ -42,7 +41,9 @@ class CommunityComposerTriggerCard extends StatelessWidget {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(context.radius(theme.radii.pill).topLeft.x),
+                borderRadius: BorderRadius.circular(
+                  context.radius(theme.radii.pill).topLeft.x,
+                ),
                 onTap: () => onTap(ComposerMode.post),
                 child: Container(
                   width: double.infinity,
@@ -182,11 +183,7 @@ class _TriggerOption extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(
-                icon,
-                size: context.sz(18),
-                color: iconColor,
-              ),
+              Icon(icon, size: context.sz(18), color: iconColor),
               UiGap.h(theme.spacing.xs),
               Text(
                 label,

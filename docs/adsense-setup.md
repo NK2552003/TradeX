@@ -11,7 +11,7 @@ The web app now has manual ad placements, free-account checks, optional-consent 
 | Feed inline | For You, after posts 5, 15, 25, etc. | Full post-column width × 250px | `ADSENSE_SLOT_FEED_INLINE` |
 | Feed footer | For You, after posts 10, 20, 30, etc. | Full post-column width × 250px | `ADSENSE_SLOT_FEED_FOOTER` |
 | Community rail | Desktop public feed/explore sidebar with sufficient approved content | 300×250 | `ADSENSE_SLOT_COMMUNITY_RAIL` |
-| Article footer | Below substantial first-party alphajournal article text | 728×90 wide; 300×250 / 250×250 narrow | `ADSENSE_SLOT_ARTICLE_FOOTER` |
+| Article footer | Below substantial first-party AlphaJournal article text | 728×90 wide; 300×250 / 250×250 narrow | `ADSENSE_SLOT_ARTICLE_FOOTER` |
 | Public note footer | Below a public, read-only note of at least 300 words | Same responsive container | `ADSENSE_SLOT_PUBLIC_NOTE_FOOTER` |
 
 Create **Display** ad units with **Responsive** selected. Feed containers follow Google's [expandable-width, fixed-height pattern](https://support.google.com/adsense/answer/9183363): the ad uses 100% of the post column and reserves 250px height. Other placements retain the explicit sizes above. Units never clip, overlay or scale a creative. Feed ads alternate the two configured slot IDs every five posts. Each occurrence has an independent request, keyed by a non-identifying position number; scrolling or resizing does not request it again. Google selects the creative, so different requests do not guarantee different advertisers. Scrolling a slot into view triggers the initial request. Empty/loading/private/unapproved feeds have no live ad. Unfilled units collapse after Google's `data-ad-status=unfilled` signal. Blocked script loads collapse without breaking content.

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
-import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
+import 'package:alphajournal/features/messages/presentation/widgets/messages_widgets.dart';
 
 /// Long-press actions for a single message: a quick emoji reaction row plus
 /// copy / reply / delete. Reaction options come from the repository; delete is

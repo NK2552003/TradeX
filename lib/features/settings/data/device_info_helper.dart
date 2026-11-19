@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:tradex/features/settings/models/active_session_model.dart';
+import 'package:alphajournal/features/settings/models/active_session_model.dart';
 
 import 'device_info_stub.dart'
     if (dart.library.js_interop) 'device_info_web.dart';
@@ -15,7 +15,8 @@ class DeviceInfoHelper {
     String browserOrApp,
     String osName,
     String userAgent,
-  }) currentDeviceMetadata() {
+  })
+  currentDeviceMetadata() {
     final String ua = currentBrowserUserAgentImpl().trim();
     if (kIsWeb && ua.isNotEmpty) {
       final parsed = ActiveDeviceSession.parseUserAgent(
@@ -47,7 +48,7 @@ class DeviceInfoHelper {
       TargetPlatform.linux => 'Linux',
       TargetPlatform.fuchsia => 'Fuchsia',
     };
-    final String appLabel = kIsWeb ? 'Web Browser' : 'alphajournal App';
+    final String appLabel = kIsWeb ? 'Web Browser' : 'AlphaJournal App';
     return (
       deviceName: '$appLabel on $osName',
       platform: kIsWeb ? 'web' : platform,

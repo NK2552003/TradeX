@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
+import 'package:alphajournal/core/widgets/app_scaffold.dart';
 
 void main() {
   for (final (width, height, scale) in [

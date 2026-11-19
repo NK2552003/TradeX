@@ -1,12 +1,23 @@
-import 'package:tradex/core/notifications/push_service.dart';
+import 'package:alphajournal/core/notifications/push_service.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:tradex/app.dart';
-import 'package:tradex/core/config/env_config.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/billing/revenuecat_billing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:alphajournal/app.dart';
+import 'package:alphajournal/core/app-ui/theme/app_theme_controller.dart';
+import 'package:alphajournal/core/config/env_config.dart';
+import 'package:alphajournal/core/config/legacy_brand_storage_migration.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/billing/revenuecat_billing.dart';
+
+void _debugLog(String message, [Object? error, StackTrace? stackTrace]) {
+  if (!kDebugMode) return;
+  final details = error == null ? '' : ': $error';
+  final trace = stackTrace == null ? '' : '\n$stackTrace';
+  debugPrint('$message$details$trace');
+}
 
 Future<void> main() async {
   runZonedGuarded(
@@ -18,24 +29,30 @@ Future<void> main() async {
       debugPaintBaselinesEnabled = false;
       debugPaintSizeEnabled = false;
 
+      try {
+        await LegacyBrandStorageMigration.run();
+      } catch (e) {
+        _debugLog('[main] Legacy AlphaJournal storage migration skipped', e);
+      }
+
       // 1. Safely load environment variables (.env file)
       try {
         await EnvConfig.init();
       } catch (e) {
-        debugPrint('[main] EnvConfig.init caught error: $e');
+        _debugLog('[main] EnvConfig.init caught error', e);
       }
 
       // 2. Safely initialize Supabase configuration
       try {
         await SupabaseConfig.initialize();
       } catch (e) {
-        debugPrint('[main] SupabaseConfig.initialize caught error: $e');
+        _debugLog('[main] SupabaseConfig.initialize caught error', e);
       }
 
       try {
         await RevenueCatBilling.initialize();
       } catch (e) {
-        debugPrint('[main] RevenueCat initialization unavailable: $e');
+        _debugLog('[main] RevenueCat initialization unavailable', e);
       }
 
       // 3. System UI styling (safe on all platforms)
@@ -49,7 +66,7 @@ Future<void> main() async {
         );
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       } catch (e) {
-        debugPrint('[main] SystemChrome configuration skipped: $e');
+        _debugLog('[main] SystemChrome configuration skipped', e);
       }
 
       // 4. Custom ErrorWidget to avoid blank white screens if a render error occurs
@@ -78,7 +95,9 @@ Future<void> main() async {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    details.exceptionAsString(),
+                    kDebugMode
+                        ? details.exceptionAsString()
+                        : 'Something went wrong while rendering this screen. Please reopen it or try again.',
                     textAlign: TextAlign.center,
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
@@ -95,10 +114,32 @@ Future<void> main() async {
       };
 
       PushService.instance.initialize();
-      runApp(const TradeXApp());
+      AppZoom initialZoom = AppZoom.system;
+      AppTextSize initialTextSize = AppTextSize.system;
+      try {
+        final preferences = await SharedPreferences.getInstance();
+        initialZoom =
+            AppZoom.fromPreference(
+              preferences.getString(AppZoom.preferenceKey),
+            ) ??
+            AppZoom.system;
+        initialTextSize =
+            AppTextSize.fromPreference(
+              preferences.getString(AppTextSize.preferenceKey),
+            ) ??
+            AppTextSize.system;
+      } catch (_) {
+        // Keep the default sizing when local preferences are unavailable.
+      }
+      runApp(
+        AlphaJournalApp(
+          initialZoom: initialZoom,
+          initialTextSize: initialTextSize,
+        ),
+      );
     },
     (error, stackTrace) {
-      debugPrint('[main] Unhandled Zone Error: $error\n$stackTrace');
+      _debugLog('[main] Unhandled Zone Error', error, stackTrace);
     },
   );
 }

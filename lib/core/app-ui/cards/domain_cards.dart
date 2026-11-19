@@ -868,7 +868,7 @@ class AccountCard extends StatelessWidget {
   const AccountCard({
     super.key,
     this.name = 'Alex Thorne',
-    this.email = 'alex.thorne@tradex.internal',
+    this.email = 'alex.thorne@alphajournal.internal',
     this.tier = 'PRO TRADER',
     this.securityLevel = '2FA ACTIVE',
     this.onSettings,

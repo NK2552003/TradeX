@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// Elegant, minimalist splash screen inspired by Claude's own launch screen —
 /// the animated brand mark is painted in pure Dart (see `AppLogoMark`),
@@ -90,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen>
                           AppLogoMark(size: 40, progress: _markProgress.value),
                           SizedBox(height: context.sp(theme.spacing.lg)),
                           Text(
-                            'alphajournal',
+                            'AlphaJournal',
                             style: context.uiText.display.copyWith(
                               fontSize: 32,
                               color: colors.foreground,

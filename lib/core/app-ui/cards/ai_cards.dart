@@ -1,8 +1,8 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:tradex/core/markdown_kit/markdown_kit.dart';
-import 'package:tradex/core/markdown_kit/research/research_answer_tools.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_kit.dart';
+import 'package:alphajournal/core/markdown_kit/research/research_answer_tools.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
@@ -1456,94 +1456,94 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
                       onTap: onSourceTap != null
                           ? () => onSourceTap!(preview[i].url)
                           : null,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            AppSiteLogo(
-                              url: preview[i].url,
-                              domain: preview[i].domain,
-                              label: preview[i].title,
-                              size: 16,
-                            ),
-                            UiGap.h(theme.spacing.xs),
-                            Expanded(
-                              child: Text(
-                                preview[i].domain.isNotEmpty
-                                    ? preview[i].domain
-                                    : preview[i].url,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: context.uiText.caption.copyWith(
-                                  color: theme.colors.foregroundSubtle,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              AppSiteLogo(
+                                url: preview[i].url,
+                                domain: preview[i].domain,
+                                label: preview[i].title,
+                                size: 16,
+                              ),
+                              UiGap.h(theme.spacing.xs),
+                              Expanded(
+                                child: Text(
+                                  preview[i].domain.isNotEmpty
+                                      ? preview[i].domain
+                                      : preview[i].url,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.uiText.caption.copyWith(
+                                    color: theme.colors.foregroundSubtle,
+                                  ),
                                 ),
                               ),
-                            ),
-                            UiGap.h(theme.spacing.xxs),
-                            UiBadge(
-                              label: '${preview[i].index}',
-                              size: UiSize.xs,
-                              variant: UiBadgeVariant.soft,
-                              intent: UiIntent.primary,
-                            ),
-                          ],
-                        ),
-                        UiGap.v(theme.spacing.xxs),
-                        Text(
-                          preview[i].title.isNotEmpty
-                              ? preview[i].title
-                              : (preview[i].domain.isNotEmpty
-                                    ? preview[i].domain
-                                    : preview[i].url),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.uiText.label.copyWith(
-                            fontWeight: FontWeight.w600,
+                              UiGap.h(theme.spacing.xxs),
+                              UiBadge(
+                                label: '${preview[i].index}',
+                                size: UiSize.xs,
+                                variant: UiBadgeVariant.soft,
+                                intent: UiIntent.primary,
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                          UiGap.v(theme.spacing.xxs),
+                          Text(
+                            preview[i].title.isNotEmpty
+                                ? preview[i].title
+                                : (preview[i].domain.isNotEmpty
+                                      ? preview[i].domain
+                                      : preview[i].url),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.uiText.label.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                if (i < preview.length - 1 || sources.length > preview.length)
-                  UiGap.h(theme.spacing.xs),
+                  if (i < preview.length - 1 || sources.length > preview.length)
+                    UiGap.h(theme.spacing.xs),
+                ],
+                if (sources.length > preview.length)
+                  SizedBox(
+                    width: context.sz(148),
+                    child: UiCard(
+                      variant: UiCardVariant.subtle,
+                      density: UiDensity.compact,
+                      hoverLift: false,
+                      motion: false,
+                      onTap: onViewAll,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          UiBadge(
+                            label: '+${sources.length - preview.length}',
+                            size: UiSize.sm,
+                            variant: UiBadgeVariant.soft,
+                            intent: UiIntent.neutral,
+                          ),
+                          UiGap.v(theme.spacing.xxs),
+                          Text(
+                            'See all ${sources.length} sources',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.uiText.label.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
-              if (sources.length > preview.length)
-                SizedBox(
-                  width: context.sz(148),
-                  child: UiCard(
-                    variant: UiCardVariant.subtle,
-                    density: UiDensity.compact,
-                    hoverLift: false,
-                    motion: false,
-                    onTap: onViewAll,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        UiBadge(
-                          label: '+${sources.length - preview.length}',
-                          size: UiSize.sm,
-                          variant: UiBadgeVariant.soft,
-                          intent: UiIntent.neutral,
-                        ),
-                        UiGap.v(theme.spacing.xxs),
-                        Text(
-                          'See all ${sources.length} sources',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.uiText.label.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
+            ),
           ),
         ),
       ],

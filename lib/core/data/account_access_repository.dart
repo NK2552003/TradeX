@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/theme/app_tokens.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/app-ui/theme/app_tokens.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 
 /// Current access comes from the account record, not stale JWT role claims.
 class AccountAccess {

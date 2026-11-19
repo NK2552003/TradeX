@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
 
 /// Modal dialog for authoring and sharing live trade setups in messages without hardcoded data.
 class MessageTradeSetupDialog extends StatefulWidget {
@@ -124,7 +124,9 @@ class _MessageTradeSetupDialogState extends State<MessageTradeSetupDialog> {
     final double? stop = double.tryParse(_stopController.text.trim());
     final double? target = double.tryParse(_targetController.text.trim());
 
-    if (symbol.isEmpty || entry == null || stop == null || target == null) return;
+    if (symbol.isEmpty || entry == null || stop == null || target == null) {
+      return;
+    }
 
     final String strategy = _strategyController.text.trim().isNotEmpty
         ? _strategyController.text.trim()
@@ -164,15 +166,19 @@ class _MessageTradeSetupDialogState extends State<MessageTradeSetupDialog> {
     if (entry != null && stop != null && target != null) {
       if (_isLong) {
         if (stop >= entry) {
-          validationError = 'For a Long trade, Stop Loss must be lower than Entry.';
+          validationError =
+              'For a Long trade, Stop Loss must be lower than Entry.';
         } else if (target <= entry) {
-          validationError = 'For a Long trade, Target must be higher than Entry.';
+          validationError =
+              'For a Long trade, Target must be higher than Entry.';
         }
       } else {
         if (stop <= entry) {
-          validationError = 'For a Short trade, Stop Loss must be higher than Entry.';
+          validationError =
+              'For a Short trade, Stop Loss must be higher than Entry.';
         } else if (target >= entry) {
-          validationError = 'For a Short trade, Target must be lower than Entry.';
+          validationError =
+              'For a Short trade, Target must be lower than Entry.';
         }
       }
 
@@ -213,7 +219,9 @@ class _MessageTradeSetupDialogState extends State<MessageTradeSetupDialog> {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    _isLong ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                    _isLong
+                        ? Icons.trending_up_rounded
+                        : Icons.trending_down_rounded,
                     color: _isLong ? colors.success : colors.destructive,
                     size: context.sz(20),
                   ),
@@ -284,9 +292,7 @@ class _MessageTradeSetupDialogState extends State<MessageTradeSetupDialog> {
                                   : colors.surfaceMuted,
                               borderRadius: context.radius(theme.radii.md),
                               border: Border.all(
-                                color: _isLong
-                                    ? colors.success
-                                    : colors.border,
+                                color: _isLong ? colors.success : colors.border,
                                 width: _isLong ? 1.5 : 1.0,
                               ),
                             ),
@@ -418,9 +424,10 @@ class _MessageTradeSetupDialogState extends State<MessageTradeSetupDialog> {
                             SizedBox(height: context.sp(theme.spacing.xxs)),
                             UiInput(
                               controller: _entryController,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                             ),
                           ],
                         ),
@@ -440,9 +447,10 @@ class _MessageTradeSetupDialogState extends State<MessageTradeSetupDialog> {
                             SizedBox(height: context.sp(theme.spacing.xxs)),
                             UiInput(
                               controller: _stopController,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                             ),
                           ],
                         ),
@@ -462,9 +470,10 @@ class _MessageTradeSetupDialogState extends State<MessageTradeSetupDialog> {
                             SizedBox(height: context.sp(theme.spacing.xxs)),
                             UiInput(
                               controller: _targetController,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                             ),
                           ],
                         ),
@@ -488,14 +497,20 @@ class _MessageTradeSetupDialogState extends State<MessageTradeSetupDialog> {
                   // Live R:R Summary Card
                   if (riskPoints != null && rewardPoints != null) ...<Widget>[
                     UiCard(
-                      accentColor: _isLong ? colors.success : colors.destructive,
+                      accentColor: _isLong
+                          ? colors.success
+                          : colors.destructive,
                       child: Column(
                         children: <Widget>[
                           Row(
                             children: <Widget>[
                               UiBadge(
-                                label: _isLong ? 'LONG POSITION' : 'SHORT POSITION',
-                                intent: _isLong ? UiIntent.success : UiIntent.danger,
+                                label: _isLong
+                                    ? 'LONG POSITION'
+                                    : 'SHORT POSITION',
+                                intent: _isLong
+                                    ? UiIntent.success
+                                    : UiIntent.danger,
                                 variant: UiBadgeVariant.solid,
                                 size: UiSize.xs,
                               ),
@@ -506,7 +521,9 @@ class _MessageTradeSetupDialogState extends State<MessageTradeSetupDialog> {
                                   icon: Icons.balance_rounded,
                                   intent: rr >= 2.0
                                       ? UiIntent.success
-                                      : (rr >= 1.0 ? UiIntent.info : UiIntent.warning),
+                                      : (rr >= 1.0
+                                            ? UiIntent.info
+                                            : UiIntent.warning),
                                   size: UiSize.xs,
                                 ),
                             ],
@@ -530,7 +547,9 @@ class _MessageTradeSetupDialogState extends State<MessageTradeSetupDialog> {
                               _metricColumn(
                                 context,
                                 'Win Expectancy',
-                                rr != null && rr >= 1.5 ? 'Favorable' : 'Moderate',
+                                rr != null && rr >= 1.5
+                                    ? 'Favorable'
+                                    : 'Moderate',
                                 colors.foreground,
                               ),
                             ],
@@ -568,7 +587,8 @@ class _MessageTradeSetupDialogState extends State<MessageTradeSetupDialog> {
                   SizedBox(height: context.sp(theme.spacing.xxs)),
                   UiTextarea(
                     controller: _notesController,
-                    hintText: 'e.g. Wait for 5-minute candle close confirmation above resistance.',
+                    hintText:
+                        'e.g. Wait for 5-minute candle close confirmation above resistance.',
                     maxLines: 2,
                   ),
                 ],

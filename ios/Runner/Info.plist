@@ -11,17 +11,22 @@
             <key>CFBundleURLName</key>
             <string>alphajournal</string>
             <key>CFBundleURLSchemes</key>
-            <array><string>tradex</string></array>
+            <array><string>alphajournal</string></array>
         </dict>
     </array>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>alphajournal needs access to your microphone to record and send voice messages.</string>
+	<string>AlphaJournal needs access to your microphone to record and send voice messages.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+	</dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>alphajournal</string>
+	<string>AlphaJournal</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -29,7 +34,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>alphajournal</string>
+	<string>AlphaJournal</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

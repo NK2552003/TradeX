@@ -23,16 +23,16 @@ import '../app-ui/models/app_models.dart';
 import '../app-ui/theme/app_tokens.dart';
 import '../flutter-ui/components/ui_common.dart';
 
-/// Reads and writes the internal `tradex://` URL space.
+/// Reads and writes the internal `alphajournal://` URL space.
 ///
-/// Editors write these into markdown bodies (`[$RELIANCE](tradex://ticker/…)`),
+/// Editors write these into markdown bodies (`[$RELIANCE](alphajournal://ticker/…)`),
 /// so a note's cross-references survive being exported, copied into another note
 /// or round-tripped through the backend as plain text. The graph walks parsed
 /// Markdown link nodes and resolves their URLs through this shared codec.
 class AppDeepLink {
   const AppDeepLink._();
 
-  static const String scheme = 'tradex';
+  static const String scheme = 'alphajournal';
 
   /// The canonical URL for one record.
   static Uri of(AppLinkKind kind, String id) =>
@@ -52,7 +52,7 @@ class AppDeepLink {
     return target == null ? null : (kind: target.kind, id: target.id);
   }
 
-  /// The record a URL points at, or null if this is not a `tradex://` or
+  /// The record a URL points at, or null if this is not a `alphajournal://` or
   /// shared alphajournal web link (`https://community.alphajournal.in/community/post/...`,
   /// `https://app.alphajournal.in/notes/...`, etc.) the app understands.
   static ({AppLinkKind kind, String id})? target(Uri uri) {
@@ -81,7 +81,9 @@ class AppDeepLink {
     final ({AppLinkKind kind, String id})? parsed = target(uri);
     if (parsed == null) return null;
     return AppLinkRef(
-      kind: parsed.kind, id: parsed.id, title: parsed.id,
+      kind: parsed.kind,
+      id: parsed.id,
+      title: parsed.id,
       isPublicContext: uri.scheme == scheme
           ? uri.queryParameters['public'] == 'true'
           : AppShareLinks.target(uri)?.publicContext ?? false,
@@ -273,7 +275,7 @@ class AppLinkGraph {
     }
   }
 
-  /// Resolves a `tradex://` URL against this snapshot.
+  /// Resolves a `alphajournal://` URL against this snapshot.
   AppLinkRef? resolve(Uri uri) {
     final ({AppLinkKind kind, String id})? t = AppDeepLink.target(uri);
     return t == null ? null : refFor(t.kind, t.id);
@@ -517,7 +519,7 @@ class AppLinkGraph {
       }
     }
 
-    if (content.toLowerCase().contains('tradex:')) {
+    if (content.toLowerCase().contains('alphajournal:')) {
       for (final node in md.Document().parseLines(content.split('\n'))) {
         visit(node);
       }

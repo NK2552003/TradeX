@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart' show AppLinkKind, AppLinkRef;
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/community_root_screen.dart';
-import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
-import 'package:tradex/features/community/presentation/views/community_profile_view.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart'
+    show AppLinkKind, AppLinkRef;
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/community_root_screen.dart';
+import 'package:alphajournal/features/community/presentation/views/community_post_detail_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_profile_view.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_card.dart';
 
 class _Repository extends CommunityRepository {
   final pending = Completer<CommunityPost?>();

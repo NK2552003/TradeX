@@ -1,6 +1,6 @@
-# alphajournal (TradeX) — Complete Feature Documentation, Product Review & Demo Guide
+# AlphaJournal — Complete Feature Documentation, Product Review & Demo Guide
 
-This guide documents every implemented feature in **alphajournal (TradeX)**, how each feature works end-to-end across Flutter, Supabase, and Cloudflare Workers, practical product reviews (strengths + operational requirements), and step-by-step demos on how to create and use each workflow.
+This guide documents implemented AlphaJournal features, how they work across Flutter, Supabase, and Cloudflare, their operational requirements, and practical user workflows. Availability remains subject to the active subscription tier and release configuration.
 
 ---
 
@@ -21,11 +21,19 @@ This guide documents every implemented feature in **alphajournal (TradeX)**, how
 
 | Plan | Monthly Price | Notes | Trade Journal Entries | Live Playbooks | Watchlists | AI Queries / Mo | PDF Export & Adv. Backtest |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **alphajournal Free** | ₹0 / mo | 3 | 15 | 1 | 1 | 5 | No |
-| **alphajournal Basic** | ₹299 / mo | 25 | 100 | 3 | 1 | 20 | No |
-| **alphajournal Pro** | ₹499 / mo | 10,000 | 50,000 | 250 | 100 | 5,000 | Yes |
+| **AlphaJournal Free** | ₹0 / mo | 3 | 15 | 1 | 1 | 5 | No |
+| **AlphaJournal Basic** | ₹299 / mo | 25 | 100 | 3 | 5 | 20 | No |
+| **AlphaJournal Pro** | ₹499 / mo | 10,000 | 50,000 | 250 | 100 | 5,000 | Yes |
 
-*(Published plans can also be updated dynamically via `public_site` catalogue sync, with Razorpay / RevenueCat webhook fulfillment in `supabase/functions/razorpay-webhook` and `revenuecat-webhook`.)*
+Published plan copy and quotas can be updated through the trusted pricing catalogue. Paid monthly checkout for Basic and Pro remains disabled until production products, signing, webhooks, reconciliation, and store review are complete.
+
+| Access boundary | Free | Basic / Pro |
+| --- | --- | --- |
+| Community market sidebar | Limited approved ticker, news, and instrument previews | Included |
+| Full Market Intelligence | No | Yes |
+| Private Messages | No | Yes |
+| Core calculators | Yes | Yes |
+| Advanced calculators | No | Yes |
 
 ---
 
@@ -158,6 +166,7 @@ This guide documents every implemented feature in **alphajournal (TradeX)**, how
   * **Currency (2)**: `Currency Converter` (11 major currencies using live/cached FX rates via `currency_rate_service.dart`), `Pip Value`
   * **Tax (3)**: `Short-Term Gains Tax` (STCG 15%), `Long-Term Gains Tax` (LTCG 10% above ₹1L exemption), `Trading Turnover` (Section 44AB audit threshold)
 * **Direct Journal Bridge**: Trading calculators integrate with `calculator_journal_draft.dart` to push computed position sizing / P&L straight into a new Trade Journal entry.
+* **Plan access**: Free includes Position Size, Risk / Reward, Brokerage & Charges, Profit & Loss, Contract Value, SIP, Lumpsum, Fixed Deposit, CAGR, Inflation Impact, PPF, EMI, STCG, and LTCG. Margin, Pivot Points, Fibonacci, Options P&L, Black-Scholes, Currency Converter, Pip Value, and Trading Turnover require Basic or Pro.
 
 #### Product Review
 * **Strengths**: Exceptionally practical Indian + global trader toolkit under one filterable hub — especially Brokerage/Tax (STT/44AB turnover) alongside Black-Scholes Greeks and Draft-to-Journal handoff.
@@ -185,6 +194,7 @@ This guide documents every implemented feature in **alphajournal (TradeX)**, how
 #### Product Review
 * **Strengths**: Cleanly splits quotes via `market-quote-proxy` Edge Function to avoid browser CORS blocks on Yahoo Finance feeds; deep links (`/market/NVDA`) jump straight to an instrument sheet.
 * **Requirements**: Deploy `market-quote-proxy` in Supabase Edge Functions for live quotes in Web production.
+* **Plan access**: Free users receive only the bounded ticker, news, and instrument previews embedded in Community. The complete Market Intelligence workspace, direct market routes, screeners, movers, coverage, and instrument research require Basic or Pro; rejected access shows the standard upgrade notice before paid data work begins.
 
 #### Demo: Screen & Open an Instrument
 1. Open **Market Data** (`https://app.alphajournal.in/market`).
@@ -220,6 +230,7 @@ This guide documents every implemented feature in **alphajournal (TradeX)**, how
   * Real-time 1-on-1 trader messaging hosted canonically on `https://app.alphajournal.in/messages`.
   * Client-side **E2EE Identity** using WebCrypto / Curve25519 (`X25519` key agreement + `AES-GCM` payload encryption) backed by a user-chosen **Recovery Passphrase (>= 16 chars)** for cross-device key recovery.
   * Supports text, shared workspace/community records (`ShareToConversationDialog`), attachments, and failure/retry states.
+* **Plan access**: Private Messages require Basic or Pro. Free accounts are blocked before the screen, realtime subscription, message query, or attachment workflow starts.
 
 #### Product Review
 * **Strengths**: Plaintext message bodies never sit readable in the database; fixing X25519 key clamping + unifying `/messages` onto `app.alphajournal.in` ensures your WebCrypto key vault stays consistent across sessions.

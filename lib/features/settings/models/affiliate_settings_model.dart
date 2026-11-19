@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_workspace.dart';
 
 @immutable
 class AffiliateSettingsModel {
@@ -63,7 +63,7 @@ class AffiliateSettingsModel {
   factory AffiliateSettingsModel.mock() {
     return const AffiliateSettingsModel(
       currency: 'INR',
-      referralCode: 'TRADEX-ALPHA-2026',
+      referralCode: 'ALPHAJOURNAL-ALPHA-2026',
       customSlug: 'nitish-trades',
       commissionRate: 0.25,
       tierName: 'Tier 3 · Gold Pro Partner',

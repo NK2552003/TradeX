@@ -1,8 +1,8 @@
-import 'package:tradex/features/community/data/workspace_attachment_service.dart';
+import 'package:alphajournal/features/community/data/workspace_attachment_service.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_attachment_tile.dart';
 
 /// Modal picker allowing traders to select a Writing Desk record (Note, Trade Journal, Strategy)
 /// to attach to a community post.

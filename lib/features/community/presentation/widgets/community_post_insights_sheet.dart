@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
 
 /// Detailed analytics sheet displaying performance and engagement metrics for a post.
 class CommunityPostInsightsSheet extends StatelessWidget {
@@ -324,7 +324,11 @@ class CommunityPostInsightsSheet extends StatelessWidget {
         if (emoji != null && emoji.isNotEmpty)
           Text(emoji, style: TextStyle(fontSize: context.fs(18)))
         else
-          Icon(icon ?? Icons.thumb_up_alt_rounded, color: color, size: context.sz(18)),
+          Icon(
+            icon ?? Icons.thumb_up_alt_rounded,
+            color: color,
+            size: context.sz(18),
+          ),
         SizedBox(height: context.sp(theme.spacing.xxs)),
         Text(
           '$count',

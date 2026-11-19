@@ -3,14 +3,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/cross_subdomain_storage.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/cross_subdomain_storage.dart';
 // Both unified libraries are required by the project UI contract.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/platform/browser_install.dart';
-import 'package:tradex/core/privacy/consent_preferences.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/platform/browser_install.dart';
+import 'package:alphajournal/core/privacy/consent_preferences.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_attribution.dart';
 import 'cookie_preferences_dialog.dart';
 import 'install_app_card.dart';
 

@@ -1,6 +1,6 @@
 // Isolated PostgreSQL contract harness; auth schema/functions emulate Supabase claims.
-// npm install --prefix /tmp/tradex-sql @electric-sql/pglite
-// PGLITE_MODULE=/tmp/tradex-sql/node_modules/@electric-sql/pglite/dist/index.js node scripts/verify_affiliate_sql.mjs
+// npm install --prefix /tmp/alphajournal-sql @electric-sql/pglite
+// PGLITE_MODULE=/tmp/alphajournal-sql/node_modules/@electric-sql/pglite/dist/index.js node scripts/verify_affiliate_sql.mjs
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');

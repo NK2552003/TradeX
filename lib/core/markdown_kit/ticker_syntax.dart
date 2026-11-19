@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
-import 'package:tradex/core/app-ui/models/app_models.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/models/app_models.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// Matches cashtag / ticker patterns like `$AAPL`, `$BTCUSDT`, `$^NSEI` in inline markdown.
 ///

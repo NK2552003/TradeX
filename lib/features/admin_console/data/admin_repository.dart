@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 
 import '../models/admin_records.dart';
 

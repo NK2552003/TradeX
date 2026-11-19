@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/customer_quota_usage.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
-import 'package:tradex/features/public_site/data/public_site_repository.dart';
-import 'package:tradex/features/settings/models/desk_risk_model.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/customer_quota_usage.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/features/admin_console/data/admin_console_repository.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_workspace.dart';
+import 'package:alphajournal/features/public_site/data/public_site_repository.dart';
+import 'package:alphajournal/features/settings/models/desk_risk_model.dart';
 
 /// Subscription tier entitlements and quota limits on the customer (trader) side.
 /// All pricing is denominated in Indian Rupees (INR / ₹).
@@ -131,7 +131,7 @@ class CustomerTierQuota {
   static CustomerTierQuota _baselineForTier(AppTier tier) => switch (tier) {
     AppTier.free => const CustomerTierQuota(
       tier: AppTier.free,
-      planName: 'alphajournal Free',
+      planName: 'AlphaJournal Free',
       monthlyPriceInr: 0,
       maxNotes: 3,
       maxTrades: 15,
@@ -146,7 +146,7 @@ class CustomerTierQuota {
     ),
     AppTier.premium => const CustomerTierQuota(
       tier: AppTier.premium,
-      planName: 'alphajournal Basic',
+      planName: 'AlphaJournal Basic',
       monthlyPriceInr: 299,
       maxNotes: 25,
       maxTrades: 100,
@@ -161,7 +161,7 @@ class CustomerTierQuota {
     ),
     AppTier.enterprise => const CustomerTierQuota(
       tier: AppTier.enterprise,
-      planName: 'alphajournal Pro',
+      planName: 'AlphaJournal Pro',
       monthlyPriceInr: 499,
       maxNotes: 10000,
       maxTrades: 50000,
@@ -582,7 +582,7 @@ class CustomerLimitations {
       context,
       featureTitle: '$featureLabel (Pro Tier)',
       reason:
-          '${quota.planName} does not include publication-grade PDF or CSV exports. Upgrade to alphajournal Pro (₹499/mo) to unlock unlimited exports.',
+          '${quota.planName} does not include publication-grade PDF or CSV exports. Upgrade to AlphaJournal Pro (₹499/mo) to unlock unlimited exports.',
     );
     return false;
   }
@@ -605,7 +605,7 @@ class CustomerLimitations {
       context,
       featureTitle: '$featureLabel (Pro Tier)',
       reason:
-          '${quota.planName} includes core strategy tracking. Upgrade to alphajournal Pro (₹499/mo) for advanced backtesting and institutional analytics.',
+          '${quota.planName} includes core strategy tracking. Upgrade to AlphaJournal Pro (₹499/mo) for advanced backtesting and institutional analytics.',
     );
     return false;
   }
@@ -763,9 +763,13 @@ class CustomerLimitations {
                                   children: <Widget>[
                                     Row(
                                       children: <Widget>[
-                                        Text(
-                                          q.planName,
-                                          style: ctx.uiText.bodyStrong,
+                                        Expanded(
+                                          child: Text(
+                                            q.planName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: ctx.uiText.bodyStrong,
+                                          ),
                                         ),
                                         SizedBox(
                                           width: ctx.sp(theme.spacing.xs),
@@ -1033,7 +1037,7 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                                 context,
                                 featureTitle: 'Customer Plan & Limits (INR)',
                                 reason:
-                                    'Manage your alphajournal subscription tier and workspace quotas in Indian Rupees (₹). Monthly subscriptions for Basic and Pro are disabled for now.',
+                                    'Manage your AlphaJournal subscription tier and workspace quotas in Indian Rupees (₹). Monthly subscriptions for Basic and Pro are disabled for now.',
                               ),
                         ),
                     ],

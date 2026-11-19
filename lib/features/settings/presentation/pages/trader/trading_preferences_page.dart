@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/settings/data/repositories/trading_prefs_repository.dart';
-import 'package:tradex/features/settings/models/trading_prefs_model.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/settings/data/repositories/trading_prefs_repository.dart';
+import 'package:alphajournal/features/settings/models/trading_prefs_model.dart';
 
 class TradingPreferencesPage extends StatefulWidget {
   const TradingPreferencesPage({super.key, this.repository});

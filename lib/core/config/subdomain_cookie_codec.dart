@@ -65,10 +65,7 @@ class SubdomainCookieCodec {
   }
 
   /// Reads a chunked value stored under `<baseKey>.n` and `<baseKey>.0..n-1`.
-  static String? readChunked(
-    Map<String, String> cookies,
-    String baseKey,
-  ) {
+  static String? readChunked(Map<String, String> cookies, String baseKey) {
     final countRaw = cookies['$baseKey.n'];
     if (countRaw == null || countRaw.isEmpty) return null;
     final count = int.tryParse(countRaw);

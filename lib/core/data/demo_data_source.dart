@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 
 /// Deterministic in-memory data source used by every feature repository while
 /// the product runs as a frontend prototype.
@@ -778,7 +778,7 @@ class DemoDataSource {
       ),
       _NotificationSeed(
         'Invoice paid',
-        'alphajournal ${AppTokens.tierLabel(AppTier.premium)} renewed for ${AppTokens.price(premiumPrice)}.',
+        'AlphaJournal ${AppTokens.tierLabel(AppTier.premium)} renewed for ${AppTokens.price(premiumPrice)}.',
         'Billing',
         Icons.credit_card_outlined,
         true,
@@ -1449,26 +1449,32 @@ class DemoDataSource {
     _plan(
       tier: AppTier.free,
       current: current,
-      description: 'Essential starter workspace with 3 notes, community view access, and core trading tools.',
+      description:
+          'Essential starter workspace with Community access, core calculators, and limited market previews.',
       features: const <String>[
         'Up to 3 research notes',
         'Community feed & public post view access',
         'Up to 15 logged trades (total)',
         '1 active playbook & 1 watchlist',
         'Up to 5 AI copilot requests / month',
-        'Core calculators & market view',
+        'Core calculators',
+        'Limited Community ticker, news & instrument previews',
+        'Messages and full Market Intelligence not included',
       ],
     ),
     _plan(
       tier: AppTier.premium,
       current: current,
-      description: 'Expanded trading workspace with 25 notes, 100 trades, and 3 active playbooks (monthly subscriptions disabled for now).',
+      description:
+          'Expanded workspace with full Market Intelligence, Messages, and advanced calculators (monthly subscriptions disabled for now).',
       features: const <String>[
         'Up to 25 research notes',
         'Up to 100 logged trades (total)',
         'Up to 3 active playbooks',
         'Up to 20 AI copilot requests / month',
-        'Full community participation & market data',
+        'Full Market Intelligence & instrument research',
+        'Private Messages',
+        'All advanced calculators',
         'Monthly subscriptions disabled for now',
       ],
       highlighted: true,
@@ -1479,7 +1485,7 @@ class DemoDataSource {
       description:
           'High-capacity professional workspace with 10,000 notes, 50,000 trades, and 5,000 AI prompts (monthly subscriptions disabled for now).',
       features: const <String>[
-        'Everything in Basic',
+        'Everything in Basic, including Markets, Messages & calculators',
         'Up to 10,000 research notes',
         'Up to 50,000 logged trades (total)',
         'Up to 250 active playbooks & 100 watchlists',
@@ -1577,8 +1583,7 @@ class DemoDataSource {
       'community_posts_today': 0,
       'community_posts_per_day_limit': limits['community_posts_per_day']!,
       'community_comments_today': 0,
-      'community_comments_per_day_limit':
-          limits['community_comments_per_day']!,
+      'community_comments_per_day_limit': limits['community_comments_per_day']!,
       'allow_pdf_export': tier == AppTier.enterprise,
       'allow_advanced_backtest': tier == AppTier.enterprise,
       // Seats are a desk capability: a single-trader plan is one seat, and an

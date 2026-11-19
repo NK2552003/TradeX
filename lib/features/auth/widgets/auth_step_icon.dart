@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 
 /// Small circular icon lockup used at the top of every step's card across
 /// the security-sensitive auth flows (forgot password, OTP verification).

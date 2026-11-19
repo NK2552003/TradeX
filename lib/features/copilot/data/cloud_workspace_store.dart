@@ -1,4 +1,4 @@
-import 'package:tradex/core/security/private_message_service.dart';
+import 'package:alphajournal/core/security/private_message_service.dart';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;

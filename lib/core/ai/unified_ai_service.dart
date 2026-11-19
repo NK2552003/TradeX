@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/env_config.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/app_session.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/env_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/data/app_session.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Centralized, production-grade AI intelligence service with multi-provider
@@ -486,7 +486,7 @@ class UnifiedAiService {
           headers: {
             'Authorization': 'Bearer $apiKey',
             'HTTP-Referer': 'https://alphajournal.in',
-            'X-Title': 'alphajournal Institutional AI',
+            'X-Title': 'AlphaJournal Institutional AI',
             'Content-Type': 'application/json',
           },
           body: body,
@@ -526,7 +526,7 @@ class UnifiedAiService {
       ..headers.addAll({
         'Authorization': 'Bearer $apiKey',
         'HTTP-Referer': 'https://alphajournal.in',
-        'X-Title': 'alphajournal Institutional AI',
+        'X-Title': 'AlphaJournal Institutional AI',
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream',
       })
@@ -856,7 +856,7 @@ class UnifiedAiService {
     };
 
     return '''
-You are alphajournal Institutional AI Assistant, an elite market intelligence engine for serious traders.
+You are AlphaJournal Institutional AI Assistant, an elite market intelligence engine for serious traders.
 Persona mode: $lensDesc
 
 Formatting and Response Directives:

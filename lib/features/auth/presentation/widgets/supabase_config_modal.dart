@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 
 class SupabaseConfigModal extends StatefulWidget {
   const SupabaseConfigModal({super.key, this.onConfigSaved});
@@ -99,7 +99,7 @@ class _SupabaseConfigModalState extends State<SupabaseConfigModal> {
                   ? 'Supabase Connected'
                   : 'Local Mock Backend Mode Active',
               message: isConnected
-                  ? 'alphajournal is connected to live Supabase backend instance.'
+                  ? 'AlphaJournal is connected to the live Supabase backend instance.'
                   : 'Currently operating in local mock mode. Enter your Supabase Project URL & Anon Key below to connect live authentication.',
               intent: isConnected ? UiIntent.success : UiIntent.info,
             ),

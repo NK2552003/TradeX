@@ -18,7 +18,8 @@ class MarketSyncTests(unittest.TestCase):
         return Namespace(dry_run=True, symbols='AAPL', scope=scope, workers=1,
                          symbols_file=None, max_symbols=5000, select_only=None,
                          shard_index=0, shard_count=1,
-                         market_only=False, finalize_market=False)
+                         market_only=False, finalize_market=False,
+                         reference_market=False)
 
     def test_bars_require_real_complete_ohlc(self):
         chart = {'timestamp': [1704205800, 1704292200, 1704378600], 'indicators': {'quote': [{
@@ -123,6 +124,35 @@ class MarketSyncTests(unittest.TestCase):
             ],
         )
         self.assertEqual(call.call_args_list[0].kwargs['params'], {'ticker': 'in.("OLD.NS")'})
+
+    def test_smart_prune_preserves_curated_reference_assets(self):
+        db = self.database()
+        with patch.object(
+            db,
+            'select',
+            return_value=[{'ticker': 'AAPL'}, {'ticker': '^GSPC'}, {'ticker': 'GC=F'}],
+        ), patch.object(db, 'call', return_value=None) as call:
+            summary = db.prune_market_data(['AAPL'])
+        self.assertEqual(summary['removed_tickers'], 0)
+        self.assertEqual([c.args[1] for c in call.call_args_list], [
+            'stock_price_history',
+            'news_articles',
+        ])
+
+    def test_reference_market_scope_uses_complete_overview_symbol_set(self):
+        args = self.args('all')
+        args.symbols = None
+        args.reference_market = True
+        report = {'errors': [], 'warnings': [], 'symbols': {}}
+        with patch.object(pipeline, 'sync_market', return_value=[]) as market, \
+             patch.object(pipeline, 'sync_news'), patch.object(pipeline, 'sync_screeners'):
+            pipeline.run(args, report)
+        selected = market.call_args.args[1]
+        self.assertEqual(selected, pipeline.REFERENCE_MARKET_SYMBOLS)
+        self.assertIn('^GSPC', selected)
+        self.assertIn('GC=F', selected)
+        self.assertIn('USDINR=X', selected)
+        self.assertEqual(len(selected), len(set(selected)))
 
     def test_null_refresh_fields_do_not_erase_metadata(self):
         db = self.database()

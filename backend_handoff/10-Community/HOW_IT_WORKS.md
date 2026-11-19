@@ -1,7 +1,7 @@
 # 10-Community — Backend Architecture & Integration Guide
 
 ## 1. Overview
-The Community feature powers TradeX's social trading feed, technical strategy discussions, sentiment polls, and peer trader follow graphs.
+The Community feature powers AlphaJournal's social trading feed, technical strategy discussions, sentiment polls, and peer trader follow graphs.
 
 Key capabilities:
 - **Rich Posts**: Markdown body with ticker tagging (`#NVDA`), topic channels (`#general`, `#crypto`, `#scalping`), and post kinds (`standard`, `analysis`, `playbook`, `signal`, `poll`).
@@ -37,4 +37,4 @@ When a trader publishes a post containing a strategy playbook or trade journal e
 ```sql
 SELECT create_universal_link('communityPost', post.id, 'strategy', strategy.id, 'Playbook Reference');
 ```
-This enables users reading the post to click straight through to the interactive strategy viewer in TradeX.
+This enables users reading the post to click straight through to the interactive strategy viewer in AlphaJournal.

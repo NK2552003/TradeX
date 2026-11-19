@@ -44,6 +44,53 @@ test('standalone suppresses prompts and failures allow later browser events', as
   assert.equal(await b.api.prompt(), 'dismissed');
 });
 
+test('installed related Android app receives the current verified HTTPS route', async () => {
+  const handlers = {};
+  const assigned = [];
+  const session = new Map();
+  const window = {
+    matchMedia: () => ({matches: false, addEventListener: () => {}}),
+    addEventListener: (name, fn) => handlers[name] = fn,
+  };
+  const location = {
+    hostname: 'community.alphajournal.in',
+    protocol: 'https:',
+    href: 'https://community.alphajournal.in/community/post/post_42?ref=abc#comments',
+    assign: value => assigned.push(value),
+  };
+  vm.runInNewContext(source, {
+    window,
+    location,
+    navigator: {
+      getInstalledRelatedApps: async () => [
+        {platform: 'play', id: 'release.package.from.manifest'},
+      ],
+    },
+    URL,
+    Set,
+    Number,
+    JSON,
+    Date,
+    localStorage: {getItem: () => null, setItem: () => {}},
+    sessionStorage: {
+      getItem: key => session.get(key) ?? null,
+      setItem: (key, value) => session.set(key, value),
+    },
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  const state = JSON.parse(window.alphajournalInstall.snapshot());
+  assert.equal(state.nativeInstalled, true);
+  assert.equal(state.relatedAppsChecked, true);
+  assert.equal(state.installed, true);
+  assert.equal(assigned.length, 1);
+  const handoff = new URL(assigned[0]);
+  assert.equal(handoff.pathname, '/community/post/post_42');
+  assert.equal(handoff.searchParams.get('ref'), 'abc');
+  assert.equal(handoff.searchParams.get('app_handoff'), '1');
+  assert.equal(handoff.hash, '#comments');
+  assert.equal(window.alphajournalInstall.openInstalledApp(), false);
+});
+
 function createCookieJar() {
   const cookies = new Map();
   return {

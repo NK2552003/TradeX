@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/cross_subdomain_storage.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/cross_subdomain_storage.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 class AppearanceSettingsPage extends StatefulWidget {
   const AppearanceSettingsPage({super.key});
@@ -15,7 +15,8 @@ class AppearanceSettingsPage extends StatefulWidget {
 }
 
 class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
-  static const String _appearanceExtrasKey = 'tradex_appearance_extras_v1';
+  static const String _appearanceExtrasKey =
+      'alphajournal_appearance_extras_v1';
 
   final AppThemeController _fallbackController = AppThemeController();
   String _numberFormat = 'Indian (1,00,000)';
@@ -118,6 +119,21 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       message: message,
       intent: UiIntent.info,
     );
+  }
+
+  Future<void> _saveDisplayPreference(
+    String key,
+    String value,
+    String label,
+  ) async {
+    CrossSubdomainState.setFlag(key, value, maxAgeDays: 180);
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      if (await preferences.setString(key, value)) return;
+    } catch (_) {
+      // The selection stays active for this session if storage is unavailable.
+    }
+    if (mounted) UiToast.error(context, title: 'Could not save $label');
   }
 
   void _syncControllerToSubdomain(AppThemeController controller) {
@@ -226,14 +242,70 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   final List<String> _densities = const <String>['Comfortable', 'Compact'];
 
   static final List<UiCandle> _previewCandles = <UiCandle>[
-    UiCandle(time: DateTime(2026, 1, 1), open: 182.0, high: 185.4, low: 180.8, close: 184.2, volume: 1240),
-    UiCandle(time: DateTime(2026, 1, 2), open: 184.2, high: 186.0, low: 181.5, close: 182.1, volume: 980),
-    UiCandle(time: DateTime(2026, 1, 3), open: 182.1, high: 187.8, low: 181.9, close: 187.2, volume: 1520),
-    UiCandle(time: DateTime(2026, 1, 4), open: 187.2, high: 190.1, low: 185.6, close: 189.4, volume: 1680),
-    UiCandle(time: DateTime(2026, 1, 5), open: 189.4, high: 190.2, low: 185.0, close: 186.3, volume: 1190),
-    UiCandle(time: DateTime(2026, 1, 6), open: 186.3, high: 191.5, low: 185.8, close: 190.8, volume: 1840),
-    UiCandle(time: DateTime(2026, 1, 7), open: 190.8, high: 192.4, low: 188.9, close: 189.5, volume: 1320),
-    UiCandle(time: DateTime(2026, 1, 8), open: 189.5, high: 194.8, low: 189.0, close: 194.1, volume: 2110),
+    UiCandle(
+      time: DateTime(2026, 1, 1),
+      open: 182.0,
+      high: 185.4,
+      low: 180.8,
+      close: 184.2,
+      volume: 1240,
+    ),
+    UiCandle(
+      time: DateTime(2026, 1, 2),
+      open: 184.2,
+      high: 186.0,
+      low: 181.5,
+      close: 182.1,
+      volume: 980,
+    ),
+    UiCandle(
+      time: DateTime(2026, 1, 3),
+      open: 182.1,
+      high: 187.8,
+      low: 181.9,
+      close: 187.2,
+      volume: 1520,
+    ),
+    UiCandle(
+      time: DateTime(2026, 1, 4),
+      open: 187.2,
+      high: 190.1,
+      low: 185.6,
+      close: 189.4,
+      volume: 1680,
+    ),
+    UiCandle(
+      time: DateTime(2026, 1, 5),
+      open: 189.4,
+      high: 190.2,
+      low: 185.0,
+      close: 186.3,
+      volume: 1190,
+    ),
+    UiCandle(
+      time: DateTime(2026, 1, 6),
+      open: 186.3,
+      high: 191.5,
+      low: 185.8,
+      close: 190.8,
+      volume: 1840,
+    ),
+    UiCandle(
+      time: DateTime(2026, 1, 7),
+      open: 190.8,
+      high: 192.4,
+      low: 188.9,
+      close: 189.5,
+      volume: 1320,
+    ),
+    UiCandle(
+      time: DateTime(2026, 1, 8),
+      open: 189.5,
+      high: 194.8,
+      low: 189.0,
+      close: 194.1,
+      volume: 2110,
+    ),
   ];
 
   @override
@@ -257,23 +329,16 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         final chartStyle = themeController.chartStyle;
         final colorScheme = themeController.colorConvention;
 
-        final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
         final bool isMobile = context.uiRes.isMobile;
         final double bottomInset = isMobile
-            ? (keyboardInset > 0
-                  ? keyboardInset + 24.0
-                  : (context.uiDockInset < 100.0
-                        ? 100.0
-                        : context.uiDockInset))
+            ? context.uiPageBottomInset
             : context.sp(theme.spacing.lg);
 
         final previewColors = theme.colors.withMarketConvention(
           colorScheme,
           theme.brightness,
         );
-        final previewTheme = theme.brightness == Brightness.dark
-            ? UiTheme.dark(colors: previewColors, spacing: theme.spacing)
-            : UiTheme.light(colors: previewColors, spacing: theme.spacing);
+        final previewTheme = theme.copyWith(colors: previewColors);
 
         return SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -328,6 +393,56 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                               title: 'Theme Changed',
                               message:
                                   'Switched to ${mode.name.toUpperCase()} theme mode.',
+                            );
+                          },
+                        ),
+                      ),
+                      AppSettingCard(
+                        title: 'App zoom',
+                        description:
+                            'Adjust the size of text, controls, and spacing.',
+                        icon: Icons.zoom_in_rounded,
+                        control: UiSelect<AppZoom>(
+                          key: const ValueKey('appearance-app-zoom'),
+                          width: isMobile ? null : context.sz(220),
+                          hintText: 'App zoom',
+                          value: themeController.zoom,
+                          options: [
+                            for (final zoom in AppZoom.values)
+                              UiOption(label: zoom.label, value: zoom),
+                          ],
+                          onChanged: (zoom) {
+                            if (zoom == themeController.zoom) return;
+                            themeController.setZoom(zoom);
+                            _saveDisplayPreference(
+                              AppZoom.preferenceKey,
+                              zoom.name,
+                              'app zoom',
+                            );
+                          },
+                        ),
+                      ),
+                      AppSettingCard(
+                        title: 'Text size',
+                        description:
+                            'Follow your device’s font size or choose an in-app size.',
+                        icon: Icons.format_size_rounded,
+                        control: UiSelect<AppTextSize>(
+                          key: const ValueKey('appearance-text-size'),
+                          width: isMobile ? null : context.sz(220),
+                          hintText: 'Text size',
+                          value: themeController.textSize,
+                          options: [
+                            for (final size in AppTextSize.values)
+                              UiOption(label: size.label, value: size),
+                          ],
+                          onChanged: (size) {
+                            if (size == themeController.textSize) return;
+                            themeController.setTextSize(size);
+                            _saveDisplayPreference(
+                              AppTextSize.preferenceKey,
+                              size.name,
+                              'text size',
                             );
                           },
                         ),
@@ -526,7 +641,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           value: _timeFormat,
                           options: _timeFormats
                               .map(
-                                (t) => UiToggleOption<String>(label: t, value: t),
+                                (t) =>
+                                    UiToggleOption<String>(label: t, value: t),
                               )
                               .toList(),
                           onChanged: (val) {

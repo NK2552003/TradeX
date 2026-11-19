@@ -27,7 +27,7 @@ not fabricated by changing an entitlement or payout status.
 
 ## Shared components and responsive behavior
 
-Pages use the TraderHub libraries `core/app-ui/app_ui.dart` and
+Pages use the AlphaJournal libraries `core/app-ui/app_ui.dart` and
 `core/flutter-ui/flutter_ui.dart`: `UiPage`, `UiCard`, `UiCardGrid`, `UiTable`,
 `UiTabs`, `UiAsyncView`, and shared forms/dialogs. Resource lists share pagination,
 filters, loading/errors, record drill-down, and return navigation. Narrow layouts

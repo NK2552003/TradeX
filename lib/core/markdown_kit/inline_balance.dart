@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:markdown/markdown.dart' as md;
-import 'package:tradex/core/markdown_kit/html_block.dart';
-import 'package:tradex/core/markdown_kit/math_syntax.dart';
-import 'package:tradex/core/markdown_kit/ticker_syntax.dart';
+import 'package:alphajournal/core/markdown_kit/html_block.dart';
+import 'package:alphajournal/core/markdown_kit/math_syntax.dart';
+import 'package:alphajournal/core/markdown_kit/ticker_syntax.dart';
 
 /// Mirrors `flutter_markdown`'s internal block/inline bookkeeping closely
 /// enough to predict, *before* any widget is built, whether rendering a

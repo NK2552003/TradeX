@@ -1,6 +1,6 @@
 # 01 Trade Journal
 
-# TradeX linked writing surfaces: combined backend handoff
+# AlphaJournal linked writing surfaces: combined backend handoff
 
 **Scope:** the three writing destinations — **trader notes**, **journal notes** and **strategy notes** — and the link graph that binds them into one workspace. This is the document to build from. It supersedes nothing, and it is not a rewrite of either existing handoff:
 

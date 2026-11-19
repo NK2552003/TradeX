@@ -28,7 +28,7 @@ class MessageCipher {
   Future<SimpleKeyPair> _signingIdentity(SimpleKeyPair identity) async {
     final seed = await Hkdf(hmac: Hmac.sha256(), outputLength: 32).deriveKey(
       secretKey: SecretKey(await identity.extractPrivateKeyBytes()),
-      nonce: utf8.encode('tradex/signing/v1'),
+      nonce: utf8.encode('alphajournal/signing/v1'),
       info: const [],
     );
     return Ed25519().newKeyPairFromSeed(await seed.extractBytes());
@@ -48,7 +48,7 @@ class MessageCipher {
     );
     return Hkdf(hmac: Hmac.sha256(), outputLength: 32).deriveKey(
       secretKey: shared,
-      nonce: utf8.encode('tradex/e2ee/v1'),
+      nonce: utf8.encode('alphajournal/e2ee/v1'),
       info: utf8.encode(context),
     );
   }

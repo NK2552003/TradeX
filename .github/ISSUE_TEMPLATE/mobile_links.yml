@@ -1,0 +1,97 @@
+name: Mobile, PWA, deep-link, or notification issue
+description: Report Android/iOS/PWA installation, App Links, Universal Links, auth callbacks, or push defects.
+title: "[Mobile/Links]: "
+labels:
+  - mobile
+  - linking
+  - triage
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Android build/runtime
+        - iOS build/runtime
+        - PWA install/update
+        - Installed-app detection
+        - Android App Links
+        - Apple Universal Links
+        - Native URL scheme
+        - Auth callback
+        - Push notifications
+        - Associated domains/asset links
+        - Store/release signing
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and OS
+      placeholder: Device model, OS version, browser/mail/source app
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version/build and installation source
+      placeholder: Version/build, TestFlight/Play/internal/PWA/local
+    validations:
+      required: true
+  - type: dropdown
+    id: install_state
+    attributes:
+      label: Installation state
+      options:
+        - App installed
+        - App not installed
+        - PWA installed
+        - Updating existing install
+        - Not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: sanitized_link
+    attributes:
+      label: Sanitized host and path
+      description: Remove query values, fragments, OTPs, signatures, and tokens.
+      placeholder: https://app.alphajournal.in/sanitized/path
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      placeholder: Include where the link/notification was opened and the app installation state.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected routing or notification behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: association
+    attributes:
+      label: Association-file diagnostics
+      placeholder: Sanitized HTTP status, content type, redirect behavior, Team ID/package, and certificate fingerprint source.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance matrix
+      placeholder: Installed, uninstalled, authenticated, signed out, cold start, warm start, and rejected-host cases.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Submission safety
+      options:
+        - label: I removed callback tokens, OTPs, notification content, cookies, signatures, and personal data.
+          required: true

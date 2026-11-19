@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart' show UiAvatar;
-import 'package:tradex/features/community/presentation/widgets/community_author_header.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/presentation/community_root_screen.dart';
-import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
-import 'package:tradex/features/community/presentation/views/community_profile_view.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart' show UiAvatar;
+import 'package:alphajournal/features/community/presentation/widgets/community_author_header.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/presentation/community_root_screen.dart';
+import 'package:alphajournal/features/community/presentation/views/community_post_detail_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_profile_view.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_card.dart';
 
 void main() {
   for (final width in [390.0, 1440.0]) {

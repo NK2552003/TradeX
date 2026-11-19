@@ -1,0 +1,103 @@
+name: Bug report
+description: Report a reproducible AlphaJournal defect that does not fit a more specialized form.
+title: "[Bug]: "
+labels:
+  - bug
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep one problem per issue. For security-sensitive behavior, use the private advisory link in the issue chooser.
+  - type: input
+    id: summary
+    attributes:
+      label: Concise summary
+      placeholder: What is broken?
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Web/PWA
+        - Android
+        - iOS
+        - macOS
+        - Windows
+        - Linux
+        - Backend/Supabase
+        - Multiple platforms
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: App version, branch, or commit SHA
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Device, OS, browser, viewport, and account tier
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction
+      placeholder: |
+        1. Open…
+        2. Select…
+        3. Observe…
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Frequency
+      options:
+        - Always
+        - Often
+        - Intermittent
+        - Once
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Paste redacted logs or drag in a cropped screenshot/recording. Never include secrets or private user data.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: What observable behavior proves this is fixed?
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: I removed secrets and unrelated personal data.
+          required: true
+

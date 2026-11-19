@@ -5,10 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_movers_panel.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/presentation/market_movers_panel.dart';
 
 void main() {
   test(
@@ -45,36 +45,37 @@ void main() {
     },
   );
 
-  testWidgets('a visible quote without prefetched history loads its real spark', (
-    tester,
-  ) async {
-    final repository = _HistoryRepository();
-    final previous = AssetMarketRepository.shared;
-    AssetMarketRepository.shared = repository;
-    addTearDown(() => AssetMarketRepository.shared = previous);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: MarketQuoteRow(
-            quote: MarketInstrument.fromJson({
-              'ticker': 'UNP',
-              'price': 12,
-            }, {}),
-            onTap: () {},
+  testWidgets(
+    'a visible quote without prefetched history loads its real spark',
+    (tester) async {
+      final repository = _HistoryRepository();
+      final previous = AssetMarketRepository.shared;
+      AssetMarketRepository.shared = repository;
+      addTearDown(() => AssetMarketRepository.shared = previous);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MarketQuoteRow(
+              quote: MarketInstrument.fromJson({
+                'ticker': 'UNP',
+                'price': 12,
+              }, {}),
+              onTap: () {},
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('No history'), findsNothing);
-    expect(find.byType(UiSparkChart), findsOneWidget);
-    expect(tester.widget<UiSparkChart>(find.byType(UiSparkChart)).values, [
-      11.0,
-      12.0,
-    ]);
-    await tester.pumpWidget(const SizedBox.shrink());
-    expect(repository.requestedSymbol, 'UNP');
-  });
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('No history'), findsNothing);
+      expect(find.byType(UiSparkChart), findsOneWidget);
+      expect(tester.widget<UiSparkChart>(find.byType(UiSparkChart)).values, [
+        11.0,
+        12.0,
+      ]);
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(repository.requestedSymbol, 'UNP');
+    },
+  );
 }
 
 class _HistoryRepository extends AssetMarketRepository {

@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-import 'package:tradex/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
 import 'agent_runner.dart';
 import 'approvals.dart';
 import 'auth.dart';
@@ -276,7 +276,8 @@ class CopilotServer {
     }
   }
 
-  static String _bearer(String value) => "${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value";
+  static String _bearer(String value) =>
+      "${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value";
   static void _json(HttpResponse response, Json value, {bool setType = true}) {
     if (setType) response.headers.contentType = ContentType.json;
     response.writeln(jsonEncode(value));

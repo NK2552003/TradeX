@@ -1,4 +1,4 @@
-import 'package:tradex/core/widgets/publication_confirmation.dart';
+import 'package:alphajournal/core/widgets/publication_confirmation.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -11,14 +11,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/linking/record_link_picker.dart';
-import 'package:tradex/core/markdown_kit/markdown_kit.dart';
-import 'package:tradex/features/linking/link_graph_service.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/linking/record_link_picker.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_kit.dart';
+import 'package:alphajournal/features/linking/link_graph_service.dart';
 
 import '../data/record_writing_repository.dart';
 import '../data/note_ai_refactor.dart';
@@ -568,7 +568,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     );
     if (symbol == null || !mounted) return;
     _editorKey.currentState?.insertInline(
-      '[\$$symbol](tradex://ticker/$symbol) ',
+      '[\$$symbol](alphajournal://ticker/$symbol) ',
     );
     // Linking a symbol in the body is also a statement about what the note is
     // about, so it joins the note's ticker list unless it is already there.
@@ -595,7 +595,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     if (id == null || !mounted) return;
     final String name = _strategyNameFor(id) ?? 'Strategy';
     _editorKey.currentState?.insertInline(
-      '[Strategy: $name](tradex://strategy/$id) ',
+      '[Strategy: $name](alphajournal://strategy/$id) ',
     );
     if (_strategyId == null) setState(() => _strategyId = id);
   }
@@ -803,7 +803,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         UiToast.warning(
           context,
           title: 'Dictation is not available',
-          message: 'Check the microphone permission for alphajournal.',
+          message: 'Check the microphone permission for AlphaJournal.',
         );
       }
       return;

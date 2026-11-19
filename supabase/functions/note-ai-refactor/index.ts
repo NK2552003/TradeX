@@ -1,9 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { corsPreflightResponse, withCorsHeaders } from '../_shared/cors.ts';
 import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 
 const headers = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -74,13 +74,19 @@ function reply(status: number, body: Record<string, unknown>): Response {
 }
 
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response(null, { headers });
+  if (request.method === 'OPTIONS') return corsPreflightResponse(request);
   const logger = createEdgeRequestLogger('note-ai-refactor', request);
   try {
-    return logger.finish(await handleNoteRefactorRequest(request, logger));
+    return logger.finish(withCorsHeaders(
+      request,
+      await handleNoteRefactorRequest(request, logger),
+    ));
   } catch (error) {
     logger.log('error', 'unhandled_exception', describeError(error));
-    return logger.finish(reply(500, { error: 'Note refactoring request failed.' }));
+    return logger.finish(withCorsHeaders(
+      request,
+      reply(500, { error: 'Note refactoring request failed.' }),
+    ));
   }
 });
 
@@ -245,7 +251,7 @@ async function handleNoteRefactorRequest(
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
 
-  const systemPrompt = `You are alphajournal Copilot, an elite quantitative financial analyst and disciplined trading performance coach.
+  const systemPrompt = `You are AlphaJournal Copilot, an elite quantitative financial analyst and disciplined trading performance coach.
 Your task is to refine, enhance, or restructure the trader's note content according to their instructions.
 Guidelines:
 - Return ONLY the raw Markdown output replacing the selected text, without conversational filler or markdown fences (\`\`\`) around the entire response.

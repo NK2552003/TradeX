@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
-import 'package:tradex/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
 
 import 'agent_runner.dart';
 import 'config.dart';
@@ -12,7 +12,8 @@ import 'store.dart';
 import 'workspace_actions.dart';
 
 class SlackBridge {
-  static String _bearer(String value) => "${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value";
+  static String _bearer(String value) =>
+      "${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value";
   SlackBridge(this.config, this.store, this.runner);
   final CopilotConfig config;
   final WorkspaceStore store;
@@ -120,10 +121,12 @@ class SlackBridge {
           ? 'Open the copilot conversation to review this run.'
           : textOf(message, 'body');
       if (thread['status'] == 'review') {
-        reply += '\n\nAn action needs your approval in the TradeX copilot.';
+        reply +=
+            '\n\nAn action needs your approval in the AlphaJournal copilot.';
       }
       if (reply.length > 3000) {
-        reply = '${reply.substring(0, 3000)}\nContinue reading in TradeX.';
+        reply =
+            '${reply.substring(0, 3000)}\nContinue reading in AlphaJournal.';
       }
       final client = http.Client();
       try {
@@ -131,7 +134,9 @@ class SlackBridge {
             .post(
               Uri.parse('https://slack.com/api/chat.postMessage'),
               headers: {
-                'Authorization': _bearer(config.values['SLACK_BOT_TOKEN'] ?? ''),
+                'Authorization': _bearer(
+                  config.values['SLACK_BOT_TOKEN'] ?? '',
+                ),
                 'Content-Type': 'application/json',
               },
               body: jsonEncode({

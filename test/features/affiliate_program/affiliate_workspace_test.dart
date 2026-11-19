@@ -1,20 +1,20 @@
-import 'package:tradex/core/privacy/consent_preferences.dart';
+import 'package:alphajournal/core/privacy/consent_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_workspace_repository.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_marketing_page.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart';
-import 'package:tradex/features/settings/data/repositories/affiliate_settings_repository.dart';
-import 'package:tradex/features/settings/presentation/pages/affiliate/affiliate_settings_page.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/widgets/app_scaffold.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_workspace_repository.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_attribution.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_marketing_page.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart';
+import 'package:alphajournal/features/settings/data/repositories/affiliate_settings_repository.dart';
+import 'package:alphajournal/features/settings/presentation/pages/affiliate/affiliate_settings_page.dart';
 
 class UnavailableRepository extends AffiliateWorkspaceRepository {
   @override

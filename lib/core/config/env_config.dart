@@ -23,9 +23,7 @@ class EnvConfig {
     'REVENUECAT_ANDROID_API_KEY': String.fromEnvironment(
       'REVENUECAT_ANDROID_API_KEY',
     ),
-    'REVENUECAT_IOS_API_KEY': String.fromEnvironment(
-      'REVENUECAT_IOS_API_KEY',
-    ),
+    'REVENUECAT_IOS_API_KEY': String.fromEnvironment('REVENUECAT_IOS_API_KEY'),
     'RAZORPAY_TEST_KEY_ID': String.fromEnvironment('RAZORPAY_TEST_KEY_ID'),
     'COPILOT_API_URL': String.fromEnvironment('COPILOT_API_URL'),
     'ENVIRONMENT': String.fromEnvironment('ENVIRONMENT'),
@@ -37,6 +35,12 @@ class EnvConfig {
     ),
     'NEXT_PUBLIC_COPILOT_API_URL': String.fromEnvironment(
       'NEXT_PUBLIC_COPILOT_API_URL',
+    ),
+    'APP_UPDATE_MANIFEST_URL': String.fromEnvironment(
+      'APP_UPDATE_MANIFEST_URL',
+    ),
+    'APP_UPDATE_CHECKS_ENABLED': String.fromEnvironment(
+      'APP_UPDATE_CHECKS_ENABLED',
     ),
   };
 
@@ -138,6 +142,18 @@ class EnvConfig {
   static String get razorpayTestKeyId => _get('RAZORPAY_TEST_KEY_ID');
 
   static String get copilotApiUrl => _get('COPILOT_API_URL');
+
+  static String get appUpdateManifestUrl => _get(
+    'APP_UPDATE_MANIFEST_URL',
+    defaultValue: 'https://alphajournal.in/app-update.json',
+  );
+
+  static bool get appUpdateChecksEnabled {
+    final configured = _get('APP_UPDATE_CHECKS_ENABLED').toLowerCase();
+    if (configured == 'true' || configured == '1') return true;
+    if (configured == 'false' || configured == '0') return false;
+    return isProduction || kReleaseMode;
+  }
 
   /// Dynamic runtime setting lookup for optional integrations like AdSense.
   static String adSetting(String key) => _get(key);

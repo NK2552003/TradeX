@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:tradex/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
 import 'agent_runner.dart';
 import 'store.dart';
 

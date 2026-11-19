@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 
 // ---------------------------------------------------------------------------
 // Author
@@ -83,35 +83,34 @@ class CommunityAuthor {
     AppTier? tier,
     bool? verified,
     double? winRate,
-  }) =>
-      CommunityAuthor(
-        id: id,
-        handle: handle,
-        displayName: displayName,
-        userRole: userRole,
-        avatarUrl: avatarUrl,
-        bio: bio,
-        tier: tier ?? this.tier,
-        subscriptionTier: subscriptionTier ?? this.subscriptionTier,
-        verified: verified ?? this.verified,
-        isFollowing: isFollowing ?? this.isFollowing,
-        followers: followers ?? this.followers,
-        following: following ?? this.following,
-        winRate: winRate ?? this.winRate,
-        tradingStyle: tradingStyle,
-        experienceLevel: experienceLevel,
-        primaryMarket: primaryMarket,
-        joinedDate: joinedDate,
-        mutualFollowers: mutualFollowers,
-        postsCount: postsCount ?? this.postsCount,
-        referralCode: referralCode,
-        channelHandle: channelHandle,
-        audienceReach: audienceReach,
-        location: location,
-        website: website,
-        avgHoldDuration: avgHoldDuration,
-        riskMantra: riskMantra,
-      );
+  }) => CommunityAuthor(
+    id: id,
+    handle: handle,
+    displayName: displayName,
+    userRole: userRole,
+    avatarUrl: avatarUrl,
+    bio: bio,
+    tier: tier ?? this.tier,
+    subscriptionTier: subscriptionTier ?? this.subscriptionTier,
+    verified: verified ?? this.verified,
+    isFollowing: isFollowing ?? this.isFollowing,
+    followers: followers ?? this.followers,
+    following: following ?? this.following,
+    winRate: winRate ?? this.winRate,
+    tradingStyle: tradingStyle,
+    experienceLevel: experienceLevel,
+    primaryMarket: primaryMarket,
+    joinedDate: joinedDate,
+    mutualFollowers: mutualFollowers,
+    postsCount: postsCount ?? this.postsCount,
+    referralCode: referralCode,
+    channelHandle: channelHandle,
+    audienceReach: audienceReach,
+    location: location,
+    website: website,
+    avgHoldDuration: avgHoldDuration,
+    riskMantra: riskMantra,
+  );
 
   Color verifiedColor(UiTheme theme) => switch (userRole) {
     UserRole.customer => theme.colors.primary,
@@ -121,15 +120,15 @@ class CommunityAuthor {
 
   String get roleBadgeText => switch (userRole) {
     UserRole.customer => switch (subscriptionTier.toLowerCase().trim()) {
-        'enterprise' || 'pro' => 'PRO PLAN',
-        'premium' || 'basic' || 'starter' => 'BASIC PLAN',
-        'free' => 'FREE PLAN',
-        _ => switch (tier) {
-            AppTier.enterprise => 'PRO PLAN',
-            AppTier.premium => 'BASIC PLAN',
-            AppTier.free => 'FREE PLAN',
-          },
+      'enterprise' || 'pro' => 'PRO PLAN',
+      'premium' || 'basic' || 'starter' => 'BASIC PLAN',
+      'free' => 'FREE PLAN',
+      _ => switch (tier) {
+        AppTier.enterprise => 'PRO PLAN',
+        AppTier.premium => 'BASIC PLAN',
+        AppTier.free => 'FREE PLAN',
       },
+    },
     UserRole.affiliate => 'OFFICIAL PARTNER',
     UserRole.userAdmin => 'DESK SUPERADMIN',
   };
@@ -138,15 +137,15 @@ class CommunityAuthor {
     UserRole.userAdmin => UiIntent.danger,
     UserRole.affiliate => UiIntent.warning,
     UserRole.customer => switch (subscriptionTier.toLowerCase().trim()) {
-        'enterprise' || 'pro' => UiIntent.success,
-        'premium' || 'basic' || 'starter' => UiIntent.primary,
-        'free' => UiIntent.neutral,
-        _ => switch (tier) {
-            AppTier.enterprise => UiIntent.success,
-            AppTier.premium => UiIntent.primary,
-            AppTier.free => UiIntent.neutral,
-          },
+      'enterprise' || 'pro' => UiIntent.success,
+      'premium' || 'basic' || 'starter' => UiIntent.primary,
+      'free' => UiIntent.neutral,
+      _ => switch (tier) {
+        AppTier.enterprise => UiIntent.success,
+        AppTier.premium => UiIntent.primary,
+        AppTier.free => UiIntent.neutral,
       },
+    },
   };
 }
 
@@ -580,7 +579,8 @@ class CommunityPost {
   final String moderationStatus;
 
   /// Returns true when this post is awaiting moderator approval.
-  bool get isPendingApproval => moderationStatus.trim().toLowerCase() == 'pending';
+  bool get isPendingApproval =>
+      moderationStatus.trim().toLowerCase() == 'pending';
 
   /// Returns the unique ordered list of emoji reactions to display on the badge.
   /// If the current user has reacted, that emoji is guaranteed to appear first.
@@ -652,7 +652,9 @@ class CommunityPost {
     tags: tags ?? this.tags,
     tradeSetup: clearTradeSetup ? null : (tradeSetup ?? this.tradeSetup),
     linkPreview: linkPreview,
-    imageUrl: imageUrls == null ? imageUrl : (imageUrls.isEmpty ? null : imageUrls.first),
+    imageUrl: imageUrls == null
+        ? imageUrl
+        : (imageUrls.isEmpty ? null : imageUrls.first),
     imageUrls: imageUrls ?? this.imageUrls,
     likes: likes ?? this.likes,
     comments: comments ?? this.comments,
@@ -918,7 +920,7 @@ class CommunityNotificationItem {
     CommunityNotificationType.follow => 'followed you',
     CommunityNotificationType.mention => 'mentioned you',
     CommunityNotificationType.signal => 'published a new signal',
-    CommunityNotificationType.system => 'alphajournal System Alert',
+    CommunityNotificationType.system => 'AlphaJournal System Alert',
     CommunityNotificationType.security => 'Security Alert',
     CommunityNotificationType.tradeExecution => 'Trade Execution',
     CommunityNotificationType.marginAlert => 'Margin Alert',

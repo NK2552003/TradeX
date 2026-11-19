@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/markdown_kit/markdown_preview.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_preview.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/admin_repository.dart';
@@ -124,7 +124,9 @@ String adminPreviewExcerpt(AdminRecord row, AdminResource resource) {
       final reason = _sanitizeText(row.values['reason']);
       if (reason.isNotEmpty) return reason;
     case AdminResource.activity:
-      final metaReason = _sanitizeText(adminMap(row.values['metadata'])['reason']);
+      final metaReason = _sanitizeText(
+        adminMap(row.values['metadata'])['reason'],
+      );
       if (metaReason.isNotEmpty) return metaReason;
     case AdminResource.users:
     case AdminResource.subscriptions:
@@ -196,7 +198,8 @@ class AdminVisualRecordCard extends StatelessWidget {
     final excerpt = adminPreviewExcerpt(record, resource);
     final author = record.text('author', record.text('actor_handle'));
     final email = record.text('email');
-    final avatarUrl = record.values['avatar_url']?.toString() ??
+    final avatarUrl =
+        record.values['avatar_url']?.toString() ??
         record.values['author_avatar_url']?.toString();
     final tickers = _extractStringList(record.values['tickers']);
     final tickerSingle = record.text('ticker');
@@ -384,14 +387,8 @@ class AdminVisualRecordCard extends StatelessWidget {
           ),
       ],
       AdminResource.posts => [
-        UiBadge(
-          label: '${record.count('views_count')} views',
-          size: UiSize.xs,
-        ),
-        UiBadge(
-          label: '${record.count('likes_count')} likes',
-          size: UiSize.xs,
-        ),
+        UiBadge(label: '${record.count('views_count')} views', size: UiSize.xs),
+        UiBadge(label: '${record.count('likes_count')} likes', size: UiSize.xs),
         UiBadge(
           label: '${record.count('comments_count')} comments',
           size: UiSize.xs,
@@ -428,11 +425,17 @@ class AdminVisualRecordCard extends StatelessWidget {
             size: UiSize.xs,
           ),
         if (record.count('word_count') > 0)
-          UiBadge(label: '${record.count('word_count')} words', size: UiSize.xs),
+          UiBadge(
+            label: '${record.count('word_count')} words',
+            size: UiSize.xs,
+          ),
       ],
       AdminResource.notes || AdminResource.strategies => [
         if (record.count('word_count') > 0)
-          UiBadge(label: '${record.count('word_count')} words', size: UiSize.xs),
+          UiBadge(
+            label: '${record.count('word_count')} words',
+            size: UiSize.xs,
+          ),
         if (record.flag('is_public') || record.text('visibility') == 'public')
           const UiBadge(
             label: 'Public',
@@ -452,7 +455,8 @@ class AdminVisualRecordCard extends StatelessWidget {
       ],
       AdminResource.payouts => [
         UiBadge(
-          label: '${record.text('amount', '0')} ${record.text('currency', 'INR')}',
+          label:
+              '${record.text('amount', '0')} ${record.text('currency', 'INR')}',
           intent: UiIntent.primary,
           size: UiSize.xs,
         ),
@@ -1126,10 +1130,7 @@ class _AdminLiveInspectorPaneState extends State<AdminLiveInspectorPane> {
                   ),
                   if (history.isNotEmpty) ...[
                     SizedBox(height: context.sp(theme.spacing.md)),
-                    Text(
-                      'Recent audit trail',
-                      style: context.uiText.label,
-                    ),
+                    Text('Recent audit trail', style: context.uiText.label),
                     SizedBox(height: context.sp(theme.spacing.xs)),
                     UiTimeline(
                       entries: [

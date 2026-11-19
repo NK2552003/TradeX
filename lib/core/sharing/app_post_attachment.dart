@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:tradex/core/app-ui/models/app_models.dart';
-import 'package:tradex/core/linking/link_graph.dart';
+import 'package:alphajournal/core/app-ui/models/app_models.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
 
 /// Whether a Writing Desk record may be read outside its owner's workspace.
 enum AppRecordVisibility { private, public }

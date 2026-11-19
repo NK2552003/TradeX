@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart'
+import 'package:alphajournal/core/app-ui/app_ui.dart'
     show AppSettingCard, AppSettingsSectionBlock, AppTokens;
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
 
 class DeleteAccountPage extends StatefulWidget {
   const DeleteAccountPage({

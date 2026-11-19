@@ -51,7 +51,7 @@ class StorageBucketEgressPolicy {
 }
 
 /// Central Supabase Egress vs Cached Egress routing policy for every storage
-/// bucket and URL resolver in TradeX.
+/// bucket and URL resolver in AlphaJournal.
 class SupabaseStorageEgress {
   const SupabaseStorageEgress._();
 
@@ -68,62 +68,62 @@ class SupabaseStorageEgress {
         'Timestamped public profile photos fetched repeatedly in feeds, threads, and OG cards -> Smart CDN Cached Egress.',
   );
 
-  static const StorageBucketEgressPolicy communityAttachments =
-      StorageBucketEgressPolicy(
-        bucketId: 'community-attachments',
-        tier: SupabaseEgressTier.cachedPublicCdn,
-        uploadCacheControl: immutableCdnCacheControl,
-        isPublicBucket: true,
-        rationale:
-            'SHA-256 content-addressed public post media shared across feed visitors & social bots -> Smart CDN Cached Egress.',
-      );
-
-  static const StorageBucketEgressPolicy journalAttachments =
-      StorageBucketEgressPolicy(
-        bucketId: 'journal-attachments',
-        tier: SupabaseEgressTier.privateSignedDirect,
-        uploadCacheControl: '3600',
-        signedUrlTtlSeconds: 3600,
-        clientUrlCacheTtl: Duration(minutes: 50),
-        isPublicBucket: false,
-        rationale:
-            'Private P&L charts & trade receipts protected by owner RLS -> 1h signed Direct Egress with 50m session URL reuse.',
-      );
-
-  static const StorageBucketEgressPolicy noteAttachments =
-      StorageBucketEgressPolicy(
-        bucketId: 'note-attachments',
-        tier: SupabaseEgressTier.privateSignedDirect,
-        uploadCacheControl: '3600',
-        signedUrlTtlSeconds: 3600,
-        clientUrlCacheTtl: Duration(minutes: 50),
-        isPublicBucket: false,
-        rationale:
-            'Private & toggled-public research note attachments protected by RLS -> 1h signed Direct Egress with 50m session URL reuse.',
-      );
-
-  static const StorageBucketEgressPolicy strategyAttachments =
-      StorageBucketEgressPolicy(
-        bucketId: 'strategy-attachments',
-        tier: SupabaseEgressTier.privateSignedDirect,
-        uploadCacheControl: '300',
-        signedUrlTtlSeconds: 300,
-        clientUrlCacheTtl: Duration(minutes: 4),
-        isPublicBucket: false,
-        rationale:
-            'Proprietary playbook setups supporting fast public-to-private revocation -> 5m signed Direct Egress matched with 4m client cache.',
+  static const StorageBucketEgressPolicy
+  communityAttachments = StorageBucketEgressPolicy(
+    bucketId: 'community-attachments',
+    tier: SupabaseEgressTier.cachedPublicCdn,
+    uploadCacheControl: immutableCdnCacheControl,
+    isPublicBucket: true,
+    rationale:
+        'SHA-256 content-addressed public post media shared across feed visitors & social bots -> Smart CDN Cached Egress.',
   );
 
-  static const StorageBucketEgressPolicy chatAttachments =
-      StorageBucketEgressPolicy(
-        bucketId: 'chat-attachments',
-        tier: SupabaseEgressTier.privateEncryptedDirect,
-        uploadCacheControl: '300',
-        signedUrlTtlSeconds: 300,
-        isPublicBucket: false,
-        rationale:
-            'Zero-knowledge E2EE .enc attachments downloaded once per device session (Direct Egress) & legacy 5m signed URLs.',
-      );
+  static const StorageBucketEgressPolicy
+  journalAttachments = StorageBucketEgressPolicy(
+    bucketId: 'journal-attachments',
+    tier: SupabaseEgressTier.privateSignedDirect,
+    uploadCacheControl: '3600',
+    signedUrlTtlSeconds: 3600,
+    clientUrlCacheTtl: Duration(minutes: 50),
+    isPublicBucket: false,
+    rationale:
+        'Private P&L charts & trade receipts protected by owner RLS -> 1h signed Direct Egress with 50m session URL reuse.',
+  );
+
+  static const StorageBucketEgressPolicy
+  noteAttachments = StorageBucketEgressPolicy(
+    bucketId: 'note-attachments',
+    tier: SupabaseEgressTier.privateSignedDirect,
+    uploadCacheControl: '3600',
+    signedUrlTtlSeconds: 3600,
+    clientUrlCacheTtl: Duration(minutes: 50),
+    isPublicBucket: false,
+    rationale:
+        'Private & toggled-public research note attachments protected by RLS -> 1h signed Direct Egress with 50m session URL reuse.',
+  );
+
+  static const StorageBucketEgressPolicy
+  strategyAttachments = StorageBucketEgressPolicy(
+    bucketId: 'strategy-attachments',
+    tier: SupabaseEgressTier.privateSignedDirect,
+    uploadCacheControl: '300',
+    signedUrlTtlSeconds: 300,
+    clientUrlCacheTtl: Duration(minutes: 4),
+    isPublicBucket: false,
+    rationale:
+        'Proprietary playbook setups supporting fast public-to-private revocation -> 5m signed Direct Egress matched with 4m client cache.',
+  );
+
+  static const StorageBucketEgressPolicy
+  chatAttachments = StorageBucketEgressPolicy(
+    bucketId: 'chat-attachments',
+    tier: SupabaseEgressTier.privateEncryptedDirect,
+    uploadCacheControl: '300',
+    signedUrlTtlSeconds: 300,
+    isPublicBucket: false,
+    rationale:
+        'Zero-knowledge E2EE .enc attachments downloaded once per device session (Direct Egress) & legacy 5m signed URLs.',
+  );
 
   static const List<StorageBucketEgressPolicy> allPolicies =
       <StorageBucketEgressPolicy>[
@@ -149,10 +149,7 @@ class SupabaseStorageEgress {
   ///
   /// Returns `null` for `data:`, `file:`, local paths, or external third-party
   /// HTTP(S) URLs that do not belong to Supabase Storage [bucket].
-  static String? extractStoragePath(
-    String ref, {
-    required String bucket,
-  }) {
+  static String? extractStoragePath(String ref, {required String bucket}) {
     final trimmed = ref.trim();
     if (trimmed.isEmpty ||
         trimmed.startsWith('data:') ||

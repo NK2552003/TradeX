@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/linking/entity_ticker_links_repository.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
 
 /// Turns the three feature repositories into one [AppLinkGraph].
 ///

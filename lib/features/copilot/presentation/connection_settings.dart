@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../data/copilot_controller.dart';
 import '../models/workspace.dart';
@@ -18,7 +18,8 @@ class CopilotConnections extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool workerAppsSupported = controller.workspace.setup['apps'] == true;
-    final bool inAppAppsEnabled = controller.workspace.settings['apps'] != false;
+    final bool inAppAppsEnabled =
+        controller.workspace.settings['apps'] != false;
     return ListView(
       shrinkWrap: true,
       children: [
@@ -26,7 +27,7 @@ class CopilotConnections extends StatelessWidget {
           UiCallout(
             title: 'Supabase Hosted Mode',
             message:
-                'In-app TradeX connectors (Notes, Journal, Strategies, Community, Watchlists) are ${inAppAppsEnabled ? 'enabled' : 'disabled'} via Supabase. External HTTP MCP servers and Slack require setting COPILOT_API_URL to a dedicated Copilot worker.',
+                'In-app AlphaJournal connectors (Notes, Journal, Strategies, Community, Watchlists) are ${inAppAppsEnabled ? 'enabled' : 'disabled'} via Supabase. External HTTP MCP servers and Slack require setting COPILOT_API_URL to a dedicated Copilot worker.',
             intent: UiIntent.info,
           ),
           UiGap.v(context.ui.spacing.md),
@@ -42,98 +43,99 @@ class CopilotConnections extends StatelessWidget {
           'Bring your apps into the conversation. Choose a specialist, allow specific tools, and review actions before they run.',
           style: context.uiText.body,
         ),
-      UiGap.v(context.ui.spacing.md),
-      for (final connection in controller.workspace.connections.where(
-        (c) => textOf(c, 'name').toLowerCase().contains(query.toLowerCase()),
-      )) ...[
+        UiGap.v(context.ui.spacing.md),
+        for (final connection in controller.workspace.connections.where(
+          (c) => textOf(c, 'name').toLowerCase().contains(query.toLowerCase()),
+        )) ...[
+          UiCard(
+            variant: UiCardVariant.outlined,
+            density: UiDensity.compact,
+            title: textOf(connection, 'name'),
+            subtitle: textOf(connection, 'url'),
+            trailing: UiBadge(
+              label: connection['enabled'] == true ? 'Enabled' : 'Disabled',
+              size: UiSize.xs,
+              intent: connection['enabled'] == true
+                  ? UiIntent.success
+                  : UiIntent.neutral,
+            ),
+            child: Wrap(
+              spacing: context.sp(context.ui.spacing.xs),
+              runSpacing: context.sp(context.ui.spacing.xs),
+              children: [
+                UiButton(
+                  label: 'Settings & tools',
+                  icon: Icons.tune,
+                  size: UiSize.xs,
+                  variant: UiVariant.soft,
+                  onPressed: () => _edit(context, connection),
+                ),
+                UiButton(
+                  label: 'Disconnect',
+                  size: UiSize.xs,
+                  variant: UiVariant.outline,
+                  intent: UiIntent.danger,
+                  onPressed: () => confirmWorkspaceDelete(
+                    context,
+                    controller,
+                    'connection.delete',
+                    connection['id'],
+                    textOf(connection, 'name'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          UiGap.v(context.ui.spacing.md),
+        ],
+        UiGap.v(context.ui.spacing.lg),
+        const UiCallout(
+          title: 'Accounts are connected separately',
+          message:
+              'An OpenAI key powers the AI. Email, calendar, GitHub, and Slack need an authorized MCP endpoint for the account you want to use.',
+          intent: UiIntent.neutral,
+        ),
+        UiGap.v(context.ui.spacing.md),
+        const UiCallout(
+          title: 'Computer access',
+          message:
+              'Open Computer in the workspace to manage browser, files, terminal permissions, and human control for an isolated computer.',
+          intent: UiIntent.neutral,
+        ),
+        UiGap.v(context.ui.spacing.md),
         UiCard(
           variant: UiCardVariant.outlined,
-          density: UiDensity.compact,
-          title: textOf(connection, 'name'),
-          subtitle: textOf(connection, 'url'),
+          title: 'Slack',
           trailing: UiBadge(
-            label: connection['enabled'] == true ? 'Enabled' : 'Disabled',
-            size: UiSize.xs,
-            intent: connection['enabled'] == true
-                ? UiIntent.success
-                : UiIntent.neutral,
+            label: controller.workspace.setup['slack'] == true
+                ? 'Configured'
+                : 'Not connected',
           ),
-          child: Wrap(
-            spacing: context.sp(context.ui.spacing.xs),
-            runSpacing: context.sp(context.ui.spacing.xs),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              UiButton(
-                label: 'Settings & tools',
-                icon: Icons.tune,
-                size: UiSize.xs,
-                variant: UiVariant.soft,
-                onPressed: () => _edit(context, connection),
+              Text(
+                'Mention your specialist in Slack and continue in the same thread. Workspace actions still come here for review.',
+                style: context.uiText.body,
               ),
-              UiButton(
-                label: 'Disconnect',
-                size: UiSize.xs,
-                variant: UiVariant.outline,
-                intent: UiIntent.danger,
-                onPressed: () => confirmWorkspaceDelete(
-                  context,
-                  controller,
-                  'connection.delete',
-                  connection['id'],
-                  textOf(connection, 'name'),
-                ),
+              UiGap.v(context.ui.spacing.sm),
+              Text(
+                controller.workspace.setup['slack'] == true
+                    ? textOf(
+                        controller.workspace.json['slackStatus'] as Json? ?? {},
+                        'message',
+                        'Waiting for an authorized Slack event.',
+                      )
+                    : 'A workspace administrator can connect a Slack bot using the setup guide in docs/copilot.md.',
+                style: context.uiText.caption,
               ),
             ],
           ),
         ),
-        UiGap.v(context.ui.spacing.md),
       ],
-      UiGap.v(context.ui.spacing.lg),
-      const UiCallout(
-        title: 'Accounts are connected separately',
-        message:
-            'An OpenAI key powers the AI. Email, calendar, GitHub, and Slack need an authorized MCP endpoint for the account you want to use.',
-        intent: UiIntent.neutral,
-      ),
-      UiGap.v(context.ui.spacing.md),
-      const UiCallout(
-        title: 'Computer access',
-        message:
-            'Open Computer in the workspace to manage browser, files, terminal permissions, and human control for an isolated computer.',
-        intent: UiIntent.neutral,
-      ),
-      UiGap.v(context.ui.spacing.md),
-      UiCard(
-        variant: UiCardVariant.outlined,
-        title: 'Slack',
-        trailing: UiBadge(
-          label: controller.workspace.setup['slack'] == true
-              ? 'Configured'
-              : 'Not connected',
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Mention your specialist in Slack and continue in the same thread. Workspace actions still come here for review.',
-              style: context.uiText.body,
-            ),
-            UiGap.v(context.ui.spacing.sm),
-            Text(
-              controller.workspace.setup['slack'] == true
-                  ? textOf(
-                      controller.workspace.json['slackStatus'] as Json? ?? {},
-                      'message',
-                      'Waiting for an authorized Slack event.',
-                    )
-                  : 'A workspace administrator can connect a Slack bot using the setup guide in docs/copilot.md.',
-              style: context.uiText.caption,
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
+    );
   }
+
   Future<void> _edit(BuildContext context, [Json? connection]) =>
       UiDialog.show<void>(
         context,

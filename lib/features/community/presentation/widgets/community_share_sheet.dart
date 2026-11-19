@@ -1,14 +1,13 @@
-
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/navigation/share_links.dart';
-import 'package:tradex/core/utils/share_actions.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_send_dm_dialog.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/navigation/share_links.dart';
+import 'package:alphajournal/core/utils/share_actions.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_send_dm_dialog.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 
 /// Bottom-sheet overlay presenting real social, external, workspace, and DM
 /// sharing actions for a community post.
@@ -32,9 +31,14 @@ class CommunityShareSheet extends StatefulWidget {
 
   /// Canonical public deep link. Resolves to the in-app post view; visitors who
   /// are signed out are asked to sign in and are returned to the post.
-  static String postUrl(CommunityPost post) =>
-      AppShareLinks.record(AppLinkRef(kind: AppLinkKind.communityPost,
-        id: post.id, title: post.body, isPublicContext: true));
+  static String postUrl(CommunityPost post) => AppShareLinks.record(
+    AppLinkRef(
+      kind: AppLinkKind.communityPost,
+      id: post.id,
+      title: post.body,
+      isPublicContext: true,
+    ),
+  );
 
   static String _excerpt(String body, {int max = 280}) {
     final String clean = body.trim().replaceAll(RegExp(r'\n{3,}'), '\n\n');
@@ -47,7 +51,7 @@ class CommunityShareSheet extends StatefulWidget {
     final String handle = post.author.cleanHandle.isNotEmpty
         ? ' (@${post.author.cleanHandle})'
         : '';
-    buffer.writeln('${post.author.displayName}$handle on alphajournal');
+    buffer.writeln('${post.author.displayName}$handle on AlphaJournal');
     buffer.writeln();
     buffer.writeln('“${_excerpt(post.body)}”');
 
@@ -75,7 +79,7 @@ class CommunityShareSheet extends StatefulWidget {
     }
 
     buffer.writeln();
-    buffer.writeln('View on alphajournal Community:');
+    buffer.writeln('View on AlphaJournal Community:');
     buffer.write(postUrl(post));
     return buffer.toString();
   }
@@ -85,8 +89,12 @@ class CommunityShareSheet extends StatefulWidget {
     required Uri uri,
     required String fallbackText,
     required String platformLabel,
-  }) => ShareActions.external(context, uri: uri, text: fallbackText,
-      platform: platformLabel);
+  }) => ShareActions.external(
+    context,
+    uri: uri,
+    text: fallbackText,
+    platform: platformLabel,
+  );
 
   static Future<void> triggerNativeShare(
     BuildContext context,
@@ -94,9 +102,11 @@ class CommunityShareSheet extends StatefulWidget {
     CommunityRepository? repository,
     VoidCallback? onShared,
   }) async {
-    if (await ShareActions.system(context,
-        text: formattedShareText(post),
-        subject: 'Post by @${post.author.cleanHandle} on alphajournal')) {
+    if (await ShareActions.system(
+      context,
+      text: formattedShareText(post),
+      subject: 'Post by @${post.author.cleanHandle} on AlphaJournal',
+    )) {
       repository?.recordShare(post.id);
       onShared?.call();
     }
@@ -174,7 +184,10 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
   }
 
   Future<void> _copyLink({bool closeSheet = false}) async {
-    final copied = await ShareActions.copy(context, CommunityShareSheet.postUrl(widget.post));
+    final copied = await ShareActions.copy(
+      context,
+      CommunityShareSheet.postUrl(widget.post),
+    );
     if (!copied) return;
     _recordShare();
     if (!mounted) return;
@@ -362,8 +375,9 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                 size: UiSize.xs,
                 variant: UiVariant.outline,
                 onPressed: () async {
-                  final BuildContext hostContext =
-                      Navigator.of(context).context;
+                  final BuildContext hostContext = Navigator.of(
+                    context,
+                  ).context;
                   Navigator.of(context).pop();
                   final Uri waUri = Uri.parse(
                     'https://wa.me/?text=${Uri.encodeComponent(fullShareText)}',
@@ -384,8 +398,9 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                 size: UiSize.xs,
                 variant: UiVariant.outline,
                 onPressed: () async {
-                  final BuildContext hostContext =
-                      Navigator.of(context).context;
+                  final BuildContext hostContext = Navigator.of(
+                    context,
+                  ).context;
                   Navigator.of(context).pop();
                   final String snippet = post.body.length > 200
                       ? '${post.body.substring(0, 197)}...'
@@ -411,8 +426,9 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                 size: UiSize.xs,
                 variant: UiVariant.outline,
                 onPressed: () async {
-                  final BuildContext hostContext =
-                      Navigator.of(context).context;
+                  final BuildContext hostContext = Navigator.of(
+                    context,
+                  ).context;
                   Navigator.of(context).pop();
                   final Uri tgUri = Uri.parse(
                     'https://t.me/share/url?url=${Uri.encodeComponent(url)}&text=${Uri.encodeComponent(post.body)}',
@@ -433,8 +449,9 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                 size: UiSize.xs,
                 variant: UiVariant.outline,
                 onPressed: () async {
-                  final BuildContext hostContext =
-                      Navigator.of(context).context;
+                  final BuildContext hostContext = Navigator.of(
+                    context,
+                  ).context;
                   Navigator.of(context).pop();
                   final Uri liUri = Uri.parse(
                     'https://www.linkedin.com/sharing/share-offsite/?url=${Uri.encodeComponent(url)}',
@@ -455,11 +472,12 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                 size: UiSize.xs,
                 variant: UiVariant.outline,
                 onPressed: () async {
-                  final BuildContext hostContext =
-                      Navigator.of(context).context;
+                  final BuildContext hostContext = Navigator.of(
+                    context,
+                  ).context;
                   Navigator.of(context).pop();
                   final String subject =
-                      'alphajournal Post by ${post.author.displayName} (@${post.author.cleanHandle})';
+                      'AlphaJournal Post by ${post.author.displayName} (@${post.author.cleanHandle})';
                   final Uri mailUri = Uri.parse(
                     'mailto:?subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(fullShareText)}',
                   );
@@ -480,8 +498,9 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
                 variant: UiVariant.soft,
                 intent: UiIntent.primary,
                 onPressed: () async {
-                  final BuildContext hostContext =
-                      Navigator.of(context).context;
+                  final BuildContext hostContext = Navigator.of(
+                    context,
+                  ).context;
                   Navigator.of(context).pop();
                   await CommunityShareSheet.triggerNativeShare(
                     hostContext,
@@ -526,7 +545,7 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
             key: const ValueKey('share-sheet-conversation'),
             icon: Icons.forum_outlined,
             title: 'Share to Conversation Thread',
-            subtitle: 'Post into an active alphajournal Messages thread',
+            subtitle: 'Post into an active AlphaJournal Messages thread',
             onTap: () {
               final BuildContext hostContext = Navigator.of(context).context;
               _recordShare();
@@ -543,7 +562,8 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
               ShareToConversationDialog.show(
                 hostContext,
                 reference: ref,
-                initialText: 'Check out this post by @${post.author.cleanHandle}',
+                initialText:
+                    'Check out this post by @${post.author.cleanHandle}',
                 onShared: (_) {
                   if (hostContext.mounted) {
                     UiToast.show(
@@ -693,8 +713,11 @@ class _CommunityShareSheetState extends State<CommunityShareSheet> {
             onTap: () async {
               final hostContext = Navigator.of(context).context;
               Navigator.of(context).pop();
-              if (await ShareActions.copy(hostContext, fullShareText,
-                  title: 'Copied to Clipboard')) {
+              if (await ShareActions.copy(
+                hostContext,
+                fullShareText,
+                title: 'Copied to Clipboard',
+              )) {
                 _recordShare();
               }
             },

@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/public_site/models/public_site_content.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/public_site/models/public_site_content.dart';
 
 abstract class PublicSiteRepository {
   Future<PublicSiteContent> landing();
@@ -21,7 +21,7 @@ class MockPublicSiteRepository implements PublicSiteRepository {
       jsonDecode(jsonEncode(_defaultPricing)) as Map<String, dynamic>;
 
   static const Map<String, dynamic> _defaultLanding = {
-    'brand': 'alphajournal',
+    'brand': 'AlphaJournal',
     'title': 'The Foundation for your Trading System',
     'description':
         'AI analysis, quantitative journaling, market intelligence, and community in one workspace. Built for precision, clarity, and disciplined execution.',
@@ -33,7 +33,7 @@ class MockPublicSiteRepository implements PublicSiteRepository {
     'pricing_title': 'Plans for Your Trading Workspace',
     'faq_title': 'Frequently Asked Questions',
     'footer':
-        'alphajournal · A workspace for disciplined traders. Market information is provided for research; it is not investment advice.',
+        'AlphaJournal · A workspace for disciplined traders. Market information is provided for research; it is not investment advice.',
     'retry_label': 'Try again',
     'error_title': 'Unable to load page content',
     'features': [
@@ -100,7 +100,7 @@ class MockPublicSiteRepository implements PublicSiteRepository {
     'copy': {
       'title': 'Select a Plan',
       'subtitle':
-          'Start on Free with 3 notes and community view access. Monthly subscriptions for Basic and Pro are disabled for now.',
+          'Start on Free with Community access, core calculators, and limited market previews. Basic and Pro unlock Markets and Messages.',
       'annual_badge': 'Save 20%',
       'billed_annually': 'Billed annually',
       'monthly': 'Monthly',
@@ -109,7 +109,7 @@ class MockPublicSiteRepository implements PublicSiteRepository {
       'selected': 'Selected Plan',
       'select': 'Select',
       'footer':
-          'Free includes up to 3 notes, community view, and core tools. Paid monthly subscriptions are temporarily disabled.',
+          'Free does not call paid Market Intelligence or Messages services. Paid monthly subscriptions are temporarily disabled.',
     },
     'plans': [
       {
@@ -117,7 +117,7 @@ class MockPublicSiteRepository implements PublicSiteRepository {
         'tier': 'free',
         'name': 'Free',
         'tagline':
-            'Essential starter workspace with 3 notes, community view access, and core trading tools.',
+            'Community access, core calculators, and limited ticker, news, and instrument previews.',
         'monthly_amount': 0.0,
         'annual_monthly_amount': 0.0,
         'currency_symbol': '₹',
@@ -143,7 +143,9 @@ class MockPublicSiteRepository implements PublicSiteRepository {
           '1 active playbook, 1 watchlist & 3 price alerts',
           'Up to 2 community posts/day & 10 comments/day',
           'Up to 5 AI prompts per month',
-          'Core calculators & market view',
+          'Core calculators',
+          'Limited Community ticker, news & instrument previews',
+          'No private Messages or full Market Intelligence',
         ],
       },
       {
@@ -151,7 +153,7 @@ class MockPublicSiteRepository implements PublicSiteRepository {
         'tier': 'premium',
         'name': 'Basic',
         'tagline':
-            'Expanded trading workspace with 25 notes, 100 trades, 5 watchlists, and 20 AI prompts/mo.',
+            'Full Market Intelligence, private Messages, advanced calculators, and expanded workspace limits.',
         'monthly_amount': 299.0,
         'annual_monthly_amount': 239.0,
         'currency_symbol': '₹',
@@ -176,7 +178,9 @@ class MockPublicSiteRepository implements PublicSiteRepository {
           'Up to 3 active playbooks, 5 watchlists & 25 alerts',
           'Up to 15 community posts/day & 50 comments/day',
           'Up to 20 AI prompts per month',
-          'Full community participation & market data',
+          'Full Market Intelligence & instrument research',
+          'Private Messages',
+          'All advanced calculators',
           'Monthly subscriptions disabled for now',
         ],
       },
@@ -206,6 +210,7 @@ class MockPublicSiteRepository implements PublicSiteRepository {
           'allow_advanced_backtest': true,
         },
         'features': [
+          'Everything in Basic, including Markets, Messages & calculators',
           'Up to 10,000 notes & 50,000 logged trades',
           'Up to 250 playbooks, 100 watchlists & 500 alerts',
           'Up to 100 community posts/day & 500 comments/day',
@@ -297,6 +302,27 @@ class MockPublicSiteRepository implements PublicSiteRepository {
             'free_value': false,
             'pro_value': false,
             'enterprise_value': true,
+          },
+          {
+            'id': 'market_intelligence',
+            'title': 'Market Intelligence',
+            'free_value': 'Limited Community previews',
+            'pro_value': 'Full access',
+            'enterprise_value': 'Full access',
+          },
+          {
+            'id': 'messages',
+            'title': 'Private Messages',
+            'free_value': 'Not included',
+            'pro_value': 'Included',
+            'enterprise_value': 'Included',
+          },
+          {
+            'id': 'calculators',
+            'title': 'Calculators',
+            'free_value': 'Core tools',
+            'pro_value': 'All tools',
+            'enterprise_value': 'All tools',
           },
         ],
       },

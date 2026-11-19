@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/core/navigation/customer_routes.dart';
-import 'package:tradex/core/navigation/share_links.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/core/navigation/customer_routes.dart';
+import 'package:alphajournal/core/navigation/share_links.dart';
 
 void main() {
   test('every public share URL opens the exact record in both URL codecs', () {
@@ -106,26 +106,29 @@ void main() {
     );
   });
 
-  test('destinationUrl and displayHostAndPath resolve canonical subdomains', () {
-    expect(
-      AppShareLinks.destinationUrl('calculators'),
-      'https://app.alphajournal.in/calculators',
-    );
-    expect(
-      AppShareLinks.destinationUrl('community_feed'),
-      'https://community.alphajournal.in/community_feed',
-    );
-    expect(
-      AppShareLinks.destinationUrl('affiliate_application'),
-      'https://affiliate.alphajournal.in/affiliate_application',
-    );
-    expect(
-      AppShareLinks.displayHostAndPath(
-        'https://community.alphajournal.in/community/post/p-1?public=true',
-      ),
-      'community.alphajournal.in/community/post/p-1',
-    );
-  });
+  test(
+    'destinationUrl and displayHostAndPath resolve canonical subdomains',
+    () {
+      expect(
+        AppShareLinks.destinationUrl('calculators'),
+        'https://app.alphajournal.in/calculators',
+      );
+      expect(
+        AppShareLinks.destinationUrl('community_feed'),
+        'https://community.alphajournal.in/community_feed',
+      );
+      expect(
+        AppShareLinks.destinationUrl('affiliate_application'),
+        'https://affiliate.alphajournal.in/affiliate_application',
+      );
+      expect(
+        AppShareLinks.displayHostAndPath(
+          'https://community.alphajournal.in/community/post/p-1?public=true',
+        ),
+        'community.alphajournal.in/community/post/p-1',
+      );
+    },
+  );
 
   test('malformed profile and extra record segments are rejected', () {
     for (final path in [

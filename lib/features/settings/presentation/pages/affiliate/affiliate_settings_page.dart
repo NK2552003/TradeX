@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/navigation/share_links.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
-import 'package:tradex/features/affiliate_program/presentation/widgets/affiliate_workspace_view.dart';
-import 'package:tradex/features/settings/data/repositories/affiliate_settings_repository.dart';
-import 'package:tradex/features/settings/models/affiliate_settings_model.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/navigation/share_links.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_workspace.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/widgets/affiliate_workspace_view.dart';
+import 'package:alphajournal/features/settings/data/repositories/affiliate_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/affiliate_settings_model.dart';
 
 class AffiliateSettingsPage extends StatefulWidget {
   const AffiliateSettingsPage({
@@ -594,7 +594,7 @@ class _AffiliateSettingsPageState extends State<AffiliateSettingsPage> {
                   title:
                       'Partner Agreement & Regulatory Terms (${s.termsVersionAccepted})',
                   description:
-                      'Binding INR settlement, Section 194H TDS, and SEBI/ASCI disclosure rules for alphajournal affiliates.',
+                      'Binding INR settlement, Section 194H TDS, and SEBI/ASCI disclosure rules for AlphaJournal affiliates.',
                   children: [
                     UiAccordion(
                       items: [

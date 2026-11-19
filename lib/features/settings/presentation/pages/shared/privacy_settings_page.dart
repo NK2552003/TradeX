@@ -1,17 +1,17 @@
 import '../../widgets/help/cookie_preferences_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/utils/file_download.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
-import 'package:tradex/features/settings/models/privacy_settings_model.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/blocked_users_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/delete_account_page.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/utils/file_download.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
+import 'package:alphajournal/features/settings/models/privacy_settings_model.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/blocked_users_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/delete_account_page.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_nav_row.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class PrivacySettingsPage extends StatefulWidget {
   const PrivacySettingsPage({
@@ -484,7 +484,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                   AppSettingCard(
                     title: 'Show Active / Online Status',
                     description:
-                        'Let accounts you message see when you are currently online and active on alphajournal.',
+                        'Let accounts you message see when you are currently online and active on AlphaJournal.',
                     icon: Icons.circle,
                     control: UiSwitch(
                       value: _settings.showActivityStatus,

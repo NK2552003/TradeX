@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/delete_account_page.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/delete_account_page.dart';
 
 class DeletionRequestFixture extends Fake implements ProfileSettingsRepository {
   bool fail = true;

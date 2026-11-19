@@ -1,14 +1,15 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
-import 'package:tradex/features/auth/widgets/role_selector_tab.dart';
-import 'package:tradex/features/settings/presentation/widgets/help/publication_reader.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_repository.dart';
+import 'package:alphajournal/features/auth/data/services/auth_backend_service.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/widgets/auth_carousel_panel.dart';
+import 'package:alphajournal/features/auth/widgets/role_selector_tab.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/help/publication_reader.dart';
 
 /// Responsive Login Page — split card on desktop, single column on mobile.
 class LoginPage extends StatefulWidget {
@@ -137,8 +138,8 @@ class _LoginPageState extends State<LoginPage> {
     if (!result.isSuccess) {
       final bool requiresVerification =
           result.errorCode == 'email_not_confirmed' ||
-              result.requiresEmailVerification ||
-              result.message.toLowerCase().contains('email not confirmed');
+          result.requiresEmailVerification ||
+          result.message.toLowerCase().contains('email not confirmed');
 
       if (requiresVerification && widget.onRequiresVerification != null) {
         UiToast.show(
@@ -356,7 +357,7 @@ class _LoginPageState extends State<LoginPage> {
                                                     ),
                                                   ),
                                                   Text(
-                                                    'Login to your alphajournal account',
+                                                    'Login to your AlphaJournal account',
                                                     textAlign: TextAlign.left,
                                                     style: context.uiText.body
                                                         .copyWith(
@@ -629,8 +630,11 @@ class _LoginPageState extends State<LoginPage> {
                                                     color: colors.primary,
                                                     fontWeight: FontWeight.w600,
                                                     fontSize: 11.5,
-                                                    decoration: TextDecoration.underline,
-                                                    decorationColor: colors.primary.withValues(alpha: 0.5),
+                                                    decoration: TextDecoration
+                                                        .underline,
+                                                    decorationColor: colors
+                                                        .primary
+                                                        .withValues(alpha: 0.5),
                                                   ),
                                             ),
                                           ),
@@ -654,8 +658,11 @@ class _LoginPageState extends State<LoginPage> {
                                                     color: colors.primary,
                                                     fontWeight: FontWeight.w600,
                                                     fontSize: 11.5,
-                                                    decoration: TextDecoration.underline,
-                                                    decorationColor: colors.primary.withValues(alpha: 0.5),
+                                                    decoration: TextDecoration
+                                                        .underline,
+                                                    decorationColor: colors
+                                                        .primary
+                                                        .withValues(alpha: 0.5),
                                                   ),
                                             ),
                                           ),
@@ -697,7 +704,9 @@ class _LoginPageState extends State<LoginPage> {
       }
       final launched = await client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb ? Uri.base.origin : 'tradex://auth/callback',
+        redirectTo: kIsWeb
+            ? Uri.base.origin
+            : AppConstants.nativeAuthCallbackUrl,
       );
       if (!launched) {
         throw StateError('Could not open Google sign-in. Please retry.');

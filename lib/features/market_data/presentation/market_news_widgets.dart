@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:tradex/core/ads/ad_config.dart';
-import 'package:tradex/core/ads/ad_slot.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/ads/ad_config.dart';
+import 'package:alphajournal/core/ads/ad_slot.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import '../models/market_snapshot.dart';
 import 'market_instrument_view.dart' show marketFieldLabel;
 import 'market_movers_panel.dart';
@@ -87,14 +87,16 @@ class MarketArticleMeta extends StatelessWidget {
               final isPos = quote.changePercent >= 0;
               return onInstrument != null
                   ? UiButton(
-                      label: '$symbol ${isPos ? '+' : ''}${quote.changePercent.toStringAsFixed(2)}%',
+                      label:
+                          '$symbol ${isPos ? '+' : ''}${quote.changePercent.toStringAsFixed(2)}%',
                       size: UiSize.xs,
                       variant: UiVariant.soft,
                       intent: isPos ? UiIntent.success : UiIntent.danger,
                       onPressed: () => onInstrument!(quote),
                     )
                   : UiBadge(
-                      label: '$symbol ${isPos ? '+' : ''}${quote.changePercent.toStringAsFixed(2)}%',
+                      label:
+                          '$symbol ${isPos ? '+' : ''}${quote.changePercent.toStringAsFixed(2)}%',
                       size: UiSize.xs,
                       intent: isPos ? UiIntent.success : UiIntent.danger,
                       variant: UiBadgeVariant.soft,
@@ -140,10 +142,7 @@ class MarketNewsCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            colors.surfaceMuted,
-            colors.primary.withValues(alpha: 0.14),
-          ],
+          colors: [colors.surfaceMuted, colors.primary.withValues(alpha: 0.14)],
         ),
       ),
       padding: EdgeInsets.all(context.sp(context.ui.spacing.xs)),
@@ -253,10 +252,8 @@ class MarketNewsCard extends StatelessWidget {
           article.summary.trim(),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: (featured ? context.uiText.body : context.uiText.caption).copyWith(
-            color: context.ui.colors.foregroundMuted,
-            height: 1.35,
-          ),
+          style: (featured ? context.uiText.body : context.uiText.caption)
+              .copyWith(color: context.ui.colors.foregroundMuted, height: 1.35),
         ),
       ],
       UiGap.v(context.ui.spacing.sm),
@@ -410,9 +407,14 @@ class MarketWatchNowCard extends StatelessWidget {
                             ),
                             Container(
                               margin: const EdgeInsets.all(4),
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: i == 0 ? context.ui.colors.primary : Colors.black.withValues(alpha: 0.8),
+                                color: i == 0
+                                    ? context.ui.colors.primary
+                                    : Colors.black.withValues(alpha: 0.8),
                                 borderRadius: BorderRadius.circular(3),
                               ),
                               child: Text(
@@ -586,8 +588,9 @@ class _MarketNewsViewState extends State<MarketNewsView> {
     final page = _page;
     final startIndex = page * pageSize;
     final endIndex = (startIndex + pageSize).clamp(0, articles.length);
-    final pageArticles =
-        articles.isEmpty ? <MarketArticle>[] : articles.sublist(startIndex, endIndex);
+    final pageArticles = articles.isEmpty
+        ? <MarketArticle>[]
+        : articles.sublist(startIndex, endIndex);
     final int manifestNewsCount = widget.selectedTopic == 'all'
         ? (widget.snapshot.manifest['news_count'] as num? ?? 0).toInt()
         : 0;
@@ -596,16 +599,18 @@ class _MarketNewsViewState extends State<MarketNewsView> {
         : articles.length;
 
     // Prepare popular editorial articles for right rail matching Image 3 from topics
-    final popularArticles = (widget.snapshot.topics['popular'] ??
-            widget.snapshot.topics['trending'] ??
-            widget.snapshot.topics['stock_market_general'] ??
-            const <MarketArticle>[])
-        .where((a) => !pageArticles.contains(a))
-        .take(6)
-        .toList();
+    final popularArticles =
+        (widget.snapshot.topics['popular'] ??
+                widget.snapshot.topics['trending'] ??
+                widget.snapshot.topics['stock_market_general'] ??
+                const <MarketArticle>[])
+            .where((a) => !pageArticles.contains(a))
+            .take(6)
+            .toList();
 
     // Prepare 3-column subgrid categories matching Image 3
-    final subgridCategories = <(String title, MarketArticle lead, MarketArticle? secondary)>[];
+    final subgridCategories =
+        <(String title, MarketArticle lead, MarketArticle? secondary)>[];
     for (final entry in widget.snapshot.topics.entries.take(3)) {
       if (entry.value.isNotEmpty) {
         subgridCategories.add((
@@ -617,411 +622,419 @@ class _MarketNewsViewState extends State<MarketNewsView> {
     }
 
     return MarketTwoPanel(
-          primary: UiCard(
-            title: 'Market newsroom',
-            subtitle: '${articles.length} stories',
-            trailing: UiBadge(
-              label: 'Real-time',
-              icon: Icons.sensors,
-              intent: UiIntent.success,
-              variant: UiBadgeVariant.soft,
-            ),
-            padding: EdgeInsets.all(context.sp(context.ui.spacing.sm)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (articles.isEmpty)
-                  const UiEmptyState(
-                    icon: Icons.newspaper_outlined,
-                    title: 'No articles available',
-                    message: 'Try another topic or search term.',
-                  ),
-                if (articles.isNotEmpty) ...[
-                  if (page == 0) ...[
-                    // Featured Hero Article on first page
-                    MarketNewsCard(
-                      article: pageArticles.first,
-                      snapshot: widget.snapshot,
-                      featured: true,
-                      onInstrument: widget.onInstrument,
-                      onTap: () => widget.onArticle(pageArticles.first),
-                      isLiked: widget.isLiked?.call(pageArticles.first) ?? false,
-                      onLike: widget.onLike == null
-                          ? null
-                          : () => widget.onLike!(pageArticles.first),
-                    ),
+      primary: UiCard(
+        title: 'Market newsroom',
+        subtitle: '${articles.length} stories',
+        trailing: UiBadge(
+          label: 'Real-time',
+          icon: Icons.sensors,
+          intent: UiIntent.success,
+          variant: UiBadgeVariant.soft,
+        ),
+        padding: EdgeInsets.all(context.sp(context.ui.spacing.sm)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (articles.isEmpty)
+              const UiEmptyState(
+                icon: Icons.newspaper_outlined,
+                title: 'No articles available',
+                message: 'Try another topic or search term.',
+              ),
+            if (articles.isNotEmpty) ...[
+              if (page == 0) ...[
+                // Featured Hero Article on first page
+                MarketNewsCard(
+                  article: pageArticles.first,
+                  snapshot: widget.snapshot,
+                  featured: true,
+                  onInstrument: widget.onInstrument,
+                  onTap: () => widget.onArticle(pageArticles.first),
+                  isLiked: widget.isLiked?.call(pageArticles.first) ?? false,
+                  onLike: widget.onLike == null
+                      ? null
+                      : () => widget.onLike!(pageArticles.first),
+                ),
 
-                    // 3-Column Category Subgrid matching Image 3
-                    if (subgridCategories.isNotEmpty) ...[
-                      UiGap.v(context.ui.spacing.md),
-                      const UiDivider(),
-                      UiGap.v(context.ui.spacing.sm),
-                      LayoutBuilder(
-                        builder: (context, c) {
-                          final isNarrow = c.maxWidth < 650;
-
-                          Widget buildCol((String, MarketArticle, MarketArticle?) cat) => InkWell(
-                            onTap: () => widget.onArticle(cat.$2),
-                            borderRadius: context.radius(context.ui.radii.sm),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        cat.$1,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: context.uiText.bodyStrong.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                    UiGap.h(context.ui.spacing.xxs),
-                                    Icon(
-                                      Icons.chevron_right,
-                                      size: context.sz(14),
-                                      color: context.ui.colors.foregroundMuted,
-                                    ),
-                                  ],
-                                ),
-                                UiGap.v(context.ui.spacing.xs),
-                                ClipRRect(
-                                  borderRadius: context.radius(context.ui.radii.sm),
-                                  child: AspectRatio(
-                                    aspectRatio: 16 / 9,
-                                    child: UiRemoteImage(
-                                      url: cat.$2.thumbnailUrl,
-                                      semanticLabel: cat.$2.title,
-                                    ),
-                                  ),
-                                ),
-                                UiGap.v(context.ui.spacing.xs),
-                                Text(
-                                  cat.$2.title,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: context.uiText.bodyStrong,
-                                ),
-                                UiGap.v(context.ui.spacing.xxs),
-                                Text(
-                                  '${cat.$2.publisher} • ${AppTokens.relativeTime(cat.$2.publishedAt ?? DateTime.now())}',
-                                  style: context.uiText.caption.copyWith(
-                                    color: context.ui.colors.foregroundMuted,
-                                    fontSize: context.fs(11),
-                                  ),
-                                ),
-                                if (cat.$3 != null) ...[
-                                  UiGap.v(context.ui.spacing.xs),
-                                  const UiDivider(spacing: 0),
-                                  UiGap.v(context.ui.spacing.xs),
-                                  InkWell(
-                                    onTap: () => widget.onArticle(cat.$3!),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: context.sz(6),
-                                          height: context.sz(6),
-                                          decoration: BoxDecoration(
-                                            color: context.ui.colors.danger,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        UiGap.h(context.ui.spacing.xs),
-                                        Expanded(
-                                          child: Text(
-                                            cat.$3!.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: context.uiText.caption.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          );
-
-                          if (isNarrow) {
-                            return Column(
-                              children: [
-                                for (final cat in subgridCategories) ...[
-                                  buildCol(cat),
-                                  UiGap.v(context.ui.spacing.md),
-                                ],
-                              ],
-                            );
-                          }
-
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              for (var i = 0; i < subgridCategories.length; i++) ...[
-                                Expanded(child: buildCol(subgridCategories[i])),
-                                if (i < subgridCategories.length - 1)
-                                  UiGap.h(context.ui.spacing.md),
-                              ],
-                            ],
-                          );
-                        },
-                      ),
-                    ],
-
-                    // Remaining stories on page 0
-                    if (pageArticles.length > 1) ...[
-                      UiGap.v(context.ui.spacing.md),
-                      const UiDivider(),
-                      UiGap.v(context.ui.spacing.md),
-                      for (var i = 1; i < pageArticles.length; i++) ...[
-                        MarketNewsCard(
-                          article: pageArticles[i],
-                          snapshot: widget.snapshot,
-                          row: true,
-                          onInstrument: widget.onInstrument,
-                          onTap: () => widget.onArticle(pageArticles[i]),
-                          isLiked: widget.isLiked?.call(pageArticles[i]) ?? false,
-                          onLike: widget.onLike == null
-                              ? null
-                              : () => widget.onLike!(pageArticles[i]),
-                        ),
-                        if (i < pageArticles.length - 1) const UiDivider(),
-                      ],
-                    ],
-                  ] else ...[
-                    // Subsequent pages
-                    for (var i = 0; i < pageArticles.length; i++) ...[
-                      MarketNewsCard(
-                        article: pageArticles[i],
-                        snapshot: widget.snapshot,
-                        row: true,
-                        onInstrument: widget.onInstrument,
-                        onTap: () => widget.onArticle(pageArticles[i]),
-                        isLiked: widget.isLiked?.call(pageArticles[i]) ?? false,
-                        onLike: widget.onLike == null
-                            ? null
-                            : () => widget.onLike!(pageArticles[i]),
-                      ),
-                      if (i < pageArticles.length - 1) const UiDivider(),
-                    ],
-                  ],
-                ],
-                if (count > 1) ...[
+                // 3-Column Category Subgrid matching Image 3
+                if (subgridCategories.isNotEmpty) ...[
                   UiGap.v(context.ui.spacing.md),
                   const UiDivider(),
                   UiGap.v(context.ui.spacing.sm),
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    runAlignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: context.sp(context.ui.spacing.md),
-                    runSpacing: context.sp(context.ui.spacing.sm),
-                    children: [
-                      Text(
-                        'Showing ${startIndex + 1}–$endIndex of $totalStories stories · Page ${page + 1} of $count',
-                        style: context.uiText.caption.copyWith(
-                          color: context.ui.colors.foregroundMuted,
-                        ),
-                      ),
-                      UiPagination(
-                        page: page,
-                        pageCount: count,
-                        onPageChanged: (newPage) {
-                          setState(() => _page = newPage);
-                          if (newPage >= count - 1) {
-                            widget.onMore?.call();
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-          secondary: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Popular Editorial Rail matching Image 3
-              if (popularArticles.isNotEmpty) ...[
-                UiCard(
-                  title: 'Popular',
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    size: context.sz(18),
-                    color: context.ui.colors.foregroundMuted,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var i = 0; i < popularArticles.length; i++) ...[
-                        InkWell(
-                          onTap: () => widget.onArticle(popularArticles[i]),
-                          borderRadius: context.radius(context.ui.radii.sm),
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              vertical: context.sp(context.ui.spacing.xs),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                  LayoutBuilder(
+                    builder: (context, c) {
+                      final isNarrow = c.maxWidth < 650;
+
+                      Widget buildCol(
+                        (String, MarketArticle, MarketArticle?) cat,
+                      ) => InkWell(
+                        onTap: () => widget.onArticle(cat.$2),
+                        borderRadius: context.radius(context.ui.radii.sm),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
-                                Text(
-                                  popularArticles[i].title,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: context.uiText.bodyStrong.copyWith(
-                                    fontWeight: FontWeight.w600,
+                                Flexible(
+                                  child: Text(
+                                    cat.$1,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: context.uiText.bodyStrong.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                UiGap.v(context.ui.spacing.xxs),
-                                Row(
-                                  children: [
-                                    if (popularArticles[i].publisher.isNotEmpty)
-                                      Expanded(
-                                        child: Text(
-                                          popularArticles[i].publisher,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: context.uiText.caption.copyWith(
-                                            color: context.ui.colors.foregroundMuted,
-                                            fontSize: context.fs(11),
-                                          ),
-                                        ),
-                                      )
-                                    else
-                                      const Spacer(),
-                                    UiGap.h(context.ui.spacing.xs),
-                                    for (final symbol in popularArticles[i].tickers.take(1))
-                                      Builder(
-                                        builder: (context) {
-                                          final quote = widget.snapshot.instruments
-                                              .where((q) => q.symbol == symbol)
-                                              .firstOrNull;
-                                          if (quote != null) {
-                                            final isPos = quote.changePercent >= 0;
-                                            return UiBadge(
-                                              label:
-                                                  '$symbol ${isPos ? '+' : ''}${quote.changePercent.toStringAsFixed(2)}%',
-                                              intent: isPos
-                                                  ? UiIntent.success
-                                                  : UiIntent.danger,
-                                              variant: UiBadgeVariant.soft,
-                                              size: UiSize.xs,
-                                            );
-                                          }
-                                          return UiBadge(
-                                            label: symbol,
-                                            size: UiSize.xs,
-                                            variant: UiBadgeVariant.soft,
-                                          );
-                                        },
-                                      ),
-                                  ],
+                                UiGap.h(context.ui.spacing.xxs),
+                                Icon(
+                                  Icons.chevron_right,
+                                  size: context.sz(14),
+                                  color: context.ui.colors.foregroundMuted,
                                 ),
                               ],
                             ),
-                          ),
+                            UiGap.v(context.ui.spacing.xs),
+                            ClipRRect(
+                              borderRadius: context.radius(context.ui.radii.sm),
+                              child: AspectRatio(
+                                aspectRatio: 16 / 9,
+                                child: UiRemoteImage(
+                                  url: cat.$2.thumbnailUrl,
+                                  semanticLabel: cat.$2.title,
+                                ),
+                              ),
+                            ),
+                            UiGap.v(context.ui.spacing.xs),
+                            Text(
+                              cat.$2.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.uiText.bodyStrong,
+                            ),
+                            UiGap.v(context.ui.spacing.xxs),
+                            Text(
+                              '${cat.$2.publisher} • ${AppTokens.relativeTime(cat.$2.publishedAt ?? DateTime.now())}',
+                              style: context.uiText.caption.copyWith(
+                                color: context.ui.colors.foregroundMuted,
+                                fontSize: context.fs(11),
+                              ),
+                            ),
+                            if (cat.$3 != null) ...[
+                              UiGap.v(context.ui.spacing.xs),
+                              const UiDivider(spacing: 0),
+                              UiGap.v(context.ui.spacing.xs),
+                              InkWell(
+                                onTap: () => widget.onArticle(cat.$3!),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: context.sz(6),
+                                      height: context.sz(6),
+                                      decoration: BoxDecoration(
+                                        color: context.ui.colors.danger,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    UiGap.h(context.ui.spacing.xs),
+                                    Expanded(
+                                      child: Text(
+                                        cat.$3!.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: context.uiText.caption.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        if (i < popularArticles.length - 1)
-                          const UiDivider(spacing: 0),
-                      ],
-                    ],
+                      );
+
+                      if (isNarrow) {
+                        return Column(
+                          children: [
+                            for (final cat in subgridCategories) ...[
+                              buildCol(cat),
+                              UiGap.v(context.ui.spacing.md),
+                            ],
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (
+                            var i = 0;
+                            i < subgridCategories.length;
+                            i++
+                          ) ...[
+                            Expanded(child: buildCol(subgridCategories[i])),
+                            if (i < subgridCategories.length - 1)
+                              UiGap.h(context.ui.spacing.md),
+                          ],
+                        ],
+                      );
+                    },
                   ),
-                ),
-                UiGap.v(context.ui.spacing.md),
-              ],
+                ],
 
-              // Video Content "Watch Now" Card matching Image 4
-              if (widget.snapshot.videos.isNotEmpty) ...[
-                MarketWatchNowCard(
-                  videos: widget.snapshot.videos,
-                  onArticle: widget.onArticle,
-                  onInstrument: widget.onInstrument,
-                  snapshot: widget.snapshot,
-                ),
-                UiGap.v(context.ui.spacing.md),
-              ],
-
-              // Topic Filters
-              UiCard(
-                title: 'Topics',
-                subtitle: 'Browse by category',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    UiButton(
-                      label: 'All topics',
-                      alignment: Alignment.centerLeft,
-                      variant: widget.selectedTopic == 'all'
-                          ? UiVariant.soft
-                          : UiVariant.ghost,
-                      intent: widget.selectedTopic == 'all'
-                          ? UiIntent.primary
-                          : UiIntent.neutral,
-                      onPressed: widget.onTopicSelected == null
+                // Remaining stories on page 0
+                if (pageArticles.length > 1) ...[
+                  UiGap.v(context.ui.spacing.md),
+                  const UiDivider(),
+                  UiGap.v(context.ui.spacing.md),
+                  for (var i = 1; i < pageArticles.length; i++) ...[
+                    MarketNewsCard(
+                      article: pageArticles[i],
+                      snapshot: widget.snapshot,
+                      row: true,
+                      onInstrument: widget.onInstrument,
+                      onTap: () => widget.onArticle(pageArticles[i]),
+                      isLiked: widget.isLiked?.call(pageArticles[i]) ?? false,
+                      onLike: widget.onLike == null
                           ? null
-                          : () => widget.onTopicSelected!('all'),
+                          : () => widget.onLike!(pageArticles[i]),
                     ),
-                    for (final topic in widget.snapshot.topics.entries)
-                      UiButton(
-                        label:
-                            '${topicDisplayLabel(topic.key)} (${topic.value.length})',
-                        alignment: Alignment.centerLeft,
-                        variant: widget.selectedTopic == topic.key
-                            ? UiVariant.soft
-                            : UiVariant.ghost,
-                        intent: widget.selectedTopic == topic.key
-                            ? UiIntent.primary
-                            : UiIntent.neutral,
-                        onPressed: widget.onTopicSelected == null
-                            ? null
-                            : () => widget.onTopicSelected!(topic.key),
-                      ),
+                    if (i < pageArticles.length - 1) const UiDivider(),
                   ],
-                ),
-              ),
+                ],
+              ] else ...[
+                // Subsequent pages
+                for (var i = 0; i < pageArticles.length; i++) ...[
+                  MarketNewsCard(
+                    article: pageArticles[i],
+                    snapshot: widget.snapshot,
+                    row: true,
+                    onInstrument: widget.onInstrument,
+                    onTap: () => widget.onArticle(pageArticles[i]),
+                    isLiked: widget.isLiked?.call(pageArticles[i]) ?? false,
+                    onLike: widget.onLike == null
+                        ? null
+                        : () => widget.onLike!(pageArticles[i]),
+                  ),
+                  if (i < pageArticles.length - 1) const UiDivider(),
+                ],
+              ],
+            ],
+            if (count > 1) ...[
               UiGap.v(context.ui.spacing.md),
-
-              // Trending Companies
-              UiCard(
-                title: 'Trending companies',
-                subtitle: 'Most mentioned in news',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (widget.snapshot.trending.isEmpty)
-                      Text(
-                        'No trending companies',
-                        style: context.uiText.caption.copyWith(
-                          color: context.ui.colors.foregroundMuted,
-                        ),
-                      )
-                    else
-                      for (final quote in widget.snapshot.trending.take(6)) ...[
-                        MarketQuoteRow(
-                          quote: quote,
-                          onTap: () => widget.onInstrument?.call(quote),
-                        ),
-                        const UiDivider(spacing: 0),
-                      ],
-                  ],
-                ),
-              ),
-              UiGap.v(context.ui.spacing.md),
-
-              MarketDistributionCard(
-                title: 'Coverage by publisher',
-                subtitle:
-                    '${articles.length} articles · ${widget.snapshot.videos.length} videos',
-                values: publishers,
+              const UiDivider(),
+              UiGap.v(context.ui.spacing.sm),
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                runAlignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: context.sp(context.ui.spacing.md),
+                runSpacing: context.sp(context.ui.spacing.sm),
+                children: [
+                  Text(
+                    'Showing ${startIndex + 1}–$endIndex of $totalStories stories · Page ${page + 1} of $count',
+                    style: context.uiText.caption.copyWith(
+                      color: context.ui.colors.foregroundMuted,
+                    ),
+                  ),
+                  UiPagination(
+                    page: page,
+                    pageCount: count,
+                    onPageChanged: (newPage) {
+                      setState(() => _page = newPage);
+                      if (newPage >= count - 1) {
+                        widget.onMore?.call();
+                      }
+                    },
+                  ),
+                ],
               ),
             ],
+          ],
+        ),
+      ),
+      secondary: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Popular Editorial Rail matching Image 3
+          if (popularArticles.isNotEmpty) ...[
+            UiCard(
+              title: 'Popular',
+              trailing: Icon(
+                Icons.chevron_right,
+                size: context.sz(18),
+                color: context.ui.colors.foregroundMuted,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < popularArticles.length; i++) ...[
+                    InkWell(
+                      onTap: () => widget.onArticle(popularArticles[i]),
+                      borderRadius: context.radius(context.ui.radii.sm),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: context.sp(context.ui.spacing.xs),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              popularArticles[i].title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.uiText.bodyStrong.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            UiGap.v(context.ui.spacing.xxs),
+                            Row(
+                              children: [
+                                if (popularArticles[i].publisher.isNotEmpty)
+                                  Expanded(
+                                    child: Text(
+                                      popularArticles[i].publisher,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: context.uiText.caption.copyWith(
+                                        color:
+                                            context.ui.colors.foregroundMuted,
+                                        fontSize: context.fs(11),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  const Spacer(),
+                                UiGap.h(context.ui.spacing.xs),
+                                for (final symbol
+                                    in popularArticles[i].tickers.take(1))
+                                  Builder(
+                                    builder: (context) {
+                                      final quote = widget.snapshot.instruments
+                                          .where((q) => q.symbol == symbol)
+                                          .firstOrNull;
+                                      if (quote != null) {
+                                        final isPos = quote.changePercent >= 0;
+                                        return UiBadge(
+                                          label:
+                                              '$symbol ${isPos ? '+' : ''}${quote.changePercent.toStringAsFixed(2)}%',
+                                          intent: isPos
+                                              ? UiIntent.success
+                                              : UiIntent.danger,
+                                          variant: UiBadgeVariant.soft,
+                                          size: UiSize.xs,
+                                        );
+                                      }
+                                      return UiBadge(
+                                        label: symbol,
+                                        size: UiSize.xs,
+                                        variant: UiBadgeVariant.soft,
+                                      );
+                                    },
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (i < popularArticles.length - 1)
+                      const UiDivider(spacing: 0),
+                  ],
+                ],
+              ),
+            ),
+            UiGap.v(context.ui.spacing.md),
+          ],
+
+          // Video Content "Watch Now" Card matching Image 4
+          if (widget.snapshot.videos.isNotEmpty) ...[
+            MarketWatchNowCard(
+              videos: widget.snapshot.videos,
+              onArticle: widget.onArticle,
+              onInstrument: widget.onInstrument,
+              snapshot: widget.snapshot,
+            ),
+            UiGap.v(context.ui.spacing.md),
+          ],
+
+          // Topic Filters
+          UiCard(
+            title: 'Topics',
+            subtitle: 'Browse by category',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                UiButton(
+                  label: 'All topics',
+                  alignment: Alignment.centerLeft,
+                  variant: widget.selectedTopic == 'all'
+                      ? UiVariant.soft
+                      : UiVariant.ghost,
+                  intent: widget.selectedTopic == 'all'
+                      ? UiIntent.primary
+                      : UiIntent.neutral,
+                  onPressed: widget.onTopicSelected == null
+                      ? null
+                      : () => widget.onTopicSelected!('all'),
+                ),
+                for (final topic in widget.snapshot.topics.entries)
+                  UiButton(
+                    label:
+                        '${topicDisplayLabel(topic.key)} (${topic.value.length})',
+                    alignment: Alignment.centerLeft,
+                    variant: widget.selectedTopic == topic.key
+                        ? UiVariant.soft
+                        : UiVariant.ghost,
+                    intent: widget.selectedTopic == topic.key
+                        ? UiIntent.primary
+                        : UiIntent.neutral,
+                    onPressed: widget.onTopicSelected == null
+                        ? null
+                        : () => widget.onTopicSelected!(topic.key),
+                  ),
+              ],
+            ),
           ),
-        );
+          UiGap.v(context.ui.spacing.md),
+
+          // Trending Companies
+          UiCard(
+            title: 'Trending companies',
+            subtitle: 'Most mentioned in news',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.snapshot.trending.isEmpty)
+                  Text(
+                    'No trending companies',
+                    style: context.uiText.caption.copyWith(
+                      color: context.ui.colors.foregroundMuted,
+                    ),
+                  )
+                else
+                  for (final quote in widget.snapshot.trending.take(6)) ...[
+                    MarketQuoteRow(
+                      quote: quote,
+                      onTap: () => widget.onInstrument?.call(quote),
+                    ),
+                    const UiDivider(spacing: 0),
+                  ],
+              ],
+            ),
+          ),
+          UiGap.v(context.ui.spacing.md),
+
+          MarketDistributionCard(
+            title: 'Coverage by publisher',
+            subtitle:
+                '${articles.length} articles · ${widget.snapshot.videos.length} videos',
+            values: publishers,
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1133,8 +1146,9 @@ class _MarketArticleViewState extends State<MarketArticleView> {
       if (_liveQuotes.containsKey(sym)) {
         relatedInstruments.add(_liveQuotes[sym]!);
       } else {
-        final inSnap =
-            snapshot.instruments.where((q) => q.symbol == sym).firstOrNull;
+        final inSnap = snapshot.instruments
+            .where((q) => q.symbol == sym)
+            .firstOrNull;
         if (inSnap != null) relatedInstruments.add(inSnap);
       }
     }
@@ -1223,7 +1237,10 @@ class _MarketArticleViewState extends State<MarketArticleView> {
                 ),
                 child: Text(
                   article.summary,
-                  style: context.uiText.body.copyWith(height: 1.6, fontSize: 16),
+                  style: context.uiText.body.copyWith(
+                    height: 1.6,
+                    fontSize: 16,
+                  ),
                 ),
               )
             else
@@ -1245,7 +1262,8 @@ class _MarketArticleViewState extends State<MarketArticleView> {
                   for (final symbol in article.tickers)
                     Builder(
                       builder: (context) {
-                        final quote = _liveQuotes[symbol] ??
+                        final quote =
+                            _liveQuotes[symbol] ??
                             snapshot.instruments
                                 .where((q) => q.symbol == symbol)
                                 .firstOrNull;
@@ -1281,7 +1299,7 @@ class _MarketArticleViewState extends State<MarketArticleView> {
               placement: AdPlacement.articleFooter,
               contentReady:
                   article.publisher.trim().toLowerCase().contains(
-                    'alphajournal',
+                    'AlphaJournal',
                   ) &&
                   article.summary.trim().length >= 600,
               previewContentReady: true,

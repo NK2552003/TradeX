@@ -1,18 +1,18 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/config/record_access.dart';
-import 'package:tradex/core/utils/attachment_compression_service.dart';
-import 'package:tradex/core/data/owned_record_writer.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/core/config/record_access.dart';
+import 'package:alphajournal/core/utils/attachment_compression_service.dart';
+import 'package:alphajournal/core/data/owned_record_writer.dart';
+import 'package:alphajournal/features/auth/data/services/auth_backend_service.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/config/supabase_storage_egress.dart';
-import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_storage_egress.dart';
+import 'package:alphajournal/features/linking/entity_ticker_links_repository.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'note_attachments.dart';
@@ -540,31 +540,32 @@ class NotesRepositoryImpl implements NotesRepository {
               .firstOrNull;
           if (match != null && !controller.isClosed) controller.add(match);
         });
-    final RealtimeChannel channel = client
-        .channel('public:trader_note:$id:${_noteWatchSerial++}')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.update,
-          schema: 'public',
-          table: 'trader_notes',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'id',
-            value: id,
-          ),
-          callback: (PostgresChangePayload payload) {
-            unawaited(() async {
-              final Map<String, dynamic> row = payload.newRecord;
-              if (row.isEmpty) return;
-              await _refreshLikedState(id);
-              final AppNote note = await _fetchRemoteNote(id) ??
-                  _mapRowToNote(row);
-              if (!RecordAccess.canRead(note.userId, note.isPublic)) return;
-              _replaceCachedNote(note);
-              if (!controller.isClosed) controller.add(note);
-            }());
-          },
-        )
-      ..subscribe();
+    final RealtimeChannel channel =
+        client
+            .channel('public:trader_note:$id:${_noteWatchSerial++}')
+            .onPostgresChanges(
+              event: PostgresChangeEvent.update,
+              schema: 'public',
+              table: 'trader_notes',
+              filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'id',
+                value: id,
+              ),
+              callback: (PostgresChangePayload payload) {
+                unawaited(() async {
+                  final Map<String, dynamic> row = payload.newRecord;
+                  if (row.isEmpty) return;
+                  await _refreshLikedState(id);
+                  final AppNote note =
+                      await _fetchRemoteNote(id) ?? _mapRowToNote(row);
+                  if (!RecordAccess.canRead(note.userId, note.isPublic)) return;
+                  _replaceCachedNote(note);
+                  if (!controller.isClosed) controller.add(note);
+                }());
+              },
+            )
+          ..subscribe();
 
     try {
       yield* controller.stream;
@@ -740,8 +741,9 @@ class NotesRepositoryImpl implements NotesRepository {
     } else {
       _notes[at] = saved;
     }
-    final removedRefs = NoteAttachments.extractRefs(owned.content)
-        .difference(NoteAttachments.extractRefs(saved.content));
+    final removedRefs = NoteAttachments.extractRefs(
+      owned.content,
+    ).difference(NoteAttachments.extractRefs(saved.content));
     for (final ref in removedRefs) {
       try {
         await deleteAttachment(ref);
@@ -817,15 +819,17 @@ class NotesRepositoryImpl implements NotesRepository {
       final actor = SupabaseConfig.client?.auth.currentUser?.id;
       if (actor == null) return current;
       try {
-        await SupabaseConfig.client!.from('trader_note_views').upsert(
-          {
-            'note_id': id,
-            'user_id': actor,
-            'viewed_at': DateTime.now().toUtc().toIso8601String(),
-          },
-          onConflict: 'note_id,user_id',
-          ignoreDuplicates: true,
-        );
+        await SupabaseConfig.client!
+            .from('trader_note_views')
+            .upsert(
+              {
+                'note_id': id,
+                'user_id': actor,
+                'viewed_at': DateTime.now().toUtc().toIso8601String(),
+              },
+              onConflict: 'note_id,user_id',
+              ignoreDuplicates: true,
+            );
         return await getById(id) ?? current;
       } catch (error) {
         debugPrint('[NotesRepository] view could not be recorded: $error');
@@ -845,10 +849,7 @@ class NotesRepositoryImpl implements NotesRepository {
     final isLikedNow = !_likedNoteIds.contains(id);
     final AppNote optimistic = current.copyWith(
       liked: isLikedNow,
-      likeCount: (current.likeCount + (isLikedNow ? 1 : -1)).clamp(
-        0,
-        1 << 30,
-      ),
+      likeCount: (current.likeCount + (isLikedNow ? 1 : -1)).clamp(0, 1 << 30),
     );
     if (isLikedNow) {
       _likedNoteIds.add(id);
@@ -1014,8 +1015,10 @@ class NotesRepositoryImpl implements NotesRepository {
       RecordAccess.requireOwner(owner.userId);
     }
 
-    final String rawFileName = filename ?? (file != null ? p.basename(file.path) : 'attachment.png');
-    final Uint8List rawBytes = bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
+    final String rawFileName =
+        filename ?? (file != null ? p.basename(file.path) : 'attachment.png');
+    final Uint8List rawBytes =
+        bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
 
     final compressed = await AttachmentCompressionService.compressAttachment(
       bytes: rawBytes,
@@ -1052,26 +1055,25 @@ class NotesRepositoryImpl implements NotesRepository {
             );
 
         try {
-          await client
-              .from('trader_note_attachments')
-              .insert({
-                'id': const Uuid().v4(),
-                'note_id': noteId,
-                'user_id': currentUserId,
-                'storage_path': storagePath,
-                'filename': rawFileName,
-                'mime_type': mimeType,
-                'byte_size': length,
-                'is_image': isImage,
-              });
+          await client.from('trader_note_attachments').insert({
+            'id': const Uuid().v4(),
+            'note_id': noteId,
+            'user_id': currentUserId,
+            'storage_path': storagePath,
+            'filename': rawFileName,
+            'mime_type': mimeType,
+            'byte_size': length,
+            'is_image': isImage,
+          });
         } catch (metaError) {
-          final isMissingTable = metaError is PostgrestException &&
+          final isMissingTable =
+              metaError is PostgrestException &&
               (metaError.code == '42P01' || metaError.code == 'PGRST205');
           if (!isMissingTable) {
             try {
-              await client.storage
-                  .from('note-attachments')
-                  .remove(<String>[storagePath]);
+              await client.storage.from('note-attachments').remove(<String>[
+                storagePath,
+              ]);
             } catch (_) {}
             rethrow;
           }
@@ -1144,7 +1146,8 @@ class NotesRepositoryImpl implements NotesRepository {
     // 2. Extract relative storage path inside note-attachments bucket
     String storagePath = ref.trim();
 
-    if (storagePath.startsWith('https://') || storagePath.startsWith('http://')) {
+    if (storagePath.startsWith('https://') ||
+        storagePath.startsWith('http://')) {
       final uri = Uri.tryParse(storagePath);
       if (uri != null) {
         final pathSegments = uri.pathSegments;

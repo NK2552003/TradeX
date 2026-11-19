@@ -24,7 +24,7 @@ async function inspect() {
   const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@tradex.ai', password: 'Admin@TradeX2026!' })
+    body: JSON.stringify({ email: 'admin@alphajournal.ai', password: 'Admin@AlphaJournal2026!' })
   });
   const authData = await authRes.json();
   const token = authData.access_token;

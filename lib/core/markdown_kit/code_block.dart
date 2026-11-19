@@ -14,17 +14,17 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 // ignore: unused_import
 import 'package:highlight/languages/all.dart';
 import 'package:markdown/markdown.dart' as md;
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/app-ui/motion/ai_typing_indicator.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/motion/ai_typing_indicator.dart';
 import 'research/typing_cursor_syntax.dart';
-import 'package:tradex/core/markdown_kit/chart_block.dart';
-import 'package:tradex/core/markdown_kit/flowchart/flowchart_view.dart';
-import 'package:tradex/core/markdown_kit/perplexity_card_block.dart';
-import 'package:tradex/core/markdown_kit/perplexity_domain_cards.dart';
-import 'package:tradex/core/markdown_kit/perplexity_parser.dart';
-import 'package:tradex/core/utils/image_export.dart';
+import 'package:alphajournal/core/markdown_kit/chart_block.dart';
+import 'package:alphajournal/core/markdown_kit/flowchart/flowchart_view.dart';
+import 'package:alphajournal/core/markdown_kit/perplexity_card_block.dart';
+import 'package:alphajournal/core/markdown_kit/perplexity_domain_cards.dart';
+import 'package:alphajournal/core/markdown_kit/perplexity_parser.dart';
+import 'package:alphajournal/core/utils/image_export.dart';
 
 /// Registers with [MarkdownBody]/[Markdown] via the `builders: {'pre': ...}`
 /// hook. Routes fenced code blocks to the right renderer by language tag:
@@ -72,10 +72,7 @@ class RichCodeBlockBuilder extends MarkdownElementBuilder {
         source.trim(),
       );
       if (questions.isNotEmpty) {
-        return _FollowUpsBlock(
-          questions: questions,
-          onPromptTap: onPromptTap,
-        );
+        return _FollowUpsBlock(questions: questions, onPromptTap: onPromptTap);
       }
     }
     if (PerplexityBlockTags.searchStepTags.contains(langKey)) {
@@ -92,7 +89,9 @@ class RichCodeBlockBuilder extends MarkdownElementBuilder {
         child: PerplexityCardBlock(
           tag: PerplexityBlockTags.perplexityCards.contains(langKey)
               ? langKey
-              : (isResearchPanelJson(source.trim()) ? 'research_panel' : 'card'),
+              : (isResearchPanelJson(source.trim())
+                    ? 'research_panel'
+                    : 'card'),
           spec: source.trim(),
           onOpenRef: onOpenRef,
           onTapUrl: onTapUrl,
@@ -186,7 +185,8 @@ bool isStructuredPerplexityJson(String raw) {
         decoded.containsKey('profitFactor') ||
         decoded.containsKey('holdings') ||
         decoded.containsKey('allocations') ||
-        (decoded.containsKey('accountSize') && decoded.containsKey('riskPct')) ||
+        (decoded.containsKey('accountSize') &&
+            decoded.containsKey('riskPct')) ||
         decoded.containsKey('indicators') ||
         decoded.containsKey('releases') ||
         decoded.containsKey('targetMean') ||
@@ -365,11 +365,7 @@ class _FollowUpsBlock extends StatelessWidget {
                     onPromptTap!(q);
                   } else {
                     Clipboard.setData(ClipboardData(text: q));
-                    UiToast.info(
-                      context,
-                      title: 'Copied prompt',
-                      message: q,
-                    );
+                    UiToast.info(context, title: 'Copied prompt', message: q);
                   }
                 },
               ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/markdown_kit/markdown_kit.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_kit.dart';
 
 void main() {
   testWidgets('AGENTS.md catalog aliases and constructors compile and render', (
@@ -50,9 +50,7 @@ void main() {
                 ),
 
                 // 6. UiDropzone with onFilesDropped
-                UiDropzone(
-                  onFilesDropped: (List<String> files) {},
-                ),
+                UiDropzone(onFilesDropped: (List<String> files) {}),
 
                 // 7. UiEditorToolbar with optional onAction
                 const UiEditorToolbar(
@@ -63,9 +61,7 @@ void main() {
                 ),
 
                 // 8. UiAvatar with imageProvider & UiAvatarGroup with maxVisible
-                const UiAvatar(
-                  name: 'Jane Doe',
-                ),
+                const UiAvatar(name: 'Jane Doe'),
                 const UiAvatarGroup(
                   avatars: <UiAvatar>[
                     UiAvatar(name: 'A'),
@@ -77,7 +73,13 @@ void main() {
 
                 // 9. UiTracker with dynamic values
                 UiTracker(
-                  values: const <dynamic>[true, false, 1.5, -0.5, UiIntent.success],
+                  values: const <dynamic>[
+                    true,
+                    false,
+                    1.5,
+                    -0.5,
+                    UiIntent.success,
+                  ],
                 ),
 
                 // 10. UiCandleChart with CandleData and data alias
@@ -102,9 +104,7 @@ void main() {
                 ),
 
                 // 12. UiLineChart with dataPoints
-                UiLineChart(
-                  dataPoints: const <double>[10, 20, 15, 30],
-                ),
+                UiLineChart(dataPoints: const <double>[10, 20, 15, 30]),
 
                 // 13. UiComboChart with lineSeries and barSeries
                 UiComboChart(
@@ -122,10 +122,7 @@ void main() {
                 // 15. UiTabNavigation with views and selectedIndex
                 UiTabNavigation(
                   selectedIndex: 0,
-                  views: const <Widget>[
-                    Text('View 1'),
-                    Text('View 2'),
-                  ],
+                  views: const <Widget>[Text('View 1'), Text('View 2')],
                 ),
               ],
             ),
@@ -139,230 +136,228 @@ void main() {
     expect(find.text('JD'), findsOneWidget);
   });
 
-  testWidgets('Domain cards render without overflow on ultra-narrow 320px screen', (
-    WidgetTester tester,
-  ) async {
-    tester.view.physicalSize = const Size(320, 1200);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+  testWidgets(
+    'Domain cards render without overflow on ultra-narrow 320px screen',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: Column(
-              children: <Widget>[
-                const PortfolioSummaryCard(),
-                const AssetAllocationCard(),
-                const PerformanceCard(),
-                const TradeHistoryCard(),
-                const PositionCard(),
-                const WatchlistCard(),
-                const JournalEntryCard(),
-                const MarketOverviewCard(),
-                const StrategyCard(),
-                const AccountCard(),
-                AiInsightCard(onExecute: () {}),
-                const CommunityPostCard(),
-              ],
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Column(
+                children: <Widget>[
+                  const PortfolioSummaryCard(),
+                  const AssetAllocationCard(),
+                  const PerformanceCard(),
+                  const TradeHistoryCard(),
+                  const PositionCard(),
+                  const WatchlistCard(),
+                  const JournalEntryCard(),
+                  const MarketOverviewCard(),
+                  const StrategyCard(),
+                  const AccountCard(),
+                  AiInsightCard(onExecute: () {}),
+                  const CommunityPostCard(),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    // Verify all 12 cards rendered cleanly
-    expect(find.text('Total Net Worth'), findsOneWidget);
-    expect(find.text('Asset Allocation'), findsOneWidget);
-    expect(find.text('Trading Performance'), findsOneWidget);
-    expect(find.text('Recent Executions'), findsOneWidget);
-    expect(find.text('BTC/USDT'), findsOneWidget);
-    expect(find.text('Watchlist'), findsOneWidget);
-    expect(find.text('NVDA'), findsWidgets);
-    expect(find.text('Global Markets'), findsOneWidget);
-    expect(find.text('Momentum Volatility Breakout'), findsOneWidget);
-    expect(find.text('Alex Thorne'), findsOneWidget);
-    expect(find.text('Execute Order'), findsOneWidget);
-    expect(find.text('Sarah Jenkins'), findsOneWidget);
-  });
+      // Verify all 12 cards rendered cleanly
+      expect(find.text('Total Net Worth'), findsOneWidget);
+      expect(find.text('Asset Allocation'), findsOneWidget);
+      expect(find.text('Trading Performance'), findsOneWidget);
+      expect(find.text('Recent Executions'), findsOneWidget);
+      expect(find.text('BTC/USDT'), findsOneWidget);
+      expect(find.text('Watchlist'), findsOneWidget);
+      expect(find.text('NVDA'), findsWidgets);
+      expect(find.text('Global Markets'), findsOneWidget);
+      expect(find.text('Momentum Volatility Breakout'), findsOneWidget);
+      expect(find.text('Alex Thorne'), findsOneWidget);
+      expect(find.text('Execute Order'), findsOneWidget);
+      expect(find.text('Sarah Jenkins'), findsOneWidget);
+    },
+  );
 
-  testWidgets('Canonical Screen Blocks render without overflow on ultra-narrow 320px screen', (
-    WidgetTester tester,
-  ) async {
-    tester.view.physicalSize = const Size(320, 2400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+  testWidgets(
+    'Canonical Screen Blocks render without overflow on ultra-narrow 320px screen',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: Column(
-              children: <Widget>[
-                DashboardBlocks(),
-                JournalBlocks(),
-                MarketBlocks(),
-                ChartBlocks(),
-                AccountBlocks(),
-                CommunityBlocks(),
-                SearchBlocks(),
-                AiBlocks(),
-                EnterpriseBlocks(),
-              ],
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Column(
+                children: <Widget>[
+                  DashboardBlocks(),
+                  JournalBlocks(),
+                  MarketBlocks(),
+                  ChartBlocks(),
+                  AccountBlocks(),
+                  CommunityBlocks(),
+                  SearchBlocks(),
+                  AiBlocks(),
+                  EnterpriseBlocks(),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    // Verify all 9 canonical screen blocks rendered without error or overflow
-    expect(find.byType(DashboardBlocks), findsOneWidget);
-    expect(find.byType(JournalBlocks), findsOneWidget);
-    expect(find.byType(MarketBlocks), findsOneWidget);
-    expect(find.byType(ChartBlocks), findsOneWidget);
-    expect(find.byType(AccountBlocks), findsOneWidget);
-    expect(find.byType(CommunityBlocks), findsOneWidget);
-    expect(find.byType(SearchBlocks), findsOneWidget);
-    expect(find.byType(AiBlocks), findsOneWidget);
-    expect(find.byType(EnterpriseBlocks), findsOneWidget);
+      // Verify all 9 canonical screen blocks rendered without error or overflow
+      expect(find.byType(DashboardBlocks), findsOneWidget);
+      expect(find.byType(JournalBlocks), findsOneWidget);
+      expect(find.byType(MarketBlocks), findsOneWidget);
+      expect(find.byType(ChartBlocks), findsOneWidget);
+      expect(find.byType(AccountBlocks), findsOneWidget);
+      expect(find.byType(CommunityBlocks), findsOneWidget);
+      expect(find.byType(SearchBlocks), findsOneWidget);
+      expect(find.byType(AiBlocks), findsOneWidget);
+      expect(find.byType(EnterpriseBlocks), findsOneWidget);
 
-    // Cleanly unmount widgets before test completion to trigger dispose
-    await tester.pumpWidget(const SizedBox());
-  });
+      // Cleanly unmount widgets before test completion to trigger dispose
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
-  testWidgets('App-UI Domain feature cards render cleanly without overflow on 320px screen', (
-    WidgetTester tester,
-  ) async {
-    tester.view.physicalSize = const Size(320, 2400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+  testWidgets(
+    'App-UI Domain feature cards render cleanly without overflow on 320px screen',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
-    final DateTime now = DateTime.now();
-    final AppTrade sampleTrade = AppTrade(
-      id: 't1',
-      ticker: 'NVDA',
-      side: AppSide.long,
-      entry: 120.50,
-      exit: 135.00,
-      pnl: 1450.00,
-      pnlPercent: 12.03,
-      openedAt: now.subtract(const Duration(days: 2)),
-    );
+      final DateTime now = DateTime.now();
+      final AppTrade sampleTrade = AppTrade(
+        id: 't1',
+        ticker: 'NVDA',
+        side: AppSide.long,
+        entry: 120.50,
+        exit: 135.00,
+        pnl: 1450.00,
+        pnlPercent: 12.03,
+        openedAt: now.subtract(const Duration(days: 2)),
+      );
 
-    const AppPlan samplePlan = AppPlan(
-      tier: AppTier.premium,
-      amount: 2499,
-      priceLabel: r'$24.99/mo',
-      features: <String>[
-        'Unlimited trades',
-        'AI insights',
-        'Custom webhooks',
-      ],
-      highlighted: true,
-    );
+      const AppPlan samplePlan = AppPlan(
+        tier: AppTier.premium,
+        amount: 2499,
+        priceLabel: r'$24.99/mo',
+        features: <String>[
+          'Unlimited trades',
+          'AI insights',
+          'Custom webhooks',
+        ],
+        highlighted: true,
+      );
 
-    const AppTrader sampleTrader = AppTrader(
-      id: 'u1',
-      handle: '@nitish',
-      displayName: 'Nitish Kumar',
-      winRate: 0.74,
-      tier: AppTier.premium,
-      followers: 1200,
-      following: 450,
-    );
+      const AppTrader sampleTrader = AppTrader(
+        id: 'u1',
+        handle: '@nitish',
+        displayName: 'Nitish Kumar',
+        winRate: 0.74,
+        tier: AppTier.premium,
+        followers: 1200,
+        following: 450,
+      );
 
-    const AppStrategy sampleStrategy = AppStrategy(
-      id: 's1',
-      name: 'Morning Breakout Strategy',
-      category: 'Day Trading',
-      winRate: 72.0,
-      isFavorite: true,
-      trades: 42,
-      netPnl: 3420.50,
-    );
+      const AppStrategy sampleStrategy = AppStrategy(
+        id: 's1',
+        name: 'Morning Breakout Strategy',
+        category: 'Day Trading',
+        winRate: 72.0,
+        isFavorite: true,
+        trades: 42,
+        netPnl: 3420.50,
+      );
 
-    const AppAiInsight sampleInsight = AppAiInsight(
-      id: 'ai1',
-      title: 'Risk Warning',
-      body: 'FOMC announcement expected at 2PM EST. Recommend lowering position leverage.',
-      tickers: <String>['SPY', 'QQQ', 'NVDA'],
-      sentimentScore: 0.85,
-    );
+      const AppAiInsight sampleInsight = AppAiInsight(
+        id: 'ai1',
+        title: 'Risk Warning',
+        body:
+            'FOMC announcement expected at 2PM EST. Recommend lowering position leverage.',
+        tickers: <String>['SPY', 'QQQ', 'NVDA'],
+        sentimentScore: 0.85,
+      );
 
-    final AppNote sampleNote = AppNote(
-      id: 'n1',
-      title: 'Pre-Market Analysis & Levels',
-      content: 'Watching SPY 520 breakout level. NVDA volume surging above VWAP.',
-      createdAt: now,
-      updatedAt: now,
-      tags: const <String>['breakout', 'gap-and-go'],
-      linkedTickers: const <String>['SPY', 'NVDA'],
-      viewCount: 140,
-      likeCount: 28,
-    );
+      final AppNote sampleNote = AppNote(
+        id: 'n1',
+        title: 'Pre-Market Analysis & Levels',
+        content:
+            'Watching SPY 520 breakout level. NVDA volume surging above VWAP.',
+        createdAt: now,
+        updatedAt: now,
+        tags: const <String>['breakout', 'gap-and-go'],
+        linkedTickers: const <String>['SPY', 'NVDA'],
+        viewCount: 140,
+        likeCount: 28,
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: Column(
-              children: <Widget>[
-                const AppStatCard(
-                  stat: AppStat(
-                    label: 'Total PnL',
-                    value: 14250,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Column(
+                children: <Widget>[
+                  const AppStatCard(
+                    stat: AppStat(label: 'Total PnL', value: 14250),
                   ),
-                ),
-                const AppWinRateCard(
-                  winRate: 68.5,
-                  wins: 14,
-                  losses: 6,
-                ),
-                const AppTraderCard(trader: sampleTrader),
-                const AppLeaderboardCard(
-                  rank: 1,
-                  trader: sampleTrader,
-                  value: 124.5,
-                ),
-                AppTradeCard(trade: sampleTrade),
-                AppNoteCard(note: sampleNote),
-                const AppPlanCard(plan: samplePlan),
-                const AppAiAnalysisCard(
-                  insight: sampleInsight,
-                  observations: <String>[
-                    'High volume relative to 30-day avg',
-                    'RSI approaching overbought levels',
-                  ],
-                ),
-                const AppStrategyPerformanceCard(strategy: sampleStrategy),
-              ],
+                  const AppWinRateCard(winRate: 68.5, wins: 14, losses: 6),
+                  const AppTraderCard(trader: sampleTrader),
+                  const AppLeaderboardCard(
+                    rank: 1,
+                    trader: sampleTrader,
+                    value: 124.5,
+                  ),
+                  AppTradeCard(trade: sampleTrade),
+                  AppNoteCard(note: sampleNote),
+                  const AppPlanCard(plan: samplePlan),
+                  const AppAiAnalysisCard(
+                    insight: sampleInsight,
+                    observations: <String>[
+                      'High volume relative to 30-day avg',
+                      'RSI approaching overbought levels',
+                    ],
+                  ),
+                  const AppStrategyPerformanceCard(strategy: sampleStrategy),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.byType(AppStatCard), findsOneWidget);
-    expect(find.byType(AppWinRateCard), findsOneWidget);
-    expect(find.byType(AppTraderCard), findsOneWidget);
-    expect(find.byType(AppLeaderboardCard), findsOneWidget);
-    expect(find.byType(AppTradeCard), findsOneWidget);
-    expect(find.byType(AppNoteCard), findsOneWidget);
-    expect(find.byType(AppPlanCard), findsOneWidget);
-    expect(find.byType(AppAiAnalysisCard), findsOneWidget);
-    expect(find.byType(AppStrategyPerformanceCard), findsOneWidget);
+      expect(find.byType(AppStatCard), findsOneWidget);
+      expect(find.byType(AppWinRateCard), findsOneWidget);
+      expect(find.byType(AppTraderCard), findsOneWidget);
+      expect(find.byType(AppLeaderboardCard), findsOneWidget);
+      expect(find.byType(AppTradeCard), findsOneWidget);
+      expect(find.byType(AppNoteCard), findsOneWidget);
+      expect(find.byType(AppPlanCard), findsOneWidget);
+      expect(find.byType(AppAiAnalysisCard), findsOneWidget);
+      expect(find.byType(AppStrategyPerformanceCard), findsOneWidget);
 
-    await tester.pumpWidget(const SizedBox());
-  });
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
   testWidgets(
     'UiCard keeps trailing on header row and UiBadge hugs label in stretched column',
@@ -509,31 +504,30 @@ BTC: 31.0
     },
   );
 
-  testWidgets('UiSkeleton.market renders cleanly without horizontal Divider lines', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1280, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets(
+    'UiSkeleton.market renders cleanly without horizontal Divider lines',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    for (final int tab in <int>[0, 2, 3]) {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: UiTheme.dark().toThemeData(),
-          home: UiThemeScope(
-            theme: UiTheme.dark(),
-            child: Scaffold(
-              body: SingleChildScrollView(
-                child: UiSkeleton.market(tab: tab),
+      for (final int tab in <int>[0, 2, 3]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: UiTheme.dark().toThemeData(),
+            home: UiThemeScope(
+              theme: UiTheme.dark(),
+              child: Scaffold(
+                body: SingleChildScrollView(child: UiSkeleton.market(tab: tab)),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(find.byType(Divider), findsNothing);
-      expect(tester.takeException(), isNull);
-    }
-  });
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.byType(Divider), findsNothing);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 
   testWidgets(
     'UiEditorToolbar and MarkdownEditorToolbar distribute tool items evenly across container width',
@@ -580,8 +574,12 @@ BTC: 31.0
       await tester.pumpAndSettle();
 
       final Rect barRect = tester.getRect(find.byType(UiEditorToolbar));
-      final Rect boldRect = tester.getRect(find.byIcon(Icons.format_bold).first);
-      final Rect italicRect = tester.getRect(find.byIcon(Icons.format_italic).first);
+      final Rect boldRect = tester.getRect(
+        find.byIcon(Icons.format_bold).first,
+      );
+      final Rect italicRect = tester.getRect(
+        find.byIcon(Icons.format_italic).first,
+      );
       final Rect linkRect = tester.getRect(find.byIcon(Icons.link).first);
       expect((boldRect.left - barRect.left).abs(), lessThan(40));
       expect((barRect.right - linkRect.right).abs(), lessThan(40));
@@ -595,4 +593,3 @@ BTC: 31.0
     },
   );
 }
-

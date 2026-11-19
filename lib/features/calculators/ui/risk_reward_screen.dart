@@ -1,6 +1,6 @@
 import 'calculator_journal_draft.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 
 import '../calculator_registry.dart';
 import '../logic/trading_calculators.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import '../models/market_snapshot.dart';
 import 'market_movers_panel.dart';
 import 'market_news_widgets.dart';
@@ -32,7 +32,8 @@ class MarketOverviewView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final exportedQuotes =
-        (snapshot.manifest['quote_count'] as num? ?? snapshot.instruments.length);
+        (snapshot.manifest['quote_count'] as num? ??
+        snapshot.instruments.length);
     final sectors = <String, num>{};
     final markets = <String, num>{};
     final manifestMarkets = snapshot.manifest['market_counts'];
@@ -85,7 +86,8 @@ class MarketOverviewView extends StatelessWidget {
           MarketChangeDistribution(
             instruments: snapshot.instruments,
             distribution:
-                snapshot.manifest['change_distribution'] as Map<String, dynamic>?,
+                snapshot.manifest['change_distribution']
+                    as Map<String, dynamic>?,
           ),
           UiGap.v(context.ui.spacing.md),
 
@@ -376,7 +378,8 @@ class MarketOverviewView extends StatelessWidget {
                   stats: [
                     UiStat(
                       label: 'Quotes',
-                      value: '${snapshot.manifest['quote_count'] ?? snapshot.instruments.length}',
+                      value:
+                          '${snapshot.manifest['quote_count'] ?? snapshot.instruments.length}',
                     ),
                     UiStat(
                       label: 'Screeners',
@@ -384,7 +387,8 @@ class MarketOverviewView extends StatelessWidget {
                     ),
                     UiStat(
                       label: 'Stories',
-                      value: '${snapshot.manifest['news_count'] ?? snapshot.articles.length}',
+                      value:
+                          '${snapshot.manifest['news_count'] ?? snapshot.articles.length}',
                     ),
                     UiStat(
                       label: 'Profiles',

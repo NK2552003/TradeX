@@ -1,16 +1,17 @@
-import 'package:tradex/core/notifications/push_service.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/notifications/push_service.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_attribution.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/security/private_message_service.dart';
-import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
-import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
-import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/security/private_message_service.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_repository.dart';
+import 'package:alphajournal/features/auth/data/services/auth_backend_service.dart';
+import 'package:alphajournal/features/auth/data/services/auth_session_storage.dart';
+import 'package:alphajournal/features/auth/models/affiliate_profile_model.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
 
 class SupabaseAuthBackendService implements AuthRepository {
   SupabaseAuthBackendService._internal();
@@ -191,7 +192,9 @@ class SupabaseAuthBackendService implements AuthRepository {
       final authResponse = await client.auth.signUp(
         email: cleanEmail,
         password: password,
-        emailRedirectTo: kIsWeb ? Uri.base.origin : 'tradex://auth/callback',
+        emailRedirectTo: kIsWeb
+            ? Uri.base.origin
+            : AppConstants.nativeAuthCallbackUrl,
         data: {
           'handle': cleanHandle,
           'role': UserRole.customer.id,
@@ -230,7 +233,8 @@ class SupabaseAuthBackendService implements AuthRepository {
           role: role == UserRole.affiliate ? UserRole.customer : role,
           status: ProfileStatus.active,
           adminKey: adminKey?.trim(),
-          referralCode: 'REF-TRADEX-${user.id.substring(0, 4).toUpperCase()}',
+          referralCode:
+              'REF-ALPHAJOURNAL-${user.id.substring(0, 4).toUpperCase()}',
           referredByCode: referralCode?.trim(),
           createdAt: DateTime.now(),
         );
@@ -243,9 +247,7 @@ class SupabaseAuthBackendService implements AuthRepository {
 
       setCurrentProfile(userProfile);
 
-      await AuthSessionStorage.saveSession(
-        profile: userProfile,
-      );
+      await AuthSessionStorage.saveSession(profile: userProfile);
 
       // Affiliate profile/commission records are created by the admin approval
       // endpoint, never by the public signup path.
@@ -540,7 +542,7 @@ class SupabaseAuthBackendService implements AuthRepository {
         cleanEmail,
         redirectTo: kIsWeb
             ? '${Uri.base.origin}/auth/forgot-password'
-            : 'tradex://auth/callback',
+            : AppConstants.nativePasswordResetCallbackUrl,
       );
       return AuthResult.success(
         profile:

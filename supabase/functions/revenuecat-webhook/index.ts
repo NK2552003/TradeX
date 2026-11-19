@@ -107,7 +107,9 @@ async function executeRevenueCatWebhook(
   const definitions = (await definitionsResponse.json()) as {
     items?: Array<{ id?: string; lookup_key?: string }>;
   };
-  const entitlementId = definitions.items?.find((item) => item.lookup_key === 'tradex_pro')?.id;
+  const entitlementId =
+    definitions.items?.find((item) => item.lookup_key === 'alphajournal_pro')?.id ??
+    definitions.items?.find((item) => item.lookup_key === 'tradex_pro')?.id;
   if (!entitlementId) return new Response('Entitlement not configured', { status: 503 });
   const customerUrl = `${rcBase}/customers/${encodeURIComponent(userId)}`;
   const response = await fetch(`${customerUrl}/active_entitlements?limit=100`, { headers: rcHeaders });

@@ -1,4 +1,4 @@
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 
 class MarketArticle {
   MarketArticle.fromJson(Map<String, dynamic> row)

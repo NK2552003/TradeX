@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_analytics_page.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_audit_log_page.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_overview_page.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_risk_compliance_page.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_team_seats_page.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_approvals_page.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/delete_account_page.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/admin_console/data/admin_console_repository.dart';
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_analytics_page.dart';
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_audit_log_page.dart';
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_overview_page.dart';
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_risk_compliance_page.dart';
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_team_seats_page.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_approvals_page.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/delete_account_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,7 +37,7 @@ void main() {
 
       final seat = await repo.inviteTraderSeat(
         displayName: 'Karan Oberoi',
-        email: 'karan.oberoi@tradex.in',
+        email: 'karan.oberoi@alphajournal.in',
         role: 'trader',
         deskDivision: 'Index & Options Desk',
         allocatedCapitalInr: 25000000,

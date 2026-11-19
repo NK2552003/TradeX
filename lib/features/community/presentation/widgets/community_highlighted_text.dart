@@ -1,7 +1,7 @@
-import 'package:tradex/core/markdown_kit/markdown_preview.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_preview.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 
 /// Renders post body text with highlighted and interactive `$TICKER` and `#tag` spans.
 class CommunityHighlightedText extends StatelessWidget {
@@ -19,7 +19,7 @@ class CommunityHighlightedText extends StatelessWidget {
   final bool selectable;
 
   static final RegExp _tagRegex = RegExp(
-    r'(tradex://[^\s\)]+|https?://[^\s\)]+|\$[A-Za-z\^][A-Za-z0-9_\.\-]{0,9}\b|#[A-Za-z0-9_]+|@[A-Za-z0-9_]+)',
+    r'(alphajournal://[^\s\)]+|https?://[^\s\)]+|\$[A-Za-z\^][A-Za-z0-9_\.\-]{0,9}\b|#[A-Za-z0-9_]+|@[A-Za-z0-9_]+)',
   );
   static RegExp get tagRegex => _tagRegex;
 
@@ -39,7 +39,7 @@ class CommunityHighlightedText extends StatelessWidget {
           if (href != null &&
               (href.startsWith('https://') ||
                   href.startsWith('http://') ||
-                  href.startsWith('tradex://'))) {
+                  href.startsWith('alphajournal://'))) {
             onTagTap?.call(href);
           }
         },

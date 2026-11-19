@@ -1,6 +1,6 @@
 # 17 — Admin Institutional Desk & Cross-Platform Governance
 
-This document specifies the backend architecture, database schema, Row-Level Security (RLS) policies, and repository contracts for the **Admin Side (`UserRole.userAdmin`)** of TradeX, including full linking across the **Consumer (Trader)** and **Affiliate Partner (INR)** workspaces.
+This document specifies the backend architecture, database schema, Row-Level Security (RLS) policies, and repository contracts for the **Admin Side (`UserRole.userAdmin`)** of AlphaJournal, including full linking across the **Consumer (Trader)** and **Affiliate Partner (INR)** workspaces.
 
 ---
 

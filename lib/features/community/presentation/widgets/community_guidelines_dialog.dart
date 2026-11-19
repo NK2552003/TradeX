@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/presentation/widgets/community_design.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_design.dart';
 
 /// Modal dialog displaying platform community guidelines, ethical trading conduct,
 /// and regulatory compliance notices.

@@ -1,7 +1,9 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:quiet_dock/quiet_dock.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// Enhanced mobile dock shell wrapping [QuietDock], adding frosted glass blur
 /// to every quick-grid tile opened by the center button and full-bleed
@@ -9,6 +11,7 @@ import 'package:quiet_dock/quiet_dock.dart';
 class AppQuietDockScaffold extends StatefulWidget {
   const AppQuietDockScaffold({
     super.key,
+    required this.activeDestination,
     required this.destinations,
     required this.pageBuilder,
     this.controller,
@@ -25,6 +28,7 @@ class AppQuietDockScaffold extends StatefulWidget {
   }) : assert(destinations.length > 1, 'Provide at least two destinations');
 
   final List<QuietDockDestination> destinations;
+  final String activeDestination;
   final IndexedWidgetBuilder pageBuilder;
   final QuietDockController? controller;
   final int initialIndex;
@@ -50,6 +54,7 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
   late int _index;
   final Set<int> _visited = <int>{};
   bool _menuOpen = false;
+  bool _dockHidden = false;
 
   @override
   void initState() {
@@ -66,6 +71,11 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
   @override
   void didUpdateWidget(covariant AppQuietDockScaffold oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.activeDestination != oldWidget.activeDestination ||
+        widget.theme.height != oldWidget.theme.height) {
+      _dockHidden = false;
+      _menuOpen = false;
+    }
     if (widget.controller != oldWidget.controller) {
       oldWidget.controller?.handler = null;
       _controller = widget.controller ?? _controller;
@@ -87,6 +97,7 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
     final int previous = _index;
     setState(() {
       _menuOpen = false;
+      _dockHidden = false;
       _visited.add(index);
       _index = index;
     });
@@ -109,6 +120,23 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
   }
 
   void _toggleMenu() => setState(() => _menuOpen = !_menuOpen);
+
+  bool _onUserScroll(UserScrollNotification notification) {
+    if (_menuOpen ||
+        widget.theme.height == 0 ||
+        notification.metrics.axis != Axis.vertical ||
+        notification.metrics.maxScrollExtent <=
+            notification.metrics.minScrollExtent ||
+        notification.direction == ScrollDirection.idle) {
+      return false;
+    }
+    // Reversed lists change their scroll offset in the opposite direction.
+    final hide =
+        (notification.direction == ScrollDirection.reverse) ==
+        (notification.metrics.axisDirection == AxisDirection.down);
+    if (hide != _dockHidden) setState(() => _dockHidden = hide);
+    return false;
+  }
 
   void _handleDestinationTap(int index) {
     if (index != _index && widget.onDestinationTap?.call(index) == true) return;
@@ -150,7 +178,12 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
       backgroundColor: background,
       body: Stack(
         children: <Widget>[
-          Positioned.fill(child: pages),
+          Positioned.fill(
+            child: NotificationListener<UserScrollNotification>(
+              onNotification: _onUserScroll,
+              child: pages,
+            ),
+          ),
           if (_menuOpen && action != null) ...<Widget>[
             Positioned.fill(
               child: GestureDetector(
@@ -179,14 +212,67 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
           ],
         ],
       ),
-      bottomNavigationBar: QuietDock(
-        destinations: widget.destinations,
-        selectedIndex: _index,
-        onDestinationSelected: _handleDestinationTap,
-        centerAction: action,
-        centerActionActive: _menuOpen || widget.centerActionActive,
-        onCenterActionPressed: _toggleMenu,
-        theme: widget.theme,
+      bottomNavigationBar: t.height == 0 ? null : _buildDock(context, t),
+    );
+  }
+
+  Widget _buildDock(BuildContext context, QuietDockTheme theme) {
+    final motion = context.ui.motion;
+    return AnimatedSlide(
+      key: const ValueKey('app-dock-slide'),
+      offset: _dockHidden ? const Offset(0, 1) : Offset.zero,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : motion.normal,
+      curve: motion.curve,
+      child: ExcludeFocus(
+        excluding: _dockHidden,
+        child: ExcludeSemantics(
+          excluding: _dockHidden,
+          child: IgnorePointer(
+            ignoring: _dockHidden,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                QuietDock(
+                  destinations: widget.destinations,
+                  selectedIndex: _index,
+                  onDestinationSelected: _handleDestinationTap,
+                  centerAction: widget.centerAction,
+                  centerActionActive: _menuOpen || widget.centerActionActive,
+                  onCenterActionPressed: _toggleMenu,
+                  theme: widget.theme,
+                ),
+                if (widget.centerActionActive)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: MediaQuery.paddingOf(context).bottom + theme.margin,
+                    child: IgnorePointer(
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SizedBox(
+                          width: 56,
+                          height: theme.height,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 8, right: 8),
+                            child: Align(
+                              alignment: Alignment.topRight,
+                              child: Icon(
+                                Icons.arrow_back_rounded,
+                                size: context.sz(11),
+                                color: context.ui.colors.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

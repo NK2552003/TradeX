@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // Both unified libraries are required by the project UI contract.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 typedef HelpTicketSubmit =
     Future<void> Function(String category, String subject, String message);
@@ -70,7 +70,7 @@ class _HelpSupportCardState extends State<HelpSupportCard> {
       final uri = Uri(
         scheme: 'mailto',
         path: HelpSupportCard.email,
-        query: 'subject=${Uri.encodeComponent('Alphajournal support')}',
+        query: 'subject=${Uri.encodeComponent('AlphaJournal support')}',
       );
       if (!await launchUrl(uri)) throw StateError('Email unavailable');
       if (mounted) {

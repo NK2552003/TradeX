@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/data/owned_record_writer.dart';
-import 'package:tradex/features/community/models/community_models.dart';
+import 'package:alphajournal/core/data/owned_record_writer.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
 
 /// Creates a private draft, writes its children, then publishes the complete post.
 class CommunityPostWriter {

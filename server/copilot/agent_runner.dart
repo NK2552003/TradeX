@@ -1,12 +1,12 @@
-import 'package:tradex/features/copilot/models/research_policy.dart';
-import 'package:tradex/features/copilot/models/research_router.dart';
+import 'package:alphajournal/features/copilot/models/research_policy.dart';
+import 'package:alphajournal/features/copilot/models/research_router.dart';
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import 'package:tradex/features/copilot/models/trader_skill.dart';
-import 'package:tradex/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/models/trader_skill.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
 import 'agent_tools.dart';
 import 'computer.dart';
 import 'openai_gateway.dart';

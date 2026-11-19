@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/navigation/customer_routes.dart';
-import 'package:tradex/features/auth/models/auth_state.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/navigation/customer_routes.dart';
+import 'package:alphajournal/features/auth/models/auth_state.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 
 void main() {
   test('login retains a validated shared-record return route', () {
@@ -50,6 +50,12 @@ void main() {
         CustomerRoute.parse(Uri.parse('/auth/forgot-password')).stage,
         AuthStage.forgotPassword,
       );
+      expect(
+        CustomerRoute.parse(
+          Uri.parse('https://app.alphajournal.in/auth/callback'),
+        ).stage,
+        AuthStage.login,
+      );
       expect(CustomerRoute.parse(Uri.parse('/not-a-real-page')).valid, isFalse);
     },
   );
@@ -71,84 +77,104 @@ void main() {
     }
   });
   test('native scheme links use the same record codec', () {
-    final route = CustomerRoute.parse(Uri.parse('tradex://note/test-note'));
+    final route = CustomerRoute.parse(
+      Uri.parse('alphajournal://note/test-note'),
+    );
     expect(route.destination, 'notes');
     expect(route.request!.id, 'test-note');
   });
-  test('subdomain routing and role access guards enforce strict boundaries', () {
-    final adminRoute = CustomerRoute.parse(
-      Uri.parse('https://admin.alphajournal.in/'),
-    );
-    expect(adminRoute.destination, 'admin_console');
-    expect(adminRoute.stage, AuthStage.login);
-    expect(
-      CustomerRoute.requiredRoleForSubdomain('admin.alphajournal.in'),
-      UserRole.userAdmin,
-    );
-    expect(
-      CustomerRoute.canAccessDestination(
-        destination: 'admin_console',
-        role: UserRole.customer,
-        host: 'admin.alphajournal.in',
-      ),
-      isFalse,
-    );
-    expect(
-      CustomerRoute.canAccessDestination(
-        destination: 'admin_console',
-        role: UserRole.userAdmin,
-        host: 'admin.alphajournal.in',
-      ),
-      isTrue,
-    );
-    expect(
-      CustomerRoute.canAccessDestination(
-        destination: 'affiliate_overview',
-        role: UserRole.customer,
-        host: 'affiliate.alphajournal.in',
-      ),
-      isFalse,
-    );
-    expect(
-      CustomerRoute.canAccessDestination(
-        destination: 'affiliate_application',
-        role: UserRole.customer,
-        host: 'affiliate.alphajournal.in',
-      ),
-      isTrue,
-    );
-  });
+  test(
+    'subdomain routing and role access guards enforce strict boundaries',
+    () {
+      final adminRoute = CustomerRoute.parse(
+        Uri.parse('https://admin.alphajournal.in/'),
+      );
+      expect(adminRoute.destination, 'admin_console');
+      expect(adminRoute.stage, AuthStage.login);
+      expect(
+        CustomerRoute.requiredRoleForSubdomain('admin.alphajournal.in'),
+        UserRole.userAdmin,
+      );
+      expect(
+        CustomerRoute.canAccessDestination(
+          destination: 'admin_console',
+          role: UserRole.customer,
+          host: 'admin.alphajournal.in',
+        ),
+        isFalse,
+      );
+      expect(
+        CustomerRoute.canAccessDestination(
+          destination: 'admin_console',
+          role: UserRole.userAdmin,
+          host: 'admin.alphajournal.in',
+        ),
+        isTrue,
+      );
+      expect(
+        CustomerRoute.canAccessDestination(
+          destination: 'affiliate_overview',
+          role: UserRole.customer,
+          host: 'affiliate.alphajournal.in',
+        ),
+        isFalse,
+      );
+      expect(
+        CustomerRoute.canAccessDestination(
+          destination: 'affiliate_application',
+          role: UserRole.customer,
+          host: 'affiliate.alphajournal.in',
+        ),
+        isTrue,
+      );
+    },
+  );
 
-  test('app and sibling subdomains resolve when GoRouter passes relative root URI', () {
-    final appRoute = CustomerRoute.parse(
-      Uri(path: '/'),
-      host: 'app.alphajournal.in',
-    );
-    expect(appRoute.destination, 'workspace');
-    expect(appRoute.stage, AuthStage.login);
-    expect(CustomerRoute.requiredRoleForSubdomain('app.alphajournal.in'), isNull);
-    expect(
-      CustomerRoute.canAccessDestination(
-        destination: 'workspace',
-        role: UserRole.customer,
+  test(
+    'app and sibling subdomains resolve when GoRouter passes relative root URI',
+    () {
+      final appRoute = CustomerRoute.parse(
+        Uri(path: '/'),
         host: 'app.alphajournal.in',
-      ),
-      isTrue,
-    );
+      );
+      expect(appRoute.destination, 'workspace');
+      expect(appRoute.stage, AuthStage.login);
+      expect(
+        CustomerRoute.requiredRoleForSubdomain('app.alphajournal.in'),
+        isNull,
+      );
+      expect(
+        CustomerRoute.canAccessDestination(
+          destination: 'workspace',
+          role: UserRole.customer,
+          host: 'app.alphajournal.in',
+        ),
+        isTrue,
+      );
 
-    expect(
-      CustomerRoute.parse(Uri(path: '/'), host: 'community.alphajournal.in').destination,
-      'community_feed',
-    );
-    expect(
-      CustomerRoute.parse(Uri(path: '/'), host: 'admin.alphajournal.in').destination,
-      'admin_console',
-    );
-    expect(
-      CustomerRoute.parse(Uri(path: '/'), host: 'affiliate.alphajournal.in').destination,
-      'affiliate_application',
-    );
-  });
+      expect(
+        CustomerRoute.parse(
+          Uri(path: '/'),
+          host: 'community.alphajournal.in',
+        ).destination,
+        'community_feed',
+      );
+      expect(
+        CustomerRoute.parse(
+          Uri(path: '/'),
+          host: 'admin.alphajournal.in',
+        ).destination,
+        'admin_console',
+      );
+      expect(
+        CustomerRoute.parse(
+          Uri(path: '/'),
+          host: 'affiliate.alphajournal.in',
+        ).destination,
+        'affiliate_application',
+      );
+    },
+  );
 
   test('destination and record subdomain mapping matches product surfaces', () {
     expect(
@@ -234,117 +260,124 @@ void main() {
     );
   });
 
-  test('crossOriginRedirectUri transitions between subdomains only when needed', () {
-    // From apex after login -> app.alphajournal.in/workspace
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/workspace'),
-        currentHost: 'alphajournal.in',
-      ).toString(),
-      'https://app.alphajournal.in/workspace',
-    );
-    // From app -> community page or post
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/community_feed'),
-        currentHost: 'app.alphajournal.in',
-      ).toString(),
-      'https://community.alphajournal.in/community_feed',
-    );
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/community/post/post-42?public=true'),
-        currentHost: 'app.alphajournal.in',
-      ).toString(),
-      'https://community.alphajournal.in/community/post/post-42?public=true',
-    );
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/@trader_one'),
-        currentHost: 'app.alphajournal.in',
-      ).toString(),
-      'https://community.alphajournal.in/@trader_one',
-    );
-    // Inside community subdomain -> SPA navigation (no reload redirect)
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/community_explore'),
-        currentHost: 'community.alphajournal.in',
-      ),
-      isNull,
-    );
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/community/post/post-42?public=true'),
-        currentHost: 'community.alphajournal.in',
-      ),
-      isNull,
-    );
-    // Role workspaces
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/overview'),
-        currentHost: 'app.alphajournal.in',
-        activeRole: UserRole.affiliate,
-      ).toString(),
-      'https://affiliate.alphajournal.in/overview',
-    );
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/overview'),
-        currentHost: 'app.alphajournal.in',
-        activeRole: UserRole.userAdmin,
-      ).toString(),
-      'https://admin.alphajournal.in/overview',
-    );
-    // Local dev & preview hosts never trigger external subdomain redirects
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/community_feed'),
-        currentHost: 'localhost',
-      ),
-      isNull,
-    );
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/workspace'),
-        currentHost: 'alphajournal.pages.dev',
-      ),
-      isNull,
-    );
-    // Auth, referral, and help routes stay on current origin
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/auth/login'),
-        currentHost: 'alphajournal.in',
-      ),
-      isNull,
-    );
-    expect(
-      CustomerRoute.crossOriginRedirectUri(
-        Uri.parse('/r/ABC123'),
-        currentHost: 'alphajournal.in',
-      ),
-      isNull,
-    );
-  });
+  test(
+    'crossOriginRedirectUri transitions between subdomains only when needed',
+    () {
+      // From apex after login -> app.alphajournal.in/workspace
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/workspace'),
+          currentHost: 'alphajournal.in',
+        ).toString(),
+        'https://app.alphajournal.in/workspace',
+      );
+      // From app -> community page or post
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/community_feed'),
+          currentHost: 'app.alphajournal.in',
+        ).toString(),
+        'https://community.alphajournal.in/community_feed',
+      );
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/community/post/post-42?public=true'),
+          currentHost: 'app.alphajournal.in',
+        ).toString(),
+        'https://community.alphajournal.in/community/post/post-42?public=true',
+      );
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/@trader_one'),
+          currentHost: 'app.alphajournal.in',
+        ).toString(),
+        'https://community.alphajournal.in/@trader_one',
+      );
+      // Inside community subdomain -> SPA navigation (no reload redirect)
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/community_explore'),
+          currentHost: 'community.alphajournal.in',
+        ),
+        isNull,
+      );
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/community/post/post-42?public=true'),
+          currentHost: 'community.alphajournal.in',
+        ),
+        isNull,
+      );
+      // Role workspaces
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/overview'),
+          currentHost: 'app.alphajournal.in',
+          activeRole: UserRole.affiliate,
+        ).toString(),
+        'https://affiliate.alphajournal.in/overview',
+      );
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/overview'),
+          currentHost: 'app.alphajournal.in',
+          activeRole: UserRole.userAdmin,
+        ).toString(),
+        'https://admin.alphajournal.in/overview',
+      );
+      // Local dev & preview hosts never trigger external subdomain redirects
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/community_feed'),
+          currentHost: 'localhost',
+        ),
+        isNull,
+      );
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/workspace'),
+          currentHost: 'alphajournal.pages.dev',
+        ),
+        isNull,
+      );
+      // Auth, referral, and help routes stay on current origin
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/auth/login'),
+          currentHost: 'alphajournal.in',
+        ),
+        isNull,
+      );
+      expect(
+        CustomerRoute.crossOriginRedirectUri(
+          Uri.parse('/r/ABC123'),
+          currentHost: 'alphajournal.in',
+        ),
+        isNull,
+      );
+    },
+  );
 
-  test('afterAuthentication supports validated alphajournal subdomain next URLs', () {
-    final uri = Uri(
-      path: '/auth/login',
-      queryParameters: {
-        'next': 'https://community.alphajournal.in/community/post/p-1?public=true',
-      },
-    );
-    final res = CustomerRoute.afterAuthentication(uri);
-    expect(res, isNotNull);
-    expect(res!.$1.host, 'community.alphajournal.in');
-    expect(res.$2.destination, 'community_feed');
+  test(
+    'afterAuthentication supports validated alphajournal subdomain next URLs',
+    () {
+      final uri = Uri(
+        path: '/auth/login',
+        queryParameters: {
+          'next':
+              'https://community.alphajournal.in/community/post/p-1?public=true',
+        },
+      );
+      final res = CustomerRoute.afterAuthentication(uri);
+      expect(res, isNotNull);
+      expect(res!.$1.host, 'community.alphajournal.in');
+      expect(res.$2.destination, 'community_feed');
 
-    final evil = Uri(
-      path: '/auth/login',
-      queryParameters: {'next': 'https://evil.com/workspace'},
-    );
-    expect(CustomerRoute.afterAuthentication(evil), isNull);
-  });
+      final evil = Uri(
+        path: '/auth/login',
+        queryParameters: {'next': 'https://evil.com/workspace'},
+      );
+      expect(CustomerRoute.afterAuthentication(evil), isNull);
+    },
+  );
 }

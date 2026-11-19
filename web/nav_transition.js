@@ -1,7 +1,7 @@
 /**
  * Shared cross-subdomain silent transition & full-screen skeleton shell.
  *
- * Mirrors TradeX's real Flutter AppShell (AppSidebar + AppTopBar + rounded
+ * Mirrors AlphaJournal's real Flutter AppShell (AppSidebar + AppTopBar + rounded
  * content frame on desktop/tablet, AppTopBar + QuietDock on mobile) and Flutter
  * UiSkeleton presets (`UiSkeleton.dashboard`, `journal`, `strategies`,
  * `watchlists`, `market`, `community`, `profilePreview`, `messages`, `ai`,
@@ -1550,7 +1550,7 @@
     sHead.appendChild(badge);
     var sBrand = el(doc, 'div', 'aj-side-brand');
     var bTitle = el(doc, 'div', 'aj-side-title');
-    bTitle.textContent = 'alphajournal';
+    bTitle.textContent = 'AlphaJournal';
     sBrand.appendChild(bTitle);
     var bSub = el(doc, 'div', 'aj-side-plan');
     bSub.textContent = dockCfg.planLabel || 'Workspace';

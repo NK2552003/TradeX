@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import 'research/research_metrics.dart';
 import 'site_logo.dart';
@@ -212,7 +212,12 @@ class PerplexityEarningsCard extends StatelessWidget {
         title: title,
         subtitle: date,
         leading: ticker != null
-            ? AppSiteLogo(ticker: ticker, label: company ?? ticker, size: 28, circular: true)
+            ? AppSiteLogo(
+                ticker: ticker,
+                label: company ?? ticker,
+                size: 28,
+                circular: true,
+              )
             : Icon(
                 Icons.assessment_outlined,
                 size: context.sz(theme.sizes.iconMd),
@@ -511,7 +516,12 @@ class PerplexityFinancialsCard extends StatelessWidget {
         title: title,
         subtitle: subtitle,
         leading: ticker != null
-            ? AppSiteLogo(ticker: ticker, label: title, size: 28, circular: true)
+            ? AppSiteLogo(
+                ticker: ticker,
+                label: title,
+                size: 28,
+                circular: true,
+              )
             : Icon(
                 Icons.account_balance_outlined,
                 size: context.sz(theme.sizes.iconMd),
@@ -803,7 +813,12 @@ class PerplexityRatingsCard extends StatelessWidget {
         ).color(context),
         title: title,
         leading: ticker != null
-            ? AppSiteLogo(ticker: ticker, label: title, size: 28, circular: true)
+            ? AppSiteLogo(
+                ticker: ticker,
+                label: title,
+                size: 28,
+                circular: true,
+              )
             : Icon(
                 Icons.star_half_rounded,
                 size: context.sz(theme.sizes.iconMd),
@@ -1327,10 +1342,7 @@ class PerplexityMediaCard extends StatelessWidget {
                           UiGap.v(theme.spacing.xxs),
                           Row(
                             children: <Widget>[
-                              AppSiteLogo(
-                                url: entries[i].sourceUrl,
-                                size: 14,
-                              ),
+                              AppSiteLogo(url: entries[i].sourceUrl, size: 14),
                               UiGap.h(theme.spacing.xxs),
                               Expanded(
                                 child: Text(

@@ -43,7 +43,7 @@ def main():
     sql = path.read_text()
     if not sql.rstrip().endswith('ROLLBACK;') or re.search(r'^COMMIT\s*;', sql, re.M | re.I):
         raise RuntimeError('Verification must end with ROLLBACK and contain no COMMIT.')
-    node_id = 'tradex-admin-check-' + uuid.uuid4().hex
+    node_id = 'alphajournal-admin-check-' + uuid.uuid4().hex
     start = '''(() => {
       const session=JSON.parse(localStorage.getItem('supabase.dashboard.auth.token')||'{}');
       if(!session.access_token)throw new Error('Sign in to the Supabase dashboard first.');

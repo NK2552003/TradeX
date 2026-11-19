@@ -1,23 +1,22 @@
-import 'package:tradex/core/config/record_access.dart';
-import 'package:tradex/core/utils/attachment_compression_service.dart';
-import 'package:tradex/core/data/owned_record_writer.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/core/config/record_access.dart';
+import 'package:alphajournal/core/utils/attachment_compression_service.dart';
+import 'package:alphajournal/core/data/owned_record_writer.dart';
+import 'package:alphajournal/features/auth/data/services/auth_backend_service.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/config/supabase_storage_egress.dart';
-import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_storage_egress.dart';
+import 'package:alphajournal/features/linking/entity_ticker_links_repository.dart';
 import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as p;
 import '../../notes/data/note_attachments.dart';
 import 'strategy_attachments.dart';
-
 
 /// Everything the strategies feature needs from storage.
 abstract class StrategiesRepository {
@@ -668,7 +667,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
     AppStrategy saved = draft;
     final resolvedUid = _resolveUserId();
-    final targetUserId = (SupabaseConfig.isConfigured || draft.userId.isEmpty) ? resolvedUid : draft.userId;
+    final targetUserId = (SupabaseConfig.isConfigured || draft.userId.isEmpty)
+        ? resolvedUid
+        : draft.userId;
     final String assignedId =
         draft.id.isEmpty || (SupabaseConfig.isConfigured && !_isUuid(draft.id))
         ? const Uuid().v4()
@@ -809,8 +810,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       }
     }
 
-    final removedRefs = NoteAttachments.extractRefs(owned.content)
-        .difference(NoteAttachments.extractRefs(saved.content));
+    final removedRefs = NoteAttachments.extractRefs(
+      owned.content,
+    ).difference(NoteAttachments.extractRefs(saved.content));
     if (removedRefs.isNotEmpty) {
       final historicalRefs = <String>{
         for (final v in _versions[saved.id] ?? const <AppStrategyVersion>[])
@@ -1246,7 +1248,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     final owned = await getById(strategyId);
     if (owned == null) throw StateError('This record is no longer available.');
     RecordAccess.requireOwner(owned.userId);
-    if (SupabaseConfig.isConfigured && _isUuid(strategyId) && _isUuid(entryId)) {
+    if (SupabaseConfig.isConfigured &&
+        _isUuid(strategyId) &&
+        _isUuid(entryId)) {
       try {
         final client = SupabaseConfig.client!;
         // Authoritative mutation path: set strategy_id on the child journal entry.
@@ -1261,7 +1265,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
             .eq('id', entryId)
             .eq('user_id', _resolveUserId());
       } catch (e) {
-        debugPrint('[StrategiesRepository] linkJournal authoritative error: $e');
+        debugPrint(
+          '[StrategiesRepository] linkJournal authoritative error: $e',
+        );
         rethrow;
       }
     }
@@ -1279,7 +1285,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     final owned = await getById(strategyId);
     if (owned == null) throw StateError('This record is no longer available.');
     RecordAccess.requireOwner(owned.userId);
-    if (SupabaseConfig.isConfigured && _isUuid(strategyId) && _isUuid(entryId)) {
+    if (SupabaseConfig.isConfigured &&
+        _isUuid(strategyId) &&
+        _isUuid(entryId)) {
       try {
         final client = SupabaseConfig.client!;
         // Authoritative mutation path: clear strategy_id on the child journal entry.
@@ -1295,7 +1303,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
             .eq('strategy_id', strategyId)
             .eq('user_id', _resolveUserId());
       } catch (e) {
-        debugPrint('[StrategiesRepository] unlinkJournal authoritative error: $e');
+        debugPrint(
+          '[StrategiesRepository] unlinkJournal authoritative error: $e',
+        );
         rethrow;
       }
     }
@@ -1331,8 +1341,10 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       RecordAccess.requireOwner(owner.userId);
     }
 
-    final String rawFileName = filename ?? (file != null ? p.basename(file.path) : 'attachment.png');
-    final Uint8List rawBytes = bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
+    final String rawFileName =
+        filename ?? (file != null ? p.basename(file.path) : 'attachment.png');
+    final Uint8List rawBytes =
+        bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
 
     final compressed = await AttachmentCompressionService.compressAttachment(
       bytes: rawBytes,
@@ -1363,32 +1375,32 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
               fileBytes,
               fileOptions: FileOptions(
                 contentType: mimeType,
-                cacheControl:
-                    SupabaseStorageEgress.strategyAttachments.uploadCacheControl,
+                cacheControl: SupabaseStorageEgress
+                    .strategyAttachments
+                    .uploadCacheControl,
                 upsert: false,
               ),
             );
 
         try {
-          await client
-              .from('strategy_attachments')
-              .insert({
-                'strategy_id': strategyId,
-                'user_id': currentUserId,
-                'storage_path': storagePath,
-                'filename': rawFileName,
-                'mime_type': mimeType,
-                'byte_size': length,
-                'is_image': isImage,
-              });
+          await client.from('strategy_attachments').insert({
+            'strategy_id': strategyId,
+            'user_id': currentUserId,
+            'storage_path': storagePath,
+            'filename': rawFileName,
+            'mime_type': mimeType,
+            'byte_size': length,
+            'is_image': isImage,
+          });
         } catch (metaError) {
-          final isMissingTable = metaError is PostgrestException &&
+          final isMissingTable =
+              metaError is PostgrestException &&
               (metaError.code == '42P01' || metaError.code == 'PGRST205');
           if (!isMissingTable) {
             try {
-              await client.storage
-                  .from('strategy-attachments')
-                  .remove(<String>[storagePath]);
+              await client.storage.from('strategy-attachments').remove(<String>[
+                storagePath,
+              ]);
             } catch (_) {}
             rethrow;
           }

@@ -1,4 +1,4 @@
-# Set up Google AdSense on alphajournal
+# Set up Google AdSense on AlphaJournal
 
 A practical walkthrough for the free-plan integration in this project. Updated 10 November 2026.
 
@@ -41,7 +41,7 @@ If ad-unit creation is unavailable while your account is being activated, leave 
 
 ## 3. Turn Auto ads off
 
-Open the AdSense ad settings for `alphajournal.in`, switch **Auto ads off**, and save/apply the change. This is a requirement of this app's placement design: it keeps Google from adding ads outside the containers and eligibility checks already built into alphajournal. [Google's Auto ads settings](https://support.google.com/adsense/answer/9305577)
+Open the AdSense ad settings for `alphajournal.in`, switch **Auto ads off**, and save/apply the change. This is a requirement of this app's placement design: it keeps Google from adding ads outside the containers and eligibility checks already built into AlphaJournal. [Google's Auto ads settings](https://support.google.com/adsense/answer/9305577)
 
 Do not paste another global `adsbygoogle.js` script into `web/index.html`. The app loads that library when its account, content and consent checks pass.
 
@@ -50,7 +50,7 @@ Do not paste another global `adsbygoogle.js` script into `web/index.html`. The a
 Open Terminal and move into the project:
 
 ```sh
-cd /Users/nitishkumar/Downloads/projects/nk2552003/TradeX
+cd /Users/nitishkumar/Downloads/projects/nk2552003/AlphaJournal
 ```
 
 Open the existing `.env` file in your editor. It is a hidden file in the project root. Preserve its existing Supabase and other settings. Add or update the following block, with only one entry for each key:
@@ -132,11 +132,11 @@ Return to the AdSense verification screen, verify the site and request review. L
 
 ## 7. Configure the consent platform
 
-A CMP is the provider that collects and communicates advertising-consent choices. alphajournal's existing Cookie preferences are an additional control; they do not replace a certified CMP.
+A CMP is the provider that collects and communicates advertising-consent choices. AlphaJournal's existing Cookie preferences are an additional control; they do not replace a certified CMP.
 
 In AdSense, **Privacy & messaging** is where you configure Google's consent messages. Review the European regulations message, attach the site, provide the privacy-policy URL, configure choices and publish the message. Configure other applicable regional messages for your audience. Google also supports certified third-party CMPs. [Google's CMP overview](https://support.google.com/adsense/answer/16918505)
 
-For the **current alphajournal adapter**, complete this installation step as well:
+For the **current AlphaJournal adapter**, complete this installation step as well:
 
 1. Obtain your CMP provider's actual installation code and HTTPS script URL.
 2. Put its script URL in `ADSENSE_CMP_SCRIPT_URL` if that script performs the complete installation.
@@ -169,7 +169,7 @@ To preview boxes inside the normal app, set `ADSENSE_PREVIEW=true` and keep `ADS
 | Feed inline | After For You posts 5, 15, 25, etc., when all loaded posts are public and approved |
 | Feed footer | After For You posts 10, 20, 30, etc., under the same conditions |
 | Community sidebar | Desktop public feed/explore, sufficient width and at least five approved public posts |
-| Article footer | A first-party `alphajournal` article with at least 1,200 characters of summary text |
+| Article footer | A first-party `AlphaJournal` article with at least 1,200 characters of summary text |
 | Public note footer | A public, read-only note of at least 300 words opened in public context |
 
 Each five-post position makes its own ad request, alternating the two feed unit IDs. Google decides which creative to show; a unique creative at every position is not guaranteed. Messages, AI Assistant and Writing Desk also show **non-Google promotion previews** while `ADSENSE_PREVIEW=true`. Those private-screen previews cannot serve AdSense and disappear in production; no additional Google slot IDs are needed for them. See the [placement guide](adsense-setup.md#preview-the-containers-without-google).

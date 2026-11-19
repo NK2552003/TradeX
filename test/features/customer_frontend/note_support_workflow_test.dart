@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/markdown_kit/markdown_editor_field.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/notes/ui/note_editor_screen.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/help_about_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_editor_field.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/notes/ui/note_editor_screen.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/help_about_page.dart';
 
 class CapturingNotes extends Fake implements NotesRepository {
   AppNote? saved;

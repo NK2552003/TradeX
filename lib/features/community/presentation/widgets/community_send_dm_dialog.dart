@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/data/app_entitlements.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+// Required unified primitive import for application UI.
+// ignore: unnecessary_import
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
 
 /// Modal dialog allowing a trader to send a post or direct message to another user.
 class CommunitySendDmDialog extends StatefulWidget {
@@ -22,7 +28,15 @@ class CommunitySendDmDialog extends StatefulWidget {
     CommunityPost? post,
     CommunityRepository? repository,
     CommunityAuthor? initialRecipient,
-  }) {
+  }) async {
+    if (!AppEntitlement.messages.allows(AppSession.instance.tier.value)) {
+      await CustomerLimitations.showPlanUpgradeDialog(
+        context,
+        featureTitle: 'Messages · Basic or Pro',
+        reason: AppEntitlement.messages.reason,
+      );
+      return;
+    }
     final repo = repository ?? CommunityRepository();
     return showDialog<void>(
       context: context,

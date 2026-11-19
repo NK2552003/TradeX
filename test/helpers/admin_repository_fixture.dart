@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:tradex/features/admin_console/data/admin_repository.dart';
-import 'package:tradex/features/admin_console/models/admin_records.dart';
+import 'package:alphajournal/features/admin_console/data/admin_repository.dart';
+import 'package:alphajournal/features/admin_console/models/admin_records.dart';
 
 /// An in-memory I/O boundary for interaction tests. Production has no fixture
 /// fallback; SQL authorization and quota behavior are tested separately.

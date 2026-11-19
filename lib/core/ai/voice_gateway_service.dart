@@ -2,10 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:tradex/core/config/env_config.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/env_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 
-import 'audio_capture_stub.dart' if (dart.library.io) 'audio_capture_io.dart'
+import 'audio_capture_stub.dart'
+    if (dart.library.io) 'audio_capture_io.dart'
     as audio_capture;
 
 /// Authenticated client proxy to the `ai-voice` Supabase Edge Function for
@@ -37,7 +38,8 @@ class VoiceGatewayService {
   }
 
   static Map<String, String> _defaultAuthHeaders() {
-    final token = SupabaseConfig.client?.auth.currentSession?.accessToken.trim();
+    final token = SupabaseConfig.client?.auth.currentSession?.accessToken
+        .trim();
     if (token == null || token.isEmpty) {
       throw StateError('Sign in to use AI voice.');
     }
@@ -108,7 +110,9 @@ class VoiceGatewayService {
             )
             .timeout(const Duration(seconds: 20));
         if (response.statusCode >= 400) {
-          throw StateError(_extractError(response.body, 'Voice playback failed.'));
+          throw StateError(
+            _extractError(response.body, 'Voice playback failed.'),
+          );
         }
         if (response.bodyBytes.isEmpty) {
           throw StateError('Voice service returned empty audio.');
@@ -136,7 +140,9 @@ class VoiceGatewayService {
         if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
           return response.bodyBytes;
         }
-        throw StateError(_extractError(response.body, 'Voice playback failed.'));
+        throw StateError(
+          _extractError(response.body, 'Voice playback failed.'),
+        );
       }
 
       throw StateError('Voice service is not configured.');
@@ -184,16 +190,17 @@ class VoiceGatewayService {
 
       final devKey = _devOpenAiKey();
       if (!SupabaseConfig.isConfigured && devKey.isNotEmpty) {
-        final req = http.MultipartRequest(
-          'POST',
-          Uri.parse('https://api.openai.com/v1/audio/transcriptions'),
-        )
-          ..headers['Authorization'] = 'Bearer $devKey'
-          ..fields['model'] = 'whisper-1'
-          ..fields['response_format'] = 'json'
-          ..files.add(
-            http.MultipartFile.fromBytes('file', bytes, filename: filename),
-          );
+        final req =
+            http.MultipartRequest(
+                'POST',
+                Uri.parse('https://api.openai.com/v1/audio/transcriptions'),
+              )
+              ..headers['Authorization'] = 'Bearer $devKey'
+              ..fields['model'] = 'whisper-1'
+              ..fields['response_format'] = 'json'
+              ..files.add(
+                http.MultipartFile.fromBytes('file', bytes, filename: filename),
+              );
         final streamed = await client
             .send(req)
             .timeout(const Duration(seconds: 30));
@@ -207,7 +214,9 @@ class VoiceGatewayService {
         return (decoded['text'] as String? ?? '').trim();
       }
 
-      throw StateError('Voice transcription requires an active backend connection.');
+      throw StateError(
+        'Voice transcription requires an active backend connection.',
+      );
     } finally {
       client.close();
     }

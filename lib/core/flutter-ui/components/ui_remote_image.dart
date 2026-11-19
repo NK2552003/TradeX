@@ -47,10 +47,7 @@ class UiRemoteImage extends StatelessWidget {
   final Widget? fallback;
 
   /// Calculates target physical pixel width capped at 2x device pixel ratio.
-  static int? resolveCacheWidth(
-    BuildContext context, {
-    double? logicalWidth,
-  }) {
+  static int? resolveCacheWidth(BuildContext context, {double? logicalWidth}) {
     if (logicalWidth == null || !logicalWidth.isFinite || logicalWidth <= 0) {
       return null;
     }
@@ -67,7 +64,9 @@ class UiRemoteImage extends StatelessWidget {
   /// Cached Egress instead of uncached signed origin URLs.
   static String resizeImageUrl(String src, {int? targetWidthPx}) {
     final Uri? uri = Uri.tryParse(src);
-    if (uri == null || !uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https')) {
+    if (uri == null ||
+        !uri.hasScheme ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
       return src;
     }
 
@@ -113,7 +112,9 @@ class UiRemoteImage extends StatelessWidget {
     }
 
     if (host.endsWith('.imgix.net') || host == 'images.unsplash.com') {
-      final Map<String, String> qp = Map<String, String>.from(uri.queryParameters);
+      final Map<String, String> qp = Map<String, String>.from(
+        uri.queryParameters,
+      );
       qp.putIfAbsent('w', () => '$bucketWidth');
       qp.putIfAbsent('auto', () => 'format');
       qp.putIfAbsent('q', () => '80');
@@ -126,8 +127,7 @@ class UiRemoteImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String? src = url?.trim();
-    final Widget resolvedFallback =
-        fallback ?? _Panel(icon: errorIcon);
+    final Widget resolvedFallback = fallback ?? _Panel(icon: errorIcon);
     if (src == null || src.isEmpty) {
       return fallback ?? const _Panel(icon: Icons.image_not_supported_outlined);
     }
@@ -138,7 +138,10 @@ class UiRemoteImage extends StatelessWidget {
           width: width,
           height: height,
           fit: fit,
-          cacheWidth: resolveCacheWidth(context, logicalWidth: width ?? maxWidth),
+          cacheWidth: resolveCacheWidth(
+            context,
+            logicalWidth: width ?? maxWidth,
+          ),
           semanticLabel: semanticLabel,
           errorBuilder: (_, _, _) => resolvedFallback,
         );

@@ -5,10 +5,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/widgets/app_scaffold.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +21,7 @@ void main() {
       builder: (context) => MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: UiTheme.dark().toThemeData(),
-        title: 'alphajournal · Market Intelligence',
+        title: 'AlphaJournal · Market Intelligence',
         builder: (context, child) =>
             UiToastScope(child: child ?? const SizedBox.shrink()),
         home: AppScaffold(

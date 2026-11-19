@@ -1,9 +1,9 @@
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/app_constants.dart';
-import 'package:tradex/core/config/subdomain_cookie_codec.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/auth/models/auth_state.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
+import 'package:alphajournal/core/config/subdomain_cookie_codec.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/auth/models/auth_state.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 import 'role_navigation_config.dart';
 import 'share_links.dart';
 
@@ -56,10 +56,11 @@ class CustomerRoute {
   }
 
   /// Resolves the canonical subdomain for a linked record [kind].
-  static CustomerSubdomain subdomainForRecord(AppLinkKind kind) => switch (kind) {
-    AppLinkKind.communityPost => CustomerSubdomain.community,
-    _ => CustomerSubdomain.app,
-  };
+  static CustomerSubdomain subdomainForRecord(AppLinkKind kind) =>
+      switch (kind) {
+        AppLinkKind.communityPost => CustomerSubdomain.community,
+        _ => CustomerSubdomain.app,
+      };
 
   /// Resolves which `alphajournal.in` subdomain owns [destination].
   static CustomerSubdomain subdomainForDestination(
@@ -181,8 +182,9 @@ class CustomerRoute {
       scheme: 'https',
       host: targetHost,
       path: path,
-      queryParameters:
-          target.queryParameters.isEmpty ? null : target.queryParameters,
+      queryParameters: target.queryParameters.isEmpty
+          ? null
+          : target.queryParameters,
     );
   }
 
@@ -228,7 +230,7 @@ class CustomerRoute {
   }
 
   static CustomerRoute parse(Uri uri, {String? host}) {
-    if (uri.scheme == 'tradex' &&
+    if (uri.scheme == 'alphajournal' &&
         uri.host == 'auth' &&
         uri.path == '/callback') {
       return const CustomerRoute(destination: 'workspace');
@@ -288,6 +290,9 @@ class CustomerRoute {
         'login' => AuthStage.login,
         'signup' => AuthStage.signup,
         'forgot-password' => AuthStage.forgotPassword,
+        // Verified App/Universal Link target used by native OAuth callbacks.
+        // Auth state is consumed by Supabase before this route is rendered.
+        'callback' => AuthStage.login,
         _ => null,
       };
       return stage == null

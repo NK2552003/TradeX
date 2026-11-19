@@ -1,10 +1,10 @@
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/record_access.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/record_access.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 
 abstract class WatchlistRepository {
   Future<List<AppTicker>> getWatchlistTickers({String? category});

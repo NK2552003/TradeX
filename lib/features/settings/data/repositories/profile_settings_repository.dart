@@ -1,21 +1,22 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:tradex/core/utils/attachment_compression_service.dart';
+import 'package:alphajournal/core/utils/attachment_compression_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/config/supabase_storage_egress.dart';
-import 'package:tradex/core/security/private_message_service.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/core/data/session_trader.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/settings/data/device_info_helper.dart';
-import 'package:tradex/features/settings/models/active_session_model.dart';
-import 'package:tradex/features/settings/models/connected_account_model.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_storage_egress.dart';
+import 'package:alphajournal/core/security/private_message_service.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/core/data/session_trader.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/settings/data/device_info_helper.dart';
+import 'package:alphajournal/features/settings/models/active_session_model.dart';
+import 'package:alphajournal/features/settings/models/connected_account_model.dart';
 
 @immutable
 class AccountDeletionRequestModel {
@@ -225,10 +226,12 @@ abstract class ProfileSettingsRepository {
 }
 
 class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
-  static const String _deletionQueueKey = 'tradex_account_deletion_requests_v1';
-  static const String _publicStatsPrefKey = 'tradex_profile_public_stats_v1';
+  static const String _deletionQueueKey =
+      'alphajournal_account_deletion_requests_v1';
+  static const String _publicStatsPrefKey =
+      'alphajournal_profile_public_stats_v1';
   static const String _publicJournalsPrefKey =
-      'tradex_profile_public_journals_v1';
+      'alphajournal_profile_public_journals_v1';
 
   static final ProfileSettingsRepositoryImpl instance =
       ProfileSettingsRepositoryImpl._();
@@ -285,7 +288,9 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
   @override
   UserProfileModel get cachedProfile => _profile.subscriptionTier.isNotEmpty
       ? _profile
-      : _profile.copyWith(subscriptionTier: AppSession.instance.tier.value.name);
+      : _profile.copyWith(
+          subscriptionTier: AppSession.instance.tier.value.name,
+        );
 
   @override
   Future<UserProfileModel> getProfile() async {
@@ -334,16 +339,18 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
           final notif = res['notification_settings'] is Map
               ? Map<String, dynamic>.from(res['notification_settings'] as Map)
               : null;
-          final bool resolvedStats = res['public_stats'] as bool? ??
+          final bool resolvedStats =
+              res['public_stats'] as bool? ??
               notif?['public_stats'] as bool? ??
               savedStats ??
               parsed.publicStats;
-          final bool resolvedJournals = res['public_journals'] as bool? ??
+          final bool resolvedJournals =
+              res['public_journals'] as bool? ??
               notif?['public_journals'] as bool? ??
               savedJournals ??
               parsed.publicJournals;
-          final normalizedAvatar = parsed.avatarUrl != null &&
-                  parsed.avatarUrl!.trim().isNotEmpty
+          final normalizedAvatar =
+              parsed.avatarUrl != null && parsed.avatarUrl!.trim().isNotEmpty
               ? SupabaseStorageEgress.resolvePublicCdnUrl(
                   client: client,
                   bucket: SupabaseStorageEgress.avatars.bucketId,
@@ -496,8 +503,8 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
         final rawUpdatedAvatar = fetchedProfile.avatarUrl?.isNotEmpty == true
             ? fetchedProfile.avatarUrl
             : effectiveAvatarUrl;
-        final normalizedUpdatedAvatar = rawUpdatedAvatar != null &&
-                rawUpdatedAvatar.trim().isNotEmpty
+        final normalizedUpdatedAvatar =
+            rawUpdatedAvatar != null && rawUpdatedAvatar.trim().isNotEmpty
             ? SupabaseStorageEgress.resolvePublicCdnUrl(
                 client: client,
                 bucket: SupabaseStorageEgress.avatars.bucketId,
@@ -518,7 +525,10 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
   }
 
   static String? _extractAvatarStoragePath(String? url, String userId) {
-    if (url == null || url.isEmpty || url.startsWith('data:') || userId.isEmpty) {
+    if (url == null ||
+        url.isEmpty ||
+        url.startsWith('data:') ||
+        userId.isEmpty) {
       return null;
     }
     final uri = Uri.tryParse(url.trim());
@@ -592,7 +602,8 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       }
 
       if (finalAvatarUrl.isEmpty) {
-        finalAvatarUrl = 'data:$effectiveMime;base64,${base64Encode(effectiveBytes)}';
+        finalAvatarUrl =
+            'data:$effectiveMime;base64,${base64Encode(effectiveBytes)}';
       }
 
       try {
@@ -615,15 +626,16 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
         );
         if (uploadedFileName != null) {
           try {
-            await client.storage
-                .from('avatars')
-                .remove(<String>[uploadedFileName]);
+            await client.storage.from('avatars').remove(<String>[
+              uploadedFileName,
+            ]);
           } catch (_) {}
         }
         rethrow;
       }
     } else {
-      finalAvatarUrl = 'data:$effectiveMime;base64,${base64Encode(effectiveBytes)}';
+      finalAvatarUrl =
+          'data:$effectiveMime;base64,${base64Encode(effectiveBytes)}';
     }
 
     _profile = _profile.copyWith(avatarUrl: finalAvatarUrl);
@@ -774,7 +786,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     if (kIsWeb) {
       return '${Uri.base.origin}/settings_security';
     }
-    return 'tradex://auth/callback';
+    return AppConstants.nativeConnectedAccountCallbackUrl;
   }
 
   @override
@@ -876,7 +888,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       final label = provider == 'google' ? 'Google' : 'Apple';
       if (msg.contains('already') || msg.contains('exists')) {
         throw StateError(
-          'This $label account is already linked to another TraderHub profile.',
+          'This $label account is already linked to another AlphaJournal profile.',
         );
       }
       if (msg.contains('manual linking')) {
@@ -1028,7 +1040,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     }
     if (purgeAffiliate) {
       if (!keepTaxLedger) {
-        await prefs.remove('tradex_affiliate_workspace_v2_inr');
+        await prefs.remove('alphajournal_affiliate_workspace_v2_inr');
       }
       affiliateCount = 3;
     }
@@ -1158,9 +1170,10 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     ];
   }
 
-  static const String _deviceSessionIdKey = 'tradex_current_device_session_id_v1';
-  static const String _demoSessionsKey = 'tradex_demo_device_sessions_v1';
-  static const String _securityPrefsKey = 'tradex_security_prefs_v1';
+  static const String _deviceSessionIdKey =
+      'alphajournal_current_device_session_id_v1';
+  static const String _demoSessionsKey = 'alphajournal_demo_device_sessions_v1';
+  static const String _securityPrefsKey = 'alphajournal_security_prefs_v1';
 
   Future<String> _resolveCurrentSessionId() async {
     final token = SupabaseConfig.client?.auth.currentSession?.accessToken;
@@ -1230,7 +1243,9 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
         }
       }
     } catch (_) {}
-    final seeded = <ActiveDeviceSession>[_buildCurrentDeviceSession(currentSid)];
+    final seeded = <ActiveDeviceSession>[
+      _buildCurrentDeviceSession(currentSid),
+    ];
     await _saveLocalDemoSessions(seeded);
     return seeded;
   }

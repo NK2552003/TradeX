@@ -909,7 +909,8 @@ class PerplexityAnswerParser {
         decoded.containsKey('profitFactor') ||
         decoded.containsKey('holdings') ||
         decoded.containsKey('allocations') ||
-        (decoded.containsKey('accountSize') && decoded.containsKey('riskPct')) ||
+        (decoded.containsKey('accountSize') &&
+            decoded.containsKey('riskPct')) ||
         decoded.containsKey('indicators') ||
         decoded.containsKey('releases') ||
         decoded.containsKey('targetMean') ||

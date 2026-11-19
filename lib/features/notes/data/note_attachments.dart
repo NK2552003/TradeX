@@ -1,12 +1,12 @@
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/config/supabase_storage_egress.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_storage_egress.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import 'package:uuid/uuid.dart';
 
 import 'notes_repository.dart';
@@ -52,10 +52,7 @@ class NoteAttachments {
     final cacheTtl =
         SupabaseStorageEgress.noteAttachments.clientUrlCacheTtl ??
         const Duration(minutes: 50);
-    _resolved[key] = (
-      url: url,
-      expires: DateTime.now().add(cacheTtl),
-    );
+    _resolved[key] = (url: url, expires: DateTime.now().add(cacheTtl));
   }
 
   /// Clears all cached signed URLs. Called on logout or account switch.
@@ -252,8 +249,9 @@ class NoteAttachments {
         source = cached;
       } else {
         try {
-          source = await (using ??
-              NotesRepositoryScope.repository.resolveAttachmentUrl)(ref);
+          source =
+              await (using ??
+                  NotesRepositoryScope.repository.resolveAttachmentUrl)(ref);
         } catch (_) {
           // Skip unresolvable/unauthorized attachments so PDF export continues gracefully.
           return null;

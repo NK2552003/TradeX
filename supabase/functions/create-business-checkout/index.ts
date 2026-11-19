@@ -1,9 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { corsPreflightResponse, withCorsHeaders } from '../_shared/cors.ts';
 import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 
 const headers = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -13,13 +13,19 @@ function reply(status: number, body: Record<string, unknown>): Response {
 }
 
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response(null, { headers });
+  if (request.method === 'OPTIONS') return corsPreflightResponse(request);
   const logger = createEdgeRequestLogger('create-business-checkout', request);
   try {
-    return logger.finish(await handleCheckoutRequest(request, logger));
+    return logger.finish(withCorsHeaders(
+      request,
+      await handleCheckoutRequest(request, logger),
+    ));
   } catch (error) {
     logger.log('error', 'unhandled_exception', describeError(error));
-    return logger.finish(reply(500, { error: 'Checkout could not be created.' }));
+    return logger.finish(withCorsHeaders(
+      request,
+      reply(500, { error: 'Checkout could not be created.' }),
+    ));
   }
 });
 

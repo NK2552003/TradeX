@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/settings/models/trading_prefs_model.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/settings/models/trading_prefs_model.dart';
 
 abstract class TradingPrefsRepository {
   Future<TradingPrefsModel> getPreferences();
@@ -19,8 +19,8 @@ abstract class TradingPrefsRepository {
 }
 
 class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
-  static const String _localExtrasKey = 'tradex_trading_extras_v1';
-  static const String _localCoreKey = 'tradex_trading_core_v1';
+  static const String _localExtrasKey = 'alphajournal_trading_extras_v1';
+  static const String _localCoreKey = 'alphajournal_trading_core_v1';
 
   static final TradingPrefsRepositoryImpl instance =
       TradingPrefsRepositoryImpl._();
@@ -156,9 +156,9 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
             )
             .single();
 
-        _prefs = TradingPrefsModel.fromJson(res).mergeExtrasJson(
-          prefs.toExtrasJson(),
-        );
+        _prefs = TradingPrefsModel.fromJson(
+          res,
+        ).mergeExtrasJson(prefs.toExtrasJson());
 
         await client.from('user_app_preferences').upsert({
           'user_id': targetUserId,

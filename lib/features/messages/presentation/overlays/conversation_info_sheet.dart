@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/messages/presentation/widgets/messages_widgets.dart';
 
 /// Conversation details bottom sheet: peer/group identity, quick toggles (pin, mute,
 /// archive), group membership management, the shared records/media exchanged in the

@@ -1,14 +1,14 @@
-import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
 import 'package:flutter/foundation.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/config/customer_quota_usage.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/auth/models/pricing_models.dart';
-import 'package:tradex/features/settings/models/billing_models.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/customer_quota_usage.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/features/auth/data/repositories/subscription_pricing_repository.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/auth/models/pricing_models.dart';
+import 'package:alphajournal/features/settings/models/billing_models.dart';
 
 abstract class BillingSettingsRepository {
   Future<SubscriptionSummary> getSubscription();
@@ -59,7 +59,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   /// Coupons the prototype accepts, with what each takes off. The backend
   /// replaces this with the promotion codes it actually issued.
   static const Map<String, int> _coupons = <String, int>{
-    'TRADEX20': 20,
+    'ALPHAJOURNAL20': 20,
     'DESK50': 50,
   };
 
@@ -367,7 +367,8 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
           currency: 'INR',
           status: 'paid',
           issuedAt: summary.renewedAt.subtract(Duration(days: i * stride)),
-          pdfUrl: 'https://alphajournal.in/invoices/${_invoiceRef(i, stride)}.pdf',
+          pdfUrl:
+              'https://alphajournal.in/invoices/${_invoiceRef(i, stride)}.pdf',
           issuer: _issuer,
           taxPercent: _taxPercent,
           paymentMethodLabel: card == null
@@ -395,7 +396,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   /// here rather than in the receipt layout so the document cannot claim a
   /// company or a tax rate the charge was not made under.
   static const InvoiceIssuer _issuer = InvoiceIssuer(
-    name: 'alphajournal',
+    name: 'AlphaJournal',
     addressLines: <String>[
       '4th Floor, Prestige Trade Tower',
       '46 Palace Road, Bengaluru 560001',

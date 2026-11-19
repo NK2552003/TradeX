@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/views/community_search_page.dart';
-import 'package:tradex/features/community/presentation/views/community_follow_view.dart';
-import 'package:tradex/features/market_data/presentation/market_world_indices_card.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/views/community_search_page.dart';
+import 'package:alphajournal/features/community/presentation/views/community_follow_view.dart';
+import 'package:alphajournal/features/market_data/presentation/market_world_indices_card.dart';
 
 class SearchRepository extends CommunityRepository {
   bool loading = false;
@@ -214,57 +214,28 @@ void main() {
     expect(find.text('Could not refresh your network'), findsNothing);
   });
 
-  testWidgets(
-    'market shows complete responsive groups without table scrolling',
-    (tester) async {
-      viewport(tester, 1400);
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(child: MarketWorldIndicesCard()),
-          ),
+  testWidgets('market consolidates indices and assets into two tables', (
+    tester,
+  ) async {
+    viewport(tester, 1400);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(child: MarketWorldIndicesCard()),
         ),
-      );
-      expect(find.text('Americas'), findsOneWidget);
-      expect(find.text('Europe'), findsOneWidget);
-      expect(find.text('Asia'), findsOneWidget);
-      expect(find.text('Currencies & Crypto'), findsOneWidget);
-      expect(find.text('US Treasury Yields'), findsOneWidget);
-      expect(find.byType(MarketIndexGroupCard), findsNWidgets(6));
-      expect(find.byType(UiTable<MarketIndexItem>), findsNothing);
-      expect(
-        find.byKey(
-          const ValueKey<String>('market-overview-row-Americas-^BVSP'),
-        ),
-        findsOneWidget,
-      );
-      final double americasHeight = tester
-          .getSize(
-            find.byKey(
-              const ValueKey<String>('market-overview-group-Americas'),
-            ),
-          )
-          .height;
-      final double europeHeight = tester
-          .getSize(
-            find.byKey(const ValueKey<String>('market-overview-group-Europe')),
-          )
-          .height;
-      expect(americasHeight, greaterThan(europeHeight));
-      expect(
-        find.descendant(
-          of: find.byKey(
-            const ValueKey<String>('market-overview-group-Americas'),
-          ),
-          matching: find.byType(SingleChildScrollView),
-        ),
-        findsNothing,
-      );
-      expect(find.byTooltip('Previous'), findsNothing);
-      expect(find.byTooltip('Next'), findsNothing);
-      expect(tester.takeException(), isNull);
-    },
-  );
+      ),
+    );
+    expect(find.text('World Indices'), findsOneWidget);
+    expect(find.text('Assets'), findsOneWidget);
+    expect(find.byType(MarketIndexGroupCard), findsNothing);
+    expect(
+      find.byWidgetPredicate((Widget widget) => widget is UiTable),
+      findsNWidgets(2),
+    );
+    expect(find.byTooltip('Previous'), findsNothing);
+    expect(find.byTooltip('Next'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   for (final double width in <double>[390, 820]) {
     testWidgets(
@@ -279,7 +250,11 @@ void main() {
           ),
         );
 
-        expect(find.byType(MarketIndexGroupCard), findsNWidgets(6));
+        expect(find.byType(MarketIndexGroupCard), findsNothing);
+        expect(
+          find.byWidgetPredicate((Widget widget) => widget is UiTable),
+          findsNWidgets(2),
+        );
         expect(tester.takeException(), isNull);
       },
     );

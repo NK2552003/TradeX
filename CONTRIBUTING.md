@@ -1,228 +1,194 @@
-# Contributing to TradeX
+# Contributing to AlphaJournal
 
-Welcome to the project! This doc walks you through the full workflow — from forking the repo to getting your changes merged. Follow it step by step and we'll stay in sync with no confusion.
+Thank you for improving AlphaJournal. This repository is named `NK2552003/TradeX`, but the product, package, services, applications, and user-facing identity are AlphaJournal.
 
-> Wherever you see `YOUR_USERNAME` below, swap in your own GitHub username.
+## Before you start
 
----
+1. Read [AGENTS.md](AGENTS.md) for mandatory architecture, UI, security, entitlement, Supabase, linking, and testing rules.
+2. Search [existing issues](https://github.com/NK2552003/TradeX/issues).
+3. Choose the correct [Issue Form](https://github.com/NK2552003/TradeX/issues/new/choose) for non-trivial work.
+4. Read the [Security Policy](.github/SECURITY.md) before reporting security-sensitive behavior.
 
-## 1. Fork the Repository
+Do not open a public issue or pull request for a working exploit, secret exposure, authorization/payment bypass, cross-user data access, or private-data leak. Use a [Private Security Advisory](https://github.com/NK2552003/TradeX/security/advisories/new).
 
-1. Go to the main repo: `https://github.com/NK2552003/TradeX`
-2. Click **Fork** (top right) — this creates a copy under your own GitHub account:
-   `https://github.com/YOUR_USERNAME/TradeX`
+## Product and repository identity
 
-You'll always push your work to **your fork**, never directly to the original repo.
+| Item | Required value |
+| --- | --- |
+| Product name | AlphaJournal |
+| Dart package | `alphajournal` |
+| Android/Apple ID | `com.nk2552003.alphajournal` |
+| Domain | `alphajournal.in` |
+| URL scheme | `alphajournal://` |
+| GitHub repository | `NK2552003/TradeX` |
 
----
+Do not reintroduce TradeX into active product copy or runtime identifiers. Legacy strings are allowed only for verified compatibility migrations or immutable history.
 
-## 2. Clone Your Fork Locally
+## Fork and synchronize
 
-```bash
+Create a fork, then clone it and register this repository as `upstream`:
+
+~~~bash
 git clone https://github.com/YOUR_USERNAME/TradeX.git
 cd TradeX
-```
-
----
-
-## 3. Set Up Remotes (origin + upstream)
-
-By default, `origin` points to your fork. We now add the original repo as `upstream` so you can pull in the latest changes.
-
-```bash
 git remote add upstream https://github.com/NK2552003/TradeX.git
-```
-
-Verify both remotes are set correctly:
-
-```bash
 git remote -v
-```
+~~~
 
-You should see something like:
+Before starting a branch:
 
-```
-origin    https://github.com/YOUR_USERNAME/TradeX.git (fetch)
-origin    https://github.com/YOUR_USERNAME/TradeX.git (push)
-upstream  https://github.com/NK2552003/TradeX.git (fetch)
-upstream  https://github.com/NK2552003/TradeX.git (push)
-```
-
----
-
-## 4. Keep Your Fork in Sync
-
-**Before starting any new work**, always sync with upstream first so you're not building on outdated code.
-
-```bash
+~~~bash
 git checkout main
 git fetch upstream
-git merge upstream/main
+git merge --ff-only upstream/main
 git push origin main
-```
+git checkout -b fix/short-description
+~~~
 
-Do this every time before creating a new branch.
+Push work to your fork and open a pull request into `NK2552003/TradeX:main`. Do not push directly to the upstream `main` branch.
 
----
+## Development setup
 
-## 5. Create a New Branch for Every Task
+Install the Flutter version used by CI, then:
 
-Never work directly on `main`. Create a fresh branch per feature/fix/task.
+~~~bash
+flutter pub get
+dart analyze
+flutter test
+~~~
 
-```bash
-git checkout -b type/short-description
-```
+Some validation suites also require Node.js and Python dependencies. Follow the matching workflow or feature README rather than installing unpinned global packages.
 
-### Branch naming convention
+Never commit:
 
-| Prefix      | Use case                          | Example                      |
-|-------------|------------------------------------|-------------------------------|
-| `feature/`  | New feature                        | `feature/user-auth`          |
-| `fix/`      | Bug fix                            | `fix/login-crash`            |
-| `chore/`    | Config, deps, cleanup              | `chore/update-deps`          |
-| `docs/`     | Documentation only                 | `docs/api-readme`            |
-| `refactor/` | Code restructure, no behavior change | `refactor/api-routes`      |
+- `.env` files or production build defines;
+- access/refresh tokens, cookies, OTPs, passwords, or private keys;
+- Supabase service-role keys or credentialed database URLs;
+- provider, billing, webhook, signing, Firebase, or store secrets;
+- real private messages, journals, receipts, user exports, or PII;
+- release debug-symbol archives.
 
-Example:
+## Branch and issue scope
 
-```bash
-git checkout -b feature/payment-integration
-```
+- Keep one coherent change per branch and pull request.
+- Separate unrelated bugs instead of hiding them in a broad refactor.
+- Preserve existing user changes in a dirty worktree.
+- Do not rewrite applied database migrations.
+- Do not rename the repository or Git remote.
+- Avoid generated-file churn unless the source change requires it.
 
----
+Use descriptive branch names such as:
 
-## 6. Make Your Changes
+- `fix/dock-scroll-animation`
+- `fix/free-market-entitlement`
+- `feat/consolidated-world-indices`
+- `docs/security-issue-forms`
 
-- Keep each branch focused on **one task/feature**. Don't mix unrelated changes.
-- Commit often, in small logical chunks — not one giant commit at the end.
-- Test locally before committing.
+Use focused commits with a short conventional prefix:
 
-### Commit message format
+- `feat: add …`
+- `fix: prevent …`
+- `test: cover …`
+- `docs: explain …`
+- `refactor: simplify …`
+- `chore: maintain …`
 
-```
-type: short summary (max ~50 chars)
+If review changes are requested, update the same branch and push again. After merge, synchronize `main` and delete the merged branch from your fork.
 
-Optional longer description if needed — what changed and why.
-```
+## Flutter UI requirements
 
-Examples:
+Use the shared libraries:
 
-```bash
-git add .
-git commit -m "feat: add Razorpay payment gateway integration"
-git commit -m "fix: resolve null pointer on empty cart checkout"
-git commit -m "docs: update setup instructions in README"
-```
+~~~dart
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+~~~
 
-Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+Inspect the exports before building a new control:
 
----
+- `lib/core/app-ui/app_ui.dart`
+- `lib/core/flutter-ui/flutter_ui.dart`
 
-## 7. Push Your Branch to Your Fork
+Do not duplicate shared buttons, inputs, cards, charts, loaders, dialogs, tables, shells, or feature blocks. Use design tokens from `context.ui`, `context.uiText`, `context.sp()`, `context.sz()`, and the provided radius helpers.
 
-```bash
-git push origin feature/payment-integration
-```
+UI pull requests must cover:
 
-If you add more commits later on the same branch, just push again:
+- mobile, tablet, and desktop constraints;
+- keyboard and focus behavior;
+- semantic labels and readable contrast;
+- text scaling and reduced motion;
+- loading, empty, error, retry, and offline/stale states;
+- scroll ownership and dock/navigation animation;
+- reuse of existing AlphaJournal components.
 
-```bash
-git push origin feature/payment-integration
-```
+## Entitlements and network calls
 
----
+The client entitlement source is `lib/core/data/app_entitlements.dart`.
 
-## 8. Open a Pull Request (PR)
+- Free users receive only the approved Community market/news/instrument preview.
+- Full Market Intelligence and private Messages require Basic or Pro.
+- Core calculators remain Free; advanced calculator IDs require Basic or Pro.
 
-1. Go to your fork on GitHub — you'll see a **"Compare & pull request"** prompt.
-2. Set:
-   - **Base repository:** `NK2552003/TradeX` → base branch: `main`
-   - **Head repository:** `YOUR_USERNAME/TradeX` → compare branch: `feature/payment-integration`
-3. Fill in the PR:
-   - **Title:** clear and short (e.g. "Add Razorpay payment integration")
-   - **Description:** what you did, why, and how to test it. Link related issues (e.g. `Closes #12`).
-4. Submit the PR.
+Every gated feature must be enforced:
 
-I'll review it, may leave comments, and merge once it's good.
+1. before navigation;
+2. before mounting the screen;
+3. before remote/realtime/AI work starts;
+4. in the repository/service;
+5. in Edge Functions/RPC/database/RLS.
 
----
+Add a direct-route or direct-API negative test. Hiding a button is not authorization.
 
-## 9. If Changes Are Requested
+## Supabase and migration changes
 
-1. Make edits locally on the **same branch**.
-2. Commit and push again — the PR updates automatically:
+- Review the current Supabase changelog and official documentation for the affected feature.
+- Use forward-only migrations and test them in staging.
+- Enable RLS on Data API-exposed tables.
+- Bind access to trusted ownership/tier state.
+- Use both `USING` and `WITH CHECK` for ownership-sensitive updates.
+- Never authorize with user-editable metadata.
+- Treat `SECURITY DEFINER` as exceptional and revoke default execution.
+- Run relevant database tests and advisors.
 
-```bash
-git add .
-git commit -m "fix: address review comments"
-git push origin feature/payment-integration
-```
+Cross-subdomain behavior for approved AlphaJournal origins is required. Preserve the explicit CORS allowlist; never replace it with a wildcard.
 
-No need to open a new PR.
+## Unified AI changes
 
----
+Use `lib/core/ai/unified_ai_service.dart` or the approved server gateway. Do not remove its gateway-first flow, provider ordering, streaming behavior, or fallbacks unless an architecture change is explicitly approved.
 
-## 10. After Your PR Is Merged
+Use synthetic prompts in tests and reports. Never log or publish private prompts, completions, journals, messages, API keys, or raw provider payloads.
 
-1. Switch back to `main` and sync:
+## Testing expectations
 
-```bash
-git checkout main
-git fetch upstream
-git merge upstream/main
-git push origin main
-```
+Add the narrowest regression test that proves the defect and fix.
 
-2. Delete the merged branch (local + remote — keeps things clean):
+Common checks:
 
-```bash
-git branch -d feature/payment-integration
-git push origin --delete feature/payment-integration
-```
+~~~bash
+dart analyze
+flutter test
+node --test test/security/platform_security_test.cjs test/web/app_install_test.cjs
+git diff --check
+~~~
 
-3. Start your next task from step 5 (create a new branch off the freshly synced `main`).
+Run feature-specific tests for the code changed. Database, security, billing, entitlement, privacy, and auth fixes require a negative test that demonstrates the bypass/failure remains closed.
 
----
+## Documentation and changelog
 
-## Quick Reference Cheat Sheet
+Update documentation when behavior, configuration, architecture, entitlement, deployment, or operator action changes.
 
-```bash
-# One-time setup
-git clone https://github.com/YOUR_USERNAME/TradeX.git
-cd TradeX
-git remote add upstream https://github.com/NK2552003/TradeX.git
+Add a concise entry under [CHANGELOG.md](CHANGELOG.md) → **Unreleased** for user-visible, security, migration, or release-process changes. Do not disclose private advisory details before coordinated release.
 
-# Every time before starting new work
-git checkout main
-git fetch upstream
-git merge upstream/main
-git push origin main
-git checkout -b feature/new-task
+## Pull request requirements
 
-# While working
-git add .
-git commit -m "feat: description"
-git push origin feature/new-task
+Use the repository pull-request template and include:
 
-# Open PR on GitHub: fork branch -> NK2552003/TradeX main
+- the problem and outcome;
+- linked issue/advisory where safe;
+- screenshots or recordings for UI work with all user data removed;
+- test commands and results;
+- data/migration/egress impact;
+- entitlement and security impact;
+- rollout and rollback notes.
 
-# After merge
-git checkout main
-git fetch upstream
-git merge upstream/main
-git push origin main
-git branch -d feature/new-task
-git push origin --delete feature/new-task
-```
-
----
-
-## Ground Rules
-
-- ❌ Never push directly to `main` on the original repo — you don't have access anyway, but even on your fork, treat `main` as sync-only.
-- ✅ One branch = one task/feature. Keep PRs small and reviewable.
-- ✅ Pull `upstream/main` before starting new work, every time.
-- ✅ Write clear commit messages — future us will thank you.
-- ✅ If unsure about an approach before writing a lot of code, ping me first — saves rework.
-
-That's it. If you get stuck on any git step, just share the exact error and I'll help sort it out.
+A pull request is ready when analysis and relevant tests pass, the diff contains no secrets, the requested behavior is demonstrably complete, and documentation reflects the final implementation.

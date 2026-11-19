@@ -1,13 +1,13 @@
-import 'package:tradex/core/security/private_message_service.dart';
+import 'package:alphajournal/core/security/private_message_service.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
 
 abstract class ChatRepository {
   Future<List<AppConversation>> getConversations();
@@ -93,11 +93,14 @@ class ChatRepositoryImpl implements ChatRepository {
       if (convIds.isNotEmpty) {
         final msgRows = await client
             .from('messages')
-            .select('id, conversation_id, content, sender_id, created_at, read_at')
+            .select(
+              'id, conversation_id, content, sender_id, created_at, read_at',
+            )
             .inFilter('conversation_id', convIds)
             .order('created_at', ascending: false)
             .limit(convIds.length * 4);
-        for (final m in (msgRows as List<dynamic>).whereType<Map<String, dynamic>>()) {
+        for (final m
+            in (msgRows as List<dynamic>).whereType<Map<String, dynamic>>()) {
           final cid = m['conversation_id']?.toString() ?? '';
           if (cid.isNotEmpty && !latestByConv.containsKey(cid)) {
             latestByConv[cid] = m;

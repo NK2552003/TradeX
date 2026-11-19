@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:tradex/core/app-ui/theme/app_tokens.dart';
+import 'package:alphajournal/core/app-ui/theme/app_tokens.dart';
 
 /// Single subscription plan model for alphajournal pricing catalogue.
 @immutable

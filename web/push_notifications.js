@@ -15,19 +15,19 @@
     });
     return reg;
   };
-  window.tradexPushSubscription = async () => {
+  window.alphajournalPushSubscription = async () => {
     if (!supported() || Notification.permission !== 'granted') return '';
     const reg = await registration();
     const sub = await reg.pushManager.getSubscription();
     return sub ? JSON.stringify(sub.toJSON()) : '';
   };
-  window.tradexPushStatus = async () => {
+  window.alphajournalPushStatus = async () => {
     if (!supported()) return 'unsupported';
     if (Notification.permission !== 'granted') return Notification.permission;
     const reg = await registration();
     return await reg.pushManager.getSubscription() ? 'subscribed' : 'default';
   };
-  window.tradexPushEnable = async (publicKey) => {
+  window.alphajournalPushEnable = async (publicKey) => {
     if (!supported()) throw new Error('Push is unavailable here. Use a supported browser over HTTPS.');
     if (!publicKey) throw new Error('Push delivery has not been configured yet.');
     const permission = await Notification.requestPermission();
@@ -41,7 +41,7 @@
     }
     return JSON.stringify(sub.toJSON());
   };
-  window.tradexPushDisable = async () => {
+  window.alphajournalPushDisable = async () => {
     if (!supported()) return '';
     const reg = await registration();
     const sub = await reg.pushManager.getSubscription();

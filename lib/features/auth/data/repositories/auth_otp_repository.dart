@@ -1,4 +1,4 @@
-import 'package:tradex/features/auth/models/otp_purpose.dart';
+import 'package:alphajournal/features/auth/models/otp_purpose.dart';
 
 /// Result of an OTP verify attempt.
 class OtpVerifyResult {

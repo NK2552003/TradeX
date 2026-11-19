@@ -1,12 +1,18 @@
 {
-    "name": "Alphajournal",
-    "short_name": "alphajournal",
+    "name": "AlphaJournal",
+    "short_name": "AlphaJournal",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0D0C0B",
     "theme_color": "#151312",
     "description": "A workspace for trading journals, research notes, and strategy review.",
     "prefer_related_applications": false,
+    "related_applications": [
+        {
+            "platform": "play",
+            "id": "com.nk2552003.alphajournal"
+        }
+    ],
     "categories": [
         "finance",
         "productivity",

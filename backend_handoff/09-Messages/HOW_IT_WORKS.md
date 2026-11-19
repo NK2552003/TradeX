@@ -1,7 +1,7 @@
 # 09-Messages — Backend Architecture & Integration Guide
 
 ## 1. Overview
-The Messages feature provides high-performance, real-time communication across TradeX:
+The Messages feature provides high-performance, real-time communication across AlphaJournal:
 - **1-on-1 Direct Messaging**: Private conversations between verified traders.
 - **Desk & Group Chats**: Collaborative group channels for trading desks and strategy clubs.
 - **Rich Media & Domain Attachments**: Native attachments for images, charts, PDFs, audio voice notes, and live record links (Trade Journal entries, Notes, Strategies, AI Setups).

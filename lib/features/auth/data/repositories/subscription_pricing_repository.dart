@@ -1,9 +1,9 @@
-import 'package:tradex/core/app-ui/theme/app_tokens.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/auth/models/pricing_models.dart';
-import 'package:tradex/features/public_site/data/public_site_repository.dart';
+import 'package:alphajournal/core/app-ui/theme/app_tokens.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/features/auth/models/pricing_models.dart';
+import 'package:alphajournal/features/public_site/data/public_site_repository.dart';
 
 abstract class SubscriptionPricingRepository {
   Future<PricingCatalogueResponse> getPricingCatalogue({bool annual = false});

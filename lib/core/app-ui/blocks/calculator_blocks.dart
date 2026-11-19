@@ -807,47 +807,48 @@ class _InputRail extends StatelessWidget {
             child: actions.isEmpty
                 ? Text('Inputs', style: uiOverline(context))
                 : LayoutBuilder(
-                    builder: (BuildContext context, BoxConstraints constraints) {
-                      final double gapXxs = context.sp(theme.spacing.xxs);
-                      final Widget label = Text(
-                        'Inputs',
-                        style: uiOverline(context),
-                      );
-                      final Widget actionWrap = Wrap(
-                        spacing: gapXxs,
-                        runSpacing: gapXxs,
-                        alignment: WrapAlignment.end,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: actions,
-                      );
-                      if (!constraints.hasBoundedWidth ||
-                          constraints.maxWidth < 330) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            label,
-                            SizedBox(height: gapXxs),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: actionWrap,
-                            ),
-                          ],
-                        );
-                      }
-                      return Row(
-                        children: <Widget>[
-                          Expanded(child: label),
-                          SizedBox(width: gapXxs),
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: constraints.maxWidth * 0.72,
-                            ),
-                            child: actionWrap,
-                          ),
-                        ],
-                      );
-                    },
+                    builder:
+                        (BuildContext context, BoxConstraints constraints) {
+                          final double gapXxs = context.sp(theme.spacing.xxs);
+                          final Widget label = Text(
+                            'Inputs',
+                            style: uiOverline(context),
+                          );
+                          final Widget actionWrap = Wrap(
+                            spacing: gapXxs,
+                            runSpacing: gapXxs,
+                            alignment: WrapAlignment.end,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: actions,
+                          );
+                          if (!constraints.hasBoundedWidth ||
+                              constraints.maxWidth < 330) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                label,
+                                SizedBox(height: gapXxs),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: actionWrap,
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: <Widget>[
+                              Expanded(child: label),
+                              SizedBox(width: gapXxs),
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: constraints.maxWidth * 0.72,
+                                ),
+                                child: actionWrap,
+                              ),
+                            ],
+                          );
+                        },
                   ),
           ),
         for (int i = 0; i < groups.length; i++)
@@ -1590,6 +1591,9 @@ class AppCalculatorToolIndex extends StatelessWidget {
     this.grouped = true,
     this.onClear,
     this.showDescription = false,
+    this.isEnabled,
+    this.onDisabledSelect,
+    this.disabledLabel = 'Basic',
   });
 
   final List<AppCalculatorMeta> tools;
@@ -1601,6 +1605,9 @@ class AppCalculatorToolIndex extends StatelessWidget {
   /// Adds each tool's one-line summary — worth the height on a phone, not in a
   /// 300 dp rail.
   final bool showDescription;
+  final bool Function(AppCalculatorMeta tool)? isEnabled;
+  final ValueChanged<AppCalculatorMeta>? onDisabledSelect;
+  final String disabledLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -1635,12 +1642,7 @@ class AppCalculatorToolIndex extends StatelessWidget {
         children: <Widget>[
           for (int i = 0; i < tools.length; i++) ...<Widget>[
             if (isTileLayout && i > 0) SizedBox(height: itemSpacing),
-            AppCalculatorNavItem(
-              meta: tools[i],
-              selected: tools[i].id == selectedId,
-              onTap: () => onSelect(tools[i]),
-              showDescription: showDescription,
-            ),
+            _item(tools[i]),
           ],
         ],
       );
@@ -1686,16 +1688,31 @@ class AppCalculatorToolIndex extends StatelessWidget {
             for (final AppCalculatorMeta m in tools.where(
               (AppCalculatorMeta m) => m.category == cat,
             )) ...<Widget>[
-              AppCalculatorNavItem(
-                meta: m,
-                selected: m.id == selectedId,
-                onTap: () => onSelect(m),
-                showDescription: showDescription,
-              ),
+              _item(m),
               if (isTileLayout) SizedBox(height: itemSpacing),
             ],
           ],
       ],
+    );
+  }
+
+  Widget _item(AppCalculatorMeta tool) {
+    final enabled = isEnabled?.call(tool) ?? true;
+    return AppCalculatorNavItem(
+      meta: tool,
+      selected: tool.id == selectedId,
+      enabled: enabled,
+      disabledLabel: enabled ? null : disabledLabel,
+      onTap: () {
+        if (enabled) {
+          onSelect(tool);
+        } else if (onDisabledSelect != null) {
+          onDisabledSelect!(tool);
+        } else {
+          onSelect(tool);
+        }
+      },
+      showDescription: showDescription,
     );
   }
 }

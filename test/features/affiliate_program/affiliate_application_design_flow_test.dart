@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
-import 'package:tradex/features/admin_console/models/admin_records.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_application_repository.dart';
+import 'package:alphajournal/features/admin_console/models/admin_records.dart';
 import '../../helpers/admin_repository_fixture.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_approvals_page.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_approvals_page.dart';
 import '../../helpers/workspace_design_harness.dart';
 import '../admin_console/admin_affiliate_interaction_audit_test.dart'
     show tapLabel, enterField;

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/utils/markdown_pdf_export.dart';
+import 'package:alphajournal/core/utils/markdown_pdf_export.dart';
 
 void main() {
   test(

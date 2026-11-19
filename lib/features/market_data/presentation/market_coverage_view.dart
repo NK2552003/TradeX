@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import '../data/asset_market_repository.dart';
 import '../models/market_snapshot.dart';
 import 'market_overview_view.dart';
@@ -55,9 +55,15 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
     // Single JSON file fallback: construct directory rows from available snapshot quotes
     return [
       for (final q in widget.snapshot.instruments)
-        {'ticker': q.symbol, 'name': q.name, 'market': q.market, 'price': q.price}
+        {
+          'ticker': q.symbol,
+          'name': q.name,
+          'market': q.market,
+          'price': q.price,
+        },
     ];
   }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<dynamic>(
     future: _future,
@@ -85,7 +91,8 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
       }
       final manifest = widget.snapshot.manifest;
       final quotes = {for (final q in widget.snapshot.instruments) q.symbol: q};
-      final bool pagedDb = result.data is MarketPageResult<Map<String, dynamic>>;
+      final bool pagedDb =
+          result.data is MarketPageResult<Map<String, dynamic>>;
       final int totalDirectoryCount = pagedDb
           ? (result.data as MarketPageResult<Map<String, dynamic>>).totalCount
           : (result.data as List).length;
@@ -95,8 +102,10 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
       final query = widget.searchQuery.trim().toLowerCase();
       final rows = pagedDb
           ? directory.where((r) {
-              final hasQuote = r['has_quote'] == true || quotes.containsKey(r['ticker']);
-              return _status == 'all' || (_status == 'priced' ? hasQuote : !hasQuote);
+              final hasQuote =
+                  r['has_quote'] == true || quotes.containsKey(r['ticker']);
+              return _status == 'all' ||
+                  (_status == 'priced' ? hasQuote : !hasQuote);
             }).toList()
           : directory.where((r) {
               final q = quotes[r['ticker']];
@@ -152,10 +161,15 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                     value: totalDirectoryCount == 0
                         ? 0
                         : (pagedDb
-                                ? (totalQuotesCount / totalDirectoryCount)
-                                    .clamp(0.0, 1.0)
-                                : directory
-                                        .where((r) => quotes.containsKey(r['ticker']))
+                              ? (totalQuotesCount / totalDirectoryCount).clamp(
+                                  0.0,
+                                  1.0,
+                                )
+                              : directory
+                                        .where(
+                                          (r) =>
+                                              quotes.containsKey(r['ticker']),
+                                        )
                                         .length /
                                     directory.length),
                     label: 'Directory symbols with a quote',
@@ -239,13 +253,15 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                   UiTableColumn(
                     header: 'Company',
                     flex: 2,
-                    cell: (c, r) =>
-                        Text(quotes[r['ticker']]?.name ?? '${r['name'] ?? '—'}'),
+                    cell: (c, r) => Text(
+                      quotes[r['ticker']]?.name ?? '${r['name'] ?? '—'}',
+                    ),
                   ),
                   UiTableColumn(
                     header: 'Availability',
                     cell: (c, r) {
-                      final hasQuote = r['has_quote'] == true ||
+                      final hasQuote =
+                          r['has_quote'] == true ||
                           quotes.containsKey(r['ticker']);
                       return UiBadge(
                         label: hasQuote ? 'Quote available' : 'No quote',
@@ -262,8 +278,10 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                           {
                             'ticker': r['ticker'],
                             'market': r['market'] ?? 'US',
-                            'price': (r['price'] as num?)?.toDouble() ?? double.nan,
-                            'change_pct': (r['change_pct'] as num?)?.toDouble() ?? 0,
+                            'price':
+                                (r['price'] as num?)?.toDouble() ?? double.nan,
+                            'change_pct':
+                                (r['change_pct'] as num?)?.toDouble() ?? 0,
                           },
                           {'name': r['name'] ?? r['ticker']},
                         ),

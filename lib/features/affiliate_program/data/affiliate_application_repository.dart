@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_application_model.dart';
 
 abstract class AffiliateApplicationRepository {
   Future<AffiliateApplicationModel?> getForUser(String userId);
@@ -117,7 +117,7 @@ class AffiliateApplicationRepositoryImpl
       gender: 'male',
       platforms: const <String>['youtube', 'telegram'],
       primaryPlatform: 'youtube',
-      channelHandle: '@tradex_academy',
+      channelHandle: '@alphajournal_academy',
       audienceReach: '25,000+ traders',
       niches: const <String>['Price Action', 'Derivatives'],
       accountHolder: 'Nitish Kumar',

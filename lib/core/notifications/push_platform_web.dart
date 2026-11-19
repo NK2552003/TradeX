@@ -1,15 +1,15 @@
 import 'dart:js_interop';
 
-@JS('tradexPushSubscription')
+@JS('alphajournalPushSubscription')
 external JSPromise<JSString> _subscription();
 Future<String> currentSubscription() async =>
     (await _subscription().toDart).toDart;
 
-@JS('tradexPushStatus')
+@JS('alphajournalPushStatus')
 external JSPromise<JSString> _status();
-@JS('tradexPushEnable')
+@JS('alphajournalPushEnable')
 external JSPromise<JSString> _enable(JSString key);
-@JS('tradexPushDisable')
+@JS('alphajournalPushDisable')
 external JSPromise<JSString> _disable();
 
 Future<String> pushStatus() async => (await _status().toDart).toDart;

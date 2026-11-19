@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/settings/data/repositories/organization_settings_repository.dart';
-import 'package:tradex/features/settings/models/org_models.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/settings/data/repositories/organization_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/org_models.dart';
 
 class TeamRolesPage extends StatefulWidget {
   const TeamRolesPage({super.key, this.repository});

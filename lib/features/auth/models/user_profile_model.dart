@@ -1,4 +1,4 @@
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 
 /// Account status state.
 enum ProfileStatus { active, suspended, pendingApproval }
@@ -70,10 +70,10 @@ class UserProfileModel {
   factory UserProfileModel.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic>? notif =
         json['notification_settings'] is Map<String, dynamic>
-            ? json['notification_settings'] as Map<String, dynamic>
-            : (json['notification_settings'] is Map
-                ? Map<String, dynamic>.from(json['notification_settings'] as Map)
-                : null);
+        ? json['notification_settings'] as Map<String, dynamic>
+        : (json['notification_settings'] is Map
+              ? Map<String, dynamic>.from(json['notification_settings'] as Map)
+              : null);
     return UserProfileModel(
       id: json['id'] as String,
       handle: json['handle'] as String,

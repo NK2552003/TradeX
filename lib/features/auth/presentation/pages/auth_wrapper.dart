@@ -3,35 +3,35 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/billing/revenuecat_billing.dart';
-import 'package:tradex/core/config/cross_subdomain_storage.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/config/startup_ready.dart';
-import 'package:tradex/core/data/session_trader.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/core/navigation/customer_routes.dart';
-import 'package:tradex/core/security/private_message_service.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
-import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
-import 'package:tradex/features/auth/data/repositories/supabase_auth_otp_repository.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
-import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
-import 'package:tradex/features/auth/models/auth_state.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/otp_purpose.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/auth/presentation/pages/forgot_password_page.dart';
-import 'package:tradex/features/auth/presentation/pages/get_started_page.dart';
-import 'package:tradex/features/auth/presentation/pages/login_page.dart';
-import 'package:tradex/features/auth/presentation/pages/otp_verification_page.dart';
-import 'package:tradex/features/auth/presentation/pages/signup_page.dart';
-import 'package:tradex/features/auth/presentation/pages/splash_screen.dart';
-import 'package:tradex/features/auth/presentation/pages/subscription_pricing_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/billing/revenuecat_billing.dart';
+import 'package:alphajournal/core/config/cross_subdomain_storage.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/startup_ready.dart';
+import 'package:alphajournal/core/data/session_trader.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/core/navigation/customer_routes.dart';
+import 'package:alphajournal/core/security/private_message_service.dart';
+import 'package:alphajournal/core/widgets/app_scaffold.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_repository.dart';
+import 'package:alphajournal/features/auth/data/repositories/supabase_auth_otp_repository.dart';
+import 'package:alphajournal/features/auth/data/services/auth_backend_service.dart';
+import 'package:alphajournal/features/auth/data/services/auth_session_storage.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/auth/models/affiliate_profile_model.dart';
+import 'package:alphajournal/features/auth/models/auth_state.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/otp_purpose.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/auth/presentation/pages/forgot_password_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/get_started_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/login_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/otp_verification_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/signup_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/splash_screen.dart';
+import 'package:alphajournal/features/auth/presentation/pages/subscription_pricing_page.dart';
 
 /// Central Auth Wrapper controlling the dynamic navigation flow across:
 /// Splash -> Onboarding (Get Started) -> Login / Signup / Forgot Password -> Subscription -> Authenticated AppScaffold Shell.
@@ -140,7 +140,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     _sessionState = AuthSessionState(
       stage: initialStage,
       role: initialRole,
-      email: preview == null ? '' : 'design.preview@tradex.local',
+      email: preview == null ? '' : 'design.preview@alphajournal.local',
       userId: preview == null ? '' : 'usr_design_preview',
       displayName: preview == null ? '' : 'Design Preview',
     );
@@ -191,7 +191,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
           final changedAccount =
               event == AuthChangeEvent.signedIn &&
               data.session?.user.id != _sessionState.userId;
-          if (changedAccount && _sessionState.stage == AuthStage.authenticated) {
+          if (changedAccount &&
+              _sessionState.stage == AuthStage.authenticated) {
             if (mounted) setState(() => _isAuthLoading = true);
           }
           if ((event == AuthChangeEvent.signedIn &&
@@ -317,7 +318,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           'handle': handle,
           'role': 'customer',
           'status': 'active',
-          'referral_code': 'REF-TRADEX-$referralSuffix',
+          'referral_code': 'REF-ALPHAJOURNAL-$referralSuffix',
           'avatar_url': avatar,
           'updated_at': DateTime.now().toIso8601String(),
         });
@@ -339,7 +340,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       handle: handle,
       role: UserRole.customer,
       status: ProfileStatus.active,
-      referralCode: 'REF-TRADEX-$referralSuffix',
+      referralCode: 'REF-ALPHAJOURNAL-$referralSuffix',
       avatarUrl: avatar,
       createdAt: DateTime.now(),
     );

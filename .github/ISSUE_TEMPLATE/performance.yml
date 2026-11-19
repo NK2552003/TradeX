@@ -1,0 +1,81 @@
+name: Performance or resource-usage issue
+description: Report slow startup, jank, memory growth, excess calls, battery use, bundle size, or unbounded work.
+title: "[Performance]: "
+labels:
+  - performance
+  - triage
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      multiple: true
+      options:
+        - Startup
+        - Frame jank/animation
+        - Scrolling/list rendering
+        - Memory/leak
+        - CPU/battery
+        - Network requests
+        - Database/storage egress
+        - Image/media
+        - Bundle/build size
+        - Backend/query latency
+    validations:
+      required: true
+  - type: input
+    id: route
+    attributes:
+      label: Screen, route, or operation
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Version and environment
+      placeholder: Commit/version, device/CPU/RAM, OS/browser, release/profile/debug
+    validations:
+      required: true
+  - type: textarea
+    id: workload
+    attributes:
+      label: Workload and reproduction
+      placeholder: Data size, number of items, navigation pattern, duration, and cache state.
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Measured evidence
+      placeholder: Before values for latency, frame time, memory, requests, bytes, CPU, cache hits, or build size.
+    validations:
+      required: true
+  - type: textarea
+    id: expected_budget
+    attributes:
+      label: Expected performance budget
+      placeholder: A measurable target rather than only "make it faster".
+    validations:
+      required: true
+  - type: textarea
+    id: suspected
+    attributes:
+      label: Suspected mechanism
+      placeholder: Rebuild loop, missing cache, duplicate subscription, oversized image, unbounded query, blocking work, etc.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: Target metric, supported devices, and regression benchmark/test.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Measurement checks
+      options:
+        - label: I identified whether measurements came from debug, profile, or release mode.
+          required: true
+        - label: I removed secrets and personal data from traces and screenshots.
+          required: true
+

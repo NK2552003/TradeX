@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // Both unified libraries are required by the project UI contract.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/update/app_update.dart';
 import '../../widgets/help/cookie_preferences_dialog.dart';
 import '../../widgets/help/help_document_library.dart';
 import '../../widgets/help/help_support_card.dart';
@@ -74,12 +75,14 @@ class HelpAboutPage extends StatelessWidget {
         UiGap.v(context.ui.spacing.lg),
         const InstallAppCard(),
         UiGap.v(context.ui.spacing.lg),
+        const AppReleaseVersionCard(),
+        UiGap.v(context.ui.spacing.lg),
         const HelpDocumentLibrary(),
         UiGap.v(context.ui.spacing.lg),
         HelpSupportCard(submitTicket: submitTicket),
         UiGap.v(context.ui.spacing.lg),
         Text(
-          'Alphajournal · Trading journals and research\nInformational tools do not replace independent investment advice.',
+          'AlphaJournal · Trading journals and research\nInformational tools do not replace independent investment advice.',
           style: context.uiText.caption,
         ),
         UiGap.v(context.uiDockInset),

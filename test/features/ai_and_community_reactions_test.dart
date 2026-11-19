@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:tradex/core/ai/unified_ai_service.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/notes/data/real_note_ai_refactor.dart';
+import 'package:alphajournal/core/ai/unified_ai_service.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/notes/data/real_note_ai_refactor.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +17,10 @@ void main() {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           expect(body['models'], isNotNull);
           expect(body['models'], contains('openrouter/free'));
-          expect(body['models'], contains('nvidia/nemotron-3.5-lightning:free'));
+          expect(
+            body['models'],
+            contains('nvidia/nemotron-3.5-lightning:free'),
+          );
           return http.Response(
             jsonEncode({
               'id': 'gen-12345',
@@ -26,9 +29,9 @@ void main() {
                   'message': {
                     'role': 'assistant',
                     'content': 'OpenRouter Free Model: Trade Setup on NIFTY',
-                  }
-                }
-              ]
+                  },
+                },
+              ],
             }),
             200,
             headers: {'content-type': 'application/json'},
@@ -57,9 +60,9 @@ void main() {
                   'role': 'assistant',
                   'content':
                       '<think>User wants technical analysis on AAPL.</think>### Swing Structure: AAPL\nBuy at \$180.',
-                }
-              }
-            ]
+                },
+              },
+            ],
           }),
           200,
           headers: {'content-type': 'application/json'},
@@ -77,38 +80,50 @@ void main() {
       expect(reply, contains('### Swing Structure: AAPL'));
     });
 
-    test('Falls back to dynamic local trading engine if all providers fail', () async {
-      final mockClient = MockClient((request) async {
-        return http.Response('Rate Limited', 429);
-      });
+    test(
+      'Falls back to dynamic local trading engine if all providers fail',
+      () async {
+        final mockClient = MockClient((request) async {
+          return http.Response('Rate Limited', 429);
+        });
 
-      final aiService = UnifiedAiService(clientFactory: () => mockClient);
-      final reply = await aiService.complete(prompt: 'Analyze RELIANCE breakout');
+        final aiService = UnifiedAiService(clientFactory: () => mockClient);
+        final reply = await aiService.complete(
+          prompt: 'Analyze RELIANCE breakout',
+        );
 
-      expect(reply, isNotEmpty);
-      expect(reply, contains('RELIANCE'));
-      final parsed = jsonDecode(reply) as Map<String, dynamic>;
-      expect(
-        parsed['title'],
-        equals('RELIANCE Institutional Swing Trade Breakdown'),
-      );
-      expect(parsed['rr_initial'], equals('1:1.8'));
-      expect(parsed['plan'], isA<List<dynamic>>());
-      expect((parsed['plan'] as List<dynamic>).length, greaterThanOrEqualTo(4));
-    });
+        expect(reply, isNotEmpty);
+        expect(reply, contains('RELIANCE'));
+        final parsed = jsonDecode(reply) as Map<String, dynamic>;
+        expect(
+          parsed['title'],
+          equals('RELIANCE Institutional Swing Trade Breakdown'),
+        );
+        expect(parsed['rr_initial'], equals('1:1.8'));
+        expect(parsed['plan'], isA<List<dynamic>>());
+        expect(
+          (parsed['plan'] as List<dynamic>).length,
+          greaterThanOrEqualTo(4),
+        );
+      },
+    );
 
-    test('Note AI refactoring rejects unauthenticated requests when no keys are configured', () async {
-      const refactor = RealNoteAiRefactor();
-      expect(
-        () async => await refactor.enhance(
-          selectedText: 'Watched NVDA hit 128 resistance today with heavy tape volume.',
-          noteType: AppNoteType.analysis,
-          contextTitle: 'NVDA Journal',
-          instruction: 'Turn into trading plan',
-        ),
-        throwsA(isA<StateError>()),
-      );
-    });
+    test(
+      'Note AI refactoring rejects unauthenticated requests when no keys are configured',
+      () async {
+        const refactor = RealNoteAiRefactor();
+        expect(
+          () async => await refactor.enhance(
+            selectedText:
+                'Watched NVDA hit 128 resistance today with heavy tape volume.',
+            noteType: AppNoteType.analysis,
+            contextTitle: 'NVDA Journal',
+            instruction: 'Turn into trading plan',
+          ),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
   });
 
   group('Community Post Card Reactions and Storage Tests', () {
@@ -158,37 +173,49 @@ void main() {
       expect(updated.userReaction, isNull);
     });
 
-    test('findPost finds post across all buckets (Following, Signals, Bookmarks)', () {
-      final post = repo.forYouPosts.first;
-      expect(repo.findPost(post.id), isNotNull);
+    test(
+      'findPost finds post across all buckets (Following, Signals, Bookmarks)',
+      () {
+        final post = repo.forYouPosts.first;
+        expect(repo.findPost(post.id), isNotNull);
 
-      // Bookmark it and verify finding by ID
-      repo.toggleBookmark(post.id);
-      final bookmarked = repo.bookmarkedPosts.firstWhere((p) => p.id == post.id);
-      expect(bookmarked.bookmarked, isTrue);
-      expect(repo.findPost(bookmarked.id), isNotNull);
-    });
+        // Bookmark it and verify finding by ID
+        repo.toggleBookmark(post.id);
+        final bookmarked = repo.bookmarkedPosts.firstWhere(
+          (p) => p.id == post.id,
+        );
+        expect(bookmarked.bookmarked, isTrue);
+        expect(repo.findPost(bookmarked.id), isNotNull);
+      },
+    );
 
-    test('likeComment updates comment reactions and stores reaction on comment', () {
-      expect(repo.forYouPosts, isNotEmpty);
-      final postId = repo.forYouPosts.first.id;
+    test(
+      'likeComment updates comment reactions and stores reaction on comment',
+      () {
+        expect(repo.forYouPosts, isNotEmpty);
+        final postId = repo.forYouPosts.first.id;
 
-      repo.addComment(postId, 'Great analysis!');
-      final comments = repo.commentsForPost(postId);
-      expect(comments, isNotEmpty);
-      final comment = comments.first;
+        repo.addComment(postId, 'Great analysis!');
+        final comments = repo.commentsForPost(postId);
+        expect(comments, isNotEmpty);
+        final comment = comments.first;
 
-      // React with 💡
-      repo.likeComment(postId, comment.id, reaction: '💡');
-      var updated = repo.commentsForPost(postId).firstWhere((c) => c.id == comment.id);
-      expect(updated.liked, isTrue);
-      expect(updated.userReaction, '💡');
+        // React with 💡
+        repo.likeComment(postId, comment.id, reaction: '💡');
+        var updated = repo
+            .commentsForPost(postId)
+            .firstWhere((c) => c.id == comment.id);
+        expect(updated.liked, isTrue);
+        expect(updated.userReaction, '💡');
 
-      // Toggle off
-      repo.likeComment(postId, comment.id, reaction: '💡');
-      updated = repo.commentsForPost(postId).firstWhere((c) => c.id == comment.id);
-      expect(updated.liked, isFalse);
-      expect(updated.userReaction, isNull);
-    });
+        // Toggle off
+        repo.likeComment(postId, comment.id, reaction: '💡');
+        updated = repo
+            .commentsForPost(postId)
+            .firstWhere((c) => c.id == comment.id);
+        expect(updated.liked, isFalse);
+        expect(updated.userReaction, isNull);
+      },
+    );
   });
 }

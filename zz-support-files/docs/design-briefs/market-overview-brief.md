@@ -27,7 +27,7 @@ Empty sections collapse completely. Loading quotes use skeletons rather than fab
 
 ## Constraints
 
-- Use TraderHub components from `app_ui.dart` and `flutter_ui.dart`.
+- Use AlphaJournal components from `app_ui.dart` and `flutter_ui.dart`.
 - Use context design tokens for spacing, sizing, colors, and typography.
 - Keep layouts responsive at compact, medium, and expanded widths.
 - Preserve accessible semantics and readable signed price changes.

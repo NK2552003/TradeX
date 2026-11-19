@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/features/market_data/presentation/market_root_screen.dart';
-import 'package:tradex/features/messages/presentation/messages_root_screen.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/widgets/app_scaffold.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/features/market_data/presentation/market_root_screen.dart';
+import 'package:alphajournal/features/messages/presentation/messages_root_screen.dart';
 
 void main() {
   group('Research Preview & AppScaffold Smoke Tests', () {
@@ -23,6 +23,7 @@ void main() {
             home: const AppScaffold(
               initialDestination: 'market',
               userDisplayName: 'Demo User',
+              subscriptionTier: AppTier.premium,
             ),
           ),
         ),
@@ -58,6 +59,7 @@ void main() {
             home: const AppScaffold(
               initialDestination: 'messages',
               userDisplayName: 'Demo User',
+              subscriptionTier: AppTier.premium,
             ),
           ),
         ),

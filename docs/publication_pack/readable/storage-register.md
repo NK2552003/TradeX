@@ -22,7 +22,7 @@ Source auth_session_storage.dart uses auth_session_user_id, auth_session_email, 
 
 ## Workspace caches and content
 
-The repository includes local workspace preferences and caches such as tradex_affiliate_workspace_v2_inr, note drafts and other feature-specific records. Enumerate actual local storage, IndexedDB, cookies and Cache Storage on clean production profiles. This list is a starting inventory, not an exhaustive deployment audit. Record each name, owner, purpose, data fields, storage mechanism, retention and removal trigger.
+The repository includes local workspace preferences and caches such as alphajournal_affiliate_workspace_v2_inr, note drafts and other feature-specific records. Enumerate actual local storage, IndexedDB, cookies and Cache Storage on clean production profiles. This list is a starting inventory, not an exhaustive deployment audit. Record each name, owner, purpose, data fields, storage mechanism, retention and removal trigger.
 
 ## Google AdSense
 

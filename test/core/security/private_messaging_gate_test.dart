@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/security/private_messaging_gate.dart';
-import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/security/private_messaging_gate.dart';
+import 'package:alphajournal/features/auth/widgets/auth_carousel_panel.dart';
 
 Widget _wrapGate(Widget child, {Size size = const Size(1280, 900)}) {
   return UiThemeScope(
@@ -109,10 +109,7 @@ void main() {
       expect(find.text('Unlock private messages'), findsOneWidget);
       expect(find.text('DEVICE UNLOCK'), findsOneWidget);
       expect(
-        find.textContaining(
-          'Confirm recovery passphrase',
-          findRichText: true,
-        ),
+        find.textContaining('Confirm recovery passphrase', findRichText: true),
         findsNothing,
       );
       expect(find.text('Unlock history'), findsOneWidget);

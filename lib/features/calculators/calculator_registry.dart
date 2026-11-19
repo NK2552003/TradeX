@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 
 /// Every calculator the hub can open, in display order.
 ///

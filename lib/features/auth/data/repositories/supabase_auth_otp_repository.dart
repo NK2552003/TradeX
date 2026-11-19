@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/auth/data/repositories/auth_otp_repository.dart';
-import 'package:tradex/features/auth/models/otp_purpose.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_otp_repository.dart';
+import 'package:alphajournal/features/auth/models/otp_purpose.dart';
 
 /// Real Supabase-backed implementation of [AuthOtpRepository].
 /// Handles email verification and password recovery OTPs using Supabase Auth.
@@ -28,7 +29,9 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
         );
         return _fallback.sendOtp(identifier: identifier, purpose: purpose);
       }
-      throw StateError('Authentication service is unconfigured. Please check connection.');
+      throw StateError(
+        'Authentication service is unconfigured. Please check connection.',
+      );
     }
 
     try {
@@ -37,14 +40,16 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
         await activeClient.auth.resend(
           type: OtpType.signup,
           email: cleanEmail,
-          emailRedirectTo: kIsWeb ? Uri.base.origin : 'tradex://auth/callback',
+          emailRedirectTo: kIsWeb
+              ? Uri.base.origin
+              : AppConstants.nativeAuthCallbackUrl,
         );
       } else if (purpose == OtpPurpose.passwordReset) {
         await activeClient.auth.resetPasswordForEmail(
           cleanEmail,
           redirectTo: kIsWeb
               ? '${Uri.base.origin}/auth/forgot-password'
-              : 'tradex://auth/callback',
+              : AppConstants.nativePasswordResetCallbackUrl,
         );
       }
     } on AuthException catch (e) {
@@ -57,7 +62,9 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
       if (CustomerDataPolicy.allowDemo) {
         return _fallback.sendOtp(identifier: identifier, purpose: purpose);
       }
-      throw StateError('Could not send verification code. Please check your network connection.');
+      throw StateError(
+        'Could not send verification code. Please check your network connection.',
+      );
     }
   }
 
@@ -81,7 +88,8 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
       }
       return const OtpVerifyResult(
         success: false,
-        errorMessage: 'Authentication service is unavailable. Please check connection.',
+        errorMessage:
+            'Authentication service is unavailable. Please check connection.',
       );
     }
 
@@ -139,7 +147,8 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
       // Fail closed: Never accept arbitrary codes on network or system errors in production.
       return const OtpVerifyResult(
         success: false,
-        errorMessage: 'Verification failed due to a network error. Please try again.',
+        errorMessage:
+            'Verification failed due to a network error. Please try again.',
       );
     }
   }

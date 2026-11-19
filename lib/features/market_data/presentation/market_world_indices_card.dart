@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../data/yahoo_finance_service.dart';
 import '../models/market_snapshot.dart';
-import 'market_index_group_card.dart';
 import 'market_index_item.dart';
 
 export 'market_index_item.dart';
@@ -173,13 +172,15 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
         <({String symbol, String name})>[
           for (final List<MarketIndexItem> group in _groups)
             for (final MarketIndexItem item in group)
-              (symbol: item.symbol, name: item.name),
+              if (!item.hasQuote) (symbol: item.symbol, name: item.name),
         ];
+    if (requested.isEmpty) {
+      if (mounted) setState(() => _loadingQuotes = false);
+      return;
+    }
     var latest = const <String, MarketIndexItem>{};
     try {
-      latest = await YahooFinanceService
-          .instance
-          .fetchIndexItems(requested);
+      latest = await YahooFinanceService.instance.fetchIndexItems(requested);
     } catch (_) {
       // Existing snapshot values remain visible when the live quote proxy fails.
     }
@@ -237,32 +238,15 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
           subtitle: 'Major benchmarks across the Americas, Europe and Asia',
         ),
         UiGap.v(theme.spacing.sm),
-        UiCardGrid(
-          mobileColumns: 1,
-          tabletColumns: 2,
-          desktopColumns: 3,
-          largeColumns: 3,
-          minTileWidth: context.sz(340),
-          intrinsicHeight: true,
-          children: <Widget>[
-            MarketIndexGroupCard(
-              title: 'Americas',
-              items: _americas,
-              loading: _loadingQuotes,
-              onItemTap: widget.onInstrument == null ? null : _openInstrument,
-            ),
-            MarketIndexGroupCard(
-              title: 'Europe',
-              items: _europe,
-              loading: _loadingQuotes,
-              onItemTap: widget.onInstrument == null ? null : _openInstrument,
-            ),
-            MarketIndexGroupCard(
-              title: 'Asia',
-              items: _asia,
-              loading: _loadingQuotes,
-              onItemTap: widget.onInstrument == null ? null : _openInstrument,
-            ),
+        _marketTable(
+          context,
+          rows: <_MarketTableRow>[
+            for (final item in _americas)
+              _MarketTableRow(category: 'Americas', item: item),
+            for (final item in _europe)
+              _MarketTableRow(category: 'Europe', item: item),
+            for (final item in _asia)
+              _MarketTableRow(category: 'Asia', item: item),
           ],
         ),
         UiGap.v(theme.spacing.xl),
@@ -271,37 +255,150 @@ class _MarketWorldIndicesCardState extends State<MarketWorldIndicesCard> {
           subtitle: 'Commodities, currencies, crypto and US Treasury yields',
         ),
         UiGap.v(theme.spacing.sm),
-        UiCardGrid(
-          mobileColumns: 1,
-          tabletColumns: 2,
-          desktopColumns: 3,
-          largeColumns: 3,
-          minTileWidth: context.sz(340),
-          intrinsicHeight: true,
-          children: <Widget>[
-            MarketIndexGroupCard(
-              title: 'Commodities',
-              items: _commodities,
-              loading: _loadingQuotes,
-              onItemTap: widget.onInstrument == null ? null : _openInstrument,
-            ),
-            MarketIndexGroupCard(
-              title: 'Currencies & Crypto',
-              items: _currencies,
-              loading: _loadingQuotes,
-              onItemTap: widget.onInstrument == null ? null : _openInstrument,
-            ),
-            MarketIndexGroupCard(
-              title: 'US Treasury Yields',
-              items: _bonds,
-              loading: _loadingQuotes,
-              onItemTap: widget.onInstrument == null ? null : _openInstrument,
-            ),
+        _marketTable(
+          context,
+          rows: <_MarketTableRow>[
+            for (final item in _commodities)
+              _MarketTableRow(category: 'Commodities', item: item),
+            for (final item in _currencies)
+              _MarketTableRow(category: 'Currencies & Crypto', item: item),
+            for (final item in _bonds)
+              _MarketTableRow(category: 'Treasury Yields', item: item),
           ],
         ),
       ],
     );
   }
+
+  Widget _marketTable(
+    BuildContext context, {
+    required List<_MarketTableRow> rows,
+  }) {
+    final theme = context.ui;
+    return UiCard(
+      padding: EdgeInsets.zero,
+      child: UiTable<_MarketTableRow>(
+        rows: rows,
+        rowKey: (row) => row.item.symbol,
+        loading: _loadingQuotes && rows.every((row) => !row.item.hasQuote),
+        stackOnMobile: true,
+        stickyHeader: true,
+        density: UiDensity.compact,
+        onRowTap: widget.onInstrument == null
+            ? null
+            : (row) => _openInstrument(row.item),
+        columns: <UiTableColumn<_MarketTableRow>>[
+          UiTableColumn<_MarketTableRow>(
+            id: 'category',
+            header: 'Region / Asset class',
+            flex: 2,
+            sortValue: (row) => row.category,
+            cell: (context, row) => UiBadge(
+              label: row.category,
+              size: UiSize.xs,
+              variant: UiBadgeVariant.soft,
+              intent: UiIntent.neutral,
+            ),
+          ),
+          UiTableColumn<_MarketTableRow>(
+            id: 'instrument',
+            header: 'Instrument',
+            flex: 3,
+            sortValue: (row) => row.item.name,
+            cell: (context, row) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(row.item.name, style: context.uiText.bodyStrong),
+                Text(
+                  row.item.symbol,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          UiTableColumn<_MarketTableRow>(
+            id: 'trend',
+            header: 'Trend',
+            flex: 2,
+            hideBelow: UiTableVisibility.tabletUp,
+            cell: (context, row) => row.item.spark.length > 1
+                ? UiSparkChart(
+                    values: row.item.spark,
+                    height: context.sz(34),
+                    color: row.item.isPositive
+                        ? theme.colors.success
+                        : theme.colors.danger,
+                  )
+                : Text(
+                    'Awaiting history',
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundSubtle,
+                    ),
+                  ),
+          ),
+          UiTableColumn<_MarketTableRow>(
+            id: 'price',
+            header: 'Price',
+            numeric: true,
+            flex: 2,
+            sortValue: (row) => row.item.price,
+            cell: (context, row) => Text(
+              row.item.hasQuote ? row.item.price.toStringAsFixed(2) : '—',
+              textAlign: TextAlign.right,
+              style: context.uiText.bodyStrong,
+            ),
+          ),
+          UiTableColumn<_MarketTableRow>(
+            id: 'change',
+            header: 'Change',
+            numeric: true,
+            flex: 2,
+            sortValue: (row) => row.item.changePercent,
+            cell: (context, row) => Align(
+              alignment: Alignment.centerRight,
+              child: UiBadge(
+                label: row.item.hasQuote
+                    ? '${row.item.changePercent >= 0 ? '+' : ''}${row.item.changePercent.toStringAsFixed(2)}%'
+                    : 'Pending',
+                size: UiSize.xs,
+                variant: UiBadgeVariant.soft,
+                intent: !row.item.hasQuote
+                    ? UiIntent.neutral
+                    : (row.item.isPositive
+                          ? UiIntent.success
+                          : UiIntent.danger),
+              ),
+            ),
+          ),
+          UiTableColumn<_MarketTableRow>(
+            id: 'status',
+            header: 'Status',
+            flex: 2,
+            hideBelow: UiTableVisibility.desktopUp,
+            cell: (context, row) => UiBadge(
+              label: row.item.isLive ? 'Live' : row.item.source,
+              icon: row.item.isLive
+                  ? Icons.wifi_tethering_rounded
+                  : Icons.schedule_rounded,
+              size: UiSize.xs,
+              variant: UiBadgeVariant.outline,
+              intent: row.item.isLive ? UiIntent.success : UiIntent.info,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MarketTableRow {
+  const _MarketTableRow({required this.category, required this.item});
+
+  final String category;
+  final MarketIndexItem item;
 }
 
 class _MarketSectionHeader extends StatelessWidget {

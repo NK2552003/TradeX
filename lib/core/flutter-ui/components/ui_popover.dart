@@ -53,7 +53,8 @@ class UiPopover extends StatelessWidget {
             16.0,
             math.max(16.0, screen.width - effectiveWidth - 16.0),
           );
-          final bool openUp = o.dy + box.size.height + 240 > screen.height &&
+          final bool openUp =
+              o.dy + box.size.height + 240 > screen.height &&
               o.dy > screen.height * 0.45;
 
           UiDialog.present<void>(

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/settings/data/repositories/desk_risk_repository.dart';
-import 'package:tradex/features/settings/models/desk_risk_model.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/settings/data/repositories/desk_risk_repository.dart';
+import 'package:alphajournal/features/settings/models/desk_risk_model.dart';
 
 class DeskRiskPage extends StatefulWidget {
   const DeskRiskPage({super.key, this.repository});
@@ -222,9 +222,7 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
                         ),
                         UiStat(
                           label: 'Audit trail',
-                          value: c.auditLoggingEnabled
-                              ? 'Immutable'
-                              : 'Paused',
+                          value: c.auditLoggingEnabled ? 'Immutable' : 'Paused',
                           intent: c.auditLoggingEnabled
                               ? UiIntent.success
                               : UiIntent.danger,

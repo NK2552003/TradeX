@@ -34,7 +34,7 @@ def labels_for(issue, available):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--repo', default='NK2552003/TradeX')
+    parser.add_argument('--repo', default='NK2552003/AlphaJournal')
     parser.add_argument('--publish', action='store_true', help='Create the issues on GitHub')
     args = parser.parse_args()
     issues = json.loads((DRAFTS / 'issues.json').read_text())
@@ -67,7 +67,7 @@ def main():
             gh('issue', 'view', url, '--json', 'url')
             status = 'recorded'
         else:
-            with tempfile.TemporaryDirectory(prefix='tradex-issue-') as temporary:
+            with tempfile.TemporaryDirectory(prefix='alphajournal-issue-') as temporary:
                 body_file = Path(temporary) / 'body.md'
                 body_file.write_text(issue['body'])
                 command = ['issue', 'create', '--repo', args.repo, '--title', issue['title'], '--body-file', str(body_file)]

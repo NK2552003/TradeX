@@ -1,5 +1,5 @@
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/settings/models/org_models.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/settings/models/org_models.dart';
 
 abstract class OrganizationSettingsRepository {
   Future<List<OrgMember>> getMembers();
@@ -46,7 +46,7 @@ class OrganizationSettingsRepositoryImpl
   ];
 
   OrgBranding _demoBranding = const OrgBranding(
-    displayName: 'alphajournal Workspace',
+    displayName: 'AlphaJournal Workspace',
     logoUrl: null,
     primaryColor: '#00F0FF',
   );
@@ -176,10 +176,7 @@ class OrganizationSettingsRepositoryImpl
   Future<void> removeMember(String userId) async {
     if (SupabaseConfig.isConfigured) {
       final client = SupabaseConfig.client!;
-      await client
-          .from('organization_members')
-          .delete()
-          .eq('user_id', userId);
+      await client.from('organization_members').delete().eq('user_id', userId);
       return;
     }
     _demoMembers.removeWhere((m) => m.userId == userId);

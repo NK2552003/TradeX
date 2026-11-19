@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/app-ui/motion/ai_typing_indicator.dart';
-import 'package:tradex/core/markdown_kit/markdown_kit.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/motion/ai_typing_indicator.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_kit.dart';
 
 const String _fullPerplexityAnswer = '''
 NVIDIA remains the dominant accelerator supplier for hyperscale AI training and inference, backed by Blackwell rack-scale ramps [NVIDIA IR](https://investor.nvidia.com/q4) and sovereign cloud capex [Reuters](https://www.reuters.com/tech/nvda-ai).
@@ -175,7 +175,8 @@ NVIDIA remains the dominant accelerator supplier for hyperscale AI training and 
 const String _tinyPngDataUrl =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
-const String _extendedPerplexityAnswer = '''
+const String _extendedPerplexityAnswer =
+    '''
 Apple delivered resilient Services expansion [Apple IR](https://investor.apple.com/earnings) alongside expanding AI silicon deployment [Bloomberg](https://www.bloomberg.com/markets/aapl).
 
 ![Apple Silicon Data Center Architecture]($_tinyPngDataUrl)
@@ -372,73 +373,85 @@ void main() {
       expect(meta.followUps.first, startsWith('Compare NVIDIA vs AMD'));
       expect(meta.cleanMarkdown, isNot(contains('```followups')));
       expect(meta.tickers, containsAll(<String>['NVDA', 'AVGO', 'TSM']));
-      expect(meta.cards.map((c) => c.tag), containsAll(<String>['company', 'person', 'news', 'compare']));
+      expect(
+        meta.cards.map((c) => c.tag),
+        containsAll(<String>['company', 'person', 'news', 'compare']),
+      );
     });
 
-    test('converts unclosed streaming card fences into loading_card placeholders', () {
-      const streamingMarkdown = '''
+    test(
+      'converts unclosed streaming card fences into loading_card placeholders',
+      () {
+        const streamingMarkdown = '''
 Analyzing fundamentals now.
 
 ```company
 {"name": "Apple Inc", "ticker": "AAPL"
 ''';
-      final meta = PerplexityAnswerParser.parse(
-        streamingMarkdown,
-        isStreaming: true,
-      );
+        final meta = PerplexityAnswerParser.parse(
+          streamingMarkdown,
+          isStreaming: true,
+        );
 
-      expect(meta.cleanMarkdown, contains('```loading_card'));
-      expect(meta.cleanMarkdown, contains('Company Dossier'));
-    });
+        expect(meta.cleanMarkdown, contains('```loading_card'));
+        expect(meta.cleanMarkdown, contains('Company Dossier'));
+      },
+    );
 
-    test('extracts trailing Markdown Related section when no fenced followups exist', () {
-      const markdownWithRelated = '''
+    test(
+      'extracts trailing Markdown Related section when no fenced followups exist',
+      () {
+        const markdownWithRelated = '''
 Here is the summary [SEC](https://www.sec.gov/edgar).
 
 ## Related
 - How does free cash flow compare to peers?
 - What is management guidance for next year?
 ''';
-      final meta = PerplexityAnswerParser.parse(markdownWithRelated);
-      expect(meta.followUps, <String>[
-        'How does free cash flow compare to peers?',
-        'What is management guidance for next year?',
-      ]);
-      expect(meta.cleanMarkdown, isNot(contains('## Related')));
-    });
+        final meta = PerplexityAnswerParser.parse(markdownWithRelated);
+        expect(meta.followUps, <String>[
+          'How does free cash flow compare to peers?',
+          'What is management guidance for next year?',
+        ]);
+        expect(meta.cleanMarkdown, isNot(contains('## Related')));
+      },
+    );
 
-    test('extracts research steps, media items, and extended finance card tags', () {
-      final meta = PerplexityAnswerParser.parse(
-        _extendedPerplexityAnswer,
-        externalSteps: const <String>['Fetched SEC 10-Q filings'],
-        focus: 'finance',
-      );
+    test(
+      'extracts research steps, media items, and extended finance card tags',
+      () {
+        final meta = PerplexityAnswerParser.parse(
+          _extendedPerplexityAnswer,
+          externalSteps: const <String>['Fetched SEC 10-Q filings'],
+          focus: 'finance',
+        );
 
-      expect(meta.steps.length, greaterThanOrEqualTo(3));
-      expect(
-        meta.steps.map((s) => s.title),
-        containsAll(<String>[
-          'Fetched SEC 10-Q filings',
-          'Searched SEC EDGAR filings',
-        ]),
-      );
-      expect(meta.media.length, greaterThanOrEqualTo(1));
-      expect(
-        meta.cards.map((c) => c.tag),
-        containsAll(<String>[
-          'earnings',
-          'financials',
-          'macro',
-          'ratings',
-          'screener',
-          'sentiment',
-          'media',
-          'formula',
-          'product',
-        ]),
-      );
-      expect(meta.isRichAnswer, isTrue);
-    });
+        expect(meta.steps.length, greaterThanOrEqualTo(3));
+        expect(
+          meta.steps.map((s) => s.title),
+          containsAll(<String>[
+            'Fetched SEC 10-Q filings',
+            'Searched SEC EDGAR filings',
+          ]),
+        );
+        expect(meta.media.length, greaterThanOrEqualTo(1));
+        expect(
+          meta.cards.map((c) => c.tag),
+          containsAll(<String>[
+            'earnings',
+            'financials',
+            'macro',
+            'ratings',
+            'screener',
+            'sentiment',
+            'media',
+            'formula',
+            'product',
+          ]),
+        );
+        expect(meta.isRichAnswer, isTrue);
+      },
+    );
   });
 
   group('Perplexity UI Cards & Interactive Flows', () {
@@ -497,11 +510,16 @@ Here is the summary [SEC](https://www.sec.gov/edgar).
 
         // Related follow-up question click dispatches prompt
         expect(find.text('Related'), findsOneWidget);
-        final relatedQ = find.text('Compare NVIDIA vs AMD margins over the past 8 quarters');
+        final relatedQ = find.text(
+          'Compare NVIDIA vs AMD margins over the past 8 quarters',
+        );
         await tester.ensureVisible(relatedQ);
         await tester.tap(relatedQ);
         await tester.pump();
-        expect(followedUp, 'Compare NVIDIA vs AMD margins over the past 8 quarters');
+        expect(
+          followedUp,
+          'Compare NVIDIA vs AMD margins over the past 8 quarters',
+        );
 
         // Company action button dispatches onOpenRef
         final openMarketBtn = find.text('Open \$NVDA in Market');
@@ -569,7 +587,9 @@ Searching filings…
         final prevOnError = FlutterError.onError;
         final List<String> layoutErrors = <String>[];
         FlutterError.onError = (FlutterErrorDetails details) {
-          layoutErrors.add('${details.exceptionAsString()}\n${details.informationCollector?.call().map((d) => d.toString()).join('\n') ?? ''}');
+          layoutErrors.add(
+            '${details.exceptionAsString()}\n${details.informationCollector?.call().map((d) => d.toString()).join('\n') ?? ''}',
+          );
         };
         try {
           await tester.pumpWidget(
@@ -666,7 +686,8 @@ Searching filings…
         await tester.pumpAndSettle();
 
         final rewriteTrigger = find.byWidgetPredicate(
-          (w) => w is UiDropdownMenu && w.semanticLabel == 'Rewrite answer style',
+          (w) =>
+              w is UiDropdownMenu && w.semanticLabel == 'Rewrite answer style',
         );
         await tester.ensureVisible(rewriteTrigger);
         await tester.tap(rewriteTrigger);
@@ -689,48 +710,52 @@ Searching filings…
       (label: '768px tablet @1.0x text', size: Size(768, 1024), scale: 1.0),
       (label: '1280px desktop @1.0x text', size: Size(1280, 900), scale: 1.0),
     ]) {
-      testWidgets('renders all extended Perplexity cards without overflow on ${vp.label}', (
-        WidgetTester tester,
-      ) async {
-        await tester.binding.setSurfaceSize(vp.size);
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+      testWidgets(
+        'renders all extended Perplexity cards without overflow on ${vp.label}',
+        (WidgetTester tester) async {
+          await tester.binding.setSurfaceSize(vp.size);
+          addTearDown(() => tester.binding.setSurfaceSize(null));
 
-        final prevOnError = FlutterError.onError;
-        final List<String> layoutErrors = <String>[];
-        FlutterError.onError = (FlutterErrorDetails details) {
-          layoutErrors.add('${details.exceptionAsString()}\n${details.informationCollector?.call().map((d) => d.toString()).join('\n') ?? ''}');
-        };
-        try {
-          await tester.pumpWidget(
-            _wrapTestWidget(
-              AppAiMessageBubble(
-                message: const AppAiMessage(
-                  id: 'ext-overflow',
-                  role: AppAiRole.assistant,
-                  body: _extendedPerplexityAnswer,
-                  mode: 'research',
-                  focus: 'finance',
-                  steps: <String>['Queried SEC EDGAR'],
+          final prevOnError = FlutterError.onError;
+          final List<String> layoutErrors = <String>[];
+          FlutterError.onError = (FlutterErrorDetails details) {
+            layoutErrors.add(
+              '${details.exceptionAsString()}\n${details.informationCollector?.call().map((d) => d.toString()).join('\n') ?? ''}',
+            );
+          };
+          try {
+            await tester.pumpWidget(
+              _wrapTestWidget(
+                AppAiMessageBubble(
+                  message: const AppAiMessage(
+                    id: 'ext-overflow',
+                    role: AppAiRole.assistant,
+                    body: _extendedPerplexityAnswer,
+                    mode: 'research',
+                    focus: 'finance',
+                    steps: <String>['Queried SEC EDGAR'],
+                  ),
+                  minimal: true,
+                  onOpenRef: (_) {},
+                  onSourceTap: (_) {},
+                  onFollowUpTap: (_) {},
                 ),
-                minimal: true,
-                onOpenRef: (_) {},
-                onSourceTap: (_) {},
-                onFollowUpTap: (_) {},
+                textScale: vp.scale,
               ),
-              textScale: vp.scale,
-            ),
-          );
-          await tester.pumpAndSettle();
-        } finally {
-          FlutterError.onError = prevOnError;
-        }
-        expect(layoutErrors, isEmpty, reason: layoutErrors.join('\n---\n'));
-      });
+            );
+            await tester.pumpAndSettle();
+          } finally {
+            FlutterError.onError = prevOnError;
+          }
+          expect(layoutErrors, isEmpty, reason: layoutErrors.join('\n---\n'));
+        },
+      );
     }
   });
 
   group('Real Site Logos, 11 More Perplexity Cards, Inline Media & User Attachments', () {
-    const String morePerplexityAnswer = '''
+    const String morePerplexityAnswer =
+        '''
 Full Perplexity-grade research bundle for NVIDIA [NVIDIA Investor Relations](https://investor.nvidia.com/overview) and [SEC EDGAR](https://www.sec.gov/edgar).
 
 ![NVDA Chart]($_tinyPngDataUrl)
@@ -882,23 +907,30 @@ Full Perplexity-grade research bundle for NVIDIA [NVIDIA Investor Relations](htt
 ```
 ''';
 
-    test('SiteLogoResolver extracts clean domains and maps tickers to official domains', () {
-      expect(
-        SiteLogoResolver.extractDomain('https://www.reuters.com/markets/nvda'),
-        'reuters.com',
-      );
-      expect(SiteLogoResolver.domainForTicker(r'$NVDA'), 'nvidia.com');
-      expect(SiteLogoResolver.domainForTicker('RELIANCE'), 'ril.com');
-      expect(SiteLogoResolver.domainForTicker('BTC'), 'bitcoin.org');
-      expect(
-        SiteLogoResolver.resolveLogoUrl(url: 'https://investor.nvidia.com/q4'),
-        'https://www.google.com/s2/favicons?domain=investor.nvidia.com&sz=64',
-      );
-      expect(
-        SiteLogoResolver.resolveLogoUrl(ticker: 'AAPL', size: 128),
-        'https://www.google.com/s2/favicons?domain=apple.com&sz=128',
-      );
-    });
+    test(
+      'SiteLogoResolver extracts clean domains and maps tickers to official domains',
+      () {
+        expect(
+          SiteLogoResolver.extractDomain(
+            'https://www.reuters.com/markets/nvda',
+          ),
+          'reuters.com',
+        );
+        expect(SiteLogoResolver.domainForTicker(r'$NVDA'), 'nvidia.com');
+        expect(SiteLogoResolver.domainForTicker('RELIANCE'), 'ril.com');
+        expect(SiteLogoResolver.domainForTicker('BTC'), 'bitcoin.org');
+        expect(
+          SiteLogoResolver.resolveLogoUrl(
+            url: 'https://investor.nvidia.com/q4',
+          ),
+          'https://www.google.com/s2/favicons?domain=investor.nvidia.com&sz=64',
+        );
+        expect(
+          SiteLogoResolver.resolveLogoUrl(ticker: 'AAPL', size: 128),
+          'https://www.google.com/s2/favicons?domain=apple.com&sz=128',
+        );
+      },
+    );
 
     testWidgets(
       'renders all 11 additional Perplexity cards, site logos, inline media, and interactive workflow/risk callbacks',
@@ -943,10 +975,14 @@ Full Perplexity-grade research bundle for NVIDIA [NVIDIA Investor Relations](htt
         expect(find.byType(PerplexityWorkflowCard), findsOneWidget);
 
         // Tap video card and site link chip
-        final videoTitle = find.descendant(
-          of: find.byType(PerplexityVideoCard),
-          matching: find.text('GTC Keynote: Blackwell Ultra & Rubin Roadmap'),
-        ).last;
+        final videoTitle = find
+            .descendant(
+              of: find.byType(PerplexityVideoCard),
+              matching: find.text(
+                'GTC Keynote: Blackwell Ultra & Rubin Roadmap',
+              ),
+            )
+            .last;
         await tester.ensureVisible(videoTitle);
         await tester.tap(videoTitle);
         await tester.pump();
@@ -1053,42 +1089,45 @@ Full Perplexity-grade research bundle for NVIDIA [NVIDIA Investor Relations](htt
       (label: '768px tablet @1.0x text', size: Size(768, 1024), scale: 1.0),
       (label: '1280px desktop @1.0x text', size: Size(1280, 900), scale: 1.0),
     ]) {
-      testWidgets('renders all 11 more Perplexity cards without overflow on ${vp.label}', (
-        WidgetTester tester,
-      ) async {
-        await tester.binding.setSurfaceSize(vp.size);
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+      testWidgets(
+        'renders all 11 more Perplexity cards without overflow on ${vp.label}',
+        (WidgetTester tester) async {
+          await tester.binding.setSurfaceSize(vp.size);
+          addTearDown(() => tester.binding.setSurfaceSize(null));
 
-        final prevOnError = FlutterError.onError;
-        final List<String> layoutErrors = <String>[];
-        FlutterError.onError = (FlutterErrorDetails details) {
-          layoutErrors.add('${details.exceptionAsString()}\n${details.informationCollector?.call().map((d) => d.toString()).join('\n') ?? ''}');
-        };
-        try {
-          await tester.pumpWidget(
-            _wrapTestWidget(
-              AppAiMessageBubble(
-                message: const AppAiMessage(
-                  id: 'more-overflow',
-                  role: AppAiRole.assistant,
-                  body: morePerplexityAnswer,
-                  mode: 'research',
-                  focus: 'finance',
+          final prevOnError = FlutterError.onError;
+          final List<String> layoutErrors = <String>[];
+          FlutterError.onError = (FlutterErrorDetails details) {
+            layoutErrors.add(
+              '${details.exceptionAsString()}\n${details.informationCollector?.call().map((d) => d.toString()).join('\n') ?? ''}',
+            );
+          };
+          try {
+            await tester.pumpWidget(
+              _wrapTestWidget(
+                AppAiMessageBubble(
+                  message: const AppAiMessage(
+                    id: 'more-overflow',
+                    role: AppAiRole.assistant,
+                    body: morePerplexityAnswer,
+                    mode: 'research',
+                    focus: 'finance',
+                  ),
+                  minimal: true,
+                  onOpenRef: (_) {},
+                  onSourceTap: (_) {},
+                  onFollowUpTap: (_) {},
                 ),
-                minimal: true,
-                onOpenRef: (_) {},
-                onSourceTap: (_) {},
-                onFollowUpTap: (_) {},
+                textScale: vp.scale,
               ),
-              textScale: vp.scale,
-            ),
-          );
-          await tester.pumpAndSettle();
-        } finally {
-          FlutterError.onError = prevOnError;
-        }
-        expect(layoutErrors, isEmpty, reason: layoutErrors.join('\n---\n'));
-      });
+            );
+            await tester.pumpAndSettle();
+          } finally {
+            FlutterError.onError = prevOnError;
+          }
+          expect(layoutErrors, isEmpty, reason: layoutErrors.join('\n---\n'));
+        },
+      );
     }
 
     testWidgets(

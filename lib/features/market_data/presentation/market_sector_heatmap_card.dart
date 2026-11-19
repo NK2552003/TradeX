@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import '../data/yahoo_finance_service.dart';
 import '../models/market_snapshot.dart';
 
@@ -45,7 +45,8 @@ class MarketSectorHeatmapCard extends StatefulWidget {
   final List<MarketInstrument> instruments;
 
   @override
-  State<MarketSectorHeatmapCard> createState() => _MarketSectorHeatmapCardState();
+  State<MarketSectorHeatmapCard> createState() =>
+      _MarketSectorHeatmapCardState();
 }
 
 class _MarketSectorHeatmapCardState extends State<MarketSectorHeatmapCard> {
@@ -121,9 +122,11 @@ class _MarketSectorHeatmapCardState extends State<MarketSectorHeatmapCard> {
           }
           return inst.changePercent * 3.5;
         }).toList();
-        ytdReturn = ytdList.fold<double>(0.0, (sum, y) => sum + y) / ytdList.length;
+        ytdReturn =
+            ytdList.fold<double>(0.0, (sum, y) => sum + y) / ytdList.length;
       } else if (widget.instruments.isNotEmpty) {
-        final totalMkt = widget.instruments.fold<double>(
+        final totalMkt =
+            widget.instruments.fold<double>(
               0.0,
               (sum, i) => sum + i.changePercent,
             ) /
@@ -150,7 +153,8 @@ class _MarketSectorHeatmapCardState extends State<MarketSectorHeatmapCard> {
   }
 
   double _getSectorReturn(String name) {
-    return _sectorsList.where((s) => s.name == name).firstOrNull?.dayReturn ?? 0.0;
+    return _sectorsList.where((s) => s.name == name).firstOrNull?.dayReturn ??
+        0.0;
   }
 
   Color _heatmapColor(double ret) {
@@ -344,7 +348,8 @@ class _MarketSectorHeatmapCardState extends State<MarketSectorHeatmapCard> {
                                     child: LinearProgressIndicator(
                                       value: 1.0,
                                       minHeight: 8,
-                                      backgroundColor: theme.colors.surfaceMuted,
+                                      backgroundColor:
+                                          theme.colors.surfaceMuted,
                                       valueColor: AlwaysStoppedAnimation(
                                         theme.colors.foregroundMuted,
                                       ),
@@ -373,7 +378,9 @@ class _MarketSectorHeatmapCardState extends State<MarketSectorHeatmapCard> {
                                 builder: (context) {
                                   final totalReturn = _sectorsList.fold<double>(
                                     0.0,
-                                    (sum, s) => sum + (s.ytdReturn * (s.marketWeight / 100)),
+                                    (sum, s) =>
+                                        sum +
+                                        (s.ytdReturn * (s.marketWeight / 100)),
                                   );
                                   return Text(
                                     '${totalReturn >= 0 ? '+' : ''}${totalReturn.toStringAsFixed(2)}%',
@@ -431,9 +438,13 @@ class _MarketSectorHeatmapCardState extends State<MarketSectorHeatmapCard> {
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(2),
                                       child: LinearProgressIndicator(
-                                        value: (sec.marketWeight / 35.0).clamp(0.0, 1.0),
+                                        value: (sec.marketWeight / 35.0).clamp(
+                                          0.0,
+                                          1.0,
+                                        ),
                                         minHeight: 8,
-                                        backgroundColor: theme.colors.surfaceMuted,
+                                        backgroundColor:
+                                            theme.colors.surfaceMuted,
                                         valueColor: AlwaysStoppedAnimation(
                                           theme.colors.primary,
                                         ),
@@ -550,12 +561,16 @@ class _MarketSectorHeatmapCardState extends State<MarketSectorHeatmapCard> {
                                         _buildHeatmapTile(
                                           context: context,
                                           name: 'Consumer Cyclical',
-                                          ret: _getSectorReturn('Consumer Cyclical'),
+                                          ret: _getSectorReturn(
+                                            'Consumer Cyclical',
+                                          ),
                                         ),
                                         _buildHeatmapTile(
                                           context: context,
                                           name: 'Communication Services',
-                                          ret: _getSectorReturn('Communication Services'),
+                                          ret: _getSectorReturn(
+                                            'Communication Services',
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -573,12 +588,16 @@ class _MarketSectorHeatmapCardState extends State<MarketSectorHeatmapCard> {
                                         _buildHeatmapTile(
                                           context: context,
                                           name: 'Consumer Defensive',
-                                          ret: _getSectorReturn('Consumer Defensive'),
+                                          ret: _getSectorReturn(
+                                            'Consumer Defensive',
+                                          ),
                                         ),
                                         _buildHeatmapTile(
                                           context: context,
                                           name: 'Basic Materials',
-                                          ret: _getSectorReturn('Basic Materials'),
+                                          ret: _getSectorReturn(
+                                            'Basic Materials',
+                                          ),
                                         ),
                                         Expanded(
                                           child: Column(
@@ -586,12 +605,16 @@ class _MarketSectorHeatmapCardState extends State<MarketSectorHeatmapCard> {
                                               _buildHeatmapTile(
                                                 context: context,
                                                 name: 'Real Estate',
-                                                ret: _getSectorReturn('Real Estate'),
+                                                ret: _getSectorReturn(
+                                                  'Real Estate',
+                                                ),
                                               ),
                                               _buildHeatmapTile(
                                                 context: context,
                                                 name: 'Utilities',
-                                                ret: _getSectorReturn('Utilities'),
+                                                ret: _getSectorReturn(
+                                                  'Utilities',
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -639,7 +662,8 @@ class _MarketSectorHeatmapCardState extends State<MarketSectorHeatmapCard> {
                               child: SizedBox(
                                 width: 460,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     for (final label in [
                                       '<= -3',
@@ -652,7 +676,7 @@ class _MarketSectorHeatmapCardState extends State<MarketSectorHeatmapCard> {
                                       '1.2',
                                       '1.8',
                                       '2.4',
-                                      '>= 3'
+                                      '>= 3',
                                     ])
                                       Text(
                                         label,

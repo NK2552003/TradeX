@@ -1,6 +1,6 @@
 # 18 — Account Deletion & Conditional Post-Deletion Data Purge
 
-This document specifies the end-to-end **Account Deletion & Conditional Data Purge** architecture across all three TradeX user roles (`customer`, `affiliate`, `user_admin`), fulfilling Indian **DPDP Act 2023** data erasure rights while preserving statutory **Income Tax Act (Section 194H TDS & GST)** financial records when required.
+This document specifies the end-to-end **Account Deletion & Conditional Data Purge** architecture across all three AlphaJournal user roles (`customer`, `affiliate`, `user_admin`), fulfilling Indian **DPDP Act 2023** data erasure rights while preserving statutory **Income Tax Act (Section 194H TDS & GST)** financial records when required.
 
 ---
 

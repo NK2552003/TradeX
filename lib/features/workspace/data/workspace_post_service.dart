@@ -1,10 +1,10 @@
-import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/models/app_models.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/app-ui/models/app_models.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 
 /// Metadata for a community/social post linked to a Writing Desk record.
 @immutable

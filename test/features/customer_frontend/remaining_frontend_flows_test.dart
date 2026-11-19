@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/presentation/community_root_screen.dart';
-import 'package:tradex/features/strategies/ui/strategy_editor_screen.dart';
-import 'package:tradex/features/workspace/ui/workspace_screen.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/presentation/community_root_screen.dart';
+import 'package:alphajournal/features/strategies/ui/strategy_editor_screen.dart';
+import 'package:alphajournal/features/workspace/ui/workspace_screen.dart';
 
 void main() {
   void viewport(WidgetTester tester, Size size) {

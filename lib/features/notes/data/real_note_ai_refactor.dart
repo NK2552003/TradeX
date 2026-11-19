@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/ai/unified_ai_service.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/env_config.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/ai/unified_ai_service.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/env_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import 'note_ai_refactor.dart';
 
 class RealNoteAiRefactor implements NoteAiRefactor {
@@ -73,9 +73,7 @@ class RealNoteAiRefactor implements NoteAiRefactor {
             throw StateError((res.data as Map)['error'].toString());
           }
           if (res.status != 200) {
-            throw StateError(
-              'AI refactoring request failed (${res.status}).',
-            );
+            throw StateError('AI refactoring request failed (${res.status}).');
           }
         }
       } on FunctionException catch (fe) {
@@ -91,7 +89,10 @@ class RealNoteAiRefactor implements NoteAiRefactor {
             'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
           );
         }
-        if (fe.status == 404 || fe.status == 502 || fe.status == 503 || fe.status == 0) {
+        if (fe.status == 404 ||
+            fe.status == 502 ||
+            fe.status == 503 ||
+            fe.status == 0) {
           canFallbackToClientAi = true;
         } else {
           if (fe.details is Map && (fe.details as Map)['error'] != null) {
@@ -107,9 +108,7 @@ class RealNoteAiRefactor implements NoteAiRefactor {
       } on StateError {
         rethrow;
       } catch (e) {
-        debugPrint(
-          '[RealNoteAiRefactor] Edge function transport error: $e',
-        );
+        debugPrint('[RealNoteAiRefactor] Edge function transport error: $e');
         canFallbackToClientAi = true;
       }
     } else {
@@ -120,7 +119,7 @@ class RealNoteAiRefactor implements NoteAiRefactor {
     if (canFallbackToClientAi &&
         (SupabaseConfig.isConfigured || EnvConfig.hasAiKey)) {
       const systemPrompt = '''
-You are alphajournal Copilot, an elite quantitative financial analyst and disciplined trading performance coach.
+You are AlphaJournal Copilot, an elite quantitative financial analyst and disciplined trading performance coach.
 Your task is to refine, enhance, or restructure the trader's note content according to their instructions.
 Guidelines:
 - Return ONLY the clean, formatted Markdown output without conversational preambles or chat greetings.
@@ -129,7 +128,8 @@ Guidelines:
 - Adhere strictly to the requested instruction.
 ''';
 
-      final prompt = '''
+      final prompt =
+          '''
 Context:
 - Note Title: ${contextTitle ?? 'Trading Note'}
 - Note Type: ${noteType.label}

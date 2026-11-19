@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
 
 Widget _wrap(Widget child, {Size size = const Size(1280, 800)}) {
   return MaterialApp(
@@ -64,10 +64,7 @@ void main() {
 
       // 2. Disclaimer callout is removed
       expect(find.text('Public profile preview'), findsNothing);
-      expect(
-        find.textContaining('This is how verified traders'),
-        findsNothing,
-      );
+      expect(find.textContaining('This is how verified traders'), findsNothing);
       expect(find.byType(UiCallout), findsNothing);
 
       // 3. Live profile fields are rendered cleanly
@@ -75,7 +72,10 @@ void main() {
       expect(find.text('India'), findsOneWidget);
       expect(find.text('https://github.com/nk2552003'), findsOneWidget);
       expect(find.text('Avg Hold: Intraday (15m - 2h)'), findsOneWidget);
-      expect(find.text('Nifty 50, Bank Nifty Options'), findsAtLeastNWidgets(1));
+      expect(
+        find.text('Nifty 50, Bank Nifty Options'),
+        findsAtLeastNWidgets(1),
+      );
 
       // 4. Performance KPI strip renders live values without mock data
       expect(find.text('Intraday (15m - 2h)'), findsOneWidget);
@@ -89,44 +89,45 @@ void main() {
       expect(find.text('₹148.2 Cr'), findsNothing);
     });
 
-    testWidgets('displays "Not Set" for unset fields instead of fake mock defaults', (
-      tester,
-    ) async {
-      await tester.binding.setSurfaceSize(const Size(1280, 900));
+    testWidgets(
+      'displays "Not Set" for unset fields instead of fake mock defaults',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1280, 900));
 
-      final emptyAuthor = CommunityAuthor(
-        id: 'usr_new_trader',
-        handle: 'new_trader',
-        displayName: 'New Trader',
-        userRole: UserRole.customer,
-      );
+        final emptyAuthor = CommunityAuthor(
+          id: 'usr_new_trader',
+          handle: 'new_trader',
+          displayName: 'New Trader',
+          userRole: UserRole.customer,
+        );
 
-      await tester.pumpWidget(
-        _wrap(
-          TraderProfilePreviewPage(
-            displayName: 'New Trader',
-            handle: 'new_trader',
-            userRole: UserRole.customer,
-            author: emptyAuthor,
+        await tester.pumpWidget(
+          _wrap(
+            TraderProfilePreviewPage(
+              displayName: 'New Trader',
+              handle: 'new_trader',
+              userRole: UserRole.customer,
+              author: emptyAuthor,
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      // Handle rendered with single @
-      expect(find.text('@new_trader'), findsAtLeastNWidgets(1));
-      expect(find.text('@@new_trader'), findsNothing);
+        // Handle rendered with single @
+        expect(find.text('@new_trader'), findsAtLeastNWidgets(1));
+        expect(find.text('@@new_trader'), findsNothing);
 
-      // Unset KPI pills cleanly display "Not Set"
-      expect(find.text('Not Set'), findsAtLeastNWidgets(2));
-      expect(find.text('--'), findsAtLeastNWidgets(1));
+        // Unset KPI pills cleanly display "Not Set"
+        expect(find.text('Not Set'), findsAtLeastNWidgets(2));
+        expect(find.text('--'), findsAtLeastNWidgets(1));
 
-      // Zero hardcoded mock strings
-      expect(find.text('Mumbai, Maharashtra'), findsNothing);
-      expect(find.text('45 mins (Intraday)'), findsNothing);
-      expect(find.text('Equities & Index Options'), findsNothing);
-      expect(find.text('ORB Breakout'), findsNothing);
-    });
+        // Zero hardcoded mock strings
+        expect(find.text('Mumbai, Maharashtra'), findsNothing);
+        expect(find.text('45 mins (Intraday)'), findsNothing);
+        expect(find.text('Equities & Index Options'), findsNothing);
+        expect(find.text('ORB Breakout'), findsNothing);
+      },
+    );
   });
 }

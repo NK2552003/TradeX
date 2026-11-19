@@ -179,7 +179,7 @@ test('validAttachment accepts data images (png/jpeg/webp/gif), https image URLs,
 
 test('buildProviderMessages formats multimodal attachments for Gemini, Anthropic, and OpenAI/OpenRouter', () => {
   const history = [
-    { role: 'system', content: 'You are TradeX Copilot.' },
+    { role: 'system', content: 'You are AlphaJournal Copilot.' },
     { role: 'user', content: 'Analyze this chart and PDF' },
   ];
   const atts = [

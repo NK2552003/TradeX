@@ -211,6 +211,7 @@ class _UiCandleChartState extends State<UiCandleChart> {
                   showVolume: widget.showVolume,
                   showGrid: widget.showGrid,
                   activeIndex: _active,
+                  textScaler: MediaQuery.textScalerOf(context),
                   labelStyle: context.uiText.caption.copyWith(
                     color: theme.colors.foregroundSubtle,
                   ),
@@ -346,6 +347,7 @@ class _UiCandlePainter extends CustomPainter {
     required this.showVolume,
     required this.showGrid,
     required this.activeIndex,
+    required this.textScaler,
     required this.labelStyle,
     required this.markerStyle,
     required this.format,
@@ -361,6 +363,7 @@ class _UiCandlePainter extends CustomPainter {
   final bool showVolume;
   final bool showGrid;
   final int? activeIndex;
+  final TextScaler textScaler;
   final TextStyle labelStyle;
   final TextStyle markerStyle;
   final String Function(num value) format;
@@ -449,7 +452,10 @@ class _UiCandlePainter extends CustomPainter {
       case UiPriceChartType.area:
         final Path path = Path();
         for (int i = 0; i < candles.length; i++) {
-          final Offset pt = Offset(_gutter + i * step + step / 2, y(candles[i].close));
+          final Offset pt = Offset(
+            _gutter + i * step + step / 2,
+            y(candles[i].close),
+          );
           i == 0 ? path.moveTo(pt.dx, pt.dy) : path.lineTo(pt.dx, pt.dy);
         }
         if (type == UiPriceChartType.area) {
@@ -460,14 +466,17 @@ class _UiCandlePainter extends CustomPainter {
           canvas.drawPath(
             fill,
             Paint()
-              ..shader = LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[
-                  colors.primary.withValues(alpha: 0.28),
-                  colors.primary.withValues(alpha: 0.0),
-                ],
-              ).createShader(Rect.fromLTWH(_gutter, 0, size.width - _gutter, priceH)),
+              ..shader =
+                  LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[
+                      colors.primary.withValues(alpha: 0.28),
+                      colors.primary.withValues(alpha: 0.0),
+                    ],
+                  ).createShader(
+                    Rect.fromLTWH(_gutter, 0, size.width - _gutter, priceH),
+                  ),
           );
         }
         canvas.drawPath(
@@ -619,6 +628,7 @@ class _UiCandlePainter extends CustomPainter {
     final TextPainter tp = TextPainter(
       text: TextSpan(text: text, style: style ?? labelStyle),
       textDirection: TextDirection.ltr,
+      textScaler: textScaler,
     )..layout();
     tp.paint(canvas, alignRight ? Offset(at.dx - tp.width, at.dy) : at);
   }
@@ -631,5 +641,8 @@ class _UiCandlePainter extends CustomPainter {
       old.overlays != overlays ||
       old.priceLines != priceLines ||
       old.markers != markers ||
+      old.textScaler != textScaler ||
+      old.labelStyle != labelStyle ||
+      old.markerStyle != markerStyle ||
       old.colors != colors;
 }

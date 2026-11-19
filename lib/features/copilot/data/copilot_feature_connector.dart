@@ -1,28 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/linking/link_graph_service.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
-import 'package:tradex/features/watchlists/data/watchlist_repository.dart';
-import 'package:tradex/features/workspace/data/workspace_post_service.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/linking/link_graph_service.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
+import 'package:alphajournal/features/watchlists/data/watchlist_repository.dart';
+import 'package:alphajournal/features/workspace/data/workspace_post_service.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/workspace.dart';
 import 'copilot_controller.dart';
 
-/// Categories of TradeX features connected to AI Copilot.
+/// Categories of AlphaJournal features connected to AI Copilot.
 enum CopilotFeatureCategory {
   notes('Notes', Icons.description_outlined, AppLinkKind.note),
   journal('Journal', Icons.candlestick_chart_outlined, AppLinkKind.journal),
   strategies('Strategies', Icons.psychology_outlined, AppLinkKind.strategy),
-  community(
-    'Community',
-    Icons.forum_outlined,
-    AppLinkKind.communityPost,
-  ),
+  community('Community', Icons.forum_outlined, AppLinkKind.communityPost),
   watchlist('Watchlist', Icons.show_chart_rounded, AppLinkKind.ticker);
 
   const CopilotFeatureCategory(this.label, this.icon, this.linkKind);
@@ -74,7 +70,7 @@ class CopilotConnectedItem {
 }
 
 /// Bridges AI Copilot (Chat & Voice Assistant) with Notes, Journal, Strategies,
-/// Community Posts, and Watchlists/Market Data across TradeX.
+/// Community Posts, and Watchlists/Market Data across AlphaJournal.
 class CopilotFeatureConnector {
   const CopilotFeatureConnector._();
 
@@ -321,7 +317,10 @@ class CopilotFeatureConnector {
   }
 
   /// Derives a clean title from markdown content.
-  static String deriveTitle(String markdown, {String fallback = 'Copilot Insight'}) {
+  static String deriveTitle(
+    String markdown, {
+    String fallback = 'Copilot Insight',
+  }) {
     for (final String raw in markdown.split('\n')) {
       final String line = raw
           .replaceFirst(RegExp(r'^#{1,6}\s*'), '')
@@ -377,11 +376,12 @@ class CopilotFeatureConnector {
     String? strategyName,
   }) async {
     final List<String> tickers = extractTickers(body);
-    final String resolvedTicker =
-        (ticker != null && ticker.trim().isNotEmpty)
+    final String resolvedTicker = (ticker != null && ticker.trim().isNotEmpty)
         ? ticker.trim().toUpperCase().replaceAll(r'$', '')
         : (tickers.isNotEmpty ? tickers.first : 'NVDA');
-    final double pnlPercent = entry > 0 ? ((exit - entry) / entry) * 100.0 : 0.0;
+    final double pnlPercent = entry > 0
+        ? ((exit - entry) / entry) * 100.0
+        : 0.0;
     final String sideLabel = AppTokens.sideLabel(side);
     final AppTrade draft = AppTrade(
       id: '',
@@ -403,8 +403,12 @@ class CopilotFeatureConnector {
       strategyId: strategyId,
       strategy: strategyName,
     );
-    final AppTrade saved = await JournalRepositoryScope.repository.create(draft);
-    final AppLinkRef ref = AppLinkGraphService.instance.current.journalRef(saved);
+    final AppTrade saved = await JournalRepositoryScope.repository.create(
+      draft,
+    );
+    final AppLinkRef ref = AppLinkGraphService.instance.current.journalRef(
+      saved,
+    );
     return (trade: saved, ref: ref);
   }
 
@@ -516,7 +520,9 @@ class CopilotFeatureConnector {
 
     final int totalTrades = trades.length;
     final int wins = trades.where((AppTrade t) => t.pnl > 0).length;
-    final double winRate = totalTrades == 0 ? 0.0 : (wins / totalTrades) * 100.0;
+    final double winRate = totalTrades == 0
+        ? 0.0
+        : (wins / totalTrades) * 100.0;
     final double netPnl = trades.fold<double>(
       0.0,
       (double sum, AppTrade t) => sum + t.pnl,
@@ -637,9 +643,7 @@ class CopilotFeatureConnector {
       out.writeln('```barlist');
       out.writeln('title: Watchlist Relative Strength');
       for (final AppTicker t in watchlist.take(5)) {
-        out.writeln(
-          '${t.symbol}: ${t.price.toStringAsFixed(2)}',
-        );
+        out.writeln('${t.symbol}: ${t.price.toStringAsFixed(2)}');
       }
       out.writeln('```');
       out.writeln();

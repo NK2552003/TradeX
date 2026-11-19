@@ -1,33 +1,33 @@
-import 'package:tradex/core/config/record_access.dart';
-import 'package:tradex/core/data/owned_record_writer.dart';
+import 'package:alphajournal/core/config/record_access.dart';
+import 'package:alphajournal/core/data/owned_record_writer.dart';
 import 'community_post_writer.dart';
 import '../models/community_activity.dart';
 import 'workspace_attachment_service.dart';
-import 'package:tradex/features/workspace/data/workspace_post_service.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
+import 'package:alphajournal/features/workspace/data/workspace_post_service.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'dart:io';
 import 'dart:math' as math;
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/config/supabase_storage_egress.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/core/utils/app_visibility.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
-import 'package:tradex/core/utils/attachment_compression_service.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_storage_egress.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/core/utils/app_visibility.dart';
+import 'package:alphajournal/features/auth/data/services/auth_backend_service.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/linking/entity_ticker_links_repository.dart';
+import 'package:alphajournal/core/utils/attachment_compression_service.dart';
 import 'package:uuid/uuid.dart';
 
 part 'community_activity_repository.dart';
@@ -106,7 +106,7 @@ class CommunityRepository extends ChangeNotifier {
 
   bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
 
-  static const String _commentReactionsPrefsPrefix = 'tradex_comment_rx_';
+  static const String _commentReactionsPrefsPrefix = 'alphajournal_comment_rx_';
 
   Future<Map<String, String>> _loadLocalCommentReactions(String userId) async {
     try {
@@ -1499,7 +1499,7 @@ class CommunityRepository extends ChangeNotifier {
   Future<void> _loadMarketData(AssetMarketRepository source) async {
     marketDataError = null;
     try {
-      final snapshot = await source.snapshot();
+      final snapshot = await source.communityPreview();
       if (_disposed) return;
       marketSnapshot = snapshot;
       final Set<String> seenArticleIds = <String>{};
@@ -1789,7 +1789,7 @@ class CommunityRepository extends ChangeNotifier {
   late final CommunityAuthor _marcoSilva;
   late final CommunityAuthor _elenaRostova;
   late final CommunityAuthor _priyaSharma;
-  late final CommunityAuthor _tradexWire;
+  late final CommunityAuthor _alphajournalWire;
   late final CommunityAuthor _arisThorne;
   late final CommunityAuthor _rajeshPatel;
   late final CommunityAuthor _sarahWong;
@@ -2698,7 +2698,7 @@ class CommunityRepository extends ChangeNotifier {
       _marcoSilva,
       _elenaRostova,
       _priyaSharma,
-      _tradexWire,
+      _alphajournalWire,
       _arisThorne,
       _rajeshPatel,
       _sarahWong,
@@ -4802,7 +4802,7 @@ class CommunityRepository extends ChangeNotifier {
         _marcoSilva,
         _elenaRostova,
         _priyaSharma,
-        _tradexWire,
+        _alphajournalWire,
         _arisThorne,
         _rajeshPatel,
         _sarahWong,
@@ -5724,7 +5724,7 @@ class CommunityRepository extends ChangeNotifier {
       displayName: 'Marco Silva',
       userRole: UserRole.affiliate,
       bio:
-          'Official alphajournal Partner & trading educator. Sharing setups, execution blueprints, and exclusive member discounts. 50K+ community members.',
+          'Official AlphaJournal Partner & trading educator. Sharing setups, execution blueprints, and exclusive member discounts. 50K+ community members.',
       tier: AppTier.enterprise,
       verified: true,
       isFollowing: false,
@@ -5736,7 +5736,7 @@ class CommunityRepository extends ChangeNotifier {
       joinedDate: 'March 2023',
       mutualFollowers: <String>['Alex Vance', '12 others'],
       postsCount: 3421,
-      referralCode: 'TRADEX-MARCO-2026',
+      referralCode: 'ALPHAJOURNAL-MARCO-2026',
       channelHandle: '@MarcoSilvaEdu',
       audienceReach: '50,000+',
       location: 'Singapore',
@@ -5784,10 +5784,10 @@ class CommunityRepository extends ChangeNotifier {
       location: 'Bangalore, India',
     );
 
-    _tradexWire = const CommunityAuthor(
-      id: 'usr_tradex_wire',
-      handle: 'tradex_wire',
-      displayName: 'alphajournal Market Wire',
+    _alphajournalWire = const CommunityAuthor(
+      id: 'usr_alphajournal_wire',
+      handle: 'alphajournal_wire',
+      displayName: 'AlphaJournal Market Wire',
       userRole: UserRole.customer,
       bio:
           'Official market news desk: earnings beats, macro data, FII flows, and sector rotation alerts — all in real time.',
@@ -5884,7 +5884,7 @@ class CommunityRepository extends ChangeNotifier {
       _arisThorne.copyWith(isFollowing: true),
       _rajeshPatel,
       _sarahWong,
-      _tradexWire,
+      _alphajournalWire,
     ];
     _leaderboard = <MapEntry<CommunityAuthor, double>>[
       MapEntry<CommunityAuthor, double>(_alexVance, 84.2),
@@ -6075,7 +6075,7 @@ class CommunityRepository extends ChangeNotifier {
       author: _marcoSilva,
       repostedBy: 'Alex Vance',
       body:
-          '🚀 New module just dropped for alphajournal members: "Earnings Season Playbook" — how I trade pre-earnings IV expansion and post-earnings crush. 47 real trades, video walkthroughs, Q&A session this weekend.\n\nUse code TRADEX-MARCO-2026 for 30% off.',
+          '🚀 New module just dropped for AlphaJournal members: "Earnings Season Playbook" — how I trade pre-earnings IV expansion and post-earnings crush. 47 real trades, video walkthroughs, Q&A session this weekend.\n\nUse code ALPHAJOURNAL-MARCO-2026 for 30% off.',
       createdAt: now.subtract(const Duration(hours: 8)),
       tickers: const <String>['AAPL', 'MSFT', 'NVDA'],
       tags: const <String>['Education', 'EarningsSeason', 'OptionsStrategy'],
@@ -6093,7 +6093,7 @@ class CommunityRepository extends ChangeNotifier {
 
     final postW1 = CommunityPost(
       id: 'post_w1',
-      author: _tradexWire,
+      author: _alphajournalWire,
       body:
           '🔴 BREAKING: RBI holds repo rate at 6.50% for the 7th consecutive meeting. MPC remains focused on "withdrawal of accommodation." Markets expecting a rate cut cycle to begin Q4 2026. FII flows may accelerate into domestic banking names.',
       createdAt: now.subtract(const Duration(minutes: 45)),
@@ -6438,7 +6438,7 @@ class CommunityRepository extends ChangeNotifier {
         createdAt: now.subtract(const Duration(minutes: 1)),
         title: 'Security Alert',
         body:
-            "Someone's trying to log into your alphajournal account. Let us know if it's you.",
+            "Someone's trying to log into your AlphaJournal account. Let us know if it's you.",
         read: false,
       ),
       CommunityNotificationItem(
@@ -6447,7 +6447,7 @@ class CommunityRepository extends ChangeNotifier {
         createdAt: now.subtract(const Duration(minutes: 2)),
         title: 'Security Alert',
         body:
-            "Someone's trying to log into your alphajournal account. Let us know if it's you.",
+            "Someone's trying to log into your AlphaJournal account. Let us know if it's you.",
         read: false,
       ),
       CommunityNotificationItem(
@@ -6494,12 +6494,13 @@ class CommunityRepository extends ChangeNotifier {
       ),
       CommunityNotificationItem(
         id: 'n4',
-        actor: _tradexWire,
+        actor: _alphajournalWire,
         type: CommunityNotificationType.repost,
         createdAt: now.subtract(const Duration(days: 8)),
         read: true,
         title: 'New Repost',
-        body: 'tradex_wire, deepanshukumar and others reposted your setup.',
+        body:
+            'alphajournal_wire, deepanshukumar and others reposted your setup.',
         postSnippet: 'RBI holds repo rate at 6.50%…',
       ),
     ];

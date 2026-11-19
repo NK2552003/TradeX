@@ -5,7 +5,7 @@
 This feature needs backend linking and RLS setup. Check the schema and RLS policies for exact details.
 
 Watchlist manages user-created lists of symbols.
-# TraderHub research workspace — frontend handoff
+# AlphaJournal research workspace — frontend handoff
 
 ## Run the preview
 
@@ -50,7 +50,7 @@ repositories and bundled market assets. No backend or database is required.
   connected. No background price evaluation or order execution is claimed.
 - **Linking:** the desktop formatting ribbon and mobile link control open one
   searchable picker for notes, trades, strategies and symbols. Markdown
-  `tradex://` links form bidirectional graph edges, including same-kind links.
+  `alphajournal://` links form bidirectional graph edges, including same-kind links.
   Titles resolve dynamically by ID; removed targets remain visibly broken.
   Code examples do not create relationships. Remove a body citation in its
   source editor to remove its automatic backlink; metadata-only links retain
@@ -138,7 +138,7 @@ require a backend worker and permission-aware push/email integration.
 
 `MarketWorkspaceStore` stores watchlist collections, order, selected list,
 bookmarks and alert drafts in device-local SharedPreferences under
-`tradex.market.workspace.v1`. Writes are serialized. Local storage failures are
+`alphajournal.market.workspace.v1`. Writes are serialized. Local storage failures are
 reported. Production storage needs authenticated user ownership, synchronization
 and account separation. The preview key is not a production multi-user store.
 

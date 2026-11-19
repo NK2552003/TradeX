@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/navigation/share_links.dart';
-import 'package:tradex/core/utils/share_actions.dart';
-import 'package:tradex/core/widgets/feature_showcase_catalog.dart';
-import 'package:tradex/core/widgets/feature_showcase_preview.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/navigation/share_links.dart';
+import 'package:alphajournal/core/utils/share_actions.dart';
+import 'package:alphajournal/core/widgets/feature_showcase_catalog.dart';
+import 'package:alphajournal/core/widgets/feature_showcase_preview.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// Opens the responsive right-side Feature Showcase & Walkthrough overlay.
 Future<void> showFeatureShowcaseOverlay(
@@ -22,7 +22,8 @@ Future<void> showFeatureShowcaseOverlay(
   return showSettingsSideSheet<void>(
     context,
     title: 'Feature Explorer & Live Previews',
-    subtitle: 'Interactive guide to every workspace, market, community & AI tool',
+    subtitle:
+        'Interactive guide to every workspace, market, community & AI tool',
     desktopWidthRatio: 0.74,
     maxWidth: 1180,
     minDesktopWidth: 680,
@@ -142,10 +143,12 @@ class _FeatureShowcaseSheetState extends State<FeatureShowcaseSheet> {
                     label: cat.label,
                     icon: cat.icon,
                     size: UiSize.xs,
-                    variant:
-                        _category == cat ? UiVariant.solid : UiVariant.outline,
-                    intent:
-                        _category == cat ? UiIntent.primary : UiIntent.neutral,
+                    variant: _category == cat
+                        ? UiVariant.solid
+                        : UiVariant.outline,
+                    intent: _category == cat
+                        ? UiIntent.primary
+                        : UiIntent.neutral,
                     onPressed: () => setState(() => _category = cat),
                   ),
                   UiGap.h(theme.spacing.xs),
@@ -412,7 +415,8 @@ class _FeatureShowcaseSheetState extends State<FeatureShowcaseSheet> {
                           ),
                           UiBadge(
                             label: item.tierBadge,
-                            intent: item.requiresAdminAccess &&
+                            intent:
+                                item.requiresAdminAccess &&
                                     !widget.hasAdminAccess
                                 ? UiIntent.warning
                                 : UiIntent.neutral,
@@ -634,8 +638,7 @@ class _FeatureShowcaseSheetState extends State<FeatureShowcaseSheet> {
               height: 1.55,
             ),
           ),
-          if (i < item.detailedParagraphs.length - 1)
-            UiGap.v(theme.spacing.sm),
+          if (i < item.detailedParagraphs.length - 1) UiGap.v(theme.spacing.sm),
         ],
         if (item.helperTips.isNotEmpty) ...[
           UiGap.v(theme.spacing.md),

@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/config/cross_subdomain_storage.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/privacy/consent_preferences.dart';
+import 'package:alphajournal/core/config/cross_subdomain_storage.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/privacy/consent_preferences.dart';
 
 /// Stores a referral through auth navigation and email-verification reloads.
 class AffiliateAttribution {
@@ -49,7 +49,11 @@ class AffiliateAttribution {
         ).join();
     if (!ConsentController.instance.value.affiliate) return;
     await prefs.setString('affiliate_visitor_v1', visitor);
-    CrossSubdomainState.setFlag('affiliate_visitor_v1', visitor, maxAgeDays: 30);
+    CrossSubdomainState.setFlag(
+      'affiliate_visitor_v1',
+      visitor,
+      maxAgeDays: 30,
+    );
     final encodedAttribution = jsonEncode({
       'code': code,
       'campaign': campaign,

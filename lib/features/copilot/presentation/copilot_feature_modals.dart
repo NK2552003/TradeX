@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/markdown_kit/markdown_preview.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_preview.dart';
 
 import '../data/copilot_feature_connector.dart';
 
@@ -259,11 +259,7 @@ class _SaveToFeatureModalState extends State<_SaveToFeatureModal> {
       }
       if (!mounted) return;
       Navigator.of(context).pop();
-      UiToast.success(
-        context,
-        title: successTitle,
-        message: createdRef.title,
-      );
+      UiToast.success(context, title: successTitle, message: createdRef.title);
       widget.onOpenRef?.call(createdRef);
     } catch (error) {
       if (!mounted) return;
@@ -280,7 +276,7 @@ class _SaveToFeatureModalState extends State<_SaveToFeatureModal> {
     return UiDialog(
       title: _target.label,
       description:
-          'Send this AI Copilot response directly into your connected TradeX workspace.',
+          'Send this AI Copilot response directly into your connected AlphaJournal workspace.',
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -288,9 +284,8 @@ class _SaveToFeatureModalState extends State<_SaveToFeatureModal> {
           UiTabs(
             tabs: const <String>['Note', 'Journal', 'Strategy', 'Community'],
             selectedIndex: CopilotFeatureTarget.values.indexOf(_target),
-            onChanged: (int index) => setState(
-              () => _target = CopilotFeatureTarget.values[index],
-            ),
+            onChanged: (int index) =>
+                setState(() => _target = CopilotFeatureTarget.values[index]),
           ),
           UiGap.v(theme.spacing.md),
           UiInput(
@@ -310,11 +305,7 @@ class _SaveToFeatureModalState extends State<_SaveToFeatureModal> {
               expand: true,
               options: <UiOption<AppNoteType>>[
                 for (final AppNoteType t in AppNoteType.values)
-                  UiOption<AppNoteType>(
-                    label: t.label,
-                    value: t,
-                    icon: t.icon,
-                  ),
+                  UiOption<AppNoteType>(label: t.label, value: t, icon: t.icon),
               ],
               onChanged: (AppNoteType v) => setState(() => _noteType = v),
             ),

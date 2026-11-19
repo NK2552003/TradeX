@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/features/copilot/data/copilot_api.dart';
-import 'package:tradex/features/copilot/data/voice_controller.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/features/copilot/data/copilot_api.dart';
+import 'package:alphajournal/features/copilot/data/voice_controller.dart';
 
 class _QuotaErrorApi extends CopilotApi {
   int runs = 0;

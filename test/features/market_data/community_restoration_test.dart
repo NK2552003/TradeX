@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/presentation/views/community_explore_view.dart';
-import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
-import 'package:tradex/features/community/presentation/widgets/community_article_sheet.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/presentation/views/community_explore_view.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_sidebar_widgets.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_article_sheet.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/presentation/market_news_widgets.dart';
 import '../public_site/public_content_test.dart' show FileAssets;
 
 void main() {
@@ -32,12 +32,17 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    await tester.tap(find.text('Crypto').first);
+    await tester.tap(find.text('News').first);
     await tester.pump();
     await tester.pump();
-    expect(find.byType(MarketNewsCard), findsOneWidget);
-    await tester.ensureVisible(find.text('View all'));
-    await tester.tap(find.text('View all'));
+    expect(find.byType(MarketNewsCard), findsWidgets);
+    final categories = repo.newsByCategory.entries
+        .where((entry) => entry.value.isNotEmpty)
+        .toList();
+    expect(categories, isNotEmpty);
+    final selectedCategory = categories.first;
+    await tester.ensureVisible(find.text('View all').first);
+    await tester.tap(find.text('View all').first);
     await tester.pumpAndSettle();
     expect(find.byType(CommunityMarketWirePage), findsOneWidget);
     final panel = find.byKey(
@@ -47,22 +52,22 @@ void main() {
     expect(
       find.descendant(
         of: panel,
-        matching: find.text(repo.newsByCategory['crypto']!.first.headline),
+        matching: find.text(selectedCategory.value.first.headline),
       ),
       findsOneWidget,
     );
-    final otherCategoryHeadline = repo.news
-        .firstWhere((n) => n.category.toLowerCase() != 'crypto')
-        .headline;
-    expect(
-      find.descendant(of: panel, matching: find.text(otherCategoryHeadline)),
-      findsNothing,
-    );
+    if (categories.length > 1) {
+      final otherCategoryHeadline = categories[1].value.first.headline;
+      expect(
+        find.descendant(of: panel, matching: find.text(otherCategoryHeadline)),
+        findsNothing,
+      );
+    }
     await tester.tap(
       find
           .descendant(
             of: panel,
-            matching: find.text(repo.newsByCategory['crypto']!.first.headline),
+            matching: find.text(selectedCategory.value.first.headline),
           )
           .first,
     );
@@ -99,7 +104,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.byType(CommunityLiveRoomWidget), findsNothing);
-    expect(find.text('Subscribe to Premium'), findsOneWidget);
+    expect(find.text('Unlock AlphaJournal Markets'), findsOneWidget);
     for (
       var i = 0;
       i < 15 && find.byType(CommunityFooterLinks).evaluate().isEmpty;

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/messages/presentation/messages_root_screen.dart';
-import 'package:tradex/features/messages/presentation/overlays/message_share_chart_dialog.dart';
-import 'package:tradex/features/messages/presentation/overlays/message_trade_setup_dialog.dart';
-import 'package:tradex/features/messages/presentation/views/messages_inbox_view.dart';
-import 'package:tradex/features/messages/presentation/widgets/message_bubble.dart';
-import 'package:tradex/features/messages/presentation/widgets/message_composer.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/messages/presentation/messages_root_screen.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/message_share_chart_dialog.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/message_trade_setup_dialog.dart';
+import 'package:alphajournal/features/messages/presentation/views/messages_inbox_view.dart';
+import 'package:alphajournal/features/messages/presentation/widgets/message_bubble.dart';
+import 'package:alphajournal/features/messages/presentation/widgets/message_composer.dart';
 
 void main() {
   group('Messages Redesign Tests', () {
@@ -28,9 +28,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             theme: UiTheme.dark().toThemeData(),
-            home: Scaffold(
-              body: MessagesRootScreen(repository: repo),
-            ),
+            home: Scaffold(body: MessagesRootScreen(repository: repo)),
           ),
         );
         await tester.pumpAndSettle();
@@ -64,10 +62,7 @@ void main() {
         MaterialApp(
           theme: UiTheme.dark().toThemeData(),
           home: Scaffold(
-            body: MessagesInboxView(
-              repository: repo,
-              onOpenThread: (_) {},
-            ),
+            body: MessagesInboxView(repository: repo, onOpenThread: (_) {}),
           ),
         ),
       );
@@ -89,7 +84,8 @@ void main() {
           attachment: const MessageAttachment(
             id: 'att_setup_1',
             title: 'NVDA Bull Flag',
-            subtitle: 'Clean breakout above \$142 with heavy volume confirmation.',
+            subtitle:
+                'Clean breakout above \$142 with heavy volume confirmation.',
             kind: MessageAttachmentKind.tradeSetup,
             direction: 'long',
             entry: 142.50,
@@ -120,38 +116,38 @@ void main() {
         expect(find.text('R:R 2.11'), findsOneWidget);
         expect(find.byType(UiStatStrip), findsOneWidget);
         expect(
-          find.text('Clean breakout above \$142 with heavy volume confirmation.'),
+          find.text(
+            'Clean breakout above \$142 with heavy volume confirmation.',
+          ),
           findsOneWidget,
         );
       },
     );
 
-    testWidgets('MessageComposer renders symmetrical layout and quick action pills', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: UiTheme.dark().toThemeData(),
-          home: Scaffold(
-            body: MessageComposer(
-              threadId: 't1',
-              onSendText: (_) {},
+    testWidgets(
+      'MessageComposer renders symmetrical layout and quick action pills',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: UiTheme.dark().toThemeData(),
+            home: Scaffold(
+              body: MessageComposer(threadId: 't1', onSendText: (_) {}),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Flanking circular targets
-      expect(find.byTooltip('Attach or share'), findsOneWidget);
-      expect(find.byTooltip('Record voice note'), findsOneWidget);
-      expect(find.byTooltip('Quick reactions'), findsOneWidget);
+        // Flanking circular targets
+        expect(find.byTooltip('Attach or share'), findsOneWidget);
+        expect(find.byTooltip('Record voice note'), findsOneWidget);
+        expect(find.byTooltip('Quick reactions'), findsOneWidget);
 
-      // Quick action pills
-      expect(find.text('Chart'), findsOneWidget);
-      expect(find.text('Trade Setup'), findsOneWidget);
-      expect(find.text('Voice Note'), findsOneWidget);
-    });
+        // Quick action pills
+        expect(find.text('Chart'), findsOneWidget);
+        expect(find.text('Trade Setup'), findsOneWidget);
+        expect(find.text('Voice Note'), findsOneWidget);
+      },
+    );
 
     testWidgets('MessageComposer triggers live voice recording and discard', (
       WidgetTester tester,
@@ -160,10 +156,7 @@ void main() {
         MaterialApp(
           theme: UiTheme.dark().toThemeData(),
           home: Scaffold(
-            body: MessageComposer(
-              threadId: 't1',
-              onSendText: (_) {},
-            ),
+            body: MessageComposer(threadId: 't1', onSendText: (_) {}),
           ),
         ),
       );
@@ -185,97 +178,96 @@ void main() {
       expect(find.byTooltip('Record voice note'), findsOneWidget);
     });
 
-    testWidgets('MessageShareChartDialog renders symbol picker, timeframe, pattern and preview', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: UiTheme.dark().toThemeData(),
-          home: const Scaffold(
-            body: MessageShareChartDialog(),
+    testWidgets(
+      'MessageShareChartDialog renders symbol picker, timeframe, pattern and preview',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: UiTheme.dark().toThemeData(),
+            home: const Scaffold(body: MessageShareChartDialog()),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Share Technical Chart'), findsOneWidget);
-      expect(find.text('NIFTY 50'), findsWidgets);
-      expect(find.text('Bullish Breakout'), findsWidgets);
-      expect(find.byType(UiCandleChart), findsOneWidget);
-      expect(find.text('Share Chart'), findsOneWidget);
-    });
-
-    testWidgets('MessageTradeSetupDialog calculates risk-reward ratio dynamically', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: UiTheme.dark().toThemeData(),
-          home: const Scaffold(
-            body: MessageTradeSetupDialog(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Share Trade Setup'), findsOneWidget);
-      expect(find.text('LONG (BUY)'), findsWidgets);
-      expect(find.text('SHORT (SELL)'), findsWidgets);
-      expect(find.text('Max Risk'), findsOneWidget);
-      expect(find.text('Share Setup'), findsOneWidget);
-    });
-
-    testWidgets('MessageBubble renders interactive UiCandleChart for chart attachments', (
-      WidgetTester tester,
-    ) async {
-      final now = DateTime.now();
-      final candles = List<UiCandle>.generate(10, (i) {
-        final t = now.subtract(Duration(minutes: (10 - i) * 15));
-        final base = 24000.0 + (i * 20);
-        return UiCandle(
-          time: t,
-          open: base,
-          high: base + 15,
-          low: base - 10,
-          close: base + 8,
-          volume: 12000,
         );
-      });
+        await tester.pumpAndSettle();
 
-      final message = ChatMessage(
-        id: 'msg_chart_1',
-        threadId: 't1',
-        body: 'Check out the breakout pattern on NIFTY',
-        fromMe: false,
-        sentAt: DateTime.now(),
-        attachment: MessageAttachment(
-          id: 'att_chart_1',
-          kind: MessageAttachmentKind.chart,
-          title: 'NIFTY 50 • 15m',
-          subtitle: 'Bullish Breakout',
-          candles: candles,
-        ),
-      );
+        expect(find.text('Share Technical Chart'), findsOneWidget);
+        expect(find.text('NIFTY 50'), findsWidgets);
+        expect(find.text('Bullish Breakout'), findsWidgets);
+        expect(find.byType(UiCandleChart), findsOneWidget);
+        expect(find.text('Share Chart'), findsOneWidget);
+      },
+    );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: UiTheme.dark().toThemeData(),
-          home: Scaffold(
-            body: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: MessageBubble(
-                message: message,
-                senderName: 'Alpha Desk',
+    testWidgets(
+      'MessageTradeSetupDialog calculates risk-reward ratio dynamically',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: UiTheme.dark().toThemeData(),
+            home: const Scaffold(body: MessageTradeSetupDialog()),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Share Trade Setup'), findsOneWidget);
+        expect(find.text('LONG (BUY)'), findsWidgets);
+        expect(find.text('SHORT (SELL)'), findsWidgets);
+        expect(find.text('Max Risk'), findsOneWidget);
+        expect(find.text('Share Setup'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'MessageBubble renders interactive UiCandleChart for chart attachments',
+      (WidgetTester tester) async {
+        final now = DateTime.now();
+        final candles = List<UiCandle>.generate(10, (i) {
+          final t = now.subtract(Duration(minutes: (10 - i) * 15));
+          final base = 24000.0 + (i * 20);
+          return UiCandle(
+            time: t,
+            open: base,
+            high: base + 15,
+            low: base - 10,
+            close: base + 8,
+            volume: 12000,
+          );
+        });
+
+        final message = ChatMessage(
+          id: 'msg_chart_1',
+          threadId: 't1',
+          body: 'Check out the breakout pattern on NIFTY',
+          fromMe: false,
+          sentAt: DateTime.now(),
+          attachment: MessageAttachment(
+            id: 'att_chart_1',
+            kind: MessageAttachmentKind.chart,
+            title: 'NIFTY 50 • 15m',
+            subtitle: 'Bullish Breakout',
+            candles: candles,
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: UiTheme.dark().toThemeData(),
+            home: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: MessageBubble(
+                  message: message,
+                  senderName: 'Alpha Desk',
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('NIFTY 50 • 15m'), findsOneWidget);
-      expect(find.text('Bullish Breakout'), findsOneWidget);
-      expect(find.byType(UiCandleChart), findsOneWidget);
-    });
+        expect(find.text('NIFTY 50 • 15m'), findsOneWidget);
+        expect(find.text('Bullish Breakout'), findsOneWidget);
+        expect(find.byType(UiCandleChart), findsOneWidget);
+      },
+    );
   });
 }

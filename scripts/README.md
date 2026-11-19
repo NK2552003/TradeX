@@ -89,3 +89,25 @@ listings. Historical bars are never copied across a rename or demerger. Other
 delisted/renamed symbols are reported explicitly. An empty or stale feed fails coverage checks; archived records
 remain available. The app loads the latest history in chronological order and
 fetches sparklines for visible instruments that were not prefetched.
+
+### Application version and update manifest
+
+`scripts/generate_app_update_manifest.py` publishes database-free update
+metadata from the canonical `version: X.Y.Z+BUILD` value in `pubspec.yaml`.
+Generate only the platform that is actually being released:
+
+```sh
+python3 scripts/generate_app_update_manifest.py --platform web
+python3 scripts/generate_app_update_manifest.py --platform web --check
+```
+
+Repeat `--platform android`, `ios`, `macos`, `windows`, or `linux` only after
+the signed build is downloadable through its official store or release channel.
+Use `--minimum-version` and `--minimum-build-number` only to retire an older
+build for a documented security or compatibility requirement. The generator
+rejects invalid versions, negative builds, unknown platforms, and minimum
+releases newer than the published latest release.
+
+`scripts/prepare_client_config.py` also synchronizes the web entry before a
+production web build. The update manifest is a small static HTTPS asset and
+must not be replaced with a Supabase query.

@@ -22,7 +22,7 @@ async function seed() {
   const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@tradex.ai', password: 'Admin@alphajournal2026!' })
+    body: JSON.stringify({ email: 'admin@alphajournal.ai', password: 'Admin@alphajournal2026!' })
   });
   const { access_token, user } = await authRes.json();
   const headers = {

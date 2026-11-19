@@ -29,6 +29,6 @@
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>alphajournal needs access to your microphone to record and send voice messages.</string>
+	<string>AlphaJournal needs access to your microphone to record and send voice messages.</string>
 </dict>
 </plist>

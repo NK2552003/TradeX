@@ -1,7 +1,7 @@
 import 'dart:js_interop';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/subdomain_cookie_codec.dart';
+import 'package:alphajournal/core/config/subdomain_cookie_codec.dart';
 import 'package:web/web.dart' as web;
 
 @JS('alphajournalTransition')
@@ -211,6 +211,8 @@ void setSharedFlag(String key, String value, {int maxAgeDays = 30}) {
   final isAppearancePref =
       key == 'ax_theme_mode' ||
       key == 'ax_theme_density' ||
+      key == 'ax_theme_zoom' ||
+      key == 'ax_text_size' ||
       key == 'ax_chart_range' ||
       key == 'ax_chart_style' ||
       key == 'ax_chart_colors';

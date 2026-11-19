@@ -1,14 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
-import 'package:tradex/features/auth/data/repositories/auth_otp_repository.dart';
-import 'package:tradex/features/auth/data/repositories/supabase_auth_otp_repository.dart';
-import 'package:tradex/features/auth/models/otp_purpose.dart';
-import 'package:tradex/features/auth/widgets/auth_step_icon.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_repository.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_otp_repository.dart';
+import 'package:alphajournal/features/auth/data/repositories/supabase_auth_otp_repository.dart';
+import 'package:alphajournal/features/auth/models/otp_purpose.dart';
+import 'package:alphajournal/features/auth/widgets/auth_step_icon.dart';
 
 /// Forgot Password & Security Code Verification multi-step page.
 ///
@@ -682,7 +682,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             SizedBox(width: context.sp(theme.spacing.xs)),
                             Flexible(
                               child: Text(
-                                'Manage your account and privacy settings in alphajournal',
+                                'Manage your account and privacy settings in AlphaJournal',
                                 overflow: TextOverflow.ellipsis,
                                 style: context.uiText.caption.copyWith(
                                   color: colors.foregroundSubtle,

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/ads/ad_config.dart';
-import 'package:tradex/core/ads/ad_scope.dart';
-import 'package:tradex/core/ads/ad_slot.dart';
-import 'package:tradex/core/ads/promotion_preview.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/privacy/consent_preferences.dart';
-import 'package:tradex/main_ads_preview.dart';
+import 'package:alphajournal/core/ads/ad_config.dart';
+import 'package:alphajournal/core/ads/ad_scope.dart';
+import 'package:alphajournal/core/ads/ad_slot.dart';
+import 'package:alphajournal/core/ads/promotion_preview.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/privacy/consent_preferences.dart';
+import 'package:alphajournal/main_ads_preview.dart';
 
 void main() {
   for (final width in [320.0, 390.0, 768.0, 1440.0]) {

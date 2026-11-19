@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/billing/revenuecat_billing.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
-import 'package:tradex/features/settings/models/billing_models.dart';
-import 'package:tradex/features/settings/presentation/pages/trader/billing_history_page.dart';
-import 'package:tradex/features/settings/presentation/pages/trader/change_plan_page.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/billing/revenuecat_billing.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/settings/data/repositories/billing_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/billing_models.dart';
+import 'package:alphajournal/features/settings/presentation/pages/trader/billing_history_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/trader/change_plan_page.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_nav_row.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 /// The billing surface: what the account is on, what it costs, what it has used,
 /// the card on file, the invoices and the way out.

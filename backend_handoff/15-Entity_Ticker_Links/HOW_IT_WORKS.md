@@ -1,7 +1,7 @@
 # 15-Entity_Ticker_Links — Backend Architecture & Handoff Guide
 
 ## 1. Overview
-`entity_ticker_links` is a dedicated relational junction and tracking table connecting financial market tickers (e.g. `AAPL`, `NVDA`, `BTCUSDT`, `RELIANCE`) directly with content entities across TradeX:
+`entity_ticker_links` is a dedicated relational junction and tracking table connecting financial market tickers (e.g. `AAPL`, `NVDA`, `BTCUSDT`, `RELIANCE`) directly with content entities across AlphaJournal:
 1. **Trader Notes** (`note`): Markdown theses, setups, research docs (`trader_notes`).
 2. **Trade Journal** (`journal`): Trade executions, fills, and review logs (`journal_entries`).
 3. **Strategy Playbooks** (`strategy`): Quantitative systems, rules, and parameters (`strategies`).

@@ -100,8 +100,9 @@ class ActiveDeviceSession {
     Map<String, dynamic> json, {
     String? currentSessionId,
   }) {
-    final String sid =
-        (json['session_id'] ?? json['id'] ?? '').toString().trim();
+    final String sid = (json['session_id'] ?? json['id'] ?? '')
+        .toString()
+        .trim();
     final String rawUa = (json['user_agent'] as String?)?.trim() ?? '';
     final String rawPlatform = (json['platform'] as String?)?.trim() ?? '';
     final parsed = parseUserAgent(rawUa, fallbackPlatform: rawPlatform);
@@ -109,21 +110,21 @@ class ActiveDeviceSession {
     final String rawName = (json['device_name'] as String?)?.trim() ?? '';
     final String effectiveName =
         (rawName.isNotEmpty &&
-                rawName != 'Signed-in Device' &&
-                rawName != 'Active Device' &&
-                rawName != 'Unknown Device')
-            ? rawName
-            : parsed.deviceName;
+            rawName != 'Signed-in Device' &&
+            rawName != 'Active Device' &&
+            rawName != 'Unknown Device')
+        ? rawName
+        : parsed.deviceName;
 
     final String browserOrApp =
         ((json['browser_or_app'] as String?)?.trim().isNotEmpty ?? false)
-            ? (json['browser_or_app'] as String).trim()
-            : parsed.browserOrApp;
+        ? (json['browser_or_app'] as String).trim()
+        : parsed.browserOrApp;
 
     final String osName =
         ((json['os_name'] as String?)?.trim().isNotEmpty ?? false)
-            ? (json['os_name'] as String).trim()
-            : parsed.osName;
+        ? (json['os_name'] as String).trim()
+        : parsed.osName;
 
     final DateTime created =
         DateTime.tryParse('${json['created_at'] ?? ''}')?.toLocal() ??
@@ -177,7 +178,8 @@ class ActiveDeviceSession {
     String platform,
     String browserOrApp,
     String osName,
-  }) parseUserAgent(String userAgent, {String? fallbackPlatform}) {
+  })
+  parseUserAgent(String userAgent, {String? fallbackPlatform}) {
     final lower = userAgent.toLowerCase();
 
     String osName = '';
@@ -213,14 +215,14 @@ class ActiveDeviceSession {
         !lower.contains('chrome/') &&
         !lower.contains('crios')) {
       browserOrApp = 'Safari';
-    } else if (lower.contains('dart/') || lower.contains('tradex')) {
-      browserOrApp = 'alphajournal App';
+    } else if (lower.contains('dart/') || lower.contains('alphajournal')) {
+      browserOrApp = 'AlphaJournal App';
     } else if (lower.contains('mozilla/')) {
       browserOrApp = 'Web Browser';
     }
 
     if (platform.isEmpty) {
-      if (browserOrApp == 'alphajournal App') {
+      if (browserOrApp == 'AlphaJournal App') {
         platform = defaultTargetPlatform.name.toLowerCase();
       } else {
         platform = 'web';
@@ -241,7 +243,7 @@ class ActiveDeviceSession {
     if (browserOrApp.isEmpty) {
       browserOrApp = kIsWeb && platform == 'web'
           ? 'Web Browser'
-          : 'alphajournal App';
+          : 'AlphaJournal App';
     }
 
     final String deviceName = osName.isNotEmpty
@@ -302,8 +304,7 @@ class SecurityPreferencesModel {
       requireReauthForSensitiveActions:
           json['require_reauth_sensitive'] as bool? ?? false,
       autoLockMinutes: (json['auto_lock_minutes'] as num?)?.toInt() ?? 0,
-      rememberTrustedDevices:
-          json['remember_trusted_devices'] as bool? ?? true,
+      rememberTrustedDevices: json['remember_trusted_devices'] as bool? ?? true,
     );
   }
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 // Required presentation imports.
 // ignore: unused_import
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unused_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import '../../data/admin_repository.dart';
 import 'admin_overview_page.dart';
 

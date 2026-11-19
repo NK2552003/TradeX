@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../../data/admin_repository.dart';
 import '../../models/admin_records.dart';
@@ -222,7 +222,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                       label: entry.value,
                       asCard: true,
                       value: _features[entry.key]!,
-                      description: _features[entry.key] == _savedFeatures[entry.key]
+                      description:
+                          _features[entry.key] == _savedFeatures[entry.key]
                           ? (_features[entry.key]!
                                 ? 'Live for active accounts'
                                 : 'Blocked across platform')

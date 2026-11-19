@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/ads/ad_config.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/account_access_repository.dart';
-import 'package:tradex/core/privacy/consent_preferences.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/ads/ad_config.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/data/account_access_repository.dart';
+import 'package:alphajournal/core/privacy/consent_preferences.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 
 void main() {
   AccountAccess account({

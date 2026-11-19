@@ -103,7 +103,7 @@ class UiSwitch extends StatelessWidget {
                 ? c.border
                 : value
                 ? onColor
-                : (s.hovered ? c. foregroundMuted : c.borderStrong),
+                : (s.hovered ? c.foregroundMuted : c.borderStrong),
             width: theme.borders.hairline,
           ),
           boxShadow: value && s.hovered ? uiGlow(ctx, onColor) : null,

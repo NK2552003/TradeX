@@ -10,13 +10,13 @@ import 'package:http/testing.dart';
 import 'package:record/record.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import 'package:tradex/core/ai/voice_gateway_service.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/features/copilot/data/copilot_api.dart';
-import 'package:tradex/features/copilot/data/voice_controller.dart';
-import 'package:tradex/features/copilot/presentation/voice_panel.dart';
+import 'package:alphajournal/core/ai/voice_gateway_service.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/features/copilot/data/copilot_api.dart';
+import 'package:alphajournal/features/copilot/data/voice_controller.dart';
+import 'package:alphajournal/features/copilot/presentation/voice_panel.dart';
 
 class _RecordingCopilotApi extends CopilotApi {
   final Json state = initialWorkspace();
@@ -43,11 +43,7 @@ class _RecordingCopilotApi extends CopilotApi {
   }
 
   @override
-  Stream<Json> run(
-    String threadId,
-    Json body, {
-    bool approval = false,
-  }) async* {
+  Stream<Json> run(String threadId, Json body, {bool approval = false}) async* {
     runPayloads.add(body);
     yield {'type': 'started', 'messageId': 'msg-1'};
     yield {'type': 'delta', 'text': 'Live NVDA price is up 2.1% today.'};
@@ -155,7 +151,8 @@ void main() {
     () async {
       final calls = <Map<String, dynamic>>[];
       final gateway = VoiceGatewayService(
-        proxyUri: () => Uri.parse('https://demo.supabase.co/functions/v1/ai-voice'),
+        proxyUri: () =>
+            Uri.parse('https://demo.supabase.co/functions/v1/ai-voice'),
         authHeaders: () => <String, String>{
           'Authorization': 'Bearer user-jwt',
           'apikey': 'anon-key',
@@ -212,16 +209,16 @@ void main() {
       final player = _FakePlayer();
       final recorder = _FakeRecorder(permission: true);
       final gateway = VoiceGatewayService(
-        proxyUri: () => Uri.parse('https://demo.supabase.co/functions/v1/ai-voice'),
+        proxyUri: () =>
+            Uri.parse('https://demo.supabase.co/functions/v1/ai-voice'),
         authHeaders: () => <String, String>{
           'Authorization': 'Bearer user-jwt',
           'apikey': 'anon-key',
           'Content-Type': 'application/json',
         },
         devOpenAiKey: () => '',
-        clientFactory: () => MockClient(
-          (_) async => http.Response.bytes([11, 22, 33], 200),
-        ),
+        clientFactory: () =>
+            MockClient((_) async => http.Response.bytes([11, 22, 33], 200)),
       );
 
       final voice = CopilotVoiceController(
@@ -259,7 +256,8 @@ void main() {
       final voice = CopilotVoiceController(
         controller,
         voiceGateway: VoiceGatewayService(
-          proxyUri: () => Uri.parse('https://demo.supabase.co/functions/v1/ai-voice'),
+          proxyUri: () =>
+              Uri.parse('https://demo.supabase.co/functions/v1/ai-voice'),
           authHeaders: () => const <String, String>{},
           devOpenAiKey: () => '',
         ),
@@ -276,44 +274,46 @@ void main() {
     },
   );
 
-  testWidgets('CopilotVoicePanel shows Tap to speak when cloud transcription fallback is active', (
-    tester,
-  ) async {
-    final api = _RecordingCopilotApi();
-    final controller = CopilotController(api: api, autoLoad: false);
-    addTearDown(controller.dispose);
-    await controller.reload();
+  testWidgets(
+    'CopilotVoicePanel shows Tap to speak when cloud transcription fallback is active',
+    (tester) async {
+      final api = _RecordingCopilotApi();
+      final controller = CopilotController(api: api, autoLoad: false);
+      addTearDown(controller.dispose);
+      await controller.reload();
 
-    final voice = CopilotVoiceController(
-      controller,
-      voiceGateway: VoiceGatewayService(
-        proxyUri: () => Uri.parse('https://demo.supabase.co/functions/v1/ai-voice'),
-        authHeaders: () => <String, String>{'Authorization': 'Bearer t'},
-        devOpenAiKey: () => '',
-      ),
-      speech: _FakeSpeech(available: false),
-      recorderFactory: () => _FakeRecorder(permission: true),
-      playerFactory: _FakePlayer.new,
-    );
-    addTearDown(voice.dispose);
-
-    await voice.start();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: CopilotVoicePanel(voice: voice, name: 'Atlas'),
+      final voice = CopilotVoiceController(
+        controller,
+        voiceGateway: VoiceGatewayService(
+          proxyUri: () =>
+              Uri.parse('https://demo.supabase.co/functions/v1/ai-voice'),
+          authHeaders: () => <String, String>{'Authorization': 'Bearer t'},
+          devOpenAiKey: () => '',
         ),
-      ),
-    );
-    await tester.pump();
+        speech: _FakeSpeech(available: false),
+        recorderFactory: () => _FakeRecorder(permission: true),
+        playerFactory: _FakePlayer.new,
+      );
+      addTearDown(voice.dispose);
 
-    expect(find.text('Tap to speak'), findsOneWidget);
-    expect(find.text('End call'), findsOneWidget);
+      await voice.start();
 
-    await voice.end();
-    await tester.pump();
-  });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CopilotVoicePanel(voice: voice, name: 'Atlas'),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Tap to speak'), findsOneWidget);
+      expect(find.text('End call'), findsOneWidget);
+
+      await voice.end();
+      await tester.pump();
+    },
+  );
 
   test(
     'CopilotVoiceController blocks voice start and turn submission when AI quota is exhausted',
@@ -334,7 +334,8 @@ void main() {
       final voice = CopilotVoiceController(
         controller,
         voiceGateway: VoiceGatewayService(
-          proxyUri: () => Uri.parse('https://demo.supabase.co/functions/v1/ai-voice'),
+          proxyUri: () =>
+              Uri.parse('https://demo.supabase.co/functions/v1/ai-voice'),
           authHeaders: () => const <String, String>{},
           devOpenAiKey: () => '',
         ),

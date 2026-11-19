@@ -4,15 +4,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/markdown_kit/markdown_editor_field.dart';
-import 'package:tradex/core/markdown_kit/markdown_editor_toolbar.dart';
-import 'package:tradex/core/markdown_kit/markdown_preview.dart';
-import 'package:tradex/core/markdown_kit/markdown_slash_palette.dart';
-import 'package:tradex/core/markdown_kit/markdown_snippets.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_editor_field.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_editor_toolbar.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_preview.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_slash_palette.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_snippets.dart';
 
 import '../data/copilot_controller.dart';
 import '../models/workspace.dart';

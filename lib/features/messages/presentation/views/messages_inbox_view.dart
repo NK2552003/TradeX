@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
-import 'package:tradex/core/ads/ad_scope.dart';
-import 'package:tradex/core/ads/promotion_preview.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
-import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
+import 'package:alphajournal/core/ads/ad_scope.dart';
+import 'package:alphajournal/core/ads/promotion_preview.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/messages/presentation/widgets/messages_widgets.dart';
+import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
 
 /// The inbox: search, filter chips, an optional pinned section, then the thread
 /// list. Every row and count comes from [MessagesRepository]; this widget holds

@@ -179,8 +179,7 @@ class _UiCardState extends State<UiCard> {
       );
 
       final bool useMotion =
-          widget.motion &&
-          (hasAction || widget.collapsible || widget.selected);
+          widget.motion && (hasAction || widget.collapsible || widget.selected);
       final Clip clip = widget.media != null ? Clip.antiAlias : Clip.none;
       if (!useMotion) {
         return Container(
@@ -281,8 +280,7 @@ class _UiCardState extends State<UiCard> {
         widget.trailing != null ||
         widget.leading != null ||
         widget.collapsible;
-    final bool hasBodyContent =
-        widget.loading || !_isEmptyWidget(widget.child);
+    final bool hasBodyContent = widget.loading || !_isEmptyWidget(widget.child);
 
     final Widget content = widget.collapsible || widget.loading
         ? AnimatedCrossFade(

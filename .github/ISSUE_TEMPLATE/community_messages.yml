@@ -1,0 +1,91 @@
+name: Community or messages issue
+description: Report posts, comments, reactions, moderation, profiles, private messaging, realtime, or Free-tier preview issues.
+title: "[Community/Messages]: "
+labels:
+  - community
+  - messages
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never post private messages, user email addresses, account IDs, moderation evidence, encryption material, or another person's content without permission. Use a private advisory for cross-user access.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Community feed
+        - Post/composer
+        - Comments/reactions
+        - Profiles/following
+        - Moderation/reporting/blocking
+        - Live rooms/audio
+        - Message inbox/thread
+        - Message requests/archive
+        - Attachments/sharing
+        - Realtime/presence
+        - Community market sidebar
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Account tier
+      options:
+        - Signed out
+        - Free
+        - Basic
+        - Pro
+        - Admin/moderator
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Version and environment
+      placeholder: App version/commit, platform, browser/device
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction with synthetic content
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior and visibility
+      placeholder: Include ownership, privacy, tier, and realtime expectations.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy/moderation impact
+      placeholder: Describe impact without identifying a real user or quoting private content.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: Include Free-vs-paid access, direct-route behavior, realtime cleanup, and regression tests.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Submission safety
+      options:
+        - label: I used synthetic/redacted content and removed user identifiers and private messages.
+          required: true
+        - label: I used a private advisory if content crosses an unauthorized account boundary.
+          required: true
+

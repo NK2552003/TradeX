@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/navigation/customer_routes.dart';
-import 'package:tradex/core/navigation/share_links.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/navigation/customer_routes.dart';
+import 'package:alphajournal/core/navigation/share_links.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 
 /// Filter categories for the right-side Feature Showcase overlay.
 enum FeatureShowcaseCategory {
@@ -37,10 +37,7 @@ enum FeaturePreviewKind {
 
 @immutable
 class FeatureShowcaseStep {
-  const FeatureShowcaseStep({
-    required this.title,
-    required this.detail,
-  });
+  const FeatureShowcaseStep({required this.title, required this.detail});
 
   final String title;
   final String detail;
@@ -48,10 +45,7 @@ class FeatureShowcaseStep {
 
 @immutable
 class FeatureSpecRow {
-  const FeatureSpecRow({
-    required this.label,
-    required this.value,
-  });
+  const FeatureSpecRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -104,10 +98,10 @@ class FeatureShowcaseItem {
   final bool supportsPageTour;
 
   String canonicalUrl({UserRole? activeRole}) => AppShareLinks.destinationUrl(
-        destinationId,
-        activeRole: activeRole,
-        currentHost: subdomain.host,
-      );
+    destinationId,
+    activeRole: activeRole,
+    currentHost: subdomain.host,
+  );
 
   bool matchesDestination(String destination) {
     final normalized = destination.trim().toLowerCase();
@@ -147,7 +141,7 @@ class FeatureShowcaseItem {
   }
 }
 
-/// Builds the full in-app catalog of every TraderHub alphajournal feature.
+/// Builds the full in-app catalog of every AlphaJournal feature.
 List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
   required bool hasAffiliateAccess,
   required bool hasAdminAccess,
@@ -156,7 +150,8 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
     const FeatureShowcaseItem(
       id: 'workspace',
       title: 'Writing Desk & Workspace',
-      tagline: 'Unified daily command center linking trades, notes & playbooks.',
+      tagline:
+          'Unified daily command center linking trades, notes & playbooks.',
       category: FeatureShowcaseCategory.workspace,
       previewKind: FeaturePreviewKind.workspace,
       destinationId: 'workspace',
@@ -167,14 +162,23 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
           'Start every market session from one workspace with a horizontal calendar strip, quick-create actions, and cross-linked records.',
       detailedParagraphs: <String>[
         'Writing Desk replaces scattered spreadsheets and disconnected note apps with a single chronological timeline of your trading life. Pick any date on the horizontal calendar strip to inspect all Journal executions, Research Notes, and Strategy edits recorded on that day.',
-        'Every edge stored inside alphajournal is bidirectional: linking a Trade to a Strategy Playbook automatically surfaces that execution inside the Strategy dossier, while mentioning a \$SYMBOL or [[Note]] builds an interactive knowledge graph.',
+        'Every edge stored inside AlphaJournal is bidirectional: linking a Trade to a Strategy Playbook automatically surfaces that execution inside the Strategy dossier, while mentioning a \$SYMBOL or [[Note]] builds an interactive knowledge graph.',
         'Press ⌘K (or tap Search) from anywhere to jump instantaneously between documents, calculators, tickers, and community handles without losing context.',
       ],
       specs: <FeatureSpecRow>[
         FeatureSpecRow(label: 'Canonical Host', value: 'app.alphajournal.in'),
-        FeatureSpecRow(label: 'Free Plan Access', value: 'Full Desk + Calendar'),
-        FeatureSpecRow(label: 'Link Graph', value: 'Bidirectional (Notes / Trades / Playbooks)'),
-        FeatureSpecRow(label: 'Command Palette', value: '⌘K / Ctrl+K Global Search'),
+        FeatureSpecRow(
+          label: 'Free Plan Access',
+          value: 'Full Desk + Calendar',
+        ),
+        FeatureSpecRow(
+          label: 'Link Graph',
+          value: 'Bidirectional (Notes / Trades / Playbooks)',
+        ),
+        FeatureSpecRow(
+          label: 'Command Palette',
+          value: '⌘K / Ctrl+K Global Search',
+        ),
       ],
       helperTips: <String>[
         'Press ⌘K anywhere to search records, symbols, or jump tools',
@@ -191,15 +195,18 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       demoSteps: <FeatureShowcaseStep>[
         FeatureShowcaseStep(
           title: 'Pick a trading day on the calendar strip',
-          detail: 'Inspect trades, notes, and strategy revisions logged for that market session.',
+          detail:
+              'Inspect trades, notes, and strategy revisions logged for that market session.',
         ),
         FeatureShowcaseStep(
           title: 'Launch a quick-create record from the Desk',
-          detail: 'Create a Trade Entry, Thesis Note, or Playbook without switching sections.',
+          detail:
+              'Create a Trade Entry, Thesis Note, or Playbook without switching sections.',
         ),
         FeatureShowcaseStep(
           title: 'Traverse linked records via ⌘K or inline chips',
-          detail: 'Hop seamlessly between a losing trade and its parent Strategy Playbook.',
+          detail:
+              'Hop seamlessly between a losing trade and its parent Strategy Playbook.',
         ),
       ],
       searchKeywords: <String>['home', 'calendar', 'desk', 'overview', 'cmd+k'],
@@ -207,7 +214,8 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
     const FeatureShowcaseItem(
       id: 'journal',
       title: 'Trade Execution Journal',
-      tagline: 'Capture entries, exits, R-multiples, psychology & chart setups.',
+      tagline:
+          'Capture entries, exits, R-multiples, psychology & chart setups.',
       category: FeatureShowcaseCategory.workspace,
       previewKind: FeaturePreviewKind.journal,
       destinationId: 'journal',
@@ -218,15 +226,30 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
           'Capture every execution with 7 structured templates, entry/stop/target metrics, R-multiple & P&L calculation, chart attachments, and mistake tags.',
       detailedParagraphs: <String>[
         'Consistent profitability comes from reviewing process quality alongside P&L. Trade Execution Journal captures side (Long/Short), entry price, stop loss, exit target, quantity, slippage/charges, and conviction score in one responsive ticket.',
-        'Instead of manually calculating expectancy in Excel, alphajournal derives net P&L, Realized R-multiple, Win Rate, and Profit Factor automatically across 1W, 1M, and All-Time windows—and correlates losses against custom mistake tags like FOMO, Over-sizing, or Early Exit.',
+        'Instead of manually calculating expectancy in Excel, AlphaJournal derives net P&L, Realized R-multiple, Win Rate, and Profit Factor automatically across 1W, 1M, and All-Time windows—and correlates losses against custom mistake tags like FOMO, Over-sizing, or Early Exit.',
         'Each trade can attach chart snapshots, connect back to a Strategy Playbook, export cleanly as a publication-grade PDF (Pro), share privately in E2EE Messages, or publish publicly via `?public=true` links.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Included in Free Plan', value: '15 entries total'),
-        FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '100 entries total'),
-        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: '50,000 entries + PDF Export'),
-        FeatureSpecRow(label: 'Built-in Templates', value: '7 Execution Templates'),
-        FeatureSpecRow(label: 'Exports & Sharing', value: 'PDF + E2EE DM + Public Web Link'),
+        FeatureSpecRow(
+          label: 'Included in Free Plan',
+          value: '15 entries total',
+        ),
+        FeatureSpecRow(
+          label: 'Basic Plan (₹299/mo)',
+          value: '100 entries total',
+        ),
+        FeatureSpecRow(
+          label: 'Pro Plan (₹499/mo)',
+          value: '50,000 entries + PDF Export',
+        ),
+        FeatureSpecRow(
+          label: 'Built-in Templates',
+          value: '7 Execution Templates',
+        ),
+        FeatureSpecRow(
+          label: 'Exports & Sharing',
+          value: 'PDF + E2EE DM + Public Web Link',
+        ),
       ],
       helperTips: <String>[
         'Use Calculators -> "Draft to Journal" to pre-fill quantity & stop loss',
@@ -243,18 +266,27 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       demoSteps: <FeatureShowcaseStep>[
         FeatureShowcaseStep(
           title: 'Open a new entry & select an execution template',
-          detail: 'Fill symbol, Long/Short direction, entry, stop loss, target, and quantity.',
+          detail:
+              'Fill symbol, Long/Short direction, entry, stop loss, target, and quantity.',
         ),
         FeatureShowcaseStep(
           title: 'Link a Strategy Playbook & attach chart proof',
-          detail: 'Record setup quality and tag emotional state or execution mistakes.',
+          detail:
+              'Record setup quality and tag emotional state or execution mistakes.',
         ),
         FeatureShowcaseStep(
           title: 'Audit expectancy or share a public breakdown',
-          detail: 'Export PDF or share directly to WhatsApp, X, Telegram, or E2EE DM.',
+          detail:
+              'Export PDF or share directly to WhatsApp, X, Telegram, or E2EE DM.',
         ),
       ],
-      searchKeywords: <String>['trades', 'pnl', 'execution', 'r-multiple', 'log'],
+      searchKeywords: <String>[
+        'trades',
+        'pnl',
+        'execution',
+        'r-multiple',
+        'log',
+      ],
       supportsPageTour: true,
     ),
     const FeatureShowcaseItem(
@@ -277,9 +309,18 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       specs: <FeatureSpecRow>[
         FeatureSpecRow(label: 'Included in Free Plan', value: '3 notes'),
         FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '25 notes'),
-        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: '10,000 notes + PDF Export'),
-        FeatureSpecRow(label: 'Research Templates', value: '8 Templates (Pre-Market, Earnings, etc.)'),
-        FeatureSpecRow(label: 'AI Integration', value: 'One-Click Note Refactor & Summarizer'),
+        FeatureSpecRow(
+          label: 'Pro Plan (₹499/mo)',
+          value: '10,000 notes + PDF Export',
+        ),
+        FeatureSpecRow(
+          label: 'Research Templates',
+          value: '8 Templates (Pre-Market, Earnings, etc.)',
+        ),
+        FeatureSpecRow(
+          label: 'AI Integration',
+          value: 'One-Click Note Refactor & Summarizer',
+        ),
       ],
       helperTips: <String>[
         'Type \$NIFTY50 or \$RELIANCE to embed live navigable symbol pills',
@@ -296,24 +337,33 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       demoSteps: <FeatureShowcaseStep>[
         FeatureShowcaseStep(
           title: 'Choose Pre-Market, Earnings, or Blank Note template',
-          detail: 'Outline key price zones, catalysts, and invalidation triggers in Markdown.',
+          detail:
+              'Outline key price zones, catalysts, and invalidation triggers in Markdown.',
         ),
         FeatureShowcaseStep(
           title: 'Add \$SYMBOL cashtags and [[Strategy]] links',
-          detail: 'Build clickable edges into live quotes and existing workspace playbooks.',
+          detail:
+              'Build clickable edges into live quotes and existing workspace playbooks.',
         ),
         FeatureShowcaseStep(
           title: 'Clean up with AI Refactor & publish or export',
           detail: 'Save polished Markdown/PDF or share with fellow traders.',
         ),
       ],
-      searchKeywords: <String>['markdown', 'wiki', 'research', 'thesis', 'refactor'],
+      searchKeywords: <String>[
+        'markdown',
+        'wiki',
+        'research',
+        'thesis',
+        'refactor',
+      ],
       supportsPageTour: true,
     ),
     const FeatureShowcaseItem(
       id: 'strategies',
       title: 'Strategy Playbooks',
-      tagline: 'Systematize entry/exit checklists, lifecycle stages & rule revisions.',
+      tagline:
+          'Systematize entry/exit checklists, lifecycle stages & rule revisions.',
       category: FeatureShowcaseCategory.workspace,
       previewKind: FeaturePreviewKind.strategies,
       destinationId: 'strategies',
@@ -325,14 +375,29 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       detailedParagraphs: <String>[
         'Discretionary mistakes shrink dramatically when every setup lives inside a concrete Playbook. Define exact market-regime filters, entry triggers, stop-loss placement logic, scaling rules, and invalidation warnings across 8 institutional templates.',
         'Promote each Playbook through explicit lifecycle stages—Draft, Backtesting, Live, or Archived—while preserving full revision history so you always know how your rules evolved over time.',
-        'Because Journal trades attach directly to Playbooks, alphajournal measures empirical win rate, average R-multiple, and max drawdown per strategy—and lets AI Playbook Reviewer detect rule drift.',
+        'Because Journal trades attach directly to Playbooks, AlphaJournal measures empirical win rate, average R-multiple, and max drawdown per strategy—and lets AI Playbook Reviewer detect rule drift.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Included in Free Plan', value: '1 live playbook'),
-        FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '3 live playbooks'),
-        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: '250 live playbooks'),
-        FeatureSpecRow(label: 'Lifecycle Stages', value: 'Draft · Backtesting · Live · Archived'),
-        FeatureSpecRow(label: 'Audit Trail', value: 'Revision History + Linked Trade Telemetry'),
+        FeatureSpecRow(
+          label: 'Included in Free Plan',
+          value: '1 live playbook',
+        ),
+        FeatureSpecRow(
+          label: 'Basic Plan (₹299/mo)',
+          value: '3 live playbooks',
+        ),
+        FeatureSpecRow(
+          label: 'Pro Plan (₹499/mo)',
+          value: '250 live playbooks',
+        ),
+        FeatureSpecRow(
+          label: 'Lifecycle Stages',
+          value: 'Draft · Backtesting · Live · Archived',
+        ),
+        FeatureSpecRow(
+          label: 'Audit Trail',
+          value: 'Revision History + Linked Trade Telemetry',
+        ),
       ],
       helperTips: <String>[
         'Keep experimental setups in Draft or Backtesting before sizing live',
@@ -349,30 +414,40 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       demoSteps: <FeatureShowcaseStep>[
         FeatureShowcaseStep(
           title: 'Define setup triggers, invalidation & position sizing rules',
-          detail: 'Start from an ORB, VWAP Pullback, Momentum, or Options Income playbook.',
+          detail:
+              'Start from an ORB, VWAP Pullback, Momentum, or Options Income playbook.',
         ),
         FeatureShowcaseStep(
           title: 'Tag lifecycle stage & track rule revisions',
-          detail: 'Move between Backtesting and Live with dated rule changelog notes.',
+          detail:
+              'Move between Backtesting and Live with dated rule changelog notes.',
         ),
         FeatureShowcaseStep(
           title: 'Audit linked Journal executions',
-          detail: 'Compare realized win rate and R-multiple against target expectancy.',
+          detail:
+              'Compare realized win rate and R-multiple against target expectancy.',
         ),
       ],
-      searchKeywords: <String>['playbook', 'rules', 'setup', 'backtest', 'edge'],
+      searchKeywords: <String>[
+        'playbook',
+        'rules',
+        'setup',
+        'backtest',
+        'edge',
+      ],
       supportsPageTour: true,
     ),
     const FeatureShowcaseItem(
       id: 'calculators',
       title: '22 Risk, Options & Tax Calculators',
-      tagline: 'Position size, Black-Scholes Greeks, Brokerage, LTCG & 44AB Audit.',
+      tagline:
+          'Position size, Black-Scholes Greeks, Brokerage, LTCG & 44AB Audit.',
       category: FeatureShowcaseCategory.markets,
       previewKind: FeaturePreviewKind.calculators,
       destinationId: 'calculators',
       icon: Icons.calculate_outlined,
       subdomain: CustomerSubdomain.app,
-      tierBadge: '22 Tools · Included in All Plans',
+      tierBadge: 'Core Free · Advanced Basic / Pro',
       summary:
           'Interactive suite of 22 deterministic calculators covering Trading Risk (7), Options Greeks & IV (3), Investing (7), Currency (2), and Indian Tax/Turnover (3).',
       detailedParagraphs: <String>[
@@ -381,11 +456,30 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'India-specific Brokerage & Tax modules compute NSE/BSE STT, Stamp Duty, SEBI fees, GST, LTCG/STCG liability, and Section 44AB F&O speculative/non-speculative audit turnover automatically.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Trading Risk Suite', value: '7 Calculators (Position Size, Kelly, R:R...)'),
-        FeatureSpecRow(label: 'Options & Greeks', value: '3 Calculators (Black-Scholes, IV, Payoff)'),
-        FeatureSpecRow(label: 'Investing & SIP', value: '7 Calculators (CAGR, XIRR, SIP, EMI...)'),
-        FeatureSpecRow(label: 'Currency & Tax', value: '5 Calculators (FX, Brokerage, LTCG, STCG, 44AB)'),
-        FeatureSpecRow(label: 'Execution Handoff', value: 'One-Click "Draft to Journal" Pre-fill'),
+        FeatureSpecRow(
+          label: 'Plan Access',
+          value: 'Core: Free · Advanced: Basic / Pro',
+        ),
+        FeatureSpecRow(
+          label: 'Trading Risk Suite',
+          value: '7 Calculators (Position Size, Kelly, R:R...)',
+        ),
+        FeatureSpecRow(
+          label: 'Options & Greeks',
+          value: '3 Calculators (Black-Scholes, IV, Payoff)',
+        ),
+        FeatureSpecRow(
+          label: 'Investing & SIP',
+          value: '7 Calculators (CAGR, XIRR, SIP, EMI...)',
+        ),
+        FeatureSpecRow(
+          label: 'Currency & Tax',
+          value: '5 Calculators (FX, Brokerage, LTCG, STCG, 44AB)',
+        ),
+        FeatureSpecRow(
+          label: 'Execution Handoff',
+          value: 'One-Click "Draft to Journal" Pre-fill',
+        ),
       ],
       helperTips: <String>[
         'Cap risk per trade at 0.5%–1.0% via Position Size before placing orders',
@@ -398,33 +492,44 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'Send sized setups directly into a pre-filled Trade Journal draft',
       ],
       reviewNote:
-          'Included unrestricted on Free, Basic, and Pro plans—even offline. Ideal pre-trade sanity check before pulling the trigger.',
+          'Core tools remain available on Free. Basic and Pro unlock the advanced trading, options, forex, and tax set. Calculations run locally and are ideal pre-trade sanity checks.',
       demoSteps: <FeatureShowcaseStep>[
         FeatureShowcaseStep(
           title: 'Select Trading, Options, Investing, Currency, or Tax',
-          detail: 'Pick any of the 22 calculators using quick category pills or search.',
+          detail:
+              'Pick any of the 22 calculators using quick category pills or search.',
         ),
         FeatureShowcaseStep(
           title: 'Tune capital, entry, stop-loss, IV, or tax inputs',
-          detail: 'Inspect exact share quantity, margin utilization %, and net breakeven.',
+          detail:
+              'Inspect exact share quantity, margin utilization %, and net breakeven.',
         ),
         FeatureShowcaseStep(
           title: 'Click "Draft to Journal" to log the sized setup',
-          detail: 'Pre-populates ticker levels and calculated position size in Journal.',
+          detail:
+              'Pre-populates ticker levels and calculated position size in Journal.',
         ),
       ],
-      searchKeywords: <String>['position size', 'greeks', 'black scholes', 'ltcg', 'brokerage', 'kelly'],
+      searchKeywords: <String>[
+        'position size',
+        'greeks',
+        'black scholes',
+        'ltcg',
+        'brokerage',
+        'kelly',
+      ],
     ),
     const FeatureShowcaseItem(
       id: 'market',
       title: 'Live Markets, News & Screeners',
-      tagline: 'Real-time index breadth, movers, sector screeners & shareable tickers.',
+      tagline:
+          'Real-time index breadth, movers, sector screeners & shareable tickers.',
       category: FeatureShowcaseCategory.markets,
       previewKind: FeaturePreviewKind.market,
       destinationId: 'market',
       icon: Icons.candlestick_chart_outlined,
       subdomain: CustomerSubdomain.app,
-      tierBadge: 'Public & Signed-In · Dynamic SEO',
+      tierBadge: 'Basic / Pro · Free Community Preview',
       summary:
           'Monitor global & Indian indices, top gainers/losers, fundamental screeners, curated financial news, and shareable `/market/:symbol` dossiers.',
       detailedParagraphs: <String>[
@@ -433,10 +538,27 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'Every instrument has a canonical URL (`https://app.alphajournal.in/market/<SYMBOL>`) complete with dynamic Open Graph metadata, ready to share via WhatsApp, X, Telegram, LinkedIn, or Encrypted DM.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Market Views', value: '6 Tabs (Overview, News, Movers, Instruments, Screeners, Coverage)'),
-        FeatureSpecRow(label: 'Canonical Deep Link', value: 'app.alphajournal.in/market/<SYMBOL>'),
-        FeatureSpecRow(label: 'Quote Pipeline', value: 'Authenticated Edge Proxy (No Key Exposure)'),
-        FeatureSpecRow(label: 'Search Indexing', value: 'Dynamic Title & OG Cards per Symbol'),
+        FeatureSpecRow(
+          label: 'Plan Access',
+          value: 'Full: Basic / Pro · Limited Community preview: Free',
+        ),
+        FeatureSpecRow(
+          label: 'Market Views',
+          value:
+              '6 Tabs (Overview, News, Movers, Instruments, Screeners, Coverage)',
+        ),
+        FeatureSpecRow(
+          label: 'Canonical Deep Link',
+          value: 'app.alphajournal.in/market/<SYMBOL>',
+        ),
+        FeatureSpecRow(
+          label: 'Quote Pipeline',
+          value: 'Authenticated Edge Proxy (No Key Exposure)',
+        ),
+        FeatureSpecRow(
+          label: 'Search Indexing',
+          value: 'Dynamic Title & OG Cards per Symbol',
+        ),
       ],
       helperTips: <String>[
         'Use the top-right Share icon inside any instrument view to send its live URL',
@@ -457,19 +579,30 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         ),
         FeatureShowcaseStep(
           title: 'Open an Instrument Dossier by tapping any ticker',
-          detail: 'Inspect valuation metrics, institutional ownership, and latest headlines.',
+          detail:
+              'Inspect valuation metrics, institutional ownership, and latest headlines.',
         ),
         FeatureShowcaseStep(
           title: 'Share ticker link via app.alphajournal.in/market/SYMBOL',
-          detail: 'Tap the Share button to send into Messages, WhatsApp, X, or Telegram.',
+          detail:
+              'Tap the Share button to send into Messages, WhatsApp, X, or Telegram.',
         ),
       ],
-      searchKeywords: <String>['stocks', 'quotes', 'screener', 'movers', 'news', 'nifty', 'ticker'],
+      searchKeywords: <String>[
+        'stocks',
+        'quotes',
+        'screener',
+        'movers',
+        'news',
+        'nifty',
+        'ticker',
+      ],
     ),
     const FeatureShowcaseItem(
       id: 'community',
       title: 'Trader Community & Public Profiles',
-      tagline: 'Trade setups, polls, nested threads & SEO-indexed @handle profiles.',
+      tagline:
+          'Trade setups, polls, nested threads & SEO-indexed @handle profiles.',
       category: FeatureShowcaseCategory.social,
       previewKind: FeaturePreviewKind.community,
       destinationId: 'community_feed',
@@ -484,11 +617,26 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'Every post and profile generates rich dynamic Open Graph link previews at Cloudflare Edge (`@handle`, post excerpts, attached setup images) and can be exported as branded PNG snapshot cards.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Canonical Host', value: 'community.alphajournal.in'),
-        FeatureSpecRow(label: 'Daily Post Limits', value: 'Free: 2/day · Basic: 15/day · Pro: 100/day'),
-        FeatureSpecRow(label: 'Daily Comment Limits', value: 'Free: 10/day · Basic: 50/day · Pro: 500/day'),
-        FeatureSpecRow(label: 'Social Share Channels', value: 'WhatsApp · X · Telegram · LinkedIn · PNG Card'),
-        FeatureSpecRow(label: 'Cross-Workflow Hooks', value: 'Clip to Notes · Analyze with AI Copilot'),
+        FeatureSpecRow(
+          label: 'Canonical Host',
+          value: 'community.alphajournal.in',
+        ),
+        FeatureSpecRow(
+          label: 'Daily Post Limits',
+          value: 'Free: 2/day · Basic: 15/day · Pro: 100/day',
+        ),
+        FeatureSpecRow(
+          label: 'Daily Comment Limits',
+          value: 'Free: 10/day · Basic: 50/day · Pro: 500/day',
+        ),
+        FeatureSpecRow(
+          label: 'Social Share Channels',
+          value: 'WhatsApp · X · Telegram · LinkedIn · PNG Card',
+        ),
+        FeatureSpecRow(
+          label: 'Cross-Workflow Hooks',
+          value: 'Clip to Notes · Analyze with AI Copilot',
+        ),
       ],
       helperTips: <String>[
         'Click "Clip to Notes" in any post’s Share menu to save setups locally',
@@ -505,41 +653,65 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       demoSteps: <FeatureShowcaseStep>[
         FeatureShowcaseStep(
           title: 'Publish a trade commentary, chart, setup tile, or poll',
-          detail: 'Include Entry, Target, Stop, R-multiple, and \$TICKER cashtags.',
+          detail:
+              'Include Entry, Target, Stop, R-multiple, and \$TICKER cashtags.',
         ),
         FeatureShowcaseStep(
           title: 'React, reply, bookmark, or quote-post on feed',
-          detail: 'Engage with verified setups or save valuable insights to Trader Notes.',
+          detail:
+              'Engage with verified setups or save valuable insights to Trader Notes.',
         ),
         FeatureShowcaseStep(
           title: 'Open Share Sheet for community.alphajournal.in links',
-          detail: 'Copy canonical URL, export PNG card, or share directly on X/WhatsApp.',
+          detail:
+              'Copy canonical URL, export PNG card, or share directly on X/WhatsApp.',
         ),
       ],
-      searchKeywords: <String>['feed', 'posts', 'poll', 'profile', 'setup', 'social', 'handle'],
+      searchKeywords: <String>[
+        'feed',
+        'posts',
+        'poll',
+        'profile',
+        'setup',
+        'social',
+        'handle',
+      ],
     ),
     const FeatureShowcaseItem(
       id: 'messages',
       title: 'End-to-End Encrypted Messaging',
-      tagline: 'Zero-knowledge X25519 + AES-256-GCM trader DMs & record sharing.',
+      tagline:
+          'Zero-knowledge X25519 + AES-256-GCM trader DMs & record sharing.',
       category: FeatureShowcaseCategory.social,
       previewKind: FeaturePreviewKind.messages,
       destinationId: 'messages',
       icon: Icons.lock_outline_rounded,
       subdomain: CustomerSubdomain.app,
-      tierBadge: 'E2EE · Free/Basic/Pro Quotas',
+      tierBadge: 'E2EE · Basic / Pro',
       summary:
           'Private 1:1 and group trader chats encrypted client-side using X25519 ECDH key exchange, AES-256-GCM payloads, HMAC-SHA256 signatures, and 16-char recovery keys.',
       detailedParagraphs: <String>[
-        'Trading theses and position sizing are sensitive. Before any message, voice note, or image leaves your browser or phone, alphajournal encrypts it using WebCrypto/native X25519 ECDH shared keys, AES-256-GCM authenticated encryption, and per-message HMAC-SHA256 verification.',
+        'Trading theses and position sizing are sensitive. Before any message, voice note, or image leaves your browser or phone, AlphaJournal encrypts it using WebCrypto/native X25519 ECDH shared keys, AES-256-GCM authenticated encryption, and per-message HMAC-SHA256 verification.',
         'Even database administrators and API servers only ever observe ciphertext envelopes—only participating devices holding the matching identity private key can unwrap the thread.',
         'Inside chats, share live clickable cards referencing your Trade Journal entries, Notes, Strategy Playbooks, Market tickers, or Community posts, alongside typing indicators and message forwarding.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Key Exchange', value: 'X25519 Elliptic-Curve Diffie-Hellman'),
-        FeatureSpecRow(label: 'Cipher & Integrity', value: 'AES-256-GCM + HMAC-SHA256'),
-        FeatureSpecRow(label: 'Key Backup', value: '16-Character Recovery Passphrase'),
-        FeatureSpecRow(label: 'Monthly Quotas', value: 'Free / Basic / Pro Tier Scaled'),
+        FeatureSpecRow(
+          label: 'Key Exchange',
+          value: 'X25519 Elliptic-Curve Diffie-Hellman',
+        ),
+        FeatureSpecRow(
+          label: 'Cipher & Integrity',
+          value: 'AES-256-GCM + HMAC-SHA256',
+        ),
+        FeatureSpecRow(
+          label: 'Key Backup',
+          value: '16-Character Recovery Passphrase',
+        ),
+        FeatureSpecRow(
+          label: 'Plan Access',
+          value: 'Basic / Pro only; Free receives an upgrade notice',
+        ),
       ],
       helperTips: <String>[
         'Back up your 16-char recovery key in Settings -> Security right after setup',
@@ -556,23 +728,34 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       demoSteps: <FeatureShowcaseStep>[
         FeatureShowcaseStep(
           title: 'Generate identity keys & back up 16-char recovery code',
-          detail: 'Ensures you can unlock encrypted chats if you clear storage or change devices.',
+          detail:
+              'Ensures you can unlock encrypted chats if you clear storage or change devices.',
         ),
         FeatureShowcaseStep(
           title: 'Start a direct thread with any trader handle',
-          detail: 'Send encrypted text, chart screenshots, or quick voice memos.',
+          detail:
+              'Send encrypted text, chart screenshots, or quick voice memos.',
         ),
         FeatureShowcaseStep(
           title: 'Share linked Journal or Strategy cards inline',
-          detail: 'Use Share -> Send via alphajournal Messages from any record.',
+          detail:
+              'Use Share -> Send via AlphaJournal Messages from any record.',
         ),
       ],
-      searchKeywords: <String>['dm', 'chat', 'encrypted', 'e2ee', 'x25519', 'recovery'],
+      searchKeywords: <String>[
+        'dm',
+        'chat',
+        'encrypted',
+        'e2ee',
+        'x25519',
+        'recovery',
+      ],
     ),
     const FeatureShowcaseItem(
       id: 'ai_copilot',
       title: 'AI Copilot, Live Search & Voice',
-      tagline: 'Real-time web_search, 11 /trader-* workflows, Voice Calls & memory.',
+      tagline:
+          'Real-time web_search, 11 /trader-* workflows, Voice Calls & memory.',
       category: FeatureShowcaseCategory.ai,
       previewKind: FeaturePreviewKind.aiCopilot,
       destinationId: 'ai_copilot',
@@ -587,11 +770,26 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'Start an authenticated **AI Voice Call** for hands-free conversational briefings using browser/mic speech recognition plus natural OpenAI TTS audio playback, or pin Copilot Notes & scheduled morning digests.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Included in Free Plan', value: '5 AI prompts / mo'),
-        FeatureSpecRow(label: 'Basic Plan (₹299/mo)', value: '20 AI prompts / mo'),
-        FeatureSpecRow(label: 'Pro Plan (₹499/mo)', value: '5,000 AI prompts / mo'),
-        FeatureSpecRow(label: 'Specialized Skills', value: '11 /trader-* Slash Commands'),
-        FeatureSpecRow(label: 'Voice & Search', value: 'Authenticated TTS/STT Proxy + Live web_search'),
+        FeatureSpecRow(
+          label: 'Included in Free Plan',
+          value: '5 AI prompts / mo',
+        ),
+        FeatureSpecRow(
+          label: 'Basic Plan (₹299/mo)',
+          value: '20 AI prompts / mo',
+        ),
+        FeatureSpecRow(
+          label: 'Pro Plan (₹499/mo)',
+          value: '5,000 AI prompts / mo',
+        ),
+        FeatureSpecRow(
+          label: 'Specialized Skills',
+          value: '11 /trader-* Slash Commands',
+        ),
+        FeatureSpecRow(
+          label: 'Voice & Search',
+          value: 'Authenticated TTS/STT Proxy + Live web_search',
+        ),
       ],
       helperTips: <String>[
         'Type "/" in Copilot composer to browse all 11 /trader-* structured skills',
@@ -608,23 +806,35 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       demoSteps: <FeatureShowcaseStep>[
         FeatureShowcaseStep(
           title: 'Pick Auto, Web Search, or Research mode in Copilot',
-          detail: 'Select Search when asking about current earnings, RBI/Fed dates, or spot levels.',
+          detail:
+              'Select Search when asking about current earnings, RBI/Fed dates, or spot levels.',
         ),
         FeatureShowcaseStep(
           title: 'Invoke a /trader-* skill or start a Voice Call',
-          detail: 'Run structured trade debriefs or speak hands-free with voice synthesis.',
+          detail:
+              'Run structured trade debriefs or speak hands-free with voice synthesis.',
         ),
         FeatureShowcaseStep(
           title: 'Promote answers into Copilot Pages or Trader Notes',
-          detail: 'Save briefings permanently and link them to your workspace graph.',
+          detail:
+              'Save briefings permanently and link them to your workspace graph.',
         ),
       ],
-      searchKeywords: <String>['ai', 'copilot', 'voice', 'search', 'research', 'skills', 'tts'],
+      searchKeywords: <String>[
+        'ai',
+        'copilot',
+        'voice',
+        'search',
+        'research',
+        'skills',
+        'tts',
+      ],
     ),
     const FeatureShowcaseItem(
       id: 'notifications',
       title: 'Activity Inbox & Web Push Alerts',
-      tagline: 'Instant replies, mentions, security events & background VAPID push.',
+      tagline:
+          'Instant replies, mentions, security events & background VAPID push.',
       category: FeatureShowcaseCategory.social,
       previewKind: FeaturePreviewKind.notifications,
       destinationId: 'notifications',
@@ -636,12 +846,21 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       detailedParagraphs: <String>[
         'Stay responsive without constantly polling tabs. The Activity Inbox aggregates every comment reply, `@mention`, new follower, trade milestone, affiliate decision, and E2EE security event into one structured stream.',
         'Clicking any notification opens a cross-subdomain deep link that takes you straight to the exact post, trader profile, or workspace record.',
-        'Enable VAPID Web Push inside Notification Settings so critical alerts arrive smoothly even when alphajournal is minimized or closed.',
+        'Enable VAPID Web Push inside Notification Settings so critical alerts arrive smoothly even when AlphaJournal is minimized or closed.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Delivery Channels', value: 'In-App Toast + Drawer + Web Push (VAPID)'),
-        FeatureSpecRow(label: 'Deep-Link Routing', value: 'Cross-Subdomain Aware (app / community / affiliate)'),
-        FeatureSpecRow(label: 'Granular Controls', value: 'Per-Category Mutes in Settings'),
+        FeatureSpecRow(
+          label: 'Delivery Channels',
+          value: 'In-App Toast + Drawer + Web Push (VAPID)',
+        ),
+        FeatureSpecRow(
+          label: 'Deep-Link Routing',
+          value: 'Cross-Subdomain Aware (app / community / affiliate)',
+        ),
+        FeatureSpecRow(
+          label: 'Granular Controls',
+          value: 'Per-Category Mutes in Settings',
+        ),
       ],
       helperTips: <String>[
         'Click the header bell icon anytime for the quick slide-over feed',
@@ -658,7 +877,8 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       demoSteps: <FeatureShowcaseStep>[
         FeatureShowcaseStep(
           title: 'Open the Bell icon in the header bar',
-          detail: 'Filter between unread mentions, replies, trade alerts, and security updates.',
+          detail:
+              'Filter between unread mentions, replies, trade alerts, and security updates.',
         ),
         FeatureShowcaseStep(
           title: 'Enable Web Push in Notification Settings',
@@ -666,21 +886,27 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         ),
         FeatureShowcaseStep(
           title: 'Tap any alert to navigate cleanly to its source',
-          detail: 'Crosses smoothly to community.alphajournal.in or app.alphajournal.in.',
+          detail:
+              'Crosses smoothly to community.alphajournal.in or app.alphajournal.in.',
         ),
       ],
       searchKeywords: <String>['alerts', 'push', 'inbox', 'mentions', 'vapid'],
     ),
     FeatureShowcaseItem(
       id: 'affiliate',
-      title: hasAffiliateAccess ? 'Affiliate Partner Console' : 'Affiliate Partner Program',
-      tagline: 'Custom /r/:slug links, 30-day attribution & INR UPI/bank payouts.',
+      title: hasAffiliateAccess
+          ? 'Affiliate Partner Console'
+          : 'Affiliate Partner Program',
+      tagline:
+          'Custom /r/:slug links, 30-day attribution & INR UPI/bank payouts.',
       category: FeatureShowcaseCategory.growth,
       previewKind: FeaturePreviewKind.affiliate,
       destinationId: hasAffiliateAccess ? 'overview' : 'affiliate_application',
       icon: Icons.campaign_outlined,
       subdomain: CustomerSubdomain.affiliate,
-      tierBadge: hasAffiliateAccess ? 'Partner Unlocked' : 'affiliate.alphajournal.in',
+      tierBadge: hasAffiliateAccess
+          ? 'Partner Unlocked'
+          : 'affiliate.alphajournal.in',
       summary:
           'Apply in 2 minutes or manage active campaigns on `affiliate.alphajournal.in`: custom `/r/:slug` referral links with 30-day cookie attribution, UTM campaigns, and INR payouts.',
       detailedParagraphs: <String>[
@@ -689,11 +915,26 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'Track clicks, pending signups, 7-day refund-guard clearances, creative banners, and settle recurring INR commissions directly to verified Indian UPI VPAs or NEFT/IMPS bank accounts.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Partner Host', value: 'affiliate.alphajournal.in'),
-        FeatureSpecRow(label: 'Referral Link Format', value: 'https://alphajournal.in/r/<slug>'),
-        FeatureSpecRow(label: 'Attribution Window', value: '30-Day Cross-Subdomain Cookie'),
-        FeatureSpecRow(label: 'Referral Bonus', value: '20% Lifetime Subscriber Perk'),
-        FeatureSpecRow(label: 'Payout Rails', value: 'INR via UPI VPA & Bank IFSC'),
+        FeatureSpecRow(
+          label: 'Partner Host',
+          value: 'affiliate.alphajournal.in',
+        ),
+        FeatureSpecRow(
+          label: 'Referral Link Format',
+          value: 'https://alphajournal.in/r/<slug>',
+        ),
+        FeatureSpecRow(
+          label: 'Attribution Window',
+          value: '30-Day Cross-Subdomain Cookie',
+        ),
+        FeatureSpecRow(
+          label: 'Referral Bonus',
+          value: '20% Lifetime Subscriber Perk',
+        ),
+        FeatureSpecRow(
+          label: 'Payout Rails',
+          value: 'INR via UPI VPA & Bank IFSC',
+        ),
       ],
       helperTips: const <String>[
         'Append ?utm_campaign=youtube or ?utm_campaign=telegram to compare sources',
@@ -711,24 +952,35 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       demoSteps: const <FeatureShowcaseStep>[
         FeatureShowcaseStep(
           title: 'Submit partner application or open Partner Overview',
-          detail: 'Verify your creator channel, niche, and INR UPI or Bank payout details.',
+          detail:
+              'Verify your creator channel, niche, and INR UPI or Bank payout details.',
         ),
         FeatureShowcaseStep(
           title: 'Copy your canonical alphajournal.in/r/:slug link',
-          detail: 'Share across WhatsApp, X, Telegram, LinkedIn, or video descriptions.',
+          detail:
+              'Share across WhatsApp, X, Telegram, LinkedIn, or video descriptions.',
         ),
         FeatureShowcaseStep(
           title: 'Monitor clicks, conversions & INR payout batches',
-          detail: 'Inspect active referrals, clearance timers, and completed payouts.',
+          detail:
+              'Inspect active referrals, clearance timers, and completed payouts.',
         ),
       ],
-      searchKeywords: const <String>['referral', 'partner', 'commission', 'inr', 'payout', 'utm'],
+      searchKeywords: const <String>[
+        'referral',
+        'partner',
+        'commission',
+        'inr',
+        'payout',
+        'utm',
+      ],
       requiresAffiliateAccess: hasAffiliateAccess,
     ),
     const FeatureShowcaseItem(
       id: 'settings',
       title: 'Security, Billing & Workspace Tiers',
-      tagline: 'Cross-subdomain SSO, E2EE backup, themes, privacy & INR billing.',
+      tagline:
+          'Cross-subdomain SSO, E2EE backup, themes, privacy & INR billing.',
       category: FeatureShowcaseCategory.growth,
       previewKind: FeaturePreviewKind.settings,
       destinationId: 'settings',
@@ -743,10 +995,22 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'Privacy & Security panes let you audit consent preferences, block/unblock handles, rotate or verify E2EE recovery passphrases, and initiate compliant account deletion.',
       ],
       specs: <FeatureSpecRow>[
-        FeatureSpecRow(label: 'Free Plan', value: '₹0 / mo · 3 Notes · 15 Trades · 5 AI Prompts'),
-        FeatureSpecRow(label: 'Basic Plan', value: '₹299 / mo · 25 Notes · 100 Trades · 20 AI Prompts'),
-        FeatureSpecRow(label: 'Pro Plan', value: '₹499 / mo · 10K Notes · 50K Trades · 5K AI + PDF'),
-        FeatureSpecRow(label: 'Session Scope', value: 'Single Sign-On across *.alphajournal.in'),
+        FeatureSpecRow(
+          label: 'Free Plan',
+          value: '₹0 / mo · 3 Notes · 15 Trades · 5 AI Prompts',
+        ),
+        FeatureSpecRow(
+          label: 'Basic Plan',
+          value: '₹299 / mo · 25 Notes · 100 Trades · 20 AI Prompts',
+        ),
+        FeatureSpecRow(
+          label: 'Pro Plan',
+          value: '₹499 / mo · 10K Notes · 50K Trades · 5K AI + PDF',
+        ),
+        FeatureSpecRow(
+          label: 'Session Scope',
+          value: 'Single Sign-On across *.alphajournal.in',
+        ),
       ],
       helperTips: <String>[
         'Save your 16-char E2EE recovery key inside Security before switching browsers',
@@ -754,7 +1018,7 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         'Switch Comfort vs Compact UI density in Appearance Settings',
       ],
       highlights: <String>[
-        'Single sign-on session persistence across every alphajournal subdomain',
+        'Single sign-on session persistence across every AlphaJournal subdomain',
         'Instant tier entitlement updates across Workspace, DMs & AI Copilot',
         'Granular profile visibility, privacy consent & account export controls',
       ],
@@ -763,23 +1027,34 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       demoSteps: <FeatureShowcaseStep>[
         FeatureShowcaseStep(
           title: 'Configure @handle, bio & public visibility toggles',
-          detail: 'Control what fellow traders see on community.alphajournal.in/@yourhandle.',
+          detail:
+              'Control what fellow traders see on community.alphajournal.in/@yourhandle.',
         ),
         FeatureShowcaseStep(
           title: 'Back up your E2EE recovery passphrase in Security',
-          detail: 'Protect encrypted DM history across browser clears and mobile devices.',
+          detail:
+              'Protect encrypted DM history across browser clears and mobile devices.',
         ),
         FeatureShowcaseStep(
           title: 'Compare Free, Basic & Pro tiers in Billing',
           detail: 'Switch plans or inspect invoices anytime.',
         ),
       ],
-      searchKeywords: <String>['billing', 'pro', 'basic', 'security', 'theme', 'privacy', 'password'],
+      searchKeywords: <String>[
+        'billing',
+        'pro',
+        'basic',
+        'security',
+        'theme',
+        'privacy',
+        'password',
+      ],
     ),
     FeatureShowcaseItem(
       id: 'admin',
       title: 'Institutional Admin Console',
-      tagline: 'Affiliate approvals, moderation queues, seats & audit compliance.',
+      tagline:
+          'Affiliate approvals, moderation queues, seats & audit compliance.',
       category: FeatureShowcaseCategory.growth,
       previewKind: FeaturePreviewKind.admin,
       destinationId: 'overview',
@@ -795,9 +1070,18 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
       ],
       specs: const <FeatureSpecRow>[
         FeatureSpecRow(label: 'Admin Host', value: 'admin.alphajournal.in'),
-        FeatureSpecRow(label: 'Crawler Policy', value: 'Strict noindex, nofollow + Disallow: /'),
-        FeatureSpecRow(label: 'Moderation Surfaces', value: 'Comments · Journals · Notes · Strategies · AI'),
-        FeatureSpecRow(label: 'Access Requirement', value: 'Verified user_admin Server Role'),
+        FeatureSpecRow(
+          label: 'Crawler Policy',
+          value: 'Strict noindex, nofollow + Disallow: /',
+        ),
+        FeatureSpecRow(
+          label: 'Moderation Surfaces',
+          value: 'Comments · Journals · Notes · Strategies · AI',
+        ),
+        FeatureSpecRow(
+          label: 'Access Requirement',
+          value: 'Verified user_admin Server Role',
+        ),
       ],
       helperTips: const <String>[
         'Use top-bar role switcher to jump between Trader and Admin views cleanly',
@@ -819,14 +1103,23 @@ List<FeatureShowcaseItem> buildFeatureShowcaseCatalog({
         ),
         FeatureShowcaseStep(
           title: 'Process pending Affiliate Applications & Moderation queues',
-          detail: 'Approve qualified creator partners and audit community flags.',
+          detail:
+              'Approve qualified creator partners and audit community flags.',
         ),
         FeatureShowcaseStep(
           title: 'Inspect platform subscriptions, deletions & analytics',
-          detail: 'Adjust system tier limits and monitor overall workspace health.',
+          detail:
+              'Adjust system tier limits and monitor overall workspace health.',
         ),
       ],
-      searchKeywords: const <String>['admin', 'moderation', 'approvals', 'seats', 'audit', 'governance'],
+      searchKeywords: const <String>[
+        'admin',
+        'moderation',
+        'approvals',
+        'seats',
+        'audit',
+        'governance',
+      ],
       requiresAdminAccess: true,
     ),
   ];

@@ -2,12 +2,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/markdown_kit/markdown_kit.dart';
-import 'package:tradex/core/markdown_kit/research/research_panel.dart';
-import 'package:tradex/features/copilot/models/research_format.dart';
-import 'package:tradex/features/copilot/models/research_policy.dart';
-import 'package:tradex/features/copilot/presentation/research_format_picker.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_kit.dart';
+import 'package:alphajournal/core/markdown_kit/research/research_panel.dart';
+import 'package:alphajournal/features/copilot/models/research_format.dart';
+import 'package:alphajournal/features/copilot/models/research_policy.dart';
+import 'package:alphajournal/features/copilot/presentation/research_format_picker.dart';
 
 void main() {
   test(

@@ -2,29 +2,29 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
-import 'package:tradex/core/ads/ad_scope.dart';
-import 'package:tradex/core/ads/promotion_preview.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/record_access.dart';
+import 'package:alphajournal/core/ads/ad_scope.dart';
+import 'package:alphajournal/core/ads/promotion_preview.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/record_access.dart';
 // Required unified primitive import for every writing workspace surface.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/copilot/models/trader_skill.dart';
-import 'package:tradex/features/copilot/presentation/trader_skill_picker.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/journal/data/journal_templates.dart';
-import 'package:tradex/features/journal/ui/journal_editor_screen.dart';
-import 'package:tradex/features/journal/ui/journal_template_gallery.dart';
-import 'package:tradex/features/notes/data/note_templates.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/notes/ui/note_editor_screen.dart';
-import 'package:tradex/features/notes/ui/note_template_gallery.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
-import 'package:tradex/features/strategies/data/strategy_templates.dart';
-import 'package:tradex/features/strategies/ui/strategy_editor_screen.dart';
-import 'package:tradex/features/strategies/ui/strategy_template_gallery.dart';
-import 'package:tradex/features/workspace/data/workspace_post_service.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/copilot/models/trader_skill.dart';
+import 'package:alphajournal/features/copilot/presentation/trader_skill_picker.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/journal/data/journal_templates.dart';
+import 'package:alphajournal/features/journal/ui/journal_editor_screen.dart';
+import 'package:alphajournal/features/journal/ui/journal_template_gallery.dart';
+import 'package:alphajournal/features/notes/data/note_templates.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/notes/ui/note_editor_screen.dart';
+import 'package:alphajournal/features/notes/ui/note_template_gallery.dart';
+import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
+import 'package:alphajournal/features/strategies/data/strategy_templates.dart';
+import 'package:alphajournal/features/strategies/ui/strategy_editor_screen.dart';
+import 'package:alphajournal/features/strategies/ui/strategy_template_gallery.dart';
+import 'package:alphajournal/features/workspace/data/workspace_post_service.dart';
 
 /// The Writing Desk landing page — an editorial command centre that opens with
 /// a masthead, an interactive calendar/week strip with activity dots, quick links,

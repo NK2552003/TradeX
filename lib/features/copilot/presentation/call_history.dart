@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../data/copilot_controller.dart';
 import '../models/workspace.dart';
@@ -53,7 +53,7 @@ class CopilotCallHistory extends StatelessWidget {
           density: UiDensity.compact,
           title: thread?.title ?? 'Voice conversation',
           subtitle:
-               '${start?.toString().split('.').first ?? ''} · ${duration ~/ 60}m ${duration % 60}s',
+              '${start?.toString().split('.').first ?? ''} · ${duration ~/ 60}m ${duration % 60}s',
           trailing: UiBadge(
             label: textOf(call, 'status'),
             size: UiSize.xs,

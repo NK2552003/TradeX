@@ -1,0 +1,104 @@
+name: Security hardening (public and non-sensitive)
+description: Propose defense-in-depth work or report a security test gap with no active exploit or confidential evidence.
+title: "[Security hardening]: "
+labels:
+  - security
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only for non-sensitive hardening. If the issue may be exploitable, exposes a secret, crosses an account boundary, bypasses payment/authorization, or includes private data, stop and use a [private Security Advisory](https://github.com/NK2552003/TradeX/security/advisories/new).
+  - type: checkboxes
+    id: public_safety
+    attributes:
+      label: Public-report safety
+      options:
+        - label: This report contains no passwords, OTPs, tokens, cookies, private keys, service-role keys, payment data, private messages, PII, or signed URLs.
+          required: true
+        - label: This report contains no weaponized exploit, active bypass, or evidence from an account I do not own.
+          required: true
+        - label: I understand that uncertain security findings should be reported privately.
+          required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Estimated severity
+      options:
+        - Low - defense in depth or documentation
+        - Medium - meaningful weakness without a demonstrated exploit
+        - High/Critical - stop and use a private advisory
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected layer
+      multiple: true
+      options:
+        - Flutter client
+        - Web/PWA
+        - Authentication/session
+        - Supabase RLS/database
+        - Storage/uploads
+        - Edge Function/API/RPC
+        - Billing/webhook/entitlement
+        - Deep links/App Links/Universal Links
+        - CI/CD/dependency
+        - Logging/privacy
+        - AI gateway/provider integration
+    validations:
+      required: true
+  - type: dropdown
+    id: auth_required
+    attributes:
+      label: Authentication required
+      options:
+        - "No"
+        - Yes - Free
+        - Yes - Basic/Pro
+        - Yes - Admin/Affiliate
+        - Unknown
+    validations:
+      required: true
+  - type: input
+    id: affected_version
+    attributes:
+      label: Affected version or commit
+      placeholder: Release, branch, or commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: hardening_gap
+    attributes:
+      label: Hardening gap
+      description: Describe the missing defense or test without including sensitive exploit detail.
+      placeholder: What boundary should be stronger, and where is the gap?
+    validations:
+      required: true
+  - type: textarea
+    id: sanitized_observation
+    attributes:
+      label: Sanitized observation
+      description: Use test data and redact identifiers. Do not include a working exploit.
+      placeholder: Safe steps or code references that demonstrate the hardening need.
+    validations:
+      required: true
+  - type: input
+    id: classification
+    attributes:
+      label: OWASP / CWE classification
+      placeholder: Optional, for example CWE-200 or OWASP M3
+  - type: textarea
+    id: remediation
+    attributes:
+      label: Suggested remediation
+      placeholder: Proposed control, ownership rule, validation, rate limit, or configuration.
+  - type: textarea
+    id: regression
+    attributes:
+      label: Regression test
+      placeholder: Describe the negative test that should fail before the fix and pass after it.
+    validations:
+      required: true
+

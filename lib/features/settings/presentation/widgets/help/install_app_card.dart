@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // Both unified libraries are required by the project UI contract.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/platform/browser_install.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/platform/browser_install.dart';
 import 'publication_reader.dart';
 
 class InstallAppCard extends StatefulWidget {
@@ -49,9 +49,9 @@ class _InstallAppCardState extends State<InstallAppCard> {
     builder: (context, _) {
       final installer = BrowserInstall.instance;
       final description = installer.installed
-          ? 'Alphajournal is running as an installed app or installation was confirmed by this browser.'
+          ? 'AlphaJournal is running as an installed app or installation was confirmed by this browser.'
           : kIsWeb
-          ? 'Open Alphajournal from your device. Installation is optional and does not change your plan or privacy choices.'
+          ? 'Open AlphaJournal from your device. Installation is optional and does not change your plan or privacy choices.'
           : 'You are using the device app. Browser installation is available from a supported web browser.';
       final content = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -100,10 +100,10 @@ class _InstallAppCardState extends State<InstallAppCard> {
         ],
       );
       if (widget.prompt) {
-        return UiDialog(title: 'Install Alphajournal', content: content);
+        return UiDialog(title: 'Install AlphaJournal', content: content);
       }
       return AppSettingsSectionBlock(
-        title: 'Alphajournal on your device',
+        title: 'AlphaJournal on your device',
         children: [UiCard(child: content)],
       );
     },

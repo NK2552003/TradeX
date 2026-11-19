@@ -1,7 +1,7 @@
 # 11-Universal_Link_Graph — Backend Architecture & Integration Guide
 
 ## 1. Overview
-The Universal Link Graph is the relational backbone that binds TradeX into a unified quantitative trading workspace. It connects records across all 8 core domains:
+The Universal Link Graph is the relational backbone that binds AlphaJournal into a unified quantitative trading workspace. It connects records across all 8 core domains:
 1. `note`: Trader Note (markdown thesis, checklist, research)
 2. `journal`: Trade Journal Entry (executed trade with fills and PnL)
 3. `strategy`: Strategy Playbook (rules, parameters, backtests)

@@ -1294,7 +1294,7 @@ enum AppStrategySort {
 ///
 /// Trader notes, journal entries and strategy playbooks form a triangle, and
 /// tickers hang off all three. One enum for all four means a "linked records"
-/// panel, a link picker and a `tradex://` URL can be written once instead of
+/// panel, a link picker and a `alphajournal://` URL can be written once instead of
 /// three times per direction.
 enum AppLinkKind {
   note,
@@ -1358,7 +1358,7 @@ enum AppLinkKind {
     AppLinkKind.messageThread => 'messages',
   };
 
-  /// Host segment used by `tradex://` deep links.
+  /// Host segment used by `alphajournal://` deep links.
   String get host => switch (this) {
     AppLinkKind.note => 'note',
     AppLinkKind.journal => 'journal',
@@ -1464,7 +1464,7 @@ class AppLinkRef {
 
   /// The internal URL that reopens this record. Written into markdown bodies by
   /// the editors and parsed back by `AppDeepLink`.
-  Uri get uri => Uri(scheme: 'tradex', host: kind.host, path: '/$id');
+  Uri get uri => Uri(scheme: 'alphajournal', host: kind.host, path: '/$id');
 
   /// The markdown a link inserter drops at the cursor.
   String get markdownLink => '[$title]($uri)';

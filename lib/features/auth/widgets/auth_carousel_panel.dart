@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
 
 class AuthCarouselPanel extends StatefulWidget {
-  const AuthCarouselPanel({
-    super.key,
-    this.bottomAction,
-  });
+  const AuthCarouselPanel({super.key, this.bottomAction});
 
   final Widget? bottomAction;
 
@@ -211,9 +208,7 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
                     height: 8,
                     width: isActive ? 24 : 8,
                     decoration: BoxDecoration(
-                      color: isActive
-                          ? colors.primary
-                          : colors.borderStrong,
+                      color: isActive ? colors.primary : colors.borderStrong,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   );
@@ -225,17 +220,16 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
 
         if (widget.bottomAction != null) {
           final double screenHeight = MediaQuery.sizeOf(context).height;
-          final double carouselHeight =
-              (screenHeight * 0.36).clamp(180.0, 340.0);
+          final double carouselHeight = (screenHeight * 0.36).clamp(
+            180.0,
+            340.0,
+          );
 
           return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                height: carouselHeight,
-                child: carousel,
-              ),
+              SizedBox(height: carouselHeight, child: carousel),
               SizedBox(height: context.sp(theme.spacing.xl)),
               textAndDots,
               widget.bottomAction!,

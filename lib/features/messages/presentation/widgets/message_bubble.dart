@@ -5,11 +5,11 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
 
 /// One chat bubble.
 ///
@@ -220,7 +220,7 @@ class MessageBubble extends StatelessWidget {
   }
 
   static final RegExp _inlineTokenRegex = RegExp(
-    r'(tradex://[^\s\)]+|https?://[^\s\)]+|(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$))',
+    r'(alphajournal://[^\s\)]+|https?://[^\s\)]+|(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$))',
   );
 
   Widget _buildMessageBodyText(BuildContext context, Color fg, bool me) {
@@ -592,9 +592,7 @@ class MessageBubble extends StatelessWidget {
                         ? ResizeImage.resizeIfNeeded(
                             cacheW,
                             null,
-                            MemoryImage(
-                              base64Decode(thumbUrl.split(',').last),
-                            ),
+                            MemoryImage(base64Decode(thumbUrl.split(',').last)),
                           )
                         : ResizeImage.resizeIfNeeded(
                             cacheW,
@@ -618,19 +616,20 @@ class MessageBubble extends StatelessWidget {
                             if (progress == null) return child;
                             return _mediaFallback(context, loading: true);
                           },
-                      errorBuilder: (BuildContext ctx, Object e, StackTrace? s) {
-                        if (attachment.storagePath != null) {
-                          unawaited(
-                            MessagesRepositoryScope.repository
-                                .resolveAttachmentUrl(
-                                  attachment,
-                                  threadId: message.threadId,
-                                  forceRefresh: true,
-                                ),
-                          );
-                        }
-                        return _mediaFallback(context);
-                      },
+                      errorBuilder:
+                          (BuildContext ctx, Object e, StackTrace? s) {
+                            if (attachment.storagePath != null) {
+                              unawaited(
+                                MessagesRepositoryScope.repository
+                                    .resolveAttachmentUrl(
+                                      attachment,
+                                      threadId: message.threadId,
+                                      forceRefresh: true,
+                                    ),
+                              );
+                            }
+                            return _mediaFallback(context);
+                          },
                     );
                   },
                 ),
@@ -801,11 +800,10 @@ class MessageBubble extends StatelessWidget {
             SizedBox(width: context.sp(theme.spacing.xxs)),
             Builder(
               builder: (context) {
-                final showReceipts =
-                    PrivacyRepositoryImpl
-                        .instance
-                        .cachedSettings
-                        .showReadReceipts;
+                final showReceipts = PrivacyRepositoryImpl
+                    .instance
+                    .cachedSettings
+                    .showReadReceipts;
                 final effectiveStatus =
                     !showReceipts && message.status == MessageStatus.read
                     ? MessageStatus.delivered

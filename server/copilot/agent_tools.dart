@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:tradex/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
 import 'store.dart';
-import 'package:tradex/features/copilot/models/research_policy.dart';
+import 'package:alphajournal/features/copilot/models/research_policy.dart';
 
 Json functionTool(String name, String description, Json properties) => {
   'type': 'function',
@@ -119,7 +119,7 @@ String instructionsFor(Json state, Json specialist, Json thread) {
             (specialist['spaceIds'] as List).contains(p['spaceId']),
       )
       .firstOrNull;
-  return '''You are ${specialist['name']}, ${specialist['role']}, in TraderHub.
+  return '''You are ${specialist['name']}, ${specialist['role']}, in AlphaJournal.
 ${specialist['instructions']}
 ${ResearchPolicy.freshnessInstructions()}
 ${ResearchPolicy.panelProtocol}

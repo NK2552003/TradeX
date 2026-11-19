@@ -9,15 +9,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:tradex/core/ads/ad_scope.dart';
-import 'package:tradex/core/ads/promotion_preview.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/data/app_session.dart';
+import 'package:alphajournal/core/ads/ad_scope.dart';
+import 'package:alphajournal/core/ads/promotion_preview.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/data/app_session.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/markdown_kit/markdown_kit.dart';
-import 'package:tradex/core/utils/attachment_compression_service.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_kit.dart';
+import 'package:alphajournal/core/utils/attachment_compression_service.dart';
 
 import '../data/copilot_controller.dart';
 import '../data/copilot_feature_connector.dart';
@@ -236,7 +236,8 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
           ext == 'png' || ext == 'jpg' || ext == 'jpeg' || ext == 'webp';
       if (ext != 'gif' &&
           (!isStandardWebFormat ||
-              bytes.length > AttachmentCompressionService.defaultMaxSizeBytes)) {
+              bytes.length >
+                  AttachmentCompressionService.defaultMaxSizeBytes)) {
         try {
           final compressed =
               await AttachmentCompressionService.compressAttachment(
@@ -315,9 +316,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
   void _commitAdditions(List<_DraftAttachment> additions) {
     if (additions.isEmpty) return;
     if (_attachments.length + additions.length > _maxAttachments) {
-      throw const FormatException(
-        'Attach up to four files, each under 6 MB.',
-      );
+      throw const FormatException('Attach up to four files, each under 6 MB.');
     }
     final totalBytes = utf8
         .encode(
@@ -453,9 +452,7 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
     if (_attaching || controller.generating) return;
     setState(() => _attaching = true);
     try {
-      final photo = await ImagePicker().pickImage(
-        source: ImageSource.camera,
-      );
+      final photo = await ImagePicker().pickImage(source: ImageSource.camera);
       if (!mounted || photo == null) return;
       final bytes = await photo.readAsBytes();
       if (!mounted) return;
@@ -589,7 +586,8 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                       );
                       return;
                     }
-                    final host = SiteLogoResolver.extractDomain(url) ?? parsed.host;
+                    final host =
+                        SiteLogoResolver.extractDomain(url) ?? parsed.host;
                     final customLabel = labelController.text.trim();
                     final displayName = customLabel.isNotEmpty
                         ? customLabel
@@ -675,7 +673,8 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                         final ui = AppAiAttachment(
                           name: trimmed.startsWith('data:image/')
                               ? 'Dropped image'
-                              : (SiteLogoResolver.extractDomain(trimmed) ?? 'Link'),
+                              : (SiteLogoResolver.extractDomain(trimmed) ??
+                                    'Link'),
                           kind: AppAiAttachmentKind.image,
                           previewUrl: trimmed,
                         );
@@ -1138,7 +1137,8 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
                     context,
                     onAttach: (CopilotConnectedItem item) {
                       if (!mounted) return;
-                      final displayName = '${item.category.label}: ${item.title}';
+                      final displayName =
+                          '${item.category.label}: ${item.title}';
                       final ui = AppAiAttachment(
                         name: displayName,
                         kind: AppAiAttachmentKind.workspace,

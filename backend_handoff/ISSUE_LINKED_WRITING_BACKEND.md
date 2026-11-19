@@ -161,7 +161,7 @@ Create a dedicated online seed script (`database/seeds/05_linked_writing_desk.sq
       repository: SupabaseJournalRepository(supabaseClient),
       child: StrategiesRepositoryScope.override(
         repository: SupabaseStrategiesRepository(supabaseClient),
-        child: const TradeXApp(),
+        child: const AlphaJournalApp(),
       ),
     ),
   );

@@ -1,9 +1,9 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
+import { corsPreflightResponse, withCorsHeaders } from '../_shared/cors.ts';
 import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 
 const headers = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -14,14 +14,17 @@ type Dependencies = { fetch?: typeof fetch; env?: (name: string) => string | und
 /** Permanent deletion is performed only on this trusted server. PostgreSQL
  * claims the reviewed request and prevents concurrent or cross-user jobs. */
 export async function handleRequest(request: Request, dependencies: Dependencies = {}): Promise<Response> {
-  if (request.method === 'OPTIONS') return new Response(null, { headers });
+  if (request.method === 'OPTIONS') return corsPreflightResponse(request);
   const logger = createEdgeRequestLogger('admin-delete-user', request);
   try {
     const response = await executeDeletionRequest(request, dependencies, logger);
-    return logger.finish(response);
+    return logger.finish(withCorsHeaders(request, response));
   } catch (error) {
     logger.log('error', 'unhandled_exception', describeError(error));
-    return logger.finish(reply(500, { error: 'Account deletion could not be completed.' }));
+    return logger.finish(withCorsHeaders(
+      request,
+      reply(500, { error: 'Account deletion could not be completed.' }),
+    ));
   }
 }
 

@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:tradex/features/copilot/data/cloud_workspace_store.dart';
-import 'package:tradex/features/copilot/data/supabase_copilot_api.dart';
-import 'package:tradex/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/data/cloud_workspace_store.dart';
+import 'package:alphajournal/features/copilot/data/supabase_copilot_api.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
 
 class HostedFixture {
   Json? row;

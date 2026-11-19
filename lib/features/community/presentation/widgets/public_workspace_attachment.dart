@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/community/data/workspace_attachment_service.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/community/data/workspace_attachment_service.dart';
 import 'community_attachment_tile.dart';
 
 /// Revalidates public visibility before rendering any saved attachment text.

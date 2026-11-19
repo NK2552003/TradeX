@@ -1,4 +1,4 @@
-# TradeX Python Market Data Scripts Dependencies
+# AlphaJournal Python Market Data Scripts Dependencies
 yfinance>=0.2.40
 requests>=2.31.0
 psycopg2-binary>=2.9.9

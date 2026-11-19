@@ -1,15 +1,16 @@
-import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_attribution.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
-import 'package:tradex/features/auth/widgets/role_selector_tab.dart';
-import 'package:tradex/features/settings/presentation/widgets/help/publication_reader.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_repository.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/widgets/auth_carousel_panel.dart';
+import 'package:alphajournal/features/auth/widgets/role_selector_tab.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/help/publication_reader.dart';
 
 /// Responsive Signup Page — split card on desktop, single column on mobile.
 class SignupPage extends StatefulWidget {
@@ -483,7 +484,8 @@ class _SignupPageState extends State<SignupPage> {
                                                     value:
                                                         _referralCodeController
                                                             .text,
-                                                    hintText: 'REF-TRADEX-2026',
+                                                    hintText:
+                                                        'REF-ALPHAJOURNAL-2026',
                                                     onChanged: (v) =>
                                                         _referralCodeController
                                                                 .text =
@@ -652,8 +654,11 @@ class _SignupPageState extends State<SignupPage> {
                                                     color: colors.primary,
                                                     fontWeight: FontWeight.w600,
                                                     fontSize: 11.5,
-                                                    decoration: TextDecoration.underline,
-                                                    decorationColor: colors.primary.withValues(alpha: 0.5),
+                                                    decoration: TextDecoration
+                                                        .underline,
+                                                    decorationColor: colors
+                                                        .primary
+                                                        .withValues(alpha: 0.5),
                                                   ),
                                             ),
                                           ),
@@ -677,8 +682,11 @@ class _SignupPageState extends State<SignupPage> {
                                                     color: colors.primary,
                                                     fontWeight: FontWeight.w600,
                                                     fontSize: 11.5,
-                                                    decoration: TextDecoration.underline,
-                                                    decorationColor: colors.primary.withValues(alpha: 0.5),
+                                                    decoration: TextDecoration
+                                                        .underline,
+                                                    decorationColor: colors
+                                                        .primary
+                                                        .withValues(alpha: 0.5),
                                                   ),
                                             ),
                                           ),
@@ -720,7 +728,9 @@ class _SignupPageState extends State<SignupPage> {
       }
       final launched = await client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb ? Uri.base.origin : 'tradex://auth/callback',
+        redirectTo: kIsWeb
+            ? Uri.base.origin
+            : AppConstants.nativeAuthCallbackUrl,
       );
       if (!launched) {
         throw StateError('Could not open Google sign-in. Please retry.');

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
-import 'package:tradex/features/market_data/presentation/market_catalogue_view.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/presentation/market_news_widgets.dart';
+import 'package:alphajournal/features/market_data/presentation/market_catalogue_view.dart';
 
 List<MarketArticle> articles(int count) => List.generate(
   count,

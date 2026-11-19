@@ -13,5 +13,5 @@ void main() {
   CustomerDataPolicy.allowDemo = true;
   SemanticsBinding.instance.ensureSemantics();
   GoogleFonts.config.allowRuntimeFetching = false;
-  runApp(const TradeXApp());
+  runApp(const AlphaJournalApp());
 }

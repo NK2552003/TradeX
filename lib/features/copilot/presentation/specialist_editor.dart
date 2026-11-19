@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../data/copilot_controller.dart';
 import '../models/workspace.dart';
@@ -30,9 +30,7 @@ class _SpecialistEditorState extends State<_SpecialistEditor> {
   late List<String> _spaces =
       widget.specialist?.spaceIds ??
       (widget.controller.workspace.spaces.firstOrNull?['id'] != null
-          ? <String>[
-              widget.controller.workspace.spaces.first['id'] as String,
-            ]
+          ? <String>[widget.controller.workspace.spaces.first['id'] as String]
           : <String>[]);
   bool _saving = false;
   String? _error;
@@ -113,9 +111,7 @@ class _SpecialistEditorState extends State<_SpecialistEditor> {
           'learning': 'Suggest reusable lessons',
         }.entries)
           Padding(
-            padding: EdgeInsets.only(
-              bottom: context.sp(context.ui.spacing.sm),
-            ),
+            padding: EdgeInsets.only(bottom: context.sp(context.ui.spacing.sm)),
             child: UiSwitch(
               label: entry.value,
               value: _values[entry.key] == true,

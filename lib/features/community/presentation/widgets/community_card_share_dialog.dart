@@ -1,12 +1,12 @@
-import 'package:tradex/core/navigation/share_links.dart';
-import 'package:tradex/core/utils/share_actions.dart';
-import 'package:tradex/core/utils/image_export.dart';
+import 'package:alphajournal/core/navigation/share_links.dart';
+import 'package:alphajournal/core/utils/share_actions.dart';
+import 'package:alphajournal/core/utils/image_export.dart';
 import 'community_share_sheet.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_design.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_design.dart';
 
 /// Modal dialog that formats a post / trade setup into a branded alphajournal graphic card
 /// for easy social sharing and exporting.
@@ -253,7 +253,7 @@ class _CommunityCardShareDialogState extends State<CommunityCardShareDialog> {
                           ),
                           SizedBox(width: context.sp(8)),
                           Text(
-                            'Verified on alphajournal',
+                            'Verified on AlphaJournal',
                             style: context.uiText.label.copyWith(
                               color: colors.foregroundSubtle,
                               fontSize: 10,

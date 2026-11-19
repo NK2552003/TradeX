@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/community_root_screen.dart';
-import 'package:tradex/features/community/presentation/views/community_feed_view.dart';
-import 'package:tradex/features/community/presentation/widgets/public_record_detail_modal.dart';
-import 'package:tradex/features/journal/ui/journal_entry_screen.dart';
-import 'package:tradex/features/notes/ui/note_preview_screen.dart';
-import 'package:tradex/features/notes/ui/notes_screen.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/widgets/app_scaffold.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/community_root_screen.dart';
+import 'package:alphajournal/features/community/presentation/views/community_feed_view.dart';
+import 'package:alphajournal/features/community/presentation/widgets/public_record_detail_modal.dart';
+import 'package:alphajournal/features/journal/ui/journal_entry_screen.dart';
+import 'package:alphajournal/features/notes/ui/note_preview_screen.dart';
+import 'package:alphajournal/features/notes/ui/notes_screen.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -121,9 +121,7 @@ void main() {
   ) async {
     viewport(tester, 1440);
     await tester.pumpWidget(
-      const MaterialApp(
-        home: AppScaffold(initialDestination: 'community'),
-      ),
+      const MaterialApp(home: AppScaffold(initialDestination: 'community')),
     );
     await tester.pumpAndSettle();
     final CommunityRootScreen community = tester.widget<CommunityRootScreen>(
@@ -142,9 +140,8 @@ void main() {
     );
     await tester.pump();
 
-    final PublicRecordDetailModal modal = tester.widget<PublicRecordDetailModal>(
-      find.byType(PublicRecordDetailModal),
-    );
+    final PublicRecordDetailModal modal = tester
+        .widget<PublicRecordDetailModal>(find.byType(PublicRecordDetailModal));
     expect(modal.onSaveChanged, isNotNull);
     await modal.onSaveChanged!(true);
     expect(

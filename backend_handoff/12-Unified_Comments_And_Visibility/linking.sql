@@ -1,4 +1,4 @@
--- Integration scripts for linking comments and visibility across TradeX
+-- Integration scripts for linking comments and visibility across AlphaJournal
 
 -- 1. Example: Change visibility of a trader note to public
 SELECT set_entity_visibility('note', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', true);

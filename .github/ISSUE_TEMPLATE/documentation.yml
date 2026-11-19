@@ -1,0 +1,83 @@
+name: Documentation issue
+description: Report missing, incorrect, confusing, unsafe, or outdated AlphaJournal documentation.
+title: "[Docs]: "
+labels:
+  - documentation
+  - triage
+body:
+  - type: dropdown
+    id: document_type
+    attributes:
+      label: Documentation area
+      multiple: true
+      options:
+        - Engineering contract/AGENTS.md
+        - Security/release guide
+        - GitHub issue forms/policy
+        - README/setup
+        - Supabase/database
+        - Deployment/CI/CD
+        - Mobile/store release
+        - API/code documentation
+        - User-facing help
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: File, section, or link
+      placeholder: Path and heading, or public URL
+    validations:
+      required: true
+  - type: dropdown
+    id: problem_type
+    attributes:
+      label: Problem type
+      multiple: true
+      options:
+        - Incorrect
+        - Outdated
+        - Missing
+        - Ambiguous
+        - Broken link/command
+        - Unsafe guidance
+        - Branding mismatch
+        - Accessibility/readability
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current wording or behavior
+      description: Quote only non-sensitive documentation.
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: Proposed correction
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Source of truth
+      placeholder: Current code/export/config path, official documentation, or observed behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: What should a reader be able to do correctly after the update?
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I verified active product branding should be AlphaJournal and only the repository name remains TradeX.
+          required: true
+        - label: I removed credentials, private links, and personal information.
+          required: true

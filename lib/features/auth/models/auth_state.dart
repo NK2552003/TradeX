@@ -1,6 +1,6 @@
-import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/auth/models/affiliate_profile_model.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
 
 /// Navigation stages in the auth lifecycle.
 enum AuthStage {

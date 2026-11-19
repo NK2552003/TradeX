@@ -1,0 +1,102 @@
+name: Frontend, UI, or accessibility issue
+description: Report layout, dock animation, responsive width, interaction, theming, or accessibility defects.
+title: "[Frontend]: "
+labels:
+  - frontend
+  - triage
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      multiple: true
+      options:
+        - Layout or overflow
+        - Responsive width
+        - Dock/navigation animation
+        - Scroll behavior
+        - Accessibility/semantics
+        - Keyboard/focus
+        - Theme/color/contrast
+        - Text scaling/localization
+        - Loading/empty/error state
+        - Reusable component regression
+    validations:
+      required: true
+  - type: input
+    id: route
+    attributes:
+      label: Screen or route
+      placeholder: For example Community, Market Overview, or /settings
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Device and viewport
+      placeholder: Platform, browser/device, width x height, orientation, text scale
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction
+      placeholder: Include scrolling direction, pointer/keyboard action, and exact state.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected design and behavior
+      placeholder: Describe width, animation, focus, semantics, and responsive behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual design and behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: ui_library
+    attributes:
+      label: Reusable UI component involved
+      options:
+        - Known component/block
+        - App shell/workspace/dock
+        - Unknown
+        - No current shared component
+    validations:
+      required: true
+  - type: input
+    id: component_name
+    attributes:
+      label: Component or block name
+      placeholder: For example AppQuietDockScaffold, UiTable, or MarketBlocks
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted visual evidence
+      description: Add cropped screenshots or a short recording with user data removed.
+  - type: textarea
+    id: accessibility
+    attributes:
+      label: Accessibility impact
+      placeholder: Screen reader, focus order, keyboard access, contrast, motion, tap target, or text scaling.
+  - type: textarea
+    id: breakpoints
+    attributes:
+      label: Required breakpoint coverage
+      placeholder: Mobile, tablet, desktop, portrait/landscape, browser zoom.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I verified this is not only stale browser cache.
+          required: true
+        - label: I removed account and personal information from media.
+          required: true
+

@@ -1,34 +1,34 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/linking/link_graph.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/features/community/presentation/widgets/public_record_detail_modal.dart';
-import 'package:tradex/core/ads/ad_config.dart';
-import 'package:tradex/core/ads/ad_slot.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/community/presentation/widgets/public_record_detail_modal.dart';
+import 'package:alphajournal/core/ads/ad_config.dart';
+import 'package:alphajournal/core/ads/ad_slot.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/views/community_bookmarks_view.dart';
-import 'package:tradex/features/community/presentation/views/community_explore_view.dart';
-import 'package:tradex/features/community/presentation/views/community_feed_view.dart';
-import 'package:tradex/features/community/presentation/views/community_follow_view.dart';
-import 'package:tradex/features/community/presentation/views/community_hashtag_page.dart';
-import 'package:tradex/features/community/presentation/views/community_inbox_view.dart';
-import 'package:tradex/features/community/presentation/views/community_moderation_list_page.dart';
-import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
-import 'package:tradex/features/community/presentation/views/community_profile_view.dart';
-import 'package:tradex/features/community/presentation/views/community_search_page.dart';
-import 'package:tradex/features/community/presentation/widgets/community_copilot_launcher.dart';
-import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_design.dart';
-import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/views/community_bookmarks_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_explore_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_feed_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_follow_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_hashtag_page.dart';
+import 'package:alphajournal/features/community/presentation/views/community_inbox_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_moderation_list_page.dart';
+import 'package:alphajournal/features/community/presentation/views/community_post_detail_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_profile_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_search_page.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_copilot_launcher.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_design.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_sidebar_widgets.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// The signed-in community shell — three-tier responsive Twitter/X layout.
 ///
@@ -414,7 +414,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         return;
       }
     }
-    if (trimmed.startsWith('tradex://') ||
+    if (trimmed.startsWith('alphajournal://') ||
         trimmed.startsWith('http://') ||
         trimmed.startsWith('https://')) {
       final AppLinkRef? target = AppDeepLink.tryParseUrl(trimmed);
@@ -1165,7 +1165,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
             UiIconButton(
               icon: Icons.search_rounded,
               size: UiSize.xs,
-              tooltip: 'Search alphajournal',
+              tooltip: 'Search AlphaJournal',
               onPressed: _openSearchPage,
             ),
             UiIconButton(

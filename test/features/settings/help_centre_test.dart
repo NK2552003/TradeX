@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/privacy/consent_preferences.dart';
-import 'package:tradex/features/settings/data/publication_library.dart';
-import 'package:tradex/features/settings/data/cookie_notice_content.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/help_about_page.dart';
-import 'package:tradex/features/settings/presentation/widgets/help/cookie_preferences_dialog.dart';
-import 'package:tradex/features/settings/presentation/widgets/help/publication_reader.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/privacy/consent_preferences.dart';
+import 'package:alphajournal/features/settings/data/publication_library.dart';
+import 'package:alphajournal/features/settings/data/cookie_notice_content.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/help_about_page.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/help/cookie_preferences_dialog.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/help/publication_reader.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

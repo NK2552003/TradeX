@@ -1,6 +1,6 @@
-# TradeX Logging, Log Query Usage & Observability Guide
+# AlphaJournal Logging, Log Query Usage & Observability Guide
 
-This document explains how **Supabase Logs Explorer / Log Query usage**, **Edge Function structured logs**, **Cloudflare Workers Observability**, and **persistent Postgres runtime logs** are configured across TradeX.
+This document explains how **Supabase Logs Explorer / Log Query usage**, **Edge Function structured logs**, **Cloudflare Workers Observability**, and **persistent Postgres runtime logs** are configured across AlphaJournal.
 
 ---
 
@@ -17,7 +17,7 @@ In the Supabase Organization Usage dashboard:
 
 ---
 
-## 2. What Is Enabled in TradeX
+## 2. What Is Enabled in AlphaJournal
 
 ### A. Supabase Local & CLI Analytics (`supabase/config.toml`)
 - Enabled `[analytics] enabled = true` so local `supabase start` runs Logflare/analytics ingestion across Postgres, Auth, Storage, API gateway, and Edge Functions.
@@ -45,10 +45,10 @@ In the Supabase Organization Usage dashboard:
 
 ### D. Persistent Postgres Runtime Archive (`supabase/migrations/20261115133500_system_runtime_logs.sql`)
 Because Supabase Free plan Logs Explorer retains logs for 1 day, `public.system_runtime_logs` provides a compact, indexed Postgres table for critical runtime records:
-- Strict RLS (`admin_only_read_system_runtime_logs`): only active `user_admin` accounts (`tradex_private.is_admin()`) can `SELECT`; only `service_role` can write.
-- Server-only helpers in `tradex_private`:
-  - `tradex_private.write_system_runtime_log(...)`
-  - `tradex_private.prune_system_runtime_logs(p_keep_days integer DEFAULT 30)`
+- Strict RLS (`admin_only_read_system_runtime_logs`): only active `user_admin` accounts (`alphajournal_private.is_admin()`) can `SELECT`; only `service_role` can write.
+- Server-only helpers in `alphajournal_private`:
+  - `alphajournal_private.write_system_runtime_log(...)`
+  - `alphajournal_private.prune_system_runtime_logs(p_keep_days integer DEFAULT 30)`
 
 ---
 

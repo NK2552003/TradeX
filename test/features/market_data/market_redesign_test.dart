@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/presentation/market_root_screen.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
-import 'package:tradex/features/market_data/presentation/market_layout.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/presentation/market_root_screen.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_view.dart';
+import 'package:alphajournal/features/market_data/presentation/market_layout.dart';
 import '../public_site/public_content_test.dart' show FileAssets;
 
 void main() {

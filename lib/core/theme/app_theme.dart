@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// Central theme provider delegating directly to the flutter-ui design system tokens.
 class AppTheme {

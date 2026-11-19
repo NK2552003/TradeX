@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
 
 /// Thread avatar: a presence-dot avatar for direct messages, or a small stacked
 /// cluster for groups. Built on the shared [AppPresenceAvatar] so presence reads

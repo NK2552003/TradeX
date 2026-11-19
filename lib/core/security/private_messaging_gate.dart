@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/auth/widgets/auth_carousel_panel.dart';
 import 'private_message_service.dart';
 
 typedef PrivateMessagingStatusCheck =
@@ -150,7 +150,9 @@ class _PrivateMessagingGateState extends State<PrivateMessagingGate> {
         }
       }
     } catch (error, stackTrace) {
-      debugPrint('[PrivateMessagingGate] Status check failed: $error\n$stackTrace');
+      debugPrint(
+        '[PrivateMessagingGate] Status check failed: $error\n$stackTrace',
+      );
       if (mounted) {
         setState(() {
           _checkFailed = true;
@@ -512,9 +514,11 @@ class _PrivateMessagingGateState extends State<PrivateMessagingGate> {
           ],
         ] else ...<Widget>[
           UiCallout(
-            title: _exists ? 'Restore on this device' : 'Your recovery passphrase',
+            title: _exists
+                ? 'Restore on this device'
+                : 'Your recovery passphrase',
             message: _exists
-                ? 'Signed-in password accounts unlock automatically. If you signed in with Google or changed devices, enter your TradeX password (or legacy recovery passphrase) once.'
+                ? 'Signed-in password accounts unlock automatically. If you signed in with Google or changed devices, enter your AlphaJournal password (or legacy recovery passphrase) once.'
                 : 'Choose a unique passphrase of at least 16 characters and save it in a password manager. We cannot reset or recover it for you. New messages and AI workspace saves are encrypted before upload; AI replies still read prompts server-side.',
             intent: UiIntent.info,
             icon: Icons.lock_outline_rounded,

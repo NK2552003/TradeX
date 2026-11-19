@@ -1,9 +1,9 @@
-import 'package:tradex/core/security/message_cipher.dart';
-import 'package:tradex/core/security/private_message_service.dart';
+import 'package:alphajournal/core/security/message_cipher.dart';
+import 'package:alphajournal/core/security/private_message_service.dart';
 import 'private_chat_payload.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/utils/attachment_compression_service.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/utils/attachment_compression_service.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -11,15 +11,15 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/config/supabase_storage_egress.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
-import 'package:tradex/features/linking/link_graph_service.dart';
-import 'package:tradex/features/messages/data/messages_seed_data.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_storage_egress.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/linking/entity_ticker_links_repository.dart';
+import 'package:alphajournal/features/linking/link_graph_service.dart';
+import 'package:alphajournal/features/messages/data/messages_seed_data.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
 
 /// Reactive store for the Messages feature.
 ///
@@ -27,7 +27,7 @@ import 'package:tradex/features/settings/data/repositories/privacy_repository.da
 /// State is initialized with seed fallback when offline, or live Supabase tables
 /// and Realtime channels when connected.
 class MessagesRepository extends ChangeNotifier {
-  MessagesRepository() {
+  MessagesRepository({bool autoConnect = true}) : _accessEnabled = autoConnect {
     _threads = [];
     _requests = [];
     _messages = {};
@@ -36,27 +36,57 @@ class MessagesRepository extends ChangeNotifier {
       _requests = MessagesSeed.requests();
       _messages = MessagesSeed.messagesByThread();
     }
-    if (SupabaseConfig.isConfigured) {
-      unawaited(_initSupabase());
-      var account = _resolveUserId();
-      _authSubscription = SupabaseConfig.client!.auth.onAuthStateChange.listen((
-        event,
-      ) {
-        final next = event.session?.user.id ?? '';
-        if (next == account) return;
-        account = next;
-        _resetOnAccountSwitch();
-        if (next.isNotEmpty) {
-          unawaited(_initSupabase());
-        }
-      });
-    }
+    if (_canUseSupabase) _startSupabaseAccess();
     _unlockListener = _onEncryptionUnlockChanged;
     PrivateMessageService.instance.unlockRevision.addListener(_unlockListener!);
     _privacyListener = _onPrivacySettingsChanged;
     PrivacyRepositoryImpl.instance.settingsNotifier.addListener(
       _privacyListener!,
     );
+  }
+
+  bool _accessEnabled;
+
+  bool get accessEnabled => _accessEnabled;
+  bool get _canUseSupabase => _accessEnabled && SupabaseConfig.isConfigured;
+
+  void _requireAccess() {
+    if (!_accessEnabled) {
+      throw StateError('Messages require an AlphaJournal Basic or Pro plan.');
+    }
+  }
+
+  /// Enables network-backed messaging only after the active subscription has
+  /// been verified. Disabling access immediately tears down Realtime and clears
+  /// paid conversation data from memory.
+  void setAccessEnabled(bool enabled) {
+    if (_accessEnabled == enabled) return;
+    _accessEnabled = enabled;
+    if (enabled) {
+      if (_canUseSupabase) _startSupabaseAccess();
+      notifyListeners();
+      return;
+    }
+    unawaited(_authSubscription?.cancel());
+    _authSubscription = null;
+    _resetOnAccountSwitch();
+  }
+
+  void _startSupabaseAccess() {
+    if (!_canUseSupabase) return;
+    unawaited(_initSupabase());
+    if (_authSubscription != null) return;
+    var account = _resolveUserId();
+    _authSubscription = SupabaseConfig.client!.auth.onAuthStateChange.listen((
+      event,
+    ) {
+      if (!_accessEnabled) return;
+      final next = event.session?.user.id ?? '';
+      if (next == account) return;
+      account = next;
+      _resetOnAccountSwitch();
+      if (next.isNotEmpty) unawaited(_initSupabase());
+    });
   }
 
   void _resetOnAccountSwitch() {
@@ -131,7 +161,9 @@ class MessagesRepository extends ChangeNotifier {
         );
       }
       if (_loggedDecryptFailures.add(message.id)) {
-        debugPrint('[MessagesRepository] decrypt deferred for ${message.id}: $e');
+        debugPrint(
+          '[MessagesRepository] decrypt deferred for ${message.id}: $e',
+        );
       }
       final isUnlockedNow =
           decryptOverride != null ||
@@ -178,11 +210,7 @@ class MessagesRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String> Function(
-    String ciphertext,
-    String context,
-    String sender,
-  )?
+  Future<String> Function(String ciphertext, String context, String sender)?
   decryptOverride;
 
   /// Optional overrides for unit testing private chat storage without live Supabase.
@@ -334,7 +362,8 @@ class MessagesRepository extends ChangeNotifier {
   }
 
   String _resolveUserId() {
-    if (SupabaseConfig.isConfigured) {
+    if (!_accessEnabled) return '';
+    if (_canUseSupabase) {
       final uid = SupabaseConfig.client?.auth.currentUser?.id;
       if (uid != null && uid.isNotEmpty) return uid;
     }
@@ -344,6 +373,7 @@ class MessagesRepository extends ChangeNotifier {
   }
 
   Future<void> _initSupabase() async {
+    if (!_accessEnabled) return;
     if (!PrivateMessageService.instance.isLocallyUnlockedFast) {
       try {
         await PrivateMessageService.instance.warmFromCache();
@@ -374,7 +404,7 @@ class MessagesRepository extends ChangeNotifier {
   }
 
   Future<void> fetchFromSupabase() async {
-    if (!SupabaseConfig.isConfigured) return;
+    if (!_canUseSupabase) return;
     final client = SupabaseConfig.client;
     if (client == null) return;
     final currentUserId = _resolveUserId();
@@ -500,7 +530,8 @@ class MessagesRepository extends ChangeNotifier {
               displayName: tmap['title'] as String? ?? 'Trader',
             );
 
-        final msgRows = msgRowsByThread[threadId] ?? const <Map<String, dynamic>>[];
+        final msgRows =
+            msgRowsByThread[threadId] ?? const <Map<String, dynamic>>[];
 
         final threadMsgs = <ChatMessage>[];
         for (final mmap in msgRows) {
@@ -684,7 +715,9 @@ class MessagesRepository extends ChangeNotifier {
           lastMessageAt: effectiveLastAt,
           lastFromMe: lastFromMe,
           lastStatus: lastStatus,
-          unread: _activeThreadId == threadId ? 0 : (existingThread?.unread ?? 0),
+          unread: _activeThreadId == threadId
+              ? 0
+              : (existingThread?.unread ?? 0),
           pinned: isPinned,
           archived: isArchived,
           isRequest: isRequest,
@@ -891,7 +924,7 @@ class MessagesRepository extends ChangeNotifier {
         notifyListeners();
       }
     }
-    if (SupabaseConfig.isConfigured && _resolveUserId().isNotEmpty) {
+    if (_canUseSupabase && _resolveUserId().isNotEmpty) {
       ensureRealtimeSubscribed();
       await fetchFromSupabase();
     }
@@ -899,7 +932,7 @@ class MessagesRepository extends ChangeNotifier {
 
   /// Ensures Supabase Realtime listeners are connected for the current account.
   void ensureRealtimeSubscribed() {
-    if (!SupabaseConfig.isConfigured || _resolveUserId().isEmpty) return;
+    if (!_canUseSupabase || _resolveUserId().isEmpty) return;
     if (_realtimeChannel == null || !_isRealtimeSubscribed) {
       _subscribeRealtime();
     }
@@ -930,7 +963,7 @@ class MessagesRepository extends ChangeNotifier {
 
   void _scheduleRealtimeReconnect() {
     if (_realtimeRetryTimer != null) return;
-    if (!SupabaseConfig.isConfigured || _resolveUserId().isEmpty) return;
+    if (!_canUseSupabase || _resolveUserId().isEmpty) return;
     final delaySec = min(15, 1 << min(_realtimeRetryAttempt, 4));
     _realtimeRetryAttempt++;
     _realtimeRetryTimer = Timer(Duration(seconds: delaySec), () {
@@ -943,7 +976,7 @@ class MessagesRepository extends ChangeNotifier {
   }
 
   void _subscribeActiveThreadChannel(String? threadId) {
-    if (!SupabaseConfig.isConfigured) return;
+    if (!_canUseSupabase) return;
     final client = SupabaseConfig.client;
     if (client == null) return;
     if (_activeThreadChannel != null) {
@@ -981,7 +1014,7 @@ class MessagesRepository extends ChangeNotifier {
   }
 
   void _subscribeRealtime() {
-    if (!SupabaseConfig.isConfigured) return;
+    if (!_canUseSupabase) return;
     final client = SupabaseConfig.client;
     if (client == null || _resolveUserId().isEmpty) return;
 
@@ -1120,7 +1153,8 @@ class MessagesRepository extends ChangeNotifier {
             senderId,
           );
           list[idx] = updated;
-          if (idx == list.length - 1 && !_lockedRawPayloads.containsKey(updated.id)) {
+          if (idx == list.length - 1 &&
+              !_lockedRawPayloads.containsKey(updated.id)) {
             _touchThread(
               threadId,
               preview: _previewFor(updated),
@@ -1176,7 +1210,8 @@ class MessagesRepository extends ChangeNotifier {
             _requests[rIdx] = _requests[rIdx].copyWith(
               pinned: row['is_pinned'] as bool? ?? _requests[rIdx].pinned,
               archived: row['is_archived'] as bool? ?? _requests[rIdx].archived,
-              isRequest: row['is_request'] as bool? ?? _requests[rIdx].isRequest,
+              isRequest:
+                  row['is_request'] as bool? ?? _requests[rIdx].isRequest,
             );
             notifyListeners();
           }
@@ -1380,7 +1415,7 @@ class MessagesRepository extends ChangeNotifier {
       );
     }
     final client = SupabaseConfig.client;
-    if (!SupabaseConfig.isConfigured || client == null) {
+    if (!_canUseSupabase || client == null) {
       throw StateError('Supabase is not configured to sign attachment URLs.');
     }
     if (storagePath.endsWith('.enc')) {
@@ -1497,7 +1532,8 @@ class MessagesRepository extends ChangeNotifier {
     String? replyToId,
     String? senderIdOverride,
   }) async {
-    if (!SupabaseConfig.isConfigured &&
+    _requireAccess();
+    if (!_canUseSupabase &&
         !CustomerDataPolicy.allowDemo &&
         messagePersistOverride == null) {
       throw StateError('Connect and sign in before sending messages.');
@@ -1532,7 +1568,7 @@ class MessagesRepository extends ChangeNotifier {
       }
     }
 
-    final msgId = SupabaseConfig.isConfigured
+    final msgId = _canUseSupabase
         ? const Uuid().v4()
         : 'msg_${DateTime.now().microsecondsSinceEpoch}';
     final ChatMessage message = ChatMessage(
@@ -1577,7 +1613,7 @@ class MessagesRepository extends ChangeNotifier {
         notifyListeners();
         rethrow;
       }
-    } else if (SupabaseConfig.isConfigured) {
+    } else if (_canUseSupabase) {
       final client = SupabaseConfig.client;
       if (client == null) {
         _messages[threadId]?.removeWhere((m) => m.id == message.id);
@@ -1685,7 +1721,7 @@ class MessagesRepository extends ChangeNotifier {
         sharedRef.id,
       ...EntityTickerLinksRepository.extractTickers(body),
     };
-    if (!SupabaseConfig.isConfigured && linkedTickers.isNotEmpty) {
+    if (!_canUseSupabase && linkedTickers.isNotEmpty) {
       unawaited(
         EntityTickerLinksRepository.instance.recordLinks(
           entityType: 'message',
@@ -1711,6 +1747,7 @@ class MessagesRepository extends ChangeNotifier {
     AppLinkRef? sharedRef,
     String? replyToId,
   }) {
+    if (!_accessEnabled) return;
     if (body.trim().isEmpty && attachment == null && sharedRef == null) return;
     unawaited(
       sendMessageAsync(
@@ -1752,7 +1789,7 @@ class MessagesRepository extends ChangeNotifier {
     }
     final client = SupabaseConfig.client;
     final currentUserId = _resolveUserId();
-    if (SupabaseConfig.isConfigured &&
+    if (_canUseSupabase &&
         client != null &&
         currentUserId.isNotEmpty &&
         _isUuid(threadId) &&
@@ -1785,7 +1822,7 @@ class MessagesRepository extends ChangeNotifier {
       );
     }
 
-    if (SupabaseConfig.isConfigured || storageUploadOverride != null) {
+    if (_canUseSupabase || storageUploadOverride != null) {
       final compressed = await AttachmentCompressionService.compressAttachment(
         bytes: bytes,
         filename: filename,
@@ -1942,7 +1979,7 @@ class MessagesRepository extends ChangeNotifier {
     list[i] = m.copyWith(reactions: counts, myReactions: mine);
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured && _isUuid(messageId)) {
+    if (_canUseSupabase && _isUuid(messageId)) {
       unawaited(() async {
         try {
           final client = SupabaseConfig.client!;
@@ -1991,7 +2028,7 @@ class MessagesRepository extends ChangeNotifier {
     }
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured && _isUuid(messageId)) {
+    if (_canUseSupabase && _isUuid(messageId)) {
       unawaited(() async {
         try {
           final client = SupabaseConfig.client!;
@@ -2018,7 +2055,7 @@ class MessagesRepository extends ChangeNotifier {
         m.sharedRef!.id,
       ...EntityTickerLinksRepository.extractTickers(clean),
     };
-    if (!SupabaseConfig.isConfigured && linkedTickers.isNotEmpty) {
+    if (!_canUseSupabase && linkedTickers.isNotEmpty) {
       unawaited(
         EntityTickerLinksRepository.instance.recordLinks(
           entityType: 'message',
@@ -2055,7 +2092,7 @@ class MessagesRepository extends ChangeNotifier {
     }
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured && _isUuid(messageId)) {
+    if (_canUseSupabase && _isUuid(messageId)) {
       unawaited(() async {
         try {
           final client = SupabaseConfig.client!;
@@ -2103,6 +2140,7 @@ class MessagesRepository extends ChangeNotifier {
   ///
   /// @backend POST /threads { participantId }.
   String startConversation(AppTrader peer, {bool isRequest = false}) {
+    _requireAccess();
     final String normalizedHandle = peer.handle.toLowerCase().trim();
     bool matchesPeer(MessageThread t) =>
         !t.isGroup &&
@@ -2124,7 +2162,7 @@ class MessagesRepository extends ChangeNotifier {
       return _requests[existingReq].id;
     }
 
-    final String id = SupabaseConfig.isConfigured
+    final String id = _canUseSupabase
         ? const Uuid().v4()
         : 'thread_new_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -2147,7 +2185,7 @@ class MessagesRepository extends ChangeNotifier {
     _messages[id] = <ChatMessage>[];
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured) {
+    if (_canUseSupabase) {
       final Future<void> createFuture = (() async {
         try {
           final client = SupabaseConfig.client!;
@@ -2191,7 +2229,8 @@ class MessagesRepository extends ChangeNotifier {
     required String title,
     required List<AppTrader> participants,
   }) {
-    final String id = SupabaseConfig.isConfigured
+    _requireAccess();
+    final String id = _canUseSupabase
         ? const Uuid().v4()
         : 'thread_grp_${DateTime.now().millisecondsSinceEpoch}';
     final AppTrader dummyPeer = participants.isNotEmpty
@@ -2219,7 +2258,7 @@ class MessagesRepository extends ChangeNotifier {
     ];
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured) {
+    if (_canUseSupabase) {
       unawaited(() async {
         try {
           final client = SupabaseConfig.client!;
@@ -2253,7 +2292,7 @@ class MessagesRepository extends ChangeNotifier {
   /// @backend PATCH /threads/{id} { pinned }.
   void togglePin(String threadId) {
     _mutateThread(threadId, (MessageThread t) => t.copyWith(pinned: !t.pinned));
-    if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
+    if (_canUseSupabase && _isUuid(threadId)) {
       final t = threadById(threadId);
       if (t != null) {
         unawaited(
@@ -2279,7 +2318,7 @@ class MessagesRepository extends ChangeNotifier {
       threadId,
       (MessageThread t) => t.copyWith(archived: !t.archived),
     );
-    if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
+    if (_canUseSupabase && _isUuid(threadId)) {
       final t = threadById(threadId);
       if (t != null) {
         unawaited(
@@ -2320,7 +2359,7 @@ class MessagesRepository extends ChangeNotifier {
         );
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured && _isUuid(requestId)) {
+    if (_canUseSupabase && _isUuid(requestId)) {
       unawaited(
         SupabaseConfig.client!
             .from('chat_threads')
@@ -2340,7 +2379,7 @@ class MessagesRepository extends ChangeNotifier {
     _requests.removeWhere((MessageThread t) => t.id == requestId);
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured && _isUuid(requestId)) {
+    if (_canUseSupabase && _isUuid(requestId)) {
       unawaited(
         SupabaseConfig.client!
             .from('chat_threads')
@@ -2368,7 +2407,7 @@ class MessagesRepository extends ChangeNotifier {
     _messages.remove(threadId);
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
+    if (_canUseSupabase && _isUuid(threadId)) {
       unawaited(
         SupabaseConfig.client!
             .from('chat_threads')
@@ -2395,7 +2434,7 @@ class MessagesRepository extends ChangeNotifier {
     );
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
+    if (_canUseSupabase && _isUuid(threadId)) {
       unawaited(
         SupabaseConfig.client!
             .from('chat_messages')
@@ -2562,8 +2601,9 @@ class MessagesRepository extends ChangeNotifier {
   /// Searches live traders from Supabase profiles table, excluding the current user.
   /// Supports auto-detection by user id (UUID), handle (@handle), display name, or email.
   Future<List<AppTrader>> searchLiveTraders(String query) async {
+    if (!_accessEnabled) return const <AppTrader>[];
     final cleanQuery = query.trim().replaceAll('@', '');
-    if (!SupabaseConfig.isConfigured) {
+    if (!_canUseSupabase) {
       if (CustomerDataPolicy.allowDemo) {
         return DemoDataSource.instance.traders().where((t) {
           if (cleanQuery.isEmpty) return true;
@@ -2710,7 +2750,9 @@ class MessagesRepository extends ChangeNotifier {
       );
       return;
     }
-    final int rIdx = _requests.indexWhere((MessageThread t) => t.id == threadId);
+    final int rIdx = _requests.indexWhere(
+      (MessageThread t) => t.id == threadId,
+    );
     if (rIdx != -1) {
       _requests[rIdx] = _requests[rIdx].copyWith(
         lastMessagePreview: preview,
@@ -2785,7 +2827,7 @@ class MessagesRepositoryScope {
   static MessagesRepository? _instance;
 
   static MessagesRepository get repository =>
-      _instance ??= MessagesRepository();
+      _instance ??= MessagesRepository(autoConnect: false);
 
   static set repository(MessagesRepository repo) => _instance = repo;
 }

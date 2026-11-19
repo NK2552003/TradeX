@@ -9,12 +9,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_contact.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_data.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_fundamentals.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_ownership.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_contact.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_data.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_fundamentals.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_ownership.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 class _RecordingLauncher extends UrlLauncherPlatform {

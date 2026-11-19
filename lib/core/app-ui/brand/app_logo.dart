@@ -55,10 +55,7 @@ class AppLogoMark extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: <Color>[
-            Color(0xFF1E1C1A),
-            Color(0xFF0D0C0B),
-          ],
+          colors: <Color>[Color(0xFF1E1C1A), Color(0xFF0D0C0B)],
         ),
         border: Border.all(
           color: const Color(0xFFA8A29E).withValues(alpha: 0.28),
@@ -99,14 +96,11 @@ class _AppLogoPainter extends CustomPainter {
       topRight: Radius.circular(w * 0.04),
     );
     final Paint pagePaint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(0, h * 0.72),
-        Offset(0, h * 0.90),
-        <Color>[
-          const Color(0xFFF5F5F4).withValues(alpha: coverAlpha),
-          const Color(0xFFD6D3D1).withValues(alpha: coverAlpha),
-        ],
-      );
+      ..shader =
+          ui.Gradient.linear(Offset(0, h * 0.72), Offset(0, h * 0.90), <Color>[
+            const Color(0xFFF5F5F4).withValues(alpha: coverAlpha),
+            const Color(0xFFD6D3D1).withValues(alpha: coverAlpha),
+          ]);
     canvas.drawRRect(pageBlock, pagePaint);
 
     // 2. Bookmark ribbon hanging from bottom-right of pages.
@@ -180,7 +174,9 @@ class _AppLogoPainter extends CustomPainter {
       ..cubicTo(w * 0.55, h * 0.28, w * 0.60, h * 0.38, w * 0.64, h * 0.48)
       ..cubicTo(w * 0.67, h * 0.54, w * 0.70, h * 0.57, w * 0.75, h * 0.56);
 
-    final List<ui.PathMetric> metricsList = alphaGlyph.computeMetrics().toList();
+    final List<ui.PathMetric> metricsList = alphaGlyph
+        .computeMetrics()
+        .toList();
     if (metricsList.isNotEmpty) {
       final ui.PathMetric metric = metricsList.first;
       final Path drawn = metric.extractPath(0, metric.length * progress);

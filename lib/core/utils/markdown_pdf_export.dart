@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
-import 'package:tradex/core/utils/share_actions.dart';
+import 'package:alphajournal/core/utils/share_actions.dart';
 import 'package:flutter/widgets.dart'
     show BuildContext, Color, ColoredBox, EdgeInsets, Padding;
 import 'package:flutter/services.dart' show ByteData, rootBundle;
@@ -11,12 +11,12 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:tradex/core/markdown_kit/chart_block.dart';
-import 'package:tradex/core/markdown_kit/flowchart/flowchart_view.dart';
-import 'package:tradex/core/markdown_kit/markdown_preview.dart';
-import 'package:tradex/core/markdown_kit/math_syntax.dart';
-import 'package:tradex/core/utils/pdf_export_options.dart';
-import 'package:tradex/core/utils/widget_capture.dart';
+import 'package:alphajournal/core/markdown_kit/chart_block.dart';
+import 'package:alphajournal/core/markdown_kit/flowchart/flowchart_view.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_preview.dart';
+import 'package:alphajournal/core/markdown_kit/math_syntax.dart';
+import 'package:alphajournal/core/utils/pdf_export_options.dart';
+import 'package:alphajournal/core/utils/widget_capture.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// Generates a **real, text-based PDF** from a note's markdown — not a

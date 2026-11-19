@@ -1,13 +1,13 @@
-import 'package:tradex/core/utils/share_actions.dart';
+import 'package:alphajournal/core/utils/share_actions.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_insights_sheet.dart';
-import 'package:tradex/features/community/presentation/widgets/community_report_dialog.dart';
-import 'package:tradex/features/community/presentation/widgets/community_share_sheet.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_edit_post_dialog.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_insights_sheet.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_report_dialog.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_share_sheet.dart';
 
 /// Contextual bottom sheet for post management, sharing, and moderation options.
 class CommunityPostOptionsSheet extends StatelessWidget {
@@ -144,12 +144,16 @@ class CommunityPostOptionsSheet extends StatelessWidget {
             final BuildContext host = Navigator.of(context).context;
             final String url = CommunityShareSheet.postUrl(post);
             Navigator.of(context).pop();
-            if (await ShareActions.copy(host, url)) repository.recordShare(post.id);
+            if (await ShareActions.copy(host, url)) {
+              repository.recordShare(post.id);
+            }
           },
         ),
         _optionRow(
           context,
-          icon: post.bookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+          icon: post.bookmarked
+              ? Icons.bookmark_rounded
+              : Icons.bookmark_border_rounded,
           title: post.bookmarked ? 'Remove bookmark' : 'Bookmark post',
           onTap: () {
             Navigator.of(context).pop();
@@ -167,7 +171,11 @@ class CommunityPostOptionsSheet extends StatelessWidget {
           onTap: () {
             final host = Navigator.of(context).context;
             Navigator.of(context).pop();
-            CommunityPostInsightsSheet.show(host, post: post, repository: repository);
+            CommunityPostInsightsSheet.show(
+              host,
+              post: post,
+              repository: repository,
+            );
           },
         ),
         const UiDivider(),
@@ -243,7 +251,9 @@ class CommunityPostOptionsSheet extends StatelessWidget {
             final isMuted = repository.mutedUsers.contains(post.author.id);
             return _optionRow(
               context,
-              icon: isMuted ? Icons.volume_up_outlined : Icons.volume_off_outlined,
+              icon: isMuted
+                  ? Icons.volume_up_outlined
+                  : Icons.volume_off_outlined,
               title: isMuted
                   ? 'Unmute ${post.author.displayHandle}'
                   : 'Mute ${post.author.displayHandle}',
@@ -361,7 +371,9 @@ class CommunityPostOptionsSheet extends StatelessWidget {
                     Text(
                       subtitle,
                       style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted.withValues(alpha: 0.6),
+                        color: theme.colors.foregroundMuted.withValues(
+                          alpha: 0.6,
+                        ),
                         fontSize: context.fs(11),
                       ),
                     ),

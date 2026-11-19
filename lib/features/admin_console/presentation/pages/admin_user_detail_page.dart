@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../../data/admin_repository.dart';
 import '../../models/admin_records.dart';
@@ -187,7 +187,9 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
                               label: adminLabel(user.profile.status),
                               intent: adminStatusIntent(user.profile.status),
                             ),
-                            UiBadge(label: adminLabel(user.profile.text('role'))),
+                            UiBadge(
+                              label: adminLabel(user.profile.text('role')),
+                            ),
                             UiBadge(
                               label: adminLabel(user.tier),
                               intent: UiIntent.primary,

@@ -1,6 +1,6 @@
-# TradeX copilot
+# AlphaJournal copilot
 
-The copilot is a new Dart implementation informed by the behavior of the local OpenDots reference. It uses the TraderHub component library and the existing app authentication. It does not use the OpenDots TypeScript application, CopilotKit Intelligence, Composio, or a second AI provider.
+The copilot is a new Dart implementation informed by the behavior of the local OpenDots reference. It uses the AlphaJournal component library and the existing app authentication. It does not use the OpenDots TypeScript application, CopilotKit Intelligence, Composio, or a second AI provider.
 
 ## Trader skills
 
@@ -62,7 +62,7 @@ community navigation, and startup regression checks (Node 22.18+ and Flutter).
 
 ## Run it
 
-From the TradeX directory:
+From the AlphaJournal directory:
 
 ```sh
 flutter pub get
@@ -94,9 +94,9 @@ This mode is explicitly restricted to a loopback bind and loopback clients and u
 | Desktop | One centered conversation by default; Workspace opens one optional second pane. No third pane. |
 | Tablet | Conversation and Workspace tabs. |
 | Phone | Conversation and full-screen Library navigation; keyboard-safe composer. |
-| Interaction | Existing TraderHub controls and theme tokens; no haptics. System, light, and dark appearance. |
+| Interaction | Existing AlphaJournal controls and theme tokens; no haptics. System, light, and dark appearance. |
 | Specialists | Create, edit, and delete roles; individual instructions and research, data analysis, memory, app, learning, space, and computer permissions. |
-| Conversations | Streaming Responses API, cancellation, pin/rename/delete/search, images/PDF/text attachments, source links, work logs, downloadable generated files, contextual entry points from TradeX. |
+| Conversations | Streaming Responses API, cancellation, pin/rename/delete/search, images/PDF/text attachments, source links, work logs, downloadable generated files, contextual entry points from AlphaJournal. |
 | Research and analysis | OpenAI web search and hosted code interpreter using the same `OPEN_AI_KEY`. |
 | Spaces and pages | Search, list/grid views, nested pages, move pages, visual rich-text editing, formatting toolbar, slash commands, undo/redo, Markdown source and rendered reading modes, export, autosave, revision conflicts, local draft recovery, page-specific conversation context. |
 | Review | Exact proposed page, preference, lesson, MCP, and computer actions are reviewed in chat. Approved local writes are idempotent. Permissions are rechecked at execution. |
@@ -136,7 +136,7 @@ An OpenAI key powers the AI but cannot grant access to a user's Slack, email, ca
 
 For apps, open **Workspace → Connections**, supply a public HTTPS MCP endpoint and its token if required, then enable apps globally and for the chosen specialist. Select allowed tools. Only explicitly trusted read-only names bypass review. Credentials are stored in the server workspace, so restrict access to its data directory.
 
-For computers, run a compatible OpenBot supervisor/computer deployment, then set `COMPUTER_SUPERVISOR_URL`, `COMPUTER_SUPERVISOR_TOKEN`, and `COMPUTER_TOKEN`. Set `COMPUTER_NAMESPACE` if the container prefix differs from `opendots`. The adapter validates supervisor-reported bot/container identity and destination port, derives a separate HMAC credential for each owner/specialist, and uses the supervisor's `/computers` and `/computers/:id/ensure|stop` endpoints. Computer workspace files and browser profiles persist in that service's volumes. No computer command is executed on the TradeX host. Enable the desired permissions in **Workspace → Computer** and start the computer there.
+For computers, run a compatible OpenBot supervisor/computer deployment, then set `COMPUTER_SUPERVISOR_URL`, `COMPUTER_SUPERVISOR_TOKEN`, and `COMPUTER_TOKEN`. Set `COMPUTER_NAMESPACE` if the container prefix differs from `opendots`. The adapter validates supervisor-reported bot/container identity and destination port, derives a separate HMAC credential for each owner/specialist, and uses the supervisor's `/computers` and `/computers/:id/ensure|stop` endpoints. Computer workspace files and browser profiles persist in that service's volumes. No computer command is executed on the AlphaJournal host. Enable the desired permissions in **Workspace → Computer** and start the computer there.
 
 For Slack, create a bot with `app_mentions:read`, `chat:write`, and the history permission appropriate to the channels it will use. Subscribe to `app_mention` and the relevant message events; invite the bot to the channel. Set the Events request URL to `https://your-service/v1/slack/events`. Configure:
 
@@ -145,7 +145,7 @@ For Slack, create a bot with `app_mentions:read`, `chat:write`, and the history 
 - `SLACK_TEAM_ID` and comma-separated `SLACK_ALLOWED_USER_IDS`
 - `SLACK_SPECIALIST_ID`, default `analyst`
 
-The webhook verifies signatures and request age, limits accepted workspaces/users, ignores bot messages, and requires an initial mention before following thread replies. Actions needing approval are reviewed inside TradeX. Failed delivery is shown in Connections; the service does not blindly replay outbound Slack messages.
+The webhook verifies signatures and request age, limits accepted workspaces/users, ignores bot messages, and requires an initial mention before following thread replies. Actions needing approval are reviewed inside AlphaJournal. Failed delivery is shown in Connections; the service does not blindly replay outbound Slack messages.
 
 ## Verification
 

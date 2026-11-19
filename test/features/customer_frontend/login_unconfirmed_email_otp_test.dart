@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/presentation/pages/login_page.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_repository.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/presentation/pages/login_page.dart';
 
 class _MockUnconfirmedAuthRepository implements AuthRepository {
   @override
@@ -26,8 +26,9 @@ class _MockUnconfirmedAuthRepository implements AuthRepository {
 }
 
 void main() {
-  testWidgets('LoginPage routes unconfirmed email to verification callback',
-      (WidgetTester tester) async {
+  testWidgets('LoginPage routes unconfirmed email to verification callback', (
+    WidgetTester tester,
+  ) async {
     UserRole? verifiedRole;
     String? verifiedEmail;
 
@@ -66,5 +67,3 @@ void main() {
     expect(verifiedEmail, equals('trader@example.com'));
   });
 }
-
-

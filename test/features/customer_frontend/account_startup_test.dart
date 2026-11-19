@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/account_access_repository.dart';
-import 'package:tradex/core/security/private_messaging_gate.dart';
-import 'package:tradex/core/widgets/account_access_gate.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/data/account_access_repository.dart';
+import 'package:alphajournal/core/security/private_messaging_gate.dart';
+import 'package:alphajournal/core/widgets/account_access_gate.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 
 class _Access extends AccountAccessRepository {
   final ready = Completer<AccountAccess>();

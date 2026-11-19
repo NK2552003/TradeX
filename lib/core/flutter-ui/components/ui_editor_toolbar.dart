@@ -123,9 +123,12 @@ class UiEditorToolbar extends StatelessWidget {
               const UiDivider(vertical: true, spacing: 4),
               if (trailing is Row)
                 for (final Widget child in (trailing! as Row).children)
-                  if (child is! SizedBox) child else if (child.child != null) child
-              else
-                trailing!,
+                  if (child is! SizedBox)
+                    child
+                  else if (child.child != null)
+                    child
+                  else
+                    trailing!,
             ],
           ];
           final Row row = Row(

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/core/navigation/feature_location_scope.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/presentation/views/community_feed_view.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/core/navigation/feature_location_scope.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/presentation/views/community_feed_view.dart';
 
 void main() {
   void viewport(WidgetTester tester) {

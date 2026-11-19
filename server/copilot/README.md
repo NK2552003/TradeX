@@ -1,4 +1,4 @@
-# TradeX Copilot Server — Encryption at Rest & Operations Guide
+# AlphaJournal Copilot Server — Encryption at Rest & Operations Guide
 
 ## 1. Encryption at Rest (`AES-256-GCM`)
 
@@ -16,7 +16,7 @@ Each `<owner_key>.json` file on disk stores a versioned JSON envelope:
 }
 ```
 - **Nonce:** A fresh 96-bit (12-byte) cryptographically random nonce is generated on every write.
-- **Additional Authenticated Data (AAD):** Bound to `tradex-copilot:v1:<owner_key>` so moving or renaming a workspace file across owners fails authentication.
+- **Additional Authenticated Data (AAD):** Existing encrypted records remain bound to the legacy `tradex-copilot:v1:<owner_key>` compatibility identifier, so moving or renaming a workspace file across owners fails authentication.
 - **Atomic Writes:** Temp files (`<owner_key>.json.tmp`) are written only after encryption and renamed atomically. Leftover `.tmp` files from interrupted writes are cleaned up during `open()`.
 
 ## 2. Key Configuration

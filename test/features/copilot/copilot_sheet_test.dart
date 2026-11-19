@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/copilot/copilot.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
 
 void main() {
   for (final width in [390.0, 768.0, 1440.0]) {
@@ -43,12 +43,14 @@ void main() {
       }
       expect(find.byType(UiSplitPane), findsNothing);
       await tester.tap(
-        find.byWidgetPredicate(
-          (w) =>
-              (w is Tooltip &&
-                  (w.message == 'Library' || w.message == 'Workspace')) ||
-              (w is Text && (w.data == 'Library' || w.data == 'Workspace')),
-        ).first,
+        find
+            .byWidgetPredicate(
+              (w) =>
+                  (w is Tooltip &&
+                      (w.message == 'Library' || w.message == 'Workspace')) ||
+                  (w is Text && (w.data == 'Library' || w.data == 'Workspace')),
+            )
+            .first,
       );
       await tester.pumpAndSettle();
       expect(find.text('New conversation'), findsWidgets);
@@ -87,10 +89,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: CopilotScreen(
-              repository: controller,
-              embedInScaffold: false,
-            ),
+            body: CopilotScreen(repository: controller, embedInScaffold: false),
           ),
         ),
       );
@@ -131,10 +130,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: CopilotScreen(
-              repository: controller,
-              embedInScaffold: false,
-            ),
+            body: CopilotScreen(repository: controller, embedInScaffold: false),
           ),
         ),
       );
@@ -164,11 +160,7 @@ void main() {
             'specialistId': 'analyst',
             'title': 'Scroll check',
             'messages': [
-              {
-                'id': 'm1',
-                'role': 'user',
-                'body': 'Analyze NVDA earnings.',
-              },
+              {'id': 'm1', 'role': 'user', 'body': 'Analyze NVDA earnings.'},
               {
                 'id': 'm2',
                 'role': 'assistant',

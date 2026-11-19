@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/models/app_models.dart';
-import 'package:tradex/features/workspace/data/workspace_post_service.dart';
+import 'package:alphajournal/core/app-ui/models/app_models.dart';
+import 'package:alphajournal/features/workspace/data/workspace_post_service.dart';
 
 void main() {
   group('WorkspacePostService', () {
@@ -25,14 +25,18 @@ void main() {
     });
 
     test('can retrieve primary and all links for a record', () {
-      final AppPostLinkInfo? primary =
-          service.getPrimaryLink(AppLinkKind.strategy, 'stg_2');
+      final AppPostLinkInfo? primary = service.getPrimaryLink(
+        AppLinkKind.strategy,
+        'stg_2',
+      );
       expect(primary, isNotNull);
       expect(primary!.postId, equals('post_q1'));
       expect(primary.postTitle, contains('Momentum Strategy Backtest'));
 
-      final List<AppPostLinkInfo> all =
-          service.getLinksForRecord(AppLinkKind.strategy, 'stg_2');
+      final List<AppPostLinkInfo> all = service.getLinksForRecord(
+        AppLinkKind.strategy,
+        'stg_2',
+      );
       expect(all, isNotEmpty);
       expect(all.first.postId, equals('post_q1'));
     });
@@ -48,8 +52,10 @@ void main() {
       );
 
       expect(service.isLinked(AppLinkKind.note, testRecordId), isTrue);
-      final AppPostLinkInfo? linked =
-          service.getPrimaryLink(AppLinkKind.note, testRecordId);
+      final AppPostLinkInfo? linked = service.getPrimaryLink(
+        AppLinkKind.note,
+        testRecordId,
+      );
       expect(linked, isNotNull);
       expect(linked!.postTitle, equals('Dynamic Test Post'));
 

@@ -3,7 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import 'push_platform_native.dart'
     if (dart.library.js_interop) 'push_platform_web.dart'
     as platform;

@@ -32,13 +32,19 @@ This guide walks through deploying **alphajournal** to **Cloudflare Pages** from
 Because Cloudflare Pages' default build image does not pre-install the Flutter SDK, building locally (or in GitHub Actions) and deploying via `wrangler` is the fastest production workflow:
 
 ```bash
-# 1. Sync client environment variables into assets/config/client.env
+# 1. Publish the web version/build metadata from pubspec.yaml
+python3 scripts/generate_app_update_manifest.py --platform web
+
+# 2. Sync client environment variables into assets/config/client.env
 python3 scripts/prepare_client_config.py
 
-# 2. Build the production Flutter Web bundle
+# 3. Verify that the public update manifest matches the build
+python3 scripts/generate_app_update_manifest.py --platform web --check
+
+# 4. Build the production Flutter Web bundle
 flutter build web --release
 
-# 3. Deploy build/web to Cloudflare Pages (creates project if first run)
+# 5. Deploy build/web to Cloudflare Pages (creates project if first run)
 npx wrangler pages deploy build/web --project-name=alphajournal --branch=feature/admin
 ```
 
@@ -46,18 +52,18 @@ npx wrangler pages deploy build/web --project-name=alphajournal --branch=feature
 
 If you connect your GitHub repository directly in **Cloudflare Dashboard -> Compute (Workers & Pages) -> Create -> Pages -> Connect to Git**:
 
-- **Repository**: `nk2552003/TradeX`
+- **Repository**: `NK2552003/TradeX` (the GitHub repository name intentionally remains TradeX)
 - **Production branch**: `feature/admin` (or `main`)
 - **Build command**:
   ```bash
-  git clone https://github.com/flutter/flutter.git -b stable --depth 1 $HOME/flutter && export PATH="$PATH:$HOME/flutter/bin" && python3 scripts/prepare_client_config.py && flutter pub get && flutter build web --release
+  git clone https://github.com/flutter/flutter.git -b stable --depth 1 $HOME/flutter && export PATH="$PATH:$HOME/flutter/bin" && python3 scripts/generate_app_update_manifest.py --platform web && python3 scripts/prepare_client_config.py && python3 scripts/generate_app_update_manifest.py --platform web --check && flutter pub get && flutter build web --release
   ```
 - **Build output directory**: `build/web`
 - **Environment variables** (under *Settings -> Environment Variables*):
   - `SUPABASE_URL`: `https://ylxwgkhtwrizdmuhlhxs.supabase.co`
   - `SUPABASE_ANON_KEY`: *(your anon key from `.env`)*
   - `SUPABASE_PUBLISHABLE_KEY`: *(your publishable key from `.env`)*
-  - `APP_ENV`: `production`
+  - `ENVIRONMENT`: `production` (enables production-only update checks and other release safeguards)
 
 ---
 
@@ -123,37 +129,37 @@ Open your **Supabase Dashboard** (`https://supabase.com/dashboard/project/ylxwgk
   https://admin.alphajournal.in/**
   https://affiliate.alphajournal.in/**
   https://*.alphajournal.pages.dev/**
-  tradex://auth/callback
+  alphajournal://auth/callback
   ```
 
-### 2. Where to Put AI API Keys (Supabase Edge Function Secrets vs. Cloudflare Variables)
+### 2. Where to Put AI API Keys
 
-Your current `.env` keys (`OPEN_AI_KEY` and `OPENROUTER_API_KEY`) have been verified against live OpenAI (`gpt-4o-mini`) and OpenRouter (`openrouter/free`) endpoints and are **100% active and working**.
+Do not record whether a credential is active in source-controlled documentation. Validate provider credentials through a sanitized deployment check and store the evidence in the private release record.
 
-Here is **where each key belongs** in production:
+The Unified AI service remains gateway-first and retains its bounded provider fallback behavior. In hosted builds, every provider fallback must still execute behind the approved server gateway; provider secrets must never be compiled into Flutter web/native clients or exported into static assets.
 
 #### A. Supabase Edge Function Secrets (Primary & Recommended for Security)
 All server-side AI keys (`OPENAI_API_KEY` / `OPEN_AI_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`) **should be stored in Supabase Edge Function Secrets**, never exposed in public static files.
 
 1. **Via Supabase Dashboard**:
-   - Open `https://supabase.com/dashboard/project/ylxwgkhtwrizdmuhlhxs/functions/secrets` (**Project Settings -> Edge Functions -> Secrets**).
+   - Open the target project in **Supabase Dashboard -> Edge Functions -> Secrets**.
    - Add the following secrets:
      - `OPENAI_API_KEY` = *(your `OPEN_AI_KEY` value from `.env`)*
      - `OPEN_AI_KEY` = *(your `OPEN_AI_KEY` value from `.env`)*
      - `OPENROUTER_API_KEY` = *(your `OPENROUTER_API_KEY` value from `.env`)*
 2. **Or via Supabase CLI**:
    ```bash
-   npx supabase login
+   # Authenticate with a scoped token limited to the intended project.
    npx supabase secrets set \
-     OPENAI_API_KEY="sk-proj-..." \
-     OPEN_AI_KEY="sk-proj-..." \
-     OPENROUTER_API_KEY="sk-or-v1-..." \
-     --project-ref ylxwgkhtwrizdmuhlhxs
+     OPENAI_API_KEY="<secret>" \
+     OPEN_AI_KEY="<secret>" \
+     OPENROUTER_API_KEY="<secret>" \
+     --project-ref <project-ref>
 
    # Deploy the Edge Functions so they pick up the latest code & secrets:
-   npx supabase functions deploy ai-gateway --project-ref ylxwgkhtwrizdmuhlhxs
-   npx supabase functions deploy note-ai-refactor --project-ref ylxwgkhtwrizdmuhlhxs
-   npx supabase functions deploy market-quote-proxy --project-ref ylxwgkhtwrizdmuhlhxs
+   npx supabase functions deploy ai-gateway --project-ref <project-ref>
+   npx supabase functions deploy note-ai-refactor --project-ref <project-ref>
+   npx supabase functions deploy market-quote-proxy --project-ref <project-ref>
    ```
 
 #### B. Cloudflare Pages Environment Variables
@@ -163,7 +169,8 @@ In **Cloudflare Dashboard -> Workers & Pages -> alphajournal -> Settings -> Envi
 - `SUPABASE_PUBLISHABLE_KEY` = *(your publishable key from `.env`)*
 - `ENVIRONMENT` = `production`
 
-> **Optional Client-Side Fallback**: [`UnifiedAiService`](../lib/core/ai/unified_ai_service.dart) and [`RealNoteAiRefactor`](../lib/features/notes/data/real_note_ai_refactor.dart) automatically try the Supabase Edge Functions (`note-ai-refactor` and `ai-gateway`) first. If the Edge Functions are not yet deployed or configured in Supabase, they gracefully fall back to client-side AI providers when compiled with `--dart-define=OPEN_AI_KEY=...` or `--dart-define=OPENROUTER_API_KEY=...`. Once your Supabase Edge Function secrets are set, you do **not** need AI keys in Cloudflare Pages.
+> [!WARNING]
+> Do not add `OPEN_AI_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, or any other provider secret to Cloudflare Pages public build variables, `assets/config/client.env`, or Flutter `--dart-define` arguments. A client bundle cannot keep a server provider key secret.
 
 ### 3. Verify Live Database Pricing & Quotas
 The live Supabase database (`public.pricing_catalogues`, `public.profiles`, `public.subscriptions`, and `public.get_customer_quota_usage`) is already updated with:

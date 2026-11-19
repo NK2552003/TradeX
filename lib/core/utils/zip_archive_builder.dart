@@ -35,14 +35,12 @@ class ZipArchiveBuilder {
   }
 
   void addBytes(String path, Uint8List bytes) {
-    final normalized = path.replaceAll('\\', '/').replaceFirst(RegExp('^/+'), '');
+    final normalized = path
+        .replaceAll('\\', '/')
+        .replaceFirst(RegExp('^/+'), '');
     final nameBytes = Uint8List.fromList(utf8.encode(normalized));
     _entries.add(
-      _ZipEntry(
-        nameBytes: nameBytes,
-        dataBytes: bytes,
-        crc: crc32(bytes),
-      ),
+      _ZipEntry(nameBytes: nameBytes, dataBytes: bytes, crc: crc32(bytes)),
     );
   }
 

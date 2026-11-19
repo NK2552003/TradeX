@@ -1,5 +1,5 @@
 // Opt-in, read-only smoke test against the Supabase project in .env.
-// TRADEX_LIVE_MARKET_TEST=1 flutter test test/features/market_data/market_detail_live_test.dart
+// ALPHAJOURNAL_LIVE_MARKET_TEST=1 flutter test test/features/market_data/market_detail_live_test.dart
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -7,13 +7,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_view.dart';
 
 void main() {
-  final isEnabled = Platform.environment['TRADEX_LIVE_MARKET_TEST'] == '1';
+  final isEnabled =
+      Platform.environment['ALPHAJOURNAL_LIVE_MARKET_TEST'] == '1';
   for (final symbol in ['AAPL', 'RELIANCE.NS', 'BTC-USD']) {
     testWidgets('live Supabase detail renders for $symbol', (tester) async {
       tester.view.physicalSize = const Size(1440, 950);

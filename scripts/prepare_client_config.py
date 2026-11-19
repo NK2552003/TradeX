@@ -8,7 +8,8 @@ PUBLIC_KEYS = {
     'SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_PUBLISHABLE_KEY',
     'REVENUECAT_TEST_API_KEY', 'REVENUECAT_ANDROID_API_KEY',
     'REVENUECAT_IOS_API_KEY', 'RAZORPAY_TEST_KEY_ID', 'ENVIRONMENT',
-    'COPILOT_API_URL',
+    'COPILOT_API_URL', 'APP_UPDATE_MANIFEST_URL',
+    'APP_UPDATE_CHECKS_ENABLED',
 }
 
 
@@ -37,4 +38,6 @@ if __name__ == '__main__':
     destination = ROOT / 'assets/config/client.env'
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(export_public_settings(source.read_text() if source.exists() else "", os.environ))
+    from generate_app_update_manifest import generate_manifest
+    generate_manifest(platforms=('web',))
     print('Public Flutter configuration generated; server secrets excluded.')

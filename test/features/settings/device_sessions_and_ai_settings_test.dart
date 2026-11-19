@@ -4,24 +4,24 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/navigation/customer_routes.dart';
-import 'package:tradex/core/navigation/role_navigation_config.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/features/copilot/data/copilot_api.dart';
-import 'package:tradex/features/copilot/models/workspace_mutations.dart';
-import 'package:tradex/features/copilot/presentation/workspace_pane.dart';
-import 'package:tradex/features/settings/data/repositories/ai_settings_repository.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/models/active_session_model.dart';
-import 'package:tradex/features/settings/models/connected_account_model.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/account_security_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/ai_copilot_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/appearance_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
-import 'package:tradex/features/settings/presentation/pages/trader/trading_preferences_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/navigation/customer_routes.dart';
+import 'package:alphajournal/core/navigation/role_navigation_config.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/features/copilot/data/copilot_api.dart';
+import 'package:alphajournal/features/copilot/models/workspace_mutations.dart';
+import 'package:alphajournal/features/copilot/presentation/workspace_pane.dart';
+import 'package:alphajournal/features/settings/data/repositories/ai_settings_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/active_session_model.dart';
+import 'package:alphajournal/features/settings/models/connected_account_model.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/account_security_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/ai_copilot_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/appearance_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/settings_root_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/trader/trading_preferences_page.dart';
 
 class _TestDeviceProfileRepo implements ProfileSettingsRepository {
   _TestDeviceProfileRepo({required List<ActiveDeviceSession> initialSessions})
@@ -340,33 +340,31 @@ void main() {
       },
     );
 
-    testWidgets('renders active devices cleanly at mobile width without overflow', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'renders active devices cleanly at mobile width without overflow',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final repo = _TestDeviceProfileRepo(initialSessions: sampleSessions());
+        final repo = _TestDeviceProfileRepo(initialSessions: sampleSessions());
 
-      await tester.pumpWidget(
-        _wrapTestApp(AccountSecurityPage(repository: repo)),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrapTestApp(AccountSecurityPage(repository: repo)),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('3 active devices'), findsOneWidget);
-      expect(find.text('Session & Sign-In Protection'), findsOneWidget);
-      expect(find.text('New Device Sign-In Alerts'), findsOneWidget);
-    });
+        expect(find.text('3 active devices'), findsOneWidget);
+        expect(find.text('Session & Sign-In Protection'), findsOneWidget);
+        expect(find.text('New Device Sign-In Alerts'), findsOneWidget);
+      },
+    );
   });
 
   group('AI & Copilot settings moved from Copilot into Settings', () {
     test('WorkspaceSection no longer embeds inline settings', () {
-      expect(
-        WorkspaceSection.values.any((s) => s.name == 'settings'),
-        isFalse,
-      );
+      expect(WorkspaceSection.values.any((s) => s.name == 'settings'), isFalse);
     });
 
     testWidgets(
@@ -427,7 +425,9 @@ void main() {
           of: find.text('Pause All AI Work'),
           matching: find.byType(AppSettingCard),
         );
-        await tester.tap(find.descendant(of: pauseRow, matching: find.byType(UiSwitch)));
+        await tester.tap(
+          find.descendant(of: pauseRow, matching: find.byType(UiSwitch)),
+        );
         await tester.pumpAndSettle();
 
         expect(
@@ -509,73 +509,78 @@ void main() {
   });
 
   group('Missing settings exposed & wired in navigation', () {
-    test('RoleNavigationConfig and CustomerRoute expose settings_trading & settings_ai', () {
-      final customerConfig = RoleNavigationConfig.forRole(UserRole.customer);
-      final settingsItem = customerConfig.sections
-          .expand((s) => s.items)
-          .firstWhere((item) => item.id == 'settings');
-      final subIds =
-          settingsItem.subItems?.map((s) => s.id).toList() ?? const <String>[];
+    test(
+      'RoleNavigationConfig and CustomerRoute expose settings_trading & settings_ai',
+      () {
+        final customerConfig = RoleNavigationConfig.forRole(UserRole.customer);
+        final settingsItem = customerConfig.sections
+            .expand((s) => s.items)
+            .firstWhere((item) => item.id == 'settings');
+        final subIds =
+            settingsItem.subItems?.map((s) => s.id).toList() ??
+            const <String>[];
 
-      expect(subIds, contains('settings_trading'));
-      expect(subIds, contains('settings_ai'));
+        expect(subIds, contains('settings_trading'));
+        expect(subIds, contains('settings_ai'));
 
-      expect(
-        CustomerRoute.subdomainForDestination('settings_ai'),
-        CustomerSubdomain.app,
-      );
-      expect(
-        CustomerRoute.subdomainForDestination('settings_trading'),
-        CustomerSubdomain.app,
-      );
-      expect(CustomerRoute.parse(Uri.parse('/settings_ai')).valid, isTrue);
-      expect(CustomerRoute.parse(Uri.parse('/settings_trading')).valid, isTrue);
-    });
+        expect(
+          CustomerRoute.subdomainForDestination('settings_ai'),
+          CustomerSubdomain.app,
+        );
+        expect(
+          CustomerRoute.subdomainForDestination('settings_trading'),
+          CustomerSubdomain.app,
+        );
+        expect(CustomerRoute.parse(Uri.parse('/settings_ai')).valid, isTrue);
+        expect(
+          CustomerRoute.parse(Uri.parse('/settings_trading')).valid,
+          isTrue,
+        );
+      },
+    );
 
-    testWidgets('SettingsRootPage renders overview entries, Trading & Risk, AI & Copilot, and Appearance extras', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(1280, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'SettingsRootPage renders overview entries, Trading & Risk, AI & Copilot, and Appearance extras',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      // Overview exposes Trading & AI rows
-      await tester.pumpWidget(
-        _wrapTestApp(
-          const SettingsRootPage(
-            userRole: UserRole.customer,
-            showNavigationPane: true,
+        // Overview exposes Trading & AI rows
+        await tester.pumpWidget(
+          _wrapTestApp(
+            const SettingsRootPage(
+              userRole: UserRole.customer,
+              showNavigationPane: true,
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Trading, Risk & Checklists'), findsOneWidget);
-      expect(find.text('AI & Copilot Settings'), findsOneWidget);
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Trading, Risk & Checklists'), findsOneWidget);
+        expect(find.text('AI & Copilot Settings'), findsOneWidget);
 
-      // TradingPreferencesPage exposes Currency, Timezone & Journal rules
-      await tester.pumpWidget(_wrapTestApp(const TradingPreferencesPage()));
-      await tester.pumpAndSettle();
-      expect(find.text('Currency, Session & Journal Rules'), findsOneWidget);
-      expect(find.text('Preferred Display Currency'), findsOneWidget);
-      expect(find.text('Default Market Session Timezone'), findsOneWidget);
-      expect(
-        find.text('Require Pre-Trade Checklist Confirmation'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Deduct Estimated Brokerage & Fees'),
-        findsOneWidget,
-      );
+        // TradingPreferencesPage exposes Currency, Timezone & Journal rules
+        await tester.pumpWidget(_wrapTestApp(const TradingPreferencesPage()));
+        await tester.pumpAndSettle();
+        expect(find.text('Currency, Session & Journal Rules'), findsOneWidget);
+        expect(find.text('Preferred Display Currency'), findsOneWidget);
+        expect(find.text('Default Market Session Timezone'), findsOneWidget);
+        expect(
+          find.text('Require Pre-Trade Checklist Confirmation'),
+          findsOneWidget,
+        );
+        expect(find.text('Deduct Estimated Brokerage & Fees'), findsOneWidget);
 
-      // AppearanceSettingsPage exposes Formatting, Clock & Motion
-      await tester.pumpWidget(_wrapTestApp(const AppearanceSettingsPage()));
-      await tester.pumpAndSettle();
-      expect(find.text('Formatting, Clock & Motion'), findsOneWidget);
-      expect(find.text('Number & Currency Grouping'), findsOneWidget);
-      expect(find.text('Clock & Execution Time Format'), findsOneWidget);
-      expect(find.text('Show Live Market Ticker Strip'), findsOneWidget);
-      expect(find.text('Reduce Motion & Transitions'), findsOneWidget);
-    });
+        // AppearanceSettingsPage exposes Formatting, Clock & Motion
+        await tester.pumpWidget(_wrapTestApp(const AppearanceSettingsPage()));
+        await tester.pumpAndSettle();
+        expect(find.text('Formatting, Clock & Motion'), findsOneWidget);
+        expect(find.text('Number & Currency Grouping'), findsOneWidget);
+        expect(find.text('Clock & Execution Time Format'), findsOneWidget);
+        expect(find.text('Show Live Market Ticker Strip'), findsOneWidget);
+        expect(find.text('Reduce Motion & Transitions'), findsOneWidget);
+      },
+    );
   });
 }

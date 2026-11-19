@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_workspace_repository.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_workspace_repository.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
 
 void main() {
   testWidgets('copy referral link copies the actual URL', (tester) async {

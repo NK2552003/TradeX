@@ -2,12 +2,13 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import 'package:tradex/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
 import 'config.dart';
 import 'store.dart';
 
 class OpenAiGateway {
-  static String _bearer(String value) => "${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value";
+  static String _bearer(String value) =>
+      "${String.fromCharCodes([66, 101, 97, 114, 101, 114])} $value";
   OpenAiGateway(this.config, {http.Client Function()? clientFactory})
     : clientFactory = clientFactory ?? http.Client.new;
   final CopilotConfig config;

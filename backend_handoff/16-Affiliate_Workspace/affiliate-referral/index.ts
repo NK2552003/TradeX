@@ -1,7 +1,7 @@
 // Deploy as Supabase Edge Function affiliate-referral with JWT verification disabled.
 // This public telemetry endpoint never awards commission or modifies balances.
 import { createClient } from 'npm:@supabase/supabase-js@2.57.4';
-const origin = Deno.env.get('APP_ORIGIN') ?? 'https://tradex.ai';
+const origin = Deno.env.get('APP_ORIGIN') ?? 'https://alphajournal.in';
 const headers = { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'authorization,x-client-info,apikey,content-type', 'Access-Control-Allow-Methods': 'POST,OPTIONS', 'Content-Type': 'application/json' };
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { headers });

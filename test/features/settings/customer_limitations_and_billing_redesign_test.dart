@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
-import 'package:tradex/features/settings/models/billing_models.dart';
-import 'package:tradex/features/settings/presentation/pages/trader/billing_settings_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/features/settings/data/repositories/billing_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/billing_models.dart';
+import 'package:alphajournal/features/settings/presentation/pages/trader/billing_settings_page.dart';
 
 class _FakeBillingSettingsRepository implements BillingSettingsRepository {
   _FakeBillingSettingsRepository();

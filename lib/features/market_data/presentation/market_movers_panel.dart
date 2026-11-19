@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_view.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// Reference-style quote row: identity, actual closing-price spark, quote/change.
 class MarketQuoteRow extends StatelessWidget {
-  const MarketQuoteRow({super.key, required this.quote, required this.onTap});
+  const MarketQuoteRow({
+    super.key,
+    required this.quote,
+    required this.onTap,
+    this.allowHistoryFetch = true,
+  });
   final MarketInstrument quote;
   final VoidCallback onTap;
+  final bool allowHistoryFetch;
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
@@ -57,7 +63,11 @@ class MarketQuoteRow extends StatelessWidget {
                 flex: 2,
                 child: UiTooltip(
                   message: 'Daily closing prices',
-                  child: _QuoteHistory(quote: quote, color: color),
+                  child: _QuoteHistory(
+                    quote: quote,
+                    color: color,
+                    allowFetch: allowHistoryFetch,
+                  ),
                 ),
               ),
             ],
@@ -100,11 +110,13 @@ class MarketMoversList extends StatelessWidget {
     required this.quotes,
     required this.onTap,
     this.limit = 5,
+    this.allowHistoryFetch = true,
   });
   final String title;
   final List<MarketInstrument> quotes;
   final ValueChanged<MarketInstrument> onTap;
   final int limit;
+  final bool allowHistoryFetch;
   @override
   Widget build(BuildContext context) => UiCard(
     padding: EdgeInsets.all(context.sp(context.ui.spacing.sm)),
@@ -116,13 +128,20 @@ class MarketMoversList extends StatelessWidget {
           UiEmptyState(title: 'No ${title.toLowerCase()} in this snapshot'),
         for (final quote in quotes.take(limit)) ...[
           if (limit <= 10)
-            MarketQuoteRow(quote: quote, onTap: () => onTap(quote))
+            MarketQuoteRow(
+              quote: quote,
+              onTap: () => onTap(quote),
+              allowHistoryFetch: allowHistoryFetch,
+            )
           else
             UiDeferred(
               key: ValueKey(quote.symbol),
               estimatedHeight: 80,
-              builder: (_) =>
-                  MarketQuoteRow(quote: quote, onTap: () => onTap(quote)),
+              builder: (_) => MarketQuoteRow(
+                quote: quote,
+                onTap: () => onTap(quote),
+                allowHistoryFetch: allowHistoryFetch,
+              ),
             ),
           const UiDivider(spacing: 0),
         ],
@@ -132,8 +151,13 @@ class MarketMoversList extends StatelessWidget {
 }
 
 class MarketMoversPanel extends StatefulWidget {
-  const MarketMoversPanel({super.key, this.repository});
+  const MarketMoversPanel({
+    super.key,
+    this.repository,
+    this.limitedCommunityAccess = false,
+  });
   final AssetMarketRepository? repository;
+  final bool limitedCommunityAccess;
   @override
   State<MarketMoversPanel> createState() => _MarketMoversPanelState();
 }
@@ -141,7 +165,9 @@ class MarketMoversPanel extends StatefulWidget {
 class _MarketMoversPanelState extends State<MarketMoversPanel> {
   late final AssetMarketRepository _repo =
       widget.repository ?? AssetMarketRepository.shared;
-  late Future<MarketSnapshot> _future = _repo.snapshot();
+  late Future<MarketSnapshot> _future = widget.limitedCommunityAccess
+      ? _repo.communityPreview()
+      : _repo.snapshot();
   bool _detailOpen = false;
 
   Future<void> _open(MarketInstrument quote) async {
@@ -155,10 +181,15 @@ class _MarketMoversPanelState extends State<MarketMoversPanel> {
         desktopWidthRatio: .48,
         minDesktopWidth: 540,
         maxWidth: 760,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
-          child: MarketInstrumentView(instrument: quote, repository: _repo),
-        ),
+        child: widget.limitedCommunityAccess
+            ? _CommunityInstrumentPreview(instrument: quote)
+            : SingleChildScrollView(
+                padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+                child: MarketInstrumentView(
+                  instrument: quote,
+                  repository: _repo,
+                ),
+              ),
       );
     } finally {
       _detailOpen = false;
@@ -173,8 +204,11 @@ class _MarketMoversPanelState extends State<MarketMoversPanel> {
         return UiEmptyState(
           title: 'Market data unavailable',
           actionLabel: 'Try again',
-          onActionPressed: () =>
-              setState(() => _future = _repo.snapshot(refresh: true)),
+          onActionPressed: () => setState(
+            () => _future = widget.limitedCommunityAccess
+                ? _repo.communityPreview(refresh: true)
+                : _repo.snapshot(refresh: true),
+          ),
         );
       }
       if (!snapshot.hasData) return const UiSkeleton(height: 200);
@@ -185,12 +219,14 @@ class _MarketMoversPanelState extends State<MarketMoversPanel> {
             title: 'Top gainers',
             quotes: snapshot.data!.gainers,
             onTap: _open,
+            allowHistoryFetch: !widget.limitedCommunityAccess,
           ),
           UiGap.v(context.ui.spacing.md),
           MarketMoversList(
             title: 'Top losers',
             quotes: snapshot.data!.losers,
             onTap: _open,
+            allowHistoryFetch: !widget.limitedCommunityAccess,
           ),
         ],
       );
@@ -198,10 +234,77 @@ class _MarketMoversPanelState extends State<MarketMoversPanel> {
   );
 }
 
+class _CommunityInstrumentPreview extends StatelessWidget {
+  const _CommunityInstrumentPreview({required this.instrument});
+
+  final MarketInstrument instrument;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const UiCallout(
+            title: 'Community market preview',
+            message:
+                'Free includes this limited quote preview. Full charts, fundamentals, screeners, and coverage require AlphaJournal Basic or Pro.',
+            intent: UiIntent.info,
+          ),
+          UiGap.v(theme.spacing.md),
+          UiCardGrid(
+            mobileColumns: 1,
+            tabletColumns: 2,
+            desktopColumns: 2,
+            largeColumns: 2,
+            children: <Widget>[
+              UiMetricCard(
+                label: 'Last price',
+                value: instrument.price.toStringAsFixed(2),
+                change:
+                    '${instrument.changePercent >= 0 ? '+' : ''}${instrument.changePercent.toStringAsFixed(2)}%',
+                isPositive: instrument.changePercent >= 0,
+                subtitle: instrument.currency,
+                icon: Icons.price_change_outlined,
+              ),
+              UiMetricCard(
+                label: 'Market',
+                value: instrument.market.isEmpty ? 'Global' : instrument.market,
+                subtitle: instrument.name,
+                icon: Icons.public_rounded,
+              ),
+            ],
+          ),
+          if (instrument.spark.length > 1) ...<Widget>[
+            UiGap.v(theme.spacing.md),
+            UiCard(
+              title: 'Recent trend',
+              child: UiSparkChart(
+                values: instrument.spark,
+                height: context.sz(120),
+                color: instrument.changePercent >= 0
+                    ? theme.colors.success
+                    : theme.colors.danger,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _QuoteHistory extends StatefulWidget {
-  const _QuoteHistory({required this.quote, required this.color});
+  const _QuoteHistory({
+    required this.quote,
+    required this.color,
+    required this.allowFetch,
+  });
   final MarketInstrument quote;
   final Color color;
+  final bool allowFetch;
 
   @override
   State<_QuoteHistory> createState() => _QuoteHistoryState();
@@ -212,7 +315,9 @@ class _QuoteHistoryState extends State<_QuoteHistory> {
 
   Future<List<double>> _load() => widget.quote.spark.length > 1
       ? Future.value(widget.quote.spark)
-      : AssetMarketRepository.shared.getSpark(widget.quote.symbol);
+      : widget.allowFetch
+      ? AssetMarketRepository.shared.getSpark(widget.quote.symbol)
+      : Future.value(const <double>[]);
 
   @override
   void didUpdateWidget(covariant _QuoteHistory oldWidget) {

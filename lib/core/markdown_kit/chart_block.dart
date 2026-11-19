@@ -1,11 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// Renders a fenced ` ```chart ` (or ` ```pie `, ` ```donut `, ` ```candle `,
 /// ` ```waterfall `, ` ```barlist `, ` ```kpi `, ` ```spark `) code block
-/// using the TraderHub reusable component library ([UiCard], [UiAreaChart],
+/// using the AlphaJournal reusable component library ([UiCard], [UiAreaChart],
 /// [UiBarChart], [UiLineChart], [UiComboChart], [UiDonutChart],
 /// [UiCandleChart], [UiWaterfallChart], [UiSparkChart], [UiBarList],
 /// [UiMetricCard], [UiCardGrid], [UiBadge], and [UiCallout]).
@@ -193,10 +193,7 @@ class ChartBlock extends StatelessWidget {
       final dynamic decoded = jsonDecode(trimmed);
       if (decoded is Map<String, dynamic>) return decoded;
       if (decoded is List) {
-        return <String, dynamic>{
-          'type': ?defaultType,
-          'items': decoded,
-        };
+        return <String, dynamic>{'type': ?defaultType, 'items': decoded};
       }
     } catch (_) {
       // Fall back to lightweight key:value or CSV line parsing below.
@@ -534,9 +531,7 @@ class ChartBlock extends StatelessWidget {
       }
       final double volume = _parseNumber(item['volume'] ?? item['v']) ?? 0.0;
       final DateTime time =
-          DateTime.tryParse(
-            (item['time'] ?? item['date'] ?? '').toString(),
-          ) ??
+          DateTime.tryParse((item['time'] ?? item['date'] ?? '').toString()) ??
           now.subtract(Duration(days: rawCandles.length - i));
       candles.add(
         UiCandle(
@@ -558,9 +553,11 @@ class ChartBlock extends StatelessWidget {
         if (item is Map) {
           final double? price = _parseNumber(item['price'] ?? item['value']);
           if (price == null) continue;
-          final String intentStr =
-              (item['intent'] ?? 'primary').toString().toLowerCase();
-          final UiIntent intent = intentStr == 'bullish' || intentStr == 'success'
+          final String intentStr = (item['intent'] ?? 'primary')
+              .toString()
+              .toLowerCase();
+          final UiIntent intent =
+              intentStr == 'bullish' || intentStr == 'success'
               ? UiIntent.bullish
               : (intentStr == 'bearish' || intentStr == 'danger'
                     ? UiIntent.bearish
@@ -672,10 +669,7 @@ class ChartBlock extends StatelessWidget {
           i++
         ) {
           items.add(
-            UiBarListItem(
-              label: extracted.labels[i],
-              value: first.values[i],
-            ),
+            UiBarListItem(label: extracted.labels[i], value: first.values[i]),
           );
         }
       }

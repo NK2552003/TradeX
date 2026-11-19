@@ -1,16 +1,16 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/presentation/pages/auth_wrapper.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/models/active_session_model.dart';
-import 'package:tradex/features/settings/models/connected_account_model.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/delete_account_page.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/presentation/pages/auth_wrapper.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/active_session_model.dart';
+import 'package:alphajournal/features/settings/models/connected_account_model.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/delete_account_page.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class AccountSecurityPage extends StatefulWidget {
   const AccountSecurityPage({
@@ -422,7 +422,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
           title: linked ? '$label Unlinked' : '$label Linked',
           message: linked
               ? '$label sign-in has been removed from your account.'
-              : '$label is now connected to your TraderHub account.',
+              : '$label is now connected to your AlphaJournal account.',
           intent: UiIntent.success,
         );
       }
@@ -1113,10 +1113,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                     size: context.sz(20),
                     color: colors.primary,
                   ),
-                  Text(
-                    'Active Devices',
-                    style: context.uiText.bodyStrong,
-                  ),
+                  Text('Active Devices', style: context.uiText.bodyStrong),
                   UiBadge(
                     label: '$count active device${count == 1 ? '' : 's'}',
                     intent: count > 1 ? UiIntent.warning : UiIntent.success,
@@ -1198,16 +1195,12 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
         SizedBox(height: context.sp(theme.spacing.xxs)),
         Text(
           session.subtitle,
-          style: context.uiText.caption.copyWith(
-            color: colors.foregroundMuted,
-          ),
+          style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
         ),
         SizedBox(height: context.sp(theme.spacing.xxs)),
         Text(
           metaLine,
-          style: context.uiText.caption.copyWith(
-            color: colors.foregroundMuted,
-          ),
+          style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
         ),
       ],
     );

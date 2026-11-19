@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/models/billing_models.dart';
-import 'package:tradex/features/settings/presentation/pages/trader/invoice_detail_page.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/settings/data/repositories/billing_settings_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/billing_models.dart';
+import 'package:alphajournal/features/settings/presentation/pages/trader/invoice_detail_page.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 /// Past charges: a summary of what this account has been billed, a status
 /// filter, and a row per invoice that opens the full receipt.

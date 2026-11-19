@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/billing/revenuecat_billing.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
-import 'package:tradex/features/auth/models/pricing_models.dart';
-import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
-import 'package:tradex/features/settings/models/billing_models.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/billing/revenuecat_billing.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/features/auth/data/repositories/subscription_pricing_repository.dart';
+import 'package:alphajournal/features/auth/models/pricing_models.dart';
+import 'package:alphajournal/features/settings/data/repositories/billing_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/billing_models.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 /// Redesigned Claude-styled plan changer for Settings > Billing.
 ///
@@ -364,7 +364,7 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                             context,
                             title: payable ? 'Plan Active' : 'Plan Changed',
                             message:
-                                'You are now on alphajournal ${plan.name}.',
+                                'You are now on AlphaJournal ${plan.name}.',
                             intent: UiIntent.success,
                           );
                           closeSettingsSubpage(context);

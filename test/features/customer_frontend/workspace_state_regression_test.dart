@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/workspace/ui/workspace_screen.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/workspace/ui/workspace_screen.dart';
 
 void main() {
   testWidgets('mobile workspace filters fill the content width evenly', (

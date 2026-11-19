@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
-import 'package:tradex/features/market_data/presentation/market_movers_panel.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_view.dart';
+import 'package:alphajournal/features/market_data/presentation/market_movers_panel.dart';
 
 class _Market extends AssetMarketRepository {
   final quote = MarketInstrument.fromJson(

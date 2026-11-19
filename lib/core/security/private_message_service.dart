@@ -3,8 +3,8 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart' show ValueNotifier, debugPrint, kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/cross_subdomain_storage.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/cross_subdomain_storage.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import 'message_cipher.dart';
 
 class PrivateMessageService {
@@ -22,7 +22,20 @@ class PrivateMessageService {
   SupabaseClient get client => SupabaseConfig.client!;
   String get owner =>
       client.auth.currentUser?.id ?? (throw StateError('Sign in required.'));
-  String _key(String user) => 'tradex.e2ee.${SupabaseConfig.supabaseUrl}.$user';
+  String _key(String user) =>
+      'alphajournal.e2ee.${SupabaseConfig.supabaseUrl}.$user';
+  String _legacyKey(String user) =>
+      'tradex.e2ee.${SupabaseConfig.supabaseUrl}.$user';
+
+  Future<String?> _readStoredSeed(String user) async {
+    final current = await storage.read(key: _key(user));
+    if (current != null && current.isNotEmpty) return current;
+    final legacy = await storage.read(key: _legacyKey(user));
+    if (legacy == null || legacy.isEmpty) return null;
+    await storage.write(key: _key(user), value: legacy);
+    await storage.delete(key: _legacyKey(user));
+    return legacy;
+  }
 
   /// Returns `true` immediately when the active user's 32-byte E2EE seed is
   /// already loaded in memory, avoiding intermediate loading flashes on screen
@@ -49,9 +62,11 @@ class PrivateMessageService {
       secretKey: SecretKey(wrappingKey),
       aad: utf8.encode('handoff/$userId'),
     );
-    return base64Encode(
-      <int>[...box.nonce, ...box.cipherText, ...box.mac.bytes],
-    );
+    return base64Encode(<int>[
+      ...box.nonce,
+      ...box.cipherText,
+      ...box.mac.bytes,
+    ]);
   }
 
   /// Unseals a cross-subdomain handoff envelope created by [sealHandoffSeed].
@@ -86,8 +101,8 @@ class PrivateMessageService {
     await storage.write(key: _key(user), value: base64Encode(seed));
     if (kIsWeb) {
       try {
-        final rawKey =
-            await (await AesGcm.with256bits().newSecretKey()).extractBytes();
+        final rawKey = await (await AesGcm.with256bits().newSecretKey())
+            .extractBytes();
         final envelope = await sealHandoffSeed(
           seed: seed,
           wrappingKey: rawKey,
@@ -104,7 +119,9 @@ class PrivateMessageService {
           maxAgeDays: 30,
         );
       } catch (e) {
-        debugPrint('[PrivateMessageService] Cross-subdomain handoff write skipped: $e');
+        debugPrint(
+          '[PrivateMessageService] Cross-subdomain handoff write skipped: $e',
+        );
       }
     }
     unlockRevision.value++;
@@ -126,7 +143,7 @@ class PrivateMessageService {
       return true;
     }
     try {
-      final stored = await storage.read(key: _key(user));
+      final stored = await _readStoredSeed(user);
       if (stored != null && stored.isNotEmpty) {
         final decoded = base64Decode(stored);
         if (decoded.length == 32) {
@@ -172,13 +189,15 @@ class PrivateMessageService {
     instance._cachedSeed = null;
     CrossSubdomainState.removeFlag(_handoffDataCookie);
     CrossSubdomainState.removeFlag(_handoffKeyCookie);
-    final targetUser = userId ??
+    final targetUser =
+        userId ??
         (SupabaseConfig.isConfigured
             ? SupabaseConfig.client?.auth.currentUser?.id
             : null);
     if (targetUser != null && targetUser.isNotEmpty) {
       try {
         await instance.storage.delete(key: instance._key(targetUser));
+        await instance.storage.delete(key: instance._legacyKey(targetUser));
       } catch (_) {}
     }
     instance.unlockRevision.value++;
@@ -196,7 +215,7 @@ class PrivateMessageService {
         _cachedSeed!.length == 32) {
       return cipher.identityFromSeedBytes(_cachedSeed!);
     }
-    final encoded = await storage.read(key: _key(user));
+    final encoded = await _readStoredSeed(user);
     if (encoded == null) {
       throw StateError(
         'Unlock encrypted messaging with your account password or recovery passphrase.',
@@ -223,7 +242,7 @@ class PrivateMessageService {
       return (unlocked: false, hasIdentity: false);
     }
     if (!warmed) {
-      final stored = await storage.read(key: _key(user));
+      final stored = await _readStoredSeed(user);
       if (stored == null) {
         return (unlocked: false, hasIdentity: true);
       }
@@ -273,7 +292,9 @@ class PrivateMessageService {
       );
     }
     if (row == null && allowAccountPassword && passphrase.isEmpty) {
-      throw StateError('Enter your account password to secure encrypted messaging.');
+      throw StateError(
+        'Enter your account password to secure encrypted messaging.',
+      );
     }
     final salt = row == null
         ? (await AesGcm.with256bits().newSecretKey()).extractBytes()
@@ -316,7 +337,9 @@ class PrivateMessageService {
           throw const FormatException('Identity mismatch');
         }
       } catch (_) {
-        throw StateError('Unable to unlock. Check your password or recovery passphrase.');
+        throw StateError(
+          'Unable to unlock. Check your password or recovery passphrase.',
+        );
       }
     }
     if (owner != user) throw StateError('Account changed. Please try again.');
@@ -347,29 +370,24 @@ class PrivateMessageService {
   /// password so future logins continue unlocking automatically.
   Future<void> rekeyBackup(String newSecret) async {
     if (newSecret.isEmpty) {
-      throw StateError('A valid password is required to re-wrap encryption keys.');
+      throw StateError(
+        'A valid password is required to re-wrap encryption keys.',
+      );
     }
     final user = owner;
     final identity = await _identity(user);
     final seed = await identity.extractPrivateKeyBytes();
-    final saltBytes =
-        await (await AesGcm.with256bits().newSecretKey()).extractBytes();
-    final newKey =
-        await Pbkdf2(
-          macAlgorithm: Hmac.sha256(),
-          iterations: 600000,
-          bits: 256,
-        ).deriveKey(
-          secretKey: SecretKey(utf8.encode(newSecret)),
-          nonce: saltBytes,
-        );
+    final saltBytes = await (await AesGcm.with256bits().newSecretKey())
+        .extractBytes();
+    final newKey = await Pbkdf2(
+      macAlgorithm: Hmac.sha256(),
+      iterations: 600000,
+      bits: 256,
+    ).deriveKey(secretKey: SecretKey(utf8.encode(newSecret)), nonce: saltBytes);
     final backup = await cipher.seal(seed, newKey, 'recovery/$user');
     await client
         .from('message_identities')
-        .update({
-          'salt': base64Encode(saltBytes),
-          'backup': backup,
-        })
+        .update({'salt': base64Encode(saltBytes), 'backup': backup})
         .eq('user_id', user);
     await _persistUnlockedSeed(user, seed);
   }

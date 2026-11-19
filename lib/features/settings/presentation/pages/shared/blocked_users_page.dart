@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
 
 class BlockedUsersPage extends StatefulWidget {
   const BlockedUsersPage({super.key, this.repository});

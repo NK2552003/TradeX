@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/presentation/pages/get_started_page.dart';
-import 'package:tradex/features/auth/presentation/pages/login_page.dart';
-import 'package:tradex/features/auth/presentation/pages/signup_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/presentation/pages/get_started_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/login_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/signup_page.dart';
 
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;

@@ -1,7 +1,7 @@
-import 'package:tradex/core/app-ui/theme/app_tokens.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/app_session.dart';
+import 'package:alphajournal/core/app-ui/theme/app_tokens.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/data/app_session.dart';
 
 /// Server-counted usage for one authenticated account. The database function
 /// checks the caller's identity before returning any other user's totals.

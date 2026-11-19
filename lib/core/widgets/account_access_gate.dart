@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/data/account_access_repository.dart';
-import 'package:tradex/core/config/startup_ready.dart';
-import 'package:tradex/core/utils/app_visibility.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/data/account_access_repository.dart';
+import 'package:alphajournal/core/config/startup_ready.dart';
+import 'package:alphajournal/core/utils/app_visibility.dart';
 
 /// Suspended accounts never render cached private screens. Access is refreshed
 /// on resume and periodically; database checks also protect every request.
@@ -247,7 +247,7 @@ class _AccountAccessGateState extends State<AccountAccessGate> {
           UiGap.v(theme.spacing.xs),
           Text(
             isSuspended
-                ? 'Your TraderHub terminal credentials have been suspended by the compliance desk. Contact support for investigation or remediation.'
+                ? 'Your AlphaJournal terminal credentials have been suspended by the compliance desk. Contact support for investigation or remediation.'
                 : 'Your trader profile is currently pending approval by an administrator before access to private workspace tools is granted.',
             style: context.uiText.body.copyWith(color: colors.foregroundMuted),
             textAlign: TextAlign.center,

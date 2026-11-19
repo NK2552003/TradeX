@@ -60,7 +60,7 @@ class OrgBranding {
   factory OrgBranding.fromJson(Map<String, dynamic> json) {
     return OrgBranding(
       displayName:
-          json['display_name'] as String? ?? 'alphajournal Institutional',
+          json['display_name'] as String? ?? 'AlphaJournal Institutional',
       logoUrl: json['logo_url'] as String?,
       primaryColor: json['primary_color'] as String?,
     );

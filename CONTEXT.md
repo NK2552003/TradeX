@@ -1,6 +1,6 @@
-# TradeX Writing and Sharing
+# AlphaJournal Writing and Sharing
 
-TradeX connects a trader's private working records with selectively published material while keeping ownership and visibility explicit.
+AlphaJournal connects a trader's private working records with selectively published material while keeping ownership and visibility explicit.
 
 ## Language
 

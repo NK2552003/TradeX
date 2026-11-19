@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/privacy/consent_preferences.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dart';
+import 'package:alphajournal/core/privacy/consent_preferences.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_attribution.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -169,7 +169,10 @@ void main() {
         ),
         true,
       );
-      expect(sharedCookies.containsKey(ConsentController.dismissedNoticeKey), false);
+      expect(
+        sharedCookies.containsKey(ConsentController.dismissedNoticeKey),
+        false,
+      );
 
       // Simulate navigating to Subdomain B (e.g. app.alphajournal.in) whose
       // origin localStorage is empty.

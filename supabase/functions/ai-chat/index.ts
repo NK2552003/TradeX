@@ -1,8 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { corsPreflightResponse, withCorsHeaders } from '../_shared/cors.ts';
 import { createEdgeRequestLogger, describeError } from '../_shared/logger.ts';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -63,14 +63,20 @@ function jsonReply(status: number, body: Record<string, unknown>): Response {
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(request);
   }
   const logger = createEdgeRequestLogger('ai-chat', request);
   try {
-    return logger.finish(await handleAiChatRequest(request, logger));
+    return logger.finish(withCorsHeaders(
+      request,
+      await handleAiChatRequest(request, logger),
+    ));
   } catch (error) {
     logger.log('error', 'unhandled_exception', describeError(error));
-    return logger.finish(jsonReply(500, { error: 'AI assistant request failed.' }));
+    return logger.finish(withCorsHeaders(
+      request,
+      jsonReply(500, { error: 'AI assistant request failed.' }),
+    ));
   }
 });
 
@@ -233,7 +239,7 @@ async function handleAiChatRequest(
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
 
-  const systemPrompt = `You are alphajournal Institutional AI Copilot, an elite Perplexity-style market & research intelligence engine for serious traders.
+  const systemPrompt = `You are AlphaJournal Institutional AI Copilot, an elite Perplexity-style market & research intelligence engine for serious traders.
 Persona mode: ${persona}
 Directives:
 1. Lead with a crisp Direct Answer grounded strictly in supplied context or verified facts; cite external URLs as [Title](https://...) without ever inventing URLs or live market quotes.

@@ -1,17 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/core/navigation/customer_routes.dart';
-import 'package:tradex/core/navigation/role_navigation_config.dart';
-import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/data/workspace_attachment_service.dart';
-import 'package:tradex/features/workspace/data/workspace_post_service.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/core/navigation/customer_routes.dart';
+import 'package:alphajournal/core/navigation/role_navigation_config.dart';
+import 'package:alphajournal/features/admin_console/data/admin_console_repository.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/data/workspace_attachment_service.dart';
+import 'package:alphajournal/features/workspace/data/workspace_post_service.dart';
 
 void main() {
   setUp(() {
@@ -192,29 +192,41 @@ void main() {
       expect(postRef!.kind, AppLinkKind.communityPost);
       expect(postRef.id, 'post_a1');
 
-      final schemeRef = AppDeepLink.tryParseUrl('tradex://ticker/NIFTY50');
+      final schemeRef = AppDeepLink.tryParseUrl(
+        'alphajournal://ticker/NIFTY50',
+      );
       expect(schemeRef, isNotNull);
       expect(schemeRef!.kind, AppLinkKind.ticker);
       expect(schemeRef.id, 'NIFTY50');
 
       expect(
-        CustomerRoute.parse(Uri.parse('https://app.alphajournal.in/')).destination,
+        CustomerRoute.parse(
+          Uri.parse('https://app.alphajournal.in/'),
+        ).destination,
         'workspace',
       );
       expect(
-        CustomerRoute.parse(Uri.parse('https://community.alphajournal.in/')).destination,
+        CustomerRoute.parse(
+          Uri.parse('https://community.alphajournal.in/'),
+        ).destination,
         'community_feed',
       );
       expect(
-        CustomerRoute.parse(Uri.parse('https://admin.alphajournal.in/')).destination,
+        CustomerRoute.parse(
+          Uri.parse('https://admin.alphajournal.in/'),
+        ).destination,
         'admin_console',
       );
       expect(
-        CustomerRoute.parse(Uri.parse('https://affiliate.alphajournal.in/')).destination,
+        CustomerRoute.parse(
+          Uri.parse('https://affiliate.alphajournal.in/'),
+        ).destination,
         'affiliate_application',
       );
       expect(
-        CustomerRoute.parse(Uri.parse('https://app.alphagournal.in/')).destination,
+        CustomerRoute.parse(
+          Uri.parse('https://app.alphagournal.in/'),
+        ).destination,
         'workspace',
       );
     });
@@ -299,49 +311,63 @@ void main() {
       expect(pro.allowAdvancedBacktest, isTrue);
     });
 
-    test('repository quota helpers enforce Free limits for watchlists, alerts, posts/day and comments/day', () async {
-      AppSession.instance.changeTier(AppTier.free);
-      expect(
-        () => CustomerLimitations.assertCanCreateCommunityPostSync(2),
-        throwsA(isA<StateError>()),
-      );
-      expect(
-        () => CustomerLimitations.assertCanCreateCommunityCommentSync(10),
-        throwsA(isA<StateError>()),
-      );
-      await expectLater(
-        () => CustomerLimitations.assertCanCreateWatchlist(currentWatchlistCount: 1),
-        throwsA(isA<StateError>()),
-      );
-      await expectLater(
-        () => CustomerLimitations.assertCanCreatePriceAlert(currentAlertCount: 3),
-        throwsA(isA<StateError>()),
-      );
+    test(
+      'repository quota helpers enforce Free limits for watchlists, alerts, posts/day and comments/day',
+      () async {
+        AppSession.instance.changeTier(AppTier.free);
+        expect(
+          () => CustomerLimitations.assertCanCreateCommunityPostSync(2),
+          throwsA(isA<StateError>()),
+        );
+        expect(
+          () => CustomerLimitations.assertCanCreateCommunityCommentSync(10),
+          throwsA(isA<StateError>()),
+        );
+        await expectLater(
+          () => CustomerLimitations.assertCanCreateWatchlist(
+            currentWatchlistCount: 1,
+          ),
+          throwsA(isA<StateError>()),
+        );
+        await expectLater(
+          () => CustomerLimitations.assertCanCreatePriceAlert(
+            currentAlertCount: 3,
+          ),
+          throwsA(isA<StateError>()),
+        );
 
-      final repo = CommunityRepository();
-      addTearDown(repo.dispose);
-      const author = CommunityAuthor(
-        id: 'quota-test-author',
-        handle: '@quotatest',
-        displayName: 'Quota Tester',
-        userRole: UserRole.customer,
-      );
-      await repo.createPost(body: 'Free post 1', author: author);
-      await repo.createPost(body: 'Free post 2', author: author);
-      await expectLater(
-        () => repo.createPost(body: 'Free post 3 should be blocked', author: author),
-        throwsA(isA<StateError>()),
-      );
+        final repo = CommunityRepository();
+        addTearDown(repo.dispose);
+        const author = CommunityAuthor(
+          id: 'quota-test-author',
+          handle: '@quotatest',
+          displayName: 'Quota Tester',
+          userRole: UserRole.customer,
+        );
+        await repo.createPost(body: 'Free post 1', author: author);
+        await repo.createPost(body: 'Free post 2', author: author);
+        await expectLater(
+          () => repo.createPost(
+            body: 'Free post 3 should be blocked',
+            author: author,
+          ),
+          throwsA(isA<StateError>()),
+        );
 
-      final postId = repo.forYouPosts.first.id;
-      for (var i = 0; i < 10; i++) {
-        await repo.addComment(postId, 'Comment #$i', author: author);
-      }
-      await expectLater(
-        () => repo.addComment(postId, 'Comment #11 should be blocked', author: author),
-        throwsA(isA<StateError>()),
-      );
-    });
+        final postId = repo.forYouPosts.first.id;
+        for (var i = 0; i < 10; i++) {
+          await repo.addComment(postId, 'Comment #$i', author: author);
+        }
+        await expectLater(
+          () => repo.addComment(
+            postId,
+            'Comment #11 should be blocked',
+            author: author,
+          ),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
 
     test(
       'evaluateTradeRisk enforces mandatory stop-loss, approval threshold, position cap, and circuit breaker',

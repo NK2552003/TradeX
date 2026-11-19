@@ -1,0 +1,108 @@
+name: Feature request
+description: Propose a focused AlphaJournal capability with user value, scope, entitlement, data, and acceptance details.
+title: "[Feature]: "
+labels:
+  - enhancement
+  - triage
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      placeholder: Who is blocked, what are they trying to accomplish, and why does it matter?
+    validations:
+      required: true
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Primary audience
+      multiple: true
+      options:
+        - Signed-out visitor
+        - Free trader
+        - Basic subscriber
+        - Pro subscriber
+        - Affiliate
+        - Admin/operations
+        - Developer/maintainer
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Product area
+      multiple: true
+      options:
+        - Dashboard/workspace
+        - Journal/notes/strategies
+        - Market Intelligence
+        - Community
+        - Messages
+        - Calculators
+        - Unified AI/copilot/research
+        - Billing/settings
+        - Mobile/PWA/linking
+        - Admin/affiliate
+        - Platform/backend
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Proposed outcome
+      placeholder: Describe the user-visible result, not only an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+      placeholder: Minimum useful version, what is explicitly out of scope, and migration/compatibility needs.
+    validations:
+      required: true
+  - type: dropdown
+    id: entitlement
+    attributes:
+      label: Proposed entitlement
+      options:
+        - Available to everyone
+        - Free with bounded preview
+        - Basic/Pro
+        - Pro only
+        - Admin/Affiliate
+        - Needs product decision
+    validations:
+      required: true
+  - type: textarea
+    id: data_security
+    attributes:
+      label: Data, privacy, security, and egress impact
+      placeholder: New data, permissions, APIs, AI calls, storage, retention, RLS, and expected request volume.
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Reusable UI/components
+      placeholder: Existing app-ui/flutter-ui cards, blocks, shells, and responsive states that should be used.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: Testable behavior across tiers, platforms, failure states, and accessibility.
+    validations:
+      required: true
+  - type: checkboxes
+    id: invariants
+    attributes:
+      label: Architecture checks
+      options:
+        - label: This request preserves AlphaJournal branding and the TradeX repository-name exception.
+          required: true
+        - label: This request does not remove cross-subdomain sessions or Unified AI fallback behavior.
+          required: true
+

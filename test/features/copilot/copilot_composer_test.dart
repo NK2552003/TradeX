@@ -4,10 +4,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/features/copilot/presentation/chat_pane.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/features/copilot/presentation/chat_pane.dart';
 
 class _RecordingController extends CopilotController {
   _RecordingController() : super(autoLoad: false) {
@@ -299,34 +299,37 @@ void main() {
     },
   );
 
-  testWidgets('pressing Enter clears input immediately before async completion', (
-    tester,
-  ) async {
-    size(tester, 768);
-    final controller = _RecordingController()..accept = true;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: CopilotChatPane(controller: controller)),
-      ),
-    );
-    await tester.pumpAndSettle();
-    final textFieldFinder = find.byType(TextField);
-    await tester.tap(textFieldFinder);
-    await tester.enterText(textFieldFinder, 'What is the NVDA price today?');
-    await tester.pump();
-    final textController = tester.widget<TextField>(textFieldFinder).controller!;
-    expect(textController.text, 'What is the NVDA price today?');
+  testWidgets(
+    'pressing Enter clears input immediately before async completion',
+    (tester) async {
+      size(tester, 768);
+      final controller = _RecordingController()..accept = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: CopilotChatPane(controller: controller)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final textFieldFinder = find.byType(TextField);
+      await tester.tap(textFieldFinder);
+      await tester.enterText(textFieldFinder, 'What is the NVDA price today?');
+      await tester.pump();
+      final textController = tester
+          .widget<TextField>(textFieldFinder)
+          .controller!;
+      expect(textController.text, 'What is the NVDA price today?');
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
 
-    expect(textController.text, isEmpty);
-    expect(controller.sends, 1);
-    expect(controller.prompt, 'What is the NVDA price today?');
-    await tester.pumpAndSettle();
-    await tester.pumpWidget(const SizedBox.shrink());
-    controller.dispose();
-  });
+      expect(textController.text, isEmpty);
+      expect(controller.sends, 1);
+      expect(controller.prompt, 'What is the NVDA price today?');
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox.shrink());
+      controller.dispose();
+    },
+  );
 
   testWidgets(
     'voice button on composer card starts natural-language voice assistant and processes spoken turns',
@@ -362,10 +365,7 @@ void main() {
       await tester.tap(voiceBtn);
       await tester.pump();
 
-      expect(
-        find.byKey(const ValueKey('copilot-voice-panel')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey('copilot-voice-panel')), findsOneWidget);
       expect(find.text('Listening'), findsOneWidget);
 
       // Verify no bottom overflow even if an error callout is shown while Voice Panel is open on a short viewport
@@ -406,7 +406,8 @@ void main() {
 
       // 1. Save an AI Copilot response to Notes, Journal, Strategy, and Community
       final noteRes = await CopilotFeatureConnector.saveAsNote(
-        body: '## \$NVDA Breakout Analysis\nStrong institutional volume above \$135.',
+        body:
+            '## \$NVDA Breakout Analysis\nStrong institutional volume above \$135.',
         title: 'NVDA Breakout Research',
       );
       expect(noteRes.note.title, 'NVDA Breakout Research');
@@ -423,7 +424,8 @@ void main() {
       expect(tradeRes.trade.pnl, 750.0);
 
       final stratRes = await CopilotFeatureConnector.saveAsStrategy(
-        body: '### Opening Range Momentum\nWait for 15m candle close above VWAP.',
+        body:
+            '### Opening Range Momentum\nWait for 15m candle close above VWAP.',
         name: 'Opening Range VWAP Playbook',
       );
       expect(stratRes.strategy.name, 'Opening Range VWAP Playbook');
@@ -567,7 +569,10 @@ void main() {
       expect(controller.files.length, 3);
       expect(controller.files[0]['type'], 'input_image');
       expect(controller.files[1]['text'], contains('print("alpha")'));
-      expect(controller.files[2]['text'], contains('https://investor.nvidia.com/q4'));
+      expect(
+        controller.files[2]['text'],
+        contains('https://investor.nvidia.com/q4'),
+      );
       expect(tester.takeException(), isNull);
 
       await tester.pumpWidget(const SizedBox.shrink());

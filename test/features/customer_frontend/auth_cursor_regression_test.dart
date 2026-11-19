@@ -1,10 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
-import 'package:tradex/features/auth/presentation/pages/login_page.dart';
-import 'package:tradex/features/auth/presentation/pages/signup_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_repository.dart';
+import 'package:alphajournal/features/auth/presentation/pages/login_page.dart';
+import 'package:alphajournal/features/auth/presentation/pages/signup_page.dart';
 
 class _HoverAuthRepository extends AuthRepository {
   @override

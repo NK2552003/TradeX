@@ -1,6 +1,6 @@
-import 'package:tradex/features/affiliate_program/data/affiliate_workspace_repository.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
-import 'package:tradex/features/settings/models/affiliate_settings_model.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_workspace_repository.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_workspace.dart';
+import 'package:alphajournal/features/settings/models/affiliate_settings_model.dart';
 
 abstract class AffiliateSettingsRepository {
   Future<AffiliateSettingsModel> getAffiliateSettings();

@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:tradex/core/utils/attachment_compression_service.dart';
+import 'package:alphajournal/core/utils/attachment_compression_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

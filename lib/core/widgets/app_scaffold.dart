@@ -1,79 +1,80 @@
 import 'dart:async';
-import 'package:tradex/features/market_data/presentation/market_root_screen.dart'
+import 'package:alphajournal/features/market_data/presentation/market_root_screen.dart'
     deferred as deferred_market_root;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:tradex/features/community/presentation/widgets/public_record_detail_modal.dart';
-import 'package:tradex/core/ads/ad_config.dart';
-import 'package:tradex/core/ads/ad_scope.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/app_constants.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/account_access_repository.dart';
-import 'package:tradex/core/widgets/account_access_gate.dart';
-import 'package:tradex/core/data/session_trader.dart';
+import 'package:alphajournal/features/community/presentation/widgets/public_record_detail_modal.dart';
+import 'package:alphajournal/core/ads/ad_config.dart';
+import 'package:alphajournal/core/ads/ad_scope.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/data/app_entitlements.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/data/account_access_repository.dart';
+import 'package:alphajournal/core/widgets/account_access_gate.dart';
+import 'package:alphajournal/core/data/session_trader.dart';
 // Required unified primitive import for application layouts.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/core/navigation/customer_routes.dart';
-import 'package:tradex/core/navigation/role_navigation_config.dart';
-import 'package:tradex/core/security/private_messaging_gate.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_analytics_page.dart'
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/core/navigation/customer_routes.dart';
+import 'package:alphajournal/core/navigation/role_navigation_config.dart';
+import 'package:alphajournal/core/security/private_messaging_gate.dart';
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_analytics_page.dart'
     deferred as deferred_admin_analytics;
-import 'package:tradex/features/admin_console/presentation/pages/admin_audit_log_page.dart'
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_audit_log_page.dart'
     deferred as deferred_admin_audit_log;
-import 'package:tradex/features/admin_console/presentation/pages/admin_overview_page.dart'
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_overview_page.dart'
     deferred as deferred_admin_overview;
-import 'package:tradex/features/admin_console/presentation/pages/admin_publishing_page.dart'
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_publishing_page.dart'
     deferred as deferred_admin_publishing;
-import 'package:tradex/features/admin_console/presentation/pages/admin_records_page.dart'
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_records_page.dart'
     deferred as deferred_admin_records;
-import 'package:tradex/features/admin_console/presentation/pages/admin_settings_page.dart'
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_settings_page.dart'
     deferred as deferred_admin_settings;
-import 'package:tradex/features/admin_console/models/admin_records.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_team_seats_page.dart'
+import 'package:alphajournal/features/admin_console/models/admin_records.dart';
+import 'package:alphajournal/features/admin_console/presentation/pages/admin_team_seats_page.dart'
     deferred as deferred_admin_team_seats;
-import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_approvals_page.dart'
+import 'package:alphajournal/features/affiliate_program/data/affiliate_application_repository.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_approvals_page.dart'
     deferred as deferred_aff_approvals;
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_marketing_page.dart'
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_marketing_page.dart'
     deferred as deferred_aff_marketing;
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart'
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_overview_page.dart'
     deferred as deferred_aff_overview;
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart'
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart'
     deferred as deferred_aff_payouts;
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart'
+import 'package:alphajournal/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart'
     deferred as deferred_aff_referrals;
-import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/calculators/ui/calculators_screen.dart'
+import 'package:alphajournal/features/auth/data/services/auth_session_storage.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/calculators/ui/calculators_screen.dart'
     deferred as deferred_calculators;
-import 'package:tradex/features/journal/ui/journal_screen.dart';
-import 'package:tradex/features/notes/ui/notes_screen.dart';
-import 'package:tradex/features/workspace/ui/workspace_screen.dart';
+import 'package:alphajournal/features/journal/ui/journal_screen.dart';
+import 'package:alphajournal/features/notes/ui/notes_screen.dart';
+import 'package:alphajournal/features/workspace/ui/workspace_screen.dart';
 
-import 'package:tradex/features/settings/data/repositories/ai_settings_repository.dart';
-import 'package:tradex/features/settings/data/repositories/notification_prefs_repository.dart';
-import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
-import 'package:tradex/features/strategies/ui/strategies_screen.dart';
-import 'package:tradex/features/community/community.dart';
-import 'package:tradex/features/messages/messages.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/core/widgets/app_global_notifications_page.dart';
-import 'package:tradex/core/widgets/app_notifications_overlay.dart';
-import 'package:tradex/core/widgets/feature_showcase_catalog.dart';
-import 'package:tradex/core/widgets/feature_showcase_sheet.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
-import 'package:tradex/features/community/presentation/views/shared_profile_page.dart';
+import 'package:alphajournal/features/settings/data/repositories/ai_settings_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/notification_prefs_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/settings_root_page.dart';
+import 'package:alphajournal/features/strategies/ui/strategies_screen.dart';
+import 'package:alphajournal/features/community/community.dart';
+import 'package:alphajournal/features/messages/messages.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/core/widgets/app_global_notifications_page.dart';
+import 'package:alphajournal/core/widgets/app_notifications_overlay.dart';
+import 'package:alphajournal/core/widgets/feature_showcase_catalog.dart';
+import 'package:alphajournal/core/widgets/feature_showcase_sheet.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
+import 'package:alphajournal/features/community/presentation/views/shared_profile_page.dart';
 
 /// The signed-in application shell: chrome, navigation and the active page.
 ///
@@ -170,7 +171,9 @@ class _AppScaffoldState extends State<AppScaffold> {
   bool _showAffiliateApplication = false;
   AffiliateApplicationStatus? _affiliateApplicationStatus;
   late final CommunityRepository _communityRepo = CommunityRepository();
-  late final MessagesRepository _messagesRepo = MessagesRepository();
+  late final MessagesRepository _messagesRepo = MessagesRepository(
+    autoConnect: false,
+  );
   late final CopilotController _aiRepo = CopilotController();
   bool _aiRepoWasConnected = false;
   final GlobalKey<MessagesRootScreenState> _messagesKey =
@@ -273,12 +276,6 @@ class _AppScaffoldState extends State<AppScaffold> {
   void initState() {
     super.initState();
     _syncSessionEligibility(_profiles.cachedProfile);
-    if (_canReach(widget.initialDestination)) {
-      _selectedId = widget.initialDestination;
-      _showAffiliateApplication = _selectedId == 'affiliate_application';
-    } else {
-      _resetToOverview();
-    }
     // The plan arrives with the profile but every gate in the app reads it from
     // the session, so the session adopts it here. That makes entitlement
     // single-owner: upgrading in billing unlocks DMs and copilot credits in the
@@ -289,6 +286,22 @@ class _AppScaffoldState extends State<AppScaffold> {
     } else {
       _session.changeTier(widget.subscriptionTier);
     }
+    final AppEntitlement? blockedInitial = _blockedEntitlement(
+      widget.initialDestination,
+    );
+    if (_canReach(widget.initialDestination)) {
+      _selectedId = widget.initialDestination;
+      _showAffiliateApplication = _selectedId == 'affiliate_application';
+    } else {
+      _resetToOverview();
+      if (blockedInitial != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_showEntitlementUpgrade(blockedInitial));
+        });
+      }
+    }
+    _session.tier.addListener(_onTierChanged);
+    _syncPaidRepositoryAccess();
     CustomerTierQuota.refreshPublishedCatalogue().catchError((Object _) {});
     // Painted from the cached profile on the first frame so the avatar, handle
     // and sidebar footer are never blank, then refreshed from the repository.
@@ -336,6 +349,45 @@ class _AppScaffoldState extends State<AppScaffold> {
         AiSettingsRepositoryImpl.instance.syncCopilotWorkspace(_aiRepo),
       );
     }
+  }
+
+  AppEntitlement? _blockedEntitlement(String destination) {
+    final entitlement = AppEntitlement.forDestination(destination);
+    if (entitlement == null || entitlement.allows(_session.tier.value)) {
+      return null;
+    }
+    return entitlement;
+  }
+
+  Future<void> _showEntitlementUpgrade(AppEntitlement entitlement) =>
+      CustomerLimitations.showPlanUpgradeDialog(
+        context,
+        featureTitle: '${entitlement.title} · Basic or Pro',
+        reason: entitlement.reason,
+      );
+
+  bool _guardEntitledDestination(String destination) {
+    final blocked = _blockedEntitlement(destination);
+    if (blocked == null) return true;
+    unawaited(_showEntitlementUpgrade(blocked));
+    return false;
+  }
+
+  void _syncPaidRepositoryAccess() {
+    _messagesRepo.setAccessEnabled(
+      AppEntitlement.messages.allows(_session.tier.value),
+    );
+  }
+
+  void _onTierChanged() {
+    _syncPaidRepositoryAccess();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final blocked = _blockedEntitlement(_selectedId);
+      if (blocked == null) return;
+      setState(_resetToOverview);
+      unawaited(_showEntitlementUpgrade(blocked));
+    });
   }
 
   void _onCommunityRepoChanged() {
@@ -437,6 +489,7 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   @override
   void dispose() {
+    _session.tier.removeListener(_onTierChanged);
     _communityRepo.removeListener(_onCommunityRepoChanged);
     _communityRepo.dispose();
     _messagesRepo.dispose();
@@ -470,6 +523,13 @@ class _AppScaffoldState extends State<AppScaffold> {
       _activeSubpageIcon = null;
       _activeSubpageOnBack = null;
       _linkRequest = widget.initialOpenRequest;
+    } else if (oldWidget.initialDestination != widget.initialDestination) {
+      final blocked = _blockedEntitlement(widget.initialDestination);
+      if (blocked != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_showEntitlementUpgrade(blocked));
+        });
+      }
     }
     if (request != null &&
         (request.id != _linkRequest?.id ||
@@ -695,6 +755,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   void _openMessagesThread(String threadId) {
+    if (!_guardEntitledDestination('messages')) return;
     _go('messages');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _messagesKey.currentState?.openThreadById(threadId);
@@ -702,6 +763,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   void _startDirectMessage(AppTrader trader) {
+    if (!_guardEntitledDestination('messages')) return;
     if (_messagesRepo.isMessagingRestricted(trader)) {
       _go('messages');
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -901,6 +963,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   bool _canReach(String id) {
+    if (_blockedEntitlement(id) != null) return false;
     if (!_isDestinationHandledByRole(id, _effectiveRole)) {
       return false;
     }
@@ -1009,6 +1072,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       }
       return;
     }
+    if (!_guardEntitledDestination(id)) return;
     if (!_canReach(id)) return;
     if (_selectedId == id &&
         !_showAffiliateApplication &&
@@ -1222,6 +1286,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                         AppLinkKind.ticker => 'market',
                         AppLinkKind.note => 'notes',
                       }));
+    if (!_guardEntitledDestination(destination)) return;
     final bool needsTraderWorkspace =
         !_canReach(destination) &&
         _effectiveRole != UserRole.customer &&
@@ -1304,6 +1369,16 @@ class _AppScaffoldState extends State<AppScaffold> {
             (_linkedOrigins.isNotEmpty ? _returnFromLinkedRecord : null);
 
   Widget _buildActivePage() {
+    final blocked = _blockedEntitlement(_selectedId);
+    if (blocked != null) {
+      return UiEmptyState(
+        icon: Icons.lock_outline_rounded,
+        title: '${blocked.title} requires Basic or Pro',
+        message: blocked.reason,
+        actionLabel: 'View plans',
+        onActionPressed: () => _go('settings_billing'),
+      );
+    }
     if (_selectedId == 'public_profile') {
       return SharedProfilePage(
         key: ValueKey('shared-profile-${widget.profileHandle}'),
@@ -2152,15 +2227,15 @@ class _AppScaffoldState extends State<AppScaffold> {
                       options: const <UiToggleOption<AppTier>>[
                         UiToggleOption<AppTier>(
                           value: AppTier.free,
-                          label: 'Basic (₹0)',
+                          label: 'Free (₹0)',
                         ),
                         UiToggleOption<AppTier>(
                           value: AppTier.premium,
-                          label: 'Pro (₹2,499)',
+                          label: 'Basic (₹299)',
                         ),
                         UiToggleOption<AppTier>(
                           value: AppTier.enterprise,
-                          label: 'Business (₹999)',
+                          label: 'Pro (₹499)',
                         ),
                       ],
                       value: activeTier,
@@ -2298,9 +2373,9 @@ class _AppScaffoldState extends State<AppScaffold> {
             tier: tier,
             workspaceName: _effectiveRole == UserRole.customer
                 ? switch (tier) {
-                    AppTier.free => 'alphajournal Free',
-                    AppTier.premium => 'alphajournal Basic',
-                    AppTier.enterprise => 'alphajournal Pro',
+                    AppTier.free => 'AlphaJournal Free',
+                    AppTier.premium => 'AlphaJournal Basic',
+                    AppTier.enterprise => 'AlphaJournal Pro',
                   }
                 : navigation.workspaceName,
             tierLabel: _effectiveRole == UserRole.customer

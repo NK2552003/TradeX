@@ -1,0 +1,107 @@
+name: Authentication and identity issue
+description: Report login, OTP, recovery, OAuth, session, role, cross-subdomain, or auth callback problems.
+title: "[Auth]: "
+labels:
+  - authentication
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If another user's data is accessible, a session can be stolen/fixed, or tokens/cookies are exposed, use a private Security Advisory instead.
+  - type: dropdown
+    id: flow
+    attributes:
+      label: Flow
+      multiple: true
+      options:
+        - Signup/confirmation
+        - Email/password login
+        - OTP
+        - Google OAuth
+        - Sign in with Apple
+        - Password recovery
+        - Session refresh/restoration
+        - Logout/revocation
+        - Cross-subdomain session
+        - Role switching
+        - Auth deep-link callback
+        - Account deletion
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Root web
+        - App subdomain
+        - Community subdomain
+        - Affiliate subdomain
+        - Admin subdomain
+        - Android
+        - iOS
+        - Multiple surfaces
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version and environment
+      placeholder: Version/commit, platform/browser, production/staging/local
+    validations:
+      required: true
+  - type: dropdown
+    id: account_state
+    attributes:
+      label: Account state
+      options:
+        - Signed out
+        - New/unconfirmed
+        - Confirmed Free
+        - Basic/Pro
+        - Affiliate/Admin
+        - Expired/downgraded
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Sanitized reproduction
+      description: Do not paste OTPs, callback query values, tokens, cookies, or email addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected identity/session result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: redirect
+    attributes:
+      label: Redirect/deep-link context
+      description: Provide only the host and sanitized path; remove all query values and fragments.
+      placeholder: https://app.alphajournal.in/sanitized/path
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted evidence
+      description: Remove auth headers, Set-Cookie values, user IDs, emails, OTPs, and tokens.
+  - type: checkboxes
+    id: invariants
+    attributes:
+      label: Required invariants
+      options:
+        - label: The fix must preserve approved cross-subdomain session continuity.
+          required: true
+        - label: This public report contains no credentials or session material.
+          required: true
+

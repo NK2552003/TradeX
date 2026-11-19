@@ -68,6 +68,14 @@ class UiScale {
   final double space;
   final double text;
   final double size;
+
+  UiScale scaled(double factor) => factor == 1
+      ? this
+      : UiScale(
+          space: space * factor,
+          text: text * factor,
+          size: size * factor,
+        );
 }
 
 /// Runtime responsive metrics resolved from the current [BuildContext].
@@ -104,8 +112,9 @@ class UiResponsive {
   /// Scale a size (icon, height, radius-independent dimension).
   double sz(double value) => value * scale.size;
 
-  /// Scale a font size.
-  double fs(double value) => value * scale.text * textScaleFactor;
+  /// Scale a font token for the viewport and app zoom. Text widgets apply
+  /// the active [TextScaler] when they lay out the text.
+  double fs(double value) => value * scale.text;
 
   /// Pick a value per device type, falling back to the closest smaller one.
   T pick<T>({required T mobile, T? tablet, T? desktop, T? largeDesktop}) {
@@ -138,6 +147,7 @@ class UiResponsive {
     BuildContext context, {
     UiBreakpoints breakpoints = const UiBreakpoints(),
     UiScaleConfig scaleConfig = const UiScaleConfig(),
+    double zoom = 1,
   }) {
     // Depend on *size* and *text scale* only. `MediaQuery.of` would subscribe
     // every token reader to unrelated aspects — most damagingly `viewInsets`,
@@ -153,7 +163,7 @@ class UiResponsive {
       width: width,
       height: height,
       deviceType: type,
-      scale: scaleConfig.forType(type),
+      scale: scaleConfig.forType(type).scaled(zoom),
       orientation: width >= height
           ? Orientation.landscape
           : Orientation.portrait,

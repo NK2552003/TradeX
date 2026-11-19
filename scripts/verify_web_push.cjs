@@ -13,17 +13,17 @@ const assert = require('node:assert/strict');
     navigator: {serviceWorker: {register: async (url, options) => {assert.equal(url, 'push-sw.js'); assert.equal(options.scope, './push/'); return reg;}}},
     Uint8Array, atob: value => Buffer.from(value, 'base64').toString('binary')};
   vm.runInNewContext(readFileSync(join(__dirname, '../web/push_notifications.js'), 'utf8'), context);
-  assert.equal(await context.window.tradexPushStatus(), 'default');
+  assert.equal(await context.window.alphajournalPushStatus(), 'default');
   assert.equal(requested, 0);
-  await assert.rejects(context.window.tradexPushEnable(''), /not been configured/);
+  await assert.rejects(context.window.alphajournalPushEnable(''), /not been configured/);
   permission = 'denied';
-  await assert.rejects(context.window.tradexPushEnable('AQID'), /blocked/);
+  await assert.rejects(context.window.alphajournalPushEnable('AQID'), /blocked/);
   assert.equal(subscribed, false);
   permission = 'granted';
-  assert.equal(JSON.parse(await context.window.tradexPushEnable('AQID')).endpoint, sub.endpoint);
-  assert.equal(await context.window.tradexPushStatus(), 'subscribed');
-  assert.equal(await context.window.tradexPushDisable(), sub.endpoint);
-  assert.equal(await context.window.tradexPushStatus(), 'default');
+  assert.equal(JSON.parse(await context.window.alphajournalPushEnable('AQID')).endpoint, sub.endpoint);
+  assert.equal(await context.window.alphajournalPushStatus(), 'subscribed');
+  assert.equal(await context.window.alphajournalPushDisable(), sub.endpoint);
+  assert.equal(await context.window.alphajournalPushStatus(), 'default');
   const handlers = {}; let shown;
   const worker = {self: {addEventListener: (event, fn) => handlers[event] = fn,
     registration: {scope: 'https://example.test/push/', showNotification: async (title, value) => {shown = {title, ...value};}},

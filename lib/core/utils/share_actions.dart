@@ -115,12 +115,13 @@ class ShareActions {
     VoidCallback? onSendDm,
   }) {
     final Uri? parsed = Uri.tryParse(url);
-    final String hostLabel =
-        parsed != null && parsed.host.isNotEmpty ? parsed.host : 'alphajournal.in';
-    final String cleanHeadline =
-        subtitle != null && subtitle.trim().isNotEmpty ? '$title — $subtitle' : title;
-    final String fullShareText =
-        shareMessage ?? '$cleanHeadline\n\n$url';
+    final String hostLabel = parsed != null && parsed.host.isNotEmpty
+        ? parsed.host
+        : 'alphajournal.in';
+    final String cleanHeadline = subtitle != null && subtitle.trim().isNotEmpty
+        ? '$title — $subtitle'
+        : title;
+    final String fullShareText = shareMessage ?? '$cleanHeadline\n\n$url';
 
     return showModalBottomSheet<void>(
       context: context,
@@ -168,7 +169,8 @@ class ShareActions {
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                if (subtitle != null && subtitle.trim().isNotEmpty)
+                                if (subtitle != null &&
+                                    subtitle.trim().isNotEmpty)
                                   Text(
                                     subtitle,
                                     maxLines: 1,
@@ -360,7 +362,7 @@ class ShareActions {
                         const UiDivider(),
                         UiGap.v(theme.spacing.xs),
                         UiButton(
-                          label: 'Send via alphajournal Messages',
+                          label: 'Send via AlphaJournal Messages',
                           icon: Icons.send_rounded,
                           variant: UiVariant.outline,
                           expand: true,

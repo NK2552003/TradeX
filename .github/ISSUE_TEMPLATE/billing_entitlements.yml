@@ -1,0 +1,105 @@
+name: Billing, subscription, or entitlement issue
+description: Report Free/Basic/Pro access, RevenueCat, Razorpay, quota, catalogue, or upgrade-flow defects.
+title: "[Billing/Entitlement]: "
+labels:
+  - billing
+  - entitlement
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never post receipts, card/payment data, webhook secrets, provider API keys, customer emails, or full provider payloads. Report a working payment/tier bypass privately.
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      multiple: true
+      options:
+        - Free/Basic/Pro capability mismatch
+        - Upgrade/paywall UI
+        - Market Intelligence gate
+        - Messages gate
+        - Calculator gate
+        - Quota/storage limit
+        - RevenueCat purchase/restore
+        - Razorpay checkout/subscription
+        - Webhook/idempotency
+        - Cancellation/expiry/downgrade
+        - Pricing/catalogue copy
+    validations:
+      required: true
+  - type: dropdown
+    id: expected_tier
+    attributes:
+      label: Expected tier
+      options:
+        - Signed out
+        - Free
+        - Basic
+        - Pro
+        - Business/Admin
+    validations:
+      required: true
+  - type: dropdown
+    id: effective_tier
+    attributes:
+      label: Effective tier shown by the app
+      options:
+        - Signed out
+        - Free
+        - Basic
+        - Pro
+        - Business/Admin
+        - Inconsistent/unknown
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Version and environment
+      placeholder: App version/commit, platform, sandbox/test/live
+    validations:
+      required: true
+  - type: textarea
+    id: flow
+    attributes:
+      label: Reproduction
+      description: Use a test account and sanitized product names/IDs only.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected entitlement
+      placeholder: State what should render and which calls should or should not start.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual entitlement
+    validations:
+      required: true
+  - type: textarea
+    id: provider_state
+    attributes:
+      label: Sanitized provider/server state
+      placeholder: Provider, event type, status, and timestamps without IDs, signatures, receipts, or personal data.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: Include UI, repository call suppression, backend enforcement, and downgrade/replay behavior.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Submission safety
+      options:
+        - label: This report contains no payment data, receipt, signature, secret, provider payload, or personal identifier.
+          required: true
+        - label: I used the private advisory route if this is a working entitlement or payment bypass.
+          required: true
+

@@ -1,13 +1,13 @@
 import 'dart:io';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/notes/data/note_attachments.dart';
-import 'package:tradex/features/watchlists/data/watchlist_repository.dart';
-import 'package:tradex/features/watchlists/presentation/watchlists_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/notes/data/note_attachments.dart';
+import 'package:alphajournal/features/watchlists/data/watchlist_repository.dart';
+import 'package:alphajournal/features/watchlists/presentation/watchlists_page.dart';
 
 class WatchlistFixture implements WatchlistRepository {
   final symbols = <String>[];
@@ -72,7 +72,9 @@ class MarketFixture extends AssetMarketRepository {
 
 void main() {
   test('markdown cannot export an arbitrary local file', () async {
-    final directory = await Directory.systemTemp.createTemp('tradex-private-');
+    final directory = await Directory.systemTemp.createTemp(
+      'alphajournal-private-',
+    );
     addTearDown(() => directory.delete(recursive: true));
     final privateFile = File('${directory.path}/secret.png');
     await privateFile.writeAsBytes([1, 2, 3]);
@@ -91,7 +93,7 @@ void main() {
     'only staged repository attachments can be exported, including symlink checks',
     () async {
       final docs = await Directory.systemTemp.createTemp(
-        'tradex-attachment-test-',
+        'alphajournal-attachment-test-',
       );
       addTearDown(() => docs.delete(recursive: true));
       const channel = MethodChannel('plugins.flutter.io/path_provider');

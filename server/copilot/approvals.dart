@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:tradex/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
 import 'agent_tools.dart';
 import 'computer.dart';
 import 'store.dart';

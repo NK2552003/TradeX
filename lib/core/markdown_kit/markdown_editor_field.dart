@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// The raw multi-line text input for a markdown editor. Deliberately split
 /// from the formatting toolbar (see [MarkdownEditorToolbar]) so the toolbar

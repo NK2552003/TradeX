@@ -8,13 +8,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/features/copilot/data/copilot_api.dart';
-import 'package:tradex/features/copilot/models/workspace_mutations.dart';
-import 'package:tradex/features/copilot/presentation/chat_pane.dart';
-import 'package:tradex/features/copilot/presentation/page_editor.dart';
-import 'package:tradex/core/markdown_kit/markdown_editor_field.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/features/copilot/data/copilot_api.dart';
+import 'package:alphajournal/features/copilot/models/workspace_mutations.dart';
+import 'package:alphajournal/features/copilot/presentation/chat_pane.dart';
+import 'package:alphajournal/features/copilot/presentation/page_editor.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_editor_field.dart';
 
 class MemoryCopilotApi extends CopilotApi {
   MemoryCopilotApi(this.state);
@@ -48,7 +48,9 @@ class _AutoSpeakApi extends CopilotApi {
 
   @override
   Stream<Json> run(String threadId, Json body, {bool approval = false}) async* {
-    final thread = records(state['threads']).firstWhere((t) => t['id'] == threadId);
+    final thread = records(
+      state['threads'],
+    ).firstWhere((t) => t['id'] == threadId);
     final stamp = DateTime.now().toUtc().toIso8601String();
     (thread['messages'] as List).addAll(<Json>[
       {
@@ -67,7 +69,10 @@ class _AutoSpeakApi extends CopilotApi {
       },
     ]);
     yield {'type': 'started', 'messageId': 'a-1'};
-    yield {'type': 'delta', 'text': 'NVDA support is near 132 with bullish breadth.'};
+    yield {
+      'type': 'delta',
+      'text': 'NVDA support is near 132 with bullish breadth.',
+    };
     yield {'type': 'done'};
   }
 }
@@ -104,7 +109,10 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('A sharper question.\nA clearer edge.'), findsOneWidget);
+        expect(
+          find.text('A sharper question.\nA clearer edge.'),
+          findsOneWidget,
+        );
         expect(find.byType(UiThreePane), findsNothing);
         expect(
           find.byType(UiSplitPane),
@@ -119,18 +127,21 @@ void main() {
             final image = await boundary.toImage();
             final png = await image.toByteData(format: ui.ImageByteFormat.png);
             await File(
-              '/tmp/tradex-copilot-${width.toInt()}.png',
+              '/tmp/alphajournal-copilot-${width.toInt()}.png',
             ).writeAsBytes(png!.buffer.asUint8List());
             image.dispose();
           });
         }
         await tester.tap(
-          find.byWidgetPredicate(
-            (w) =>
-                (w is Tooltip &&
-                    (w.message == 'Library' || w.message == 'Workspace')) ||
-                (w is Text && (w.data == 'Library' || w.data == 'Workspace')),
-          ).first,
+          find
+              .byWidgetPredicate(
+                (w) =>
+                    (w is Tooltip &&
+                        (w.message == 'Library' || w.message == 'Workspace')) ||
+                    (w is Text &&
+                        (w.data == 'Library' || w.data == 'Workspace')),
+              )
+              .first,
         );
         await tester.pumpAndSettle();
         expect(find.text('New conversation'), findsWidgets);
@@ -325,7 +336,7 @@ Future<void> capture(WidgetTester tester, GlobalKey key, String name) async {
     final image = await boundary.toImage();
     final png = await image.toByteData(format: ui.ImageByteFormat.png);
     await File(
-      '/tmp/tradex-copilot-$name.png',
+      '/tmp/alphajournal-copilot-$name.png',
     ).writeAsBytes(png!.buffer.asUint8List());
     image.dispose();
   });

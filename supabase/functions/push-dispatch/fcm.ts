@@ -16,8 +16,8 @@ export async function sendFcm(token: string, id: string): Promise<void> {
   }
   const response = await fetch(`https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`, {
     method: 'POST', headers: {'Content-Type': 'application/json', Authorization: `Bearer ${cached.token}`},
-    body: JSON.stringify({message: {token, notification: {title: 'alphajournal',
-      body: 'You have new activity. Open alphajournal to view it.'}, data: {notification_id: id}}}),
+    body: JSON.stringify({message: {token, notification: {title: 'AlphaJournal',
+      body: 'You have new activity. Open AlphaJournal to view it.'}, data: {notification_id: id}}}),
     signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) {

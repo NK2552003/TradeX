@@ -1,11 +1,11 @@
-import 'package:tradex/features/copilot/copilot.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/watchlists/data/watchlist_repository.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/watchlists/data/watchlist_repository.dart';
 
 void main() {
   test(

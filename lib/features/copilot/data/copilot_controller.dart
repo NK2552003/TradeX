@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/customer_quota_usage.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/app_session.dart';
-import 'package:tradex/core/security/private_message_service.dart';
-import 'package:tradex/core/utils/app_visibility.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/customer_quota_usage.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/core/security/private_message_service.dart';
+import 'package:alphajournal/core/utils/app_visibility.dart';
 
 import '../models/workspace.dart';
 import 'copilot_api.dart';

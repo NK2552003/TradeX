@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 
 /// Multi-role profile bundle owned by the signed-in user.
 enum UserProfileMode {

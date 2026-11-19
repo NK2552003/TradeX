@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // Both unified libraries are required by the project UI contract.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/settings/data/publication_library.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/settings/data/publication_library.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 class PublicationReader extends StatefulWidget {
   const PublicationReader({
@@ -27,10 +27,7 @@ class PublicationReader extends StatefulWidget {
       desktopWidthRatio: 0.52,
       maxWidth: 780,
       minDesktopWidth: 540,
-      child: PublicationReader(
-        documentId: id,
-        embedded: true,
-      ),
+      child: PublicationReader(documentId: id, embedded: true),
     );
   }
 
@@ -54,7 +51,8 @@ class PublicationReader extends StatefulWidget {
       ),
       'consent-specification': (
         title: 'Consent Specification',
-        subtitle: 'Technical specification for user privacy and analytics consent',
+        subtitle:
+            'Technical specification for user privacy and analytics consent',
       ),
       'refunds': (
         title: 'Refund & Cancellation Policy',
@@ -98,7 +96,8 @@ class PublicationReader extends StatefulWidget {
       ),
       'advertising': (
         title: 'Advertising Policy',
-        subtitle: 'Commercial sponsorships, attribution, and partner guidelines',
+        subtitle:
+            'Commercial sponsorships, attribution, and partner guidelines',
       ),
       'install': (
         title: 'Installation & Access Guide',
@@ -118,7 +117,8 @@ class PublicationReader extends StatefulWidget {
       ),
       'storage-register': (
         title: 'Storage & Data Register',
-        subtitle: 'Classification of local storage, cookies, and database state',
+        subtitle:
+            'Classification of local storage, cookies, and database state',
       ),
       'implementation': (
         title: 'Technical Implementation',
@@ -136,7 +136,9 @@ class PublicationReader extends StatefulWidget {
     final formatted = id
         .replaceAll('-', ' ')
         .split(' ')
-        .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+        .map(
+          (w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '',
+        )
         .join(' ');
     return (title: formatted, subtitle: 'Help & Documentation');
   }

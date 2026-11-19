@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/markdown_kit/markdown_editor_toolbar.dart';
-import 'package:tradex/features/notes/ui/note_editor_screen.dart';
-import 'package:tradex/features/notes/ui/note_preview_screen.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_editor_toolbar.dart';
+import 'package:alphajournal/features/notes/ui/note_editor_screen.dart';
+import 'package:alphajournal/features/notes/ui/note_preview_screen.dart';
 
 void main() {
   final note = AppNote(
     id: 'keyboard-fixture',
     title: 'Keyboard test',
-    content: '[Private link](tradex://journal/private-trade)',
+    content: '[Private link](alphajournal://journal/private-trade)',
     createdAt: DateTime(2026),
     updatedAt: DateTime(2026),
     isPublic: true,

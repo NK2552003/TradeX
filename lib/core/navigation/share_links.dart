@@ -1,4 +1,4 @@
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 
 import '../app-ui/models/app_models.dart';
 import '../config/app_constants.dart';
@@ -32,30 +32,29 @@ class AppShareLinks {
     return '${uri.host}$path';
   }
 
-  static String record(AppLinkRef ref) => Uri.parse(
-        CustomerRoute.subdomainForRecord(ref.kind).baseUrl,
-      )
-      .resolveUri(
-        Uri(
-          pathSegments: [
-            '',
-            ...switch (ref.kind) {
-              AppLinkKind.note => ['notes', ref.id],
-              AppLinkKind.journal => ['journal', ref.id],
-              AppLinkKind.strategy => ['strategies', ref.id],
-              AppLinkKind.communityPost => ['community', 'post', ref.id],
-              AppLinkKind.ticker => ['market', ref.id],
-              AppLinkKind.messageThread => ['messages', ref.id],
-              AppLinkKind.aiCopilot => ['ai_copilot'],
-            },
-          ],
-          queryParameters:
-              ref.isPublicContext || ref.kind == AppLinkKind.communityPost
-              ? {'public': 'true'}
-              : null,
-        ),
-      )
-      .toString();
+  static String record(AppLinkRef ref) =>
+      Uri.parse(CustomerRoute.subdomainForRecord(ref.kind).baseUrl)
+          .resolveUri(
+            Uri(
+              pathSegments: [
+                '',
+                ...switch (ref.kind) {
+                  AppLinkKind.note => ['notes', ref.id],
+                  AppLinkKind.journal => ['journal', ref.id],
+                  AppLinkKind.strategy => ['strategies', ref.id],
+                  AppLinkKind.communityPost => ['community', 'post', ref.id],
+                  AppLinkKind.ticker => ['market', ref.id],
+                  AppLinkKind.messageThread => ['messages', ref.id],
+                  AppLinkKind.aiCopilot => ['ai_copilot'],
+                },
+              ],
+              queryParameters:
+                  ref.isPublicContext || ref.kind == AppLinkKind.communityPost
+                  ? {'public': 'true'}
+                  : null,
+            ),
+          )
+          .toString();
 
   static String profile(String handle) =>
       '${CustomerSubdomain.community.baseUrl}/@${Uri.encodeComponent(handle.trim().replaceFirst(RegExp(r'^@+'), ''))}';

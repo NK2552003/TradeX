@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:tradex/core/navigation/share_links.dart';
+import 'package:alphajournal/core/navigation/share_links.dart';
 
 final RegExp affiliateSlugPattern = RegExp(r'^[a-z0-9][a-z0-9_-]{2,39}$');
 final RegExp affiliateCampaignSlugPattern = RegExp(
@@ -153,8 +153,7 @@ class AffiliateWorkspace {
   String get slug => profile.text('custom_slug').isNotEmpty
       ? profile.text('custom_slug')
       : code;
-  String get referralUrl =>
-      slug.isEmpty ? '' : AppShareLinks.referral(slug);
+  String get referralUrl => slug.isEmpty ? '' : AppShareLinks.referral(slug);
 
   String get payoutMethod => profile.text('payout_method', 'upi');
 

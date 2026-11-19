@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 void main() {
   group('UiRemoteImage / AppNetworkImage optimization', () {
@@ -35,22 +35,27 @@ void main() {
       expect(unsplashResized.queryParameters['w'], '240');
     });
 
-    test('resizeImageUrl leaves Supabase Storage and arbitrary hosts untouched', () {
-      const supaSrc =
-          'https://xyz.supabase.co/storage/v1/object/public/avatars/a.png';
-      expect(
-        UiRemoteImage.resizeImageUrl(supaSrc, targetWidthPx: 160),
-        supaSrc,
-      );
+    test(
+      'resizeImageUrl leaves Supabase Storage and arbitrary hosts untouched',
+      () {
+        const supaSrc =
+            'https://xyz.supabase.co/storage/v1/object/public/avatars/a.png';
+        expect(
+          UiRemoteImage.resizeImageUrl(supaSrc, targetWidthPx: 160),
+          supaSrc,
+        );
 
-      const thirdPartySrc = 'https://example.com/chart.png?token=abc';
-      expect(
-        UiRemoteImage.resizeImageUrl(thirdPartySrc, targetWidthPx: 160),
-        thirdPartySrc,
-      );
-    });
+        const thirdPartySrc = 'https://example.com/chart.png?token=abc';
+        expect(
+          UiRemoteImage.resizeImageUrl(thirdPartySrc, targetWidthPx: 160),
+          thirdPartySrc,
+        );
+      },
+    );
 
-    testWidgets('resolveCacheWidth caps devicePixelRatio at 2x', (tester) async {
+    testWidgets('resolveCacheWidth caps devicePixelRatio at 2x', (
+      tester,
+    ) async {
       tester.view.devicePixelRatio = 3.5;
       addTearDown(tester.view.resetDevicePixelRatio);
 

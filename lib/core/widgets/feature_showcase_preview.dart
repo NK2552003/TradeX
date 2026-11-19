@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/widgets/feature_showcase_catalog.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/widgets/feature_showcase_catalog.dart';
 
 /// Interactive rich mini-preview of the selected feature rendered using
-/// TraderHub UI components (`app_ui.dart` / `flutter_ui.dart`).
+/// AlphaJournal UI components (`app_ui.dart` / `flutter_ui.dart`).
 class FeatureShowcasePreviewPanel extends StatefulWidget {
-  const FeatureShowcasePreviewPanel({
-    super.key,
-    required this.item,
-  });
+  const FeatureShowcasePreviewPanel({super.key, required this.item});
 
   final FeatureShowcaseItem item;
 
@@ -84,7 +81,9 @@ class _FeatureShowcasePreviewPanelState
             FeaturePreviewKind.community => _buildCommunityPreview(context),
             FeaturePreviewKind.messages => _buildMessagesPreview(context),
             FeaturePreviewKind.aiCopilot => _buildAiPreview(context),
-            FeaturePreviewKind.notifications => _buildNotificationsPreview(context),
+            FeaturePreviewKind.notifications => _buildNotificationsPreview(
+              context,
+            ),
             FeaturePreviewKind.affiliate => _buildAffiliatePreview(context),
             FeaturePreviewKind.settings => _buildSettingsPreview(context),
             FeaturePreviewKind.admin => _buildAdminPreview(context),
@@ -109,7 +108,9 @@ class _FeatureShowcasePreviewPanelState
               UiButton(
                 label: days[i],
                 size: UiSize.xs,
-                variant: _selectedDay == i ? UiVariant.solid : UiVariant.outline,
+                variant: _selectedDay == i
+                    ? UiVariant.solid
+                    : UiVariant.outline,
                 intent: _selectedDay == i ? UiIntent.primary : UiIntent.neutral,
                 onPressed: () => setState(() => _selectedDay = i),
               ),
@@ -206,7 +207,11 @@ class _FeatureShowcasePreviewPanelState
           glow: true,
           interactive: false,
           series: <UiChartSeries>[
-            UiChartSeries(name: 'Equity', color: colors.success, lineGlow: true),
+            UiChartSeries(
+              name: 'Equity',
+              color: colors.success,
+              lineGlow: true,
+            ),
           ],
           data: points,
         ),
@@ -243,9 +248,21 @@ class _FeatureShowcasePreviewPanelState
           spacing: 6,
           runSpacing: 6,
           children: <Widget>[
-            UiBadge(label: r'$NIFTY50', intent: UiIntent.primary, size: UiSize.xs),
-            UiBadge(label: r'$RELIANCE', intent: UiIntent.info, size: UiSize.xs),
-            UiBadge(label: '[[ORB v2 Playbook]]', intent: UiIntent.success, size: UiSize.xs),
+            UiBadge(
+              label: r'$NIFTY50',
+              intent: UiIntent.primary,
+              size: UiSize.xs,
+            ),
+            UiBadge(
+              label: r'$RELIANCE',
+              intent: UiIntent.info,
+              size: UiSize.xs,
+            ),
+            UiBadge(
+              label: '[[ORB v2 Playbook]]',
+              intent: UiIntent.success,
+              size: UiSize.xs,
+            ),
           ],
         ),
         UiGap.v(theme.spacing.sm),
@@ -255,11 +272,13 @@ class _FeatureShowcasePreviewPanelState
               : 'Live Intraday Scratchpad',
           message: refactored
               ? '• Bull Trigger: Sustained 15m close > 24,420 targeting 24,650\n'
-                  '• Invalidation: VWAP breakdown on rising India VIX\n'
-                  '• Linked Strategy: [[ORB v2 Playbook]]'
+                    '• Invalidation: VWAP breakdown on rising India VIX\n'
+                    '• Linked Strategy: [[ORB v2 Playbook]]'
               : 'watch 24420 level nifty banks strong rely on vwap pullback before sizing...',
           intent: refactored ? UiIntent.success : UiIntent.primary,
-          icon: refactored ? Icons.auto_awesome_rounded : Icons.edit_note_rounded,
+          icon: refactored
+              ? Icons.auto_awesome_rounded
+              : Icons.edit_note_rounded,
         ),
       ],
     );
@@ -270,10 +289,34 @@ class _FeatureShowcasePreviewPanelState
     final DateTime base = DateTime(2026, 11, 10, 9, 15);
     final List<UiCandle> candles = <UiCandle>[
       UiCandle(time: base, open: 2820, high: 2848, low: 2812, close: 2842),
-      UiCandle(time: base.add(const Duration(minutes: 15)), open: 2842, high: 2864, low: 2834, close: 2858),
-      UiCandle(time: base.add(const Duration(minutes: 30)), open: 2858, high: 2868, low: 2844, close: 2849),
-      UiCandle(time: base.add(const Duration(minutes: 45)), open: 2849, high: 2888, low: 2847, close: 2884),
-      UiCandle(time: base.add(const Duration(minutes: 60)), open: 2884, high: 2912, low: 2879, close: 2906),
+      UiCandle(
+        time: base.add(const Duration(minutes: 15)),
+        open: 2842,
+        high: 2864,
+        low: 2834,
+        close: 2858,
+      ),
+      UiCandle(
+        time: base.add(const Duration(minutes: 30)),
+        open: 2858,
+        high: 2868,
+        low: 2844,
+        close: 2849,
+      ),
+      UiCandle(
+        time: base.add(const Duration(minutes: 45)),
+        open: 2849,
+        high: 2888,
+        low: 2847,
+        close: 2884,
+      ),
+      UiCandle(
+        time: base.add(const Duration(minutes: 60)),
+        open: 2884,
+        high: 2912,
+        low: 2879,
+        close: 2906,
+      ),
     ];
     final String stageStat = switch (_strategyStage) {
       'Draft' => 'Checklist 6/6 Rules · Pending Sample Validation',
@@ -339,7 +382,10 @@ class _FeatureShowcasePreviewPanelState
                 _riskPercent = v == 'Conservative' ? 0.5 : 1.0;
               }),
               options: const <UiToggleOption<String>>[
-                UiToggleOption<String>(value: 'Conservative', label: '0.5% Risk'),
+                UiToggleOption<String>(
+                  value: 'Conservative',
+                  label: '0.5% Risk',
+                ),
                 UiToggleOption<String>(value: 'Aggressive', label: '1.0% Risk'),
               ],
             ),
@@ -368,8 +414,10 @@ class _FeatureShowcasePreviewPanelState
         UiMetricCard(
           title: 'Position Size · Capital ₹5,00,000',
           value: '$qty Shares',
-          change: 'Max Risk ₹${riskBudget.round()} (${_riskPercent.toStringAsFixed(2)}%)',
-          subtitle: 'Entry ₹1,420 · Stop ₹1,357.50 · Ready to draft into Journal',
+          change:
+              'Max Risk ₹${riskBudget.round()} (${_riskPercent.toStringAsFixed(2)}%)',
+          subtitle:
+              'Entry ₹1,420 · Stop ₹1,357.50 · Ready to draft into Journal',
           intent: UiIntent.primary,
         ),
         UiGap.v(theme.spacing.xs),
@@ -485,9 +533,23 @@ class _FeatureShowcasePreviewPanelState
           spacing: 6,
           runSpacing: 6,
           children: <Widget>[
-            UiBadge(label: 'Entry ₹942', variant: UiBadgeVariant.outline, size: UiSize.xs),
-            UiBadge(label: 'Target ₹998', intent: UiIntent.success, variant: UiBadgeVariant.soft, size: UiSize.xs),
-            UiBadge(label: 'Stop ₹918', intent: UiIntent.danger, variant: UiBadgeVariant.soft, size: UiSize.xs),
+            UiBadge(
+              label: 'Entry ₹942',
+              variant: UiBadgeVariant.outline,
+              size: UiSize.xs,
+            ),
+            UiBadge(
+              label: 'Target ₹998',
+              intent: UiIntent.success,
+              variant: UiBadgeVariant.soft,
+              size: UiSize.xs,
+            ),
+            UiBadge(
+              label: 'Stop ₹918',
+              intent: UiIntent.danger,
+              variant: UiBadgeVariant.soft,
+              size: UiSize.xs,
+            ),
           ],
         ),
         UiGap.v(theme.spacing.sm),
@@ -497,7 +559,9 @@ class _FeatureShowcasePreviewPanelState
           children: <Widget>[
             UiButton(
               label: _postLiked ? 'Bullish (43)' : 'Bullish (42)',
-              icon: _postLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
+              icon: _postLiked
+                  ? Icons.thumb_up_rounded
+                  : Icons.thumb_up_outlined,
               size: UiSize.xs,
               variant: _postLiked ? UiVariant.solid : UiVariant.outline,
               intent: _postLiked ? UiIntent.success : UiIntent.neutral,
@@ -505,7 +569,9 @@ class _FeatureShowcasePreviewPanelState
             ),
             UiButton(
               label: _postSaved ? 'Saved to Notes' : 'Bookmark',
-              icon: _postSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+              icon: _postSaved
+                  ? Icons.bookmark_rounded
+                  : Icons.bookmark_outline_rounded,
               size: UiSize.xs,
               variant: _postSaved ? UiVariant.soft : UiVariant.outline,
               intent: _postSaved ? UiIntent.primary : UiIntent.neutral,
@@ -529,7 +595,10 @@ class _FeatureShowcasePreviewPanelState
           onChanged: (v) => setState(() => _cipherView = v),
           options: const <UiToggleOption<String>>[
             UiToggleOption<String>(value: 'plaintext', label: 'Your Device'),
-            UiToggleOption<String>(value: 'encrypted', label: 'Server Wire Payload'),
+            UiToggleOption<String>(
+              value: 'encrypted',
+              label: 'Server Wire Payload',
+            ),
           ],
         ),
         UiGap.v(theme.spacing.sm),
@@ -541,7 +610,9 @@ class _FeatureShowcasePreviewPanelState
               ? 'ciphertext: "v1.gcm.9f4a81c2e7b0..."\nhmac_sha256: "verified_device_signature"'
               : 'Shared Journal: LONG NIFTY 24,450 · Stop 24,380 · +2.4R execution attached.',
           intent: encrypted ? UiIntent.primary : UiIntent.success,
-          icon: encrypted ? Icons.lock_outline_rounded : Icons.verified_user_outlined,
+          icon: encrypted
+              ? Icons.lock_outline_rounded
+              : Icons.verified_user_outlined,
         ),
       ],
     );
@@ -551,11 +622,11 @@ class _FeatureShowcasePreviewPanelState
     final theme = context.ui;
     final String summary = switch (_aiMode) {
       'search' =>
-          'Live web_search verified today’s RBI liquidity stance, US CPI release window, and FII cash flow before calculating overnight option hedges.',
+        'Live web_search verified today’s RBI liquidity stance, US CPI release window, and FII cash flow before calculating overnight option hedges.',
       'research' =>
-          'Multi-step deep synthesis audited your last 30 swing trades against your VWAP Playbook rules and surfaced a 14% expectancy boost when avoiding first-5-min entries.',
+        'Multi-step deep synthesis audited your last 30 swing trades against your VWAP Playbook rules and surfaced a 14% expectancy boost when avoiding first-5-min entries.',
       _ =>
-          'Instant workspace copilot with 11 /trader-* workflows and hands-free Voice Call mode.',
+        'Instant workspace copilot with 11 /trader-* workflows and hands-free Voice Call mode.',
     };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -620,14 +691,16 @@ class _FeatureShowcasePreviewPanelState
               ? const <UiTimelineEntry>[
                   UiTimelineEntry(
                     title: 'Web Push VAPID Delivery Active',
-                    subtitle: 'Background browser notifications enabled for DMs & alerts.',
+                    subtitle:
+                        'Background browser notifications enabled for DMs & alerts.',
                     timestamp: 'Active',
                     intent: UiIntent.success,
                     icon: Icons.notifications_active_outlined,
                   ),
                   UiTimelineEntry(
                     title: 'E2EE Key Sync Verified',
-                    subtitle: 'New browser session verified across *.alphajournal.in.',
+                    subtitle:
+                        'New browser session verified across *.alphajournal.in.',
                     timestamp: '10m ago',
                     intent: UiIntent.primary,
                     icon: Icons.security_rounded,
@@ -636,14 +709,16 @@ class _FeatureShowcasePreviewPanelState
               : const <UiTimelineEntry>[
                   UiTimelineEntry(
                     title: r'New reply on LONG $NIFTY50 setup',
-                    subtitle: '@kiran: Watching 24,500 OI buildup too — clean 2.4R.',
+                    subtitle:
+                        '@kiran: Watching 24,500 OI buildup too — clean 2.4R.',
                     timestamp: 'Just now',
                     intent: UiIntent.primary,
                     icon: Icons.forum_outlined,
                   ),
                   UiTimelineEntry(
                     title: 'Web Push VAPID Delivery Active',
-                    subtitle: 'Background browser notifications enabled for DMs & alerts.',
+                    subtitle:
+                        'Background browser notifications enabled for DMs & alerts.',
                     timestamp: '2m ago',
                     intent: UiIntent.success,
                     icon: Icons.notifications_active_outlined,
@@ -699,23 +774,23 @@ class _FeatureShowcasePreviewPanelState
     final ({String price, String limits, double aiQuota, double journalQuota})
     tier = switch (_planTier) {
       'free' => (
-          price: '₹0 / month',
-          limits: '15 Journal · 20 Notes · 15 Strategies · 15 AI Prompts',
-          aiQuota: 15,
-          journalQuota: 15,
-        ),
+        price: '₹0 / month',
+        limits: '15 Journal · 20 Notes · 15 Strategies · 15 AI Prompts',
+        aiQuota: 15,
+        journalQuota: 15,
+      ),
       'basic' => (
-          price: '₹299 / month',
-          limits: '75 Journal · 100 Notes · 40 Strategies · 120 AI Prompts',
-          aiQuota: 120,
-          journalQuota: 75,
-        ),
+        price: '₹299 / month',
+        limits: '75 Journal · 100 Notes · 40 Strategies · 120 AI Prompts',
+        aiQuota: 120,
+        journalQuota: 75,
+      ),
       _ => (
-          price: '₹499 / month',
-          limits: 'Unlimited Workspace · 500 AI Prompts · All Pro Workflows',
-          aiQuota: 500,
-          journalQuota: 300,
-        ),
+        price: '₹499 / month',
+        limits: 'Unlimited Workspace · 500 AI Prompts · All Pro Workflows',
+        aiQuota: 500,
+        journalQuota: 300,
+      ),
     };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -732,7 +807,7 @@ class _FeatureShowcasePreviewPanelState
         ),
         UiGap.v(theme.spacing.sm),
         UiMetricCard(
-          title: 'alphajournal ${_planTier.toUpperCase()}',
+          title: 'AlphaJournal ${_planTier.toUpperCase()}',
           value: tier.price,
           subtitle: tier.limits,
           intent: UiIntent.primary,

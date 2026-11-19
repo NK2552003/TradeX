@@ -3,15 +3,16 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
-import 'package:tradex/core/config/env_config.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/env_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 
 /// Mobile store billing. A store entitlement is never written to Supabase by
 /// this client; the verified RevenueCat webhook owns that database transition.
 class RevenueCatBilling {
   RevenueCatBilling._();
 
-  static const entitlementId = 'tradex_pro';
+  static const entitlementId = 'alphajournal_pro';
+  static const legacyEntitlementId = 'tradex_pro';
   static bool _configured = false;
   static bool get isConfigured => _configured;
 
@@ -46,7 +47,9 @@ class RevenueCatBilling {
 
   static Future<bool> hasProEntitlement() async {
     final info = await customerInfo();
-    return info?.entitlements.active.containsKey(entitlementId) ?? false;
+    final active = info?.entitlements.active;
+    return active?.containsKey(entitlementId) == true ||
+        active?.containsKey(legacyEntitlementId) == true;
   }
 
   static Future<Offering?> currentOffering() async {

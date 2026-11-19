@@ -13,6 +13,8 @@ external void _subscribe(JSFunction callback);
 external JSPromise<JSString> _prompt();
 @JS('globalThis.alphajournalInstall.dismiss')
 external void _dismiss();
+@JS('globalThis.alphajournalInstall.openInstalledApp')
+external JSBoolean _openInstalledApp();
 
 class BrowserInstall extends ChangeNotifier {
   BrowserInstall() {
@@ -24,6 +26,8 @@ class BrowserInstall extends ChangeNotifier {
   static final instance = BrowserInstall();
   bool available = false;
   bool installed = false;
+  bool nativeInstalled = false;
+  bool relatedAppsChecked = false;
   bool canSuggest = false;
   bool get supported => _bridge != null;
 
@@ -31,6 +35,8 @@ class BrowserInstall extends ChangeNotifier {
     final state = jsonDecode(_snapshot().toDart) as Map<String, dynamic>;
     available = state['available'] == true;
     installed = state['installed'] == true;
+    nativeInstalled = state['nativeInstalled'] == true;
+    relatedAppsChecked = state['relatedAppsChecked'] == true;
     canSuggest = state['canSuggest'] == true;
     notifyListeners();
   }
@@ -49,4 +55,6 @@ class BrowserInstall extends ChangeNotifier {
   void refresh() {
     if (_bridge != null) _refresh();
   }
+
+  bool openInstalledApp() => _bridge != null && _openInstalledApp().toDart;
 }

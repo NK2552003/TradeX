@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
-import 'package:tradex/core/app-ui/motion/ai_typing_indicator.dart';
+import 'package:alphajournal/core/app-ui/motion/ai_typing_indicator.dart';
 
 const typingCursorMarker = '\uE002';
 

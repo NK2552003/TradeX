@@ -17,7 +17,7 @@ BRIDGE = r"""
 ObjC.import('ScriptingBridge');
 let failure = null;
 ObjC.registerSubclass({
-  name: 'TradeXChromeDelegate', superclass: 'NSObject',
+  name: 'AlphaJournalChromeDelegate', superclass: 'NSObject',
   methods: {'eventDidFail:withError:': {
     types: ['id', ['void *', 'id']],
     implementation: function(event, error) {
@@ -26,7 +26,7 @@ ObjC.registerSubclass({
     }
   }}
 });
-const delegate = $.TradeXChromeDelegate.alloc.init;
+const delegate = $.AlphaJournalChromeDelegate.alloc.init;
 const app = $.SBApplication.applicationWithProcessIdentifier(TASK_PID);
 app.delegate = delegate;
 const windows = app.valueForKey('windows');

@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/ads/ad_config.dart';
-import 'package:tradex/core/ads/ad_scope.dart';
-import 'package:tradex/core/ads/ad_slot.dart';
-import 'package:tradex/core/ads/promotion_preview.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/env_config.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_feed_list.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
-import 'package:tradex/features/notes/ui/note_preview_screen.dart';
+import 'package:alphajournal/core/ads/ad_config.dart';
+import 'package:alphajournal/core/ads/ad_scope.dart';
+import 'package:alphajournal/core/ads/ad_slot.dart';
+import 'package:alphajournal/core/ads/promotion_preview.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/env_config.dart';
+import 'package:alphajournal/core/widgets/app_scaffold.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_feed_list.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/presentation/market_news_widgets.dart';
+import 'package:alphajournal/features/notes/ui/note_preview_screen.dart';
 
 void main() {
   setUpAll(() async {

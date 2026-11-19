@@ -1,27 +1,27 @@
-import 'package:tradex/features/copilot/copilot.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/strategies/data/strategy_repository.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/watchlists/data/watchlist_repository.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/messages/data/chat_repository.dart';
-import 'package:tradex/features/settings/data/repositories/trading_prefs_repository.dart';
-import 'package:tradex/features/settings/models/trading_prefs_model.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/data/repositories/affiliate_settings_repository.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
-import 'package:tradex/features/settings/data/repositories/desk_risk_repository.dart';
-import 'package:tradex/features/settings/data/repositories/organization_settings_repository.dart';
-import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
-import 'package:tradex/features/settings/data/repositories/notification_prefs_repository.dart';
-import 'package:tradex/features/settings/models/notification_prefs_model.dart';
-import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/strategies/data/strategy_repository.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/watchlists/data/watchlist_repository.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/messages/data/chat_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/trading_prefs_repository.dart';
+import 'package:alphajournal/features/settings/models/trading_prefs_model.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/affiliate_settings_repository.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_application_repository.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:alphajournal/features/settings/data/repositories/desk_risk_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/organization_settings_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/billing_settings_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/notification_prefs_repository.dart';
+import 'package:alphajournal/features/settings/models/notification_prefs_model.dart';
+import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -310,7 +310,9 @@ void main() {
           role: UserRole.userAdmin,
         ),
       );
-      addTearDown(() => SupabaseAuthBackendService.instance.setCurrentProfile(null));
+      addTearDown(
+        () => SupabaseAuthBackendService.instance.setCurrentProfile(null),
+      );
 
       final updatedConfig = await deskRepo.updateDeskRiskConfig(
         config.copyWith(maxFirmDrawdownPercent: 7.5),
@@ -346,25 +348,19 @@ void main() {
       final plans = await repo.getAvailablePlans();
       expect(plans, isNotEmpty);
 
-      await expectLater(
-        repo.startCheckout('pro', 'monthly'),
-        throwsStateError,
-      );
+      await expectLater(repo.startCheckout('pro', 'monthly'), throwsStateError);
       await expectLater(
         repo.startCheckout('tier_enterprise', 'monthly'),
         throwsStateError,
       );
 
-      final couponDiscount = await repo.redeemCoupon('TRADEX20');
+      final couponDiscount = await repo.redeemCoupon('ALPHAJOURNAL20');
       expect(couponDiscount, equals(20));
 
       final history = await repo.getBillingHistory();
       expect(history, isNotNull);
 
-      await expectLater(
-        repo.setCancelAtPeriodEnd(true),
-        throwsStateError,
-      );
+      await expectLater(repo.setCancelAtPeriodEnd(true), throwsStateError);
     });
 
     test('11. Notifications & GDPR Privacy End-to-End', () async {

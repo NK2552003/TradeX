@@ -1,7 +1,7 @@
-import 'package:tradex/core/utils/markdown_pdf_export.dart';
+import 'package:alphajournal/core/utils/markdown_pdf_export.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/settings/models/billing_models.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/settings/models/billing_models.dart';
 
 /// A single receipt: letterhead, who it was billed to, the itemised charge and
 /// the tax breakdown.
@@ -67,7 +67,7 @@ class InvoiceDetailPage extends StatelessWidget {
                     final exported = await MarkdownPdfExporter.exportAndShare(
                       title: 'Invoice ${invoice.id}',
                       markdown:
-                          '# alphajournal receipt\n\nInvoice: ${invoice.id}\n\nStatus: ${invoice.status}\n\n${billedToName ?? ""}\n\n${billedToEmail ?? ""}\n\n$_exportSummary',
+                          '# AlphaJournal receipt\n\nInvoice: ${invoice.id}\n\nStatus: ${invoice.status}\n\n${billedToName ?? ""}\n\n${billedToEmail ?? ""}\n\n$_exportSummary',
                     );
                     if (!exported && context.mounted) {
                       UiToast.show(
@@ -134,7 +134,7 @@ class InvoiceDetailPage extends StatelessWidget {
     final Widget from = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(issuer?.name ?? 'alphajournal', style: context.uiText.subheading),
+        Text(issuer?.name ?? 'AlphaJournal', style: context.uiText.subheading),
         if (issuer != null)
           for (final String line in <String>[
             ...issuer.addressLines,

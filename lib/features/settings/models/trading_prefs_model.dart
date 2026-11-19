@@ -66,8 +66,7 @@ class TradingPrefsModel {
       preferredCurrency: (json['preferred_currency'] as String?) ?? 'INR',
       marketTimezone:
           (json['market_timezone'] as String?) ?? 'Asia/Kolkata (IST)',
-      defaultAssetClass:
-          (json['default_asset_class'] as String?) ?? 'Equities',
+      defaultAssetClass: (json['default_asset_class'] as String?) ?? 'Equities',
       requireChecklistConfirmation:
           json['require_checklist_confirmation'] as bool? ?? false,
       deductEstimatedFeesFromPnl:
@@ -99,15 +98,16 @@ class TradingPrefsModel {
     final String? tz = (json['market_timezone'] as String?)?.trim();
     final String? assetClass = (json['default_asset_class'] as String?)?.trim();
     return copyWith(
-      preferredCurrency:
-          currency != null && currency.isNotEmpty ? currency : null,
+      preferredCurrency: currency != null && currency.isNotEmpty
+          ? currency
+          : null,
       marketTimezone: tz != null && tz.isNotEmpty ? tz : null,
-      defaultAssetClass:
-          assetClass != null && assetClass.isNotEmpty ? assetClass : null,
+      defaultAssetClass: assetClass != null && assetClass.isNotEmpty
+          ? assetClass
+          : null,
       requireChecklistConfirmation:
           json['require_checklist_confirmation'] as bool?,
-      deductEstimatedFeesFromPnl:
-          json['deduct_estimated_fees_pnl'] as bool?,
+      deductEstimatedFeesFromPnl: json['deduct_estimated_fees_pnl'] as bool?,
     );
   }
 

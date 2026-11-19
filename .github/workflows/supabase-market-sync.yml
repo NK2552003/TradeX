@@ -9,7 +9,7 @@ on:
         description: Dataset to synchronize (5000 tickers from top-5000-tickers.md; smart update & outdated cleanup)
         default: all
         type: choice
-        options: [all, quotes, history, news, screeners]
+        options: [all, quotes, history, news, screeners, reference]
       fetch_live:
         description: Fetch and publish live data (false runs offline validation only)
         default: true
@@ -56,7 +56,7 @@ jobs:
     needs: validate
     if: >-
       github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && inputs.fetch_live) ||
+      (github.event_name == 'workflow_dispatch' && inputs.fetch_live && inputs.sync_scope != 'reference') ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -90,7 +90,7 @@ jobs:
   sync:
     name: Fetch, validate and publish market shard ${{ matrix.shard }}
     needs: select
-    if: inputs.sync_scope != 'news'
+    if: inputs.sync_scope != 'news' && inputs.sync_scope != 'reference'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     strategy:
@@ -133,6 +133,38 @@ jobs:
           retention-days: 30
           overwrite: true
           if-no-files-found: warn
+
+  reference-market:
+    name: Publish World Indices and Assets
+    needs: validate
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.fetch_live && (inputs.sync_scope == 'all' || inputs.sync_scope == 'reference')) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - run: python -m pip install -r scripts/requirements.txt
+      - name: Synchronize curated global benchmarks and assets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: >-
+          python -u scripts/sync_market_pipeline.py --reference-market
+          --scope all --market-only --workers 2
+          --report market-reference-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: market-reference-report
+          overwrite: true
+          path: market-reference-report.json
 
   screeners:
     name: Publish screeners after all selected symbols validate

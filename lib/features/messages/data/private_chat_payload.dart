@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
 
 String encodePrivateChat(ChatMessage message) => jsonEncode({
   'body': message.body,

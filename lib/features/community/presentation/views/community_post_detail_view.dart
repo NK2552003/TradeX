@@ -1,23 +1,23 @@
-import 'package:tradex/core/utils/share_actions.dart';
-import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:alphajournal/core/utils/share_actions.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_composer_card.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../widgets/community_comment_composer.dart';
-import 'package:tradex/features/market_data/presentation/market_sidebar.dart';
-import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
+import 'package:alphajournal/features/market_data/presentation/market_sidebar.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_trade_setup_tile.dart';
-import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/features/community/presentation/widgets/community_send_dm_dialog.dart';
-import 'package:tradex/features/community/presentation/widgets/community_share_sheet.dart';
-import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_trade_setup_tile.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_edit_post_dialog.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_repost_dialog.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_send_dm_dialog.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_share_sheet.dart';
+import 'package:alphajournal/features/community/presentation/widgets/universal_comments_section.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
 
 // ---------------------------------------------------------------------------
 // CommunityPostDetailView
@@ -269,8 +269,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
         // while compact mobile chrome applies below 680px.
         final bool isDesktop =
             !widget.forceSingleColumn && availableWidth >= 1080;
-        final bool isMobile =
-            widget.forceSingleColumn || availableWidth < 680;
+        final bool isMobile = widget.forceSingleColumn || availableWidth < 680;
 
         return Scaffold(
           backgroundColor: theme.colors.background,
@@ -1314,7 +1313,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
           SizedBox(width: context.sp(theme.spacing.xs)),
           Expanded(
             child: Text(
-              'alphajournal Community posts are for educational purposes. Always manage position sizing and risk parameters.',
+              'AlphaJournal Community posts are for educational purposes. Always manage position sizing and risk parameters.',
               style: context.uiText.caption.copyWith(
                 color: theme.colors.foregroundSubtle,
                 fontSize: context.fs(10),

@@ -25,6 +25,15 @@ from market_selection import MAX_SYMBOLS, select_symbols, supported_symbol
 from market_verification import confirm_rows, row_key
 
 
+REFERENCE_MARKET_SYMBOLS = [
+    '^IXIC', '^GSPTSE', '^GSPC', '^DJI', '^RUT', '^VIX', '^BVSP',
+    '^GDAXI', '^FCHI', '^STOXX50E', '^FTSE', '^N100', '^BSESN', '^HSI',
+    '000001.SS', '^AXJO', '^N225', '^KS11', 'GC=F', 'SI=F', 'CL=F',
+    'NG=F', 'HG=F', 'EURUSD=X', 'GBPUSD=X', 'USDJPY=X', 'USDINR=X',
+    'BTC-USD', 'ETH-USD', '^TNX', '^TYX', '^FVX', '^IRX', 'DX-Y.NYB',
+]
+
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -99,7 +108,7 @@ class Database:
 
     def prune_market_data(self, valid_symbols=None):
         """Smart cleanup: delete only out-of-universe tickers and expired history/news to reduce egress."""
-        chosen = set(valid_symbols or TARGET_TICKERS)
+        chosen = set(valid_symbols or TARGET_TICKERS) | set(REFERENCE_MARKET_SYMBOLS)
         stored = [r['ticker'] for r in self.select('tickers', select='ticker', order='ticker')
                   if r.get('ticker') and r['ticker'] not in chosen]
         for start in range(0, len(stored), 100):
@@ -609,7 +618,12 @@ def sync_news(db, workers, report):
 
 def run(args, report):
     db = None if args.dry_run else Database()
-    if args.symbols_file:
+    if getattr(args, 'reference_market', False):
+        if args.symbols_file or args.symbols or args.select_only:
+            raise PipelineError('--reference-market cannot be combined with symbol selection flags')
+        symbols = list(REFERENCE_MARKET_SYMBOLS)
+        report['selection'] = 'curated world indices, commodities, FX, crypto, rates, and dollar index'
+    elif args.symbols_file:
         symbols = json.loads(Path(args.symbols_file).read_text())
         if not isinstance(symbols, list) or not all(isinstance(s, str) and supported_symbol(s) for s in symbols):
             raise PipelineError('Invalid selected-symbol manifest')
@@ -678,6 +692,8 @@ def main(argv=None):
     parser.add_argument('--scope', choices=['all', 'quotes', 'history', 'news', 'screeners'], default=os.getenv('SYNC_SCOPE', 'all'))
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--symbols', help='Explicit comma-separated symbol subset for diagnostics')
+    parser.add_argument('--reference-market', action='store_true',
+                        help='Synchronize the curated World Indices and Assets symbols used by Overview')
     parser.add_argument('--max-symbols', type=int, choices=range(1, MAX_SYMBOLS + 1), default=MAX_SYMBOLS, metavar='1..5000')
     parser.add_argument('--symbols-file', help='Frozen ranked manifest shared by CI shards')
     parser.add_argument('--select-only', help='Write the ranked manifest without fetching providers')

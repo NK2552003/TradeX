@@ -1,4 +1,4 @@
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 import 'real_note_ai_refactor.dart';
 
 /// Rewrites a selected passage of a note.

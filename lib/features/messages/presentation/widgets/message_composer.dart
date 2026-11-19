@@ -7,8 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
 
 /// The thread composer.
 ///
@@ -160,9 +160,13 @@ class MessageComposerState extends State<MessageComposer>
         if (kIsWeb) {
           AudioEncoder effectiveEncoder = AudioEncoder.opus;
           try {
-            final isOpus = await _audioRecorder!.isEncoderSupported(AudioEncoder.opus);
+            final isOpus = await _audioRecorder!.isEncoderSupported(
+              AudioEncoder.opus,
+            );
             if (!isOpus) {
-              final isAac = await _audioRecorder!.isEncoderSupported(AudioEncoder.aacLc);
+              final isAac = await _audioRecorder!.isEncoderSupported(
+                AudioEncoder.aacLc,
+              );
               effectiveEncoder = isAac ? AudioEncoder.aacLc : AudioEncoder.wav;
             }
           } catch (_) {}
@@ -342,7 +346,9 @@ class MessageComposerState extends State<MessageComposer>
                             color: _focus.hasFocus
                                 ? colors.primary.withValues(alpha: 0.7)
                                 : colors.border.withValues(alpha: 0.6),
-                            width: _focus.hasFocus ? 1.5 : theme.borders.hairline,
+                            width: _focus.hasFocus
+                                ? 1.5
+                                : theme.borders.hairline,
                           ),
                         ),
                         padding: EdgeInsets.only(
@@ -411,7 +417,8 @@ class MessageComposerState extends State<MessageComposer>
               label: 'Chart',
               icon: Icons.candlestick_chart_rounded,
               color: colors.primary,
-              onTap: () => widget.onSendAttachment?.call(MessageAttachmentKind.chart),
+              onTap: () =>
+                  widget.onSendAttachment?.call(MessageAttachmentKind.chart),
             ),
             SizedBox(width: context.sp(theme.spacing.xs)),
             _quickPill(
@@ -419,7 +426,9 @@ class MessageComposerState extends State<MessageComposer>
               label: 'Trade Setup',
               icon: Icons.trending_up_rounded,
               color: colors.success,
-              onTap: () => widget.onSendAttachment?.call(MessageAttachmentKind.tradeSetup),
+              onTap: () => widget.onSendAttachment?.call(
+                MessageAttachmentKind.tradeSetup,
+              ),
             ),
             SizedBox(width: context.sp(theme.spacing.xs)),
             _quickPill(
@@ -427,7 +436,8 @@ class MessageComposerState extends State<MessageComposer>
               label: 'Photo',
               icon: Icons.image_outlined,
               color: colors.warning,
-              onTap: () => widget.onSendAttachment?.call(MessageAttachmentKind.image),
+              onTap: () =>
+                  widget.onSendAttachment?.call(MessageAttachmentKind.image),
             ),
             SizedBox(width: context.sp(theme.spacing.xs)),
             _quickPill(
@@ -435,7 +445,8 @@ class MessageComposerState extends State<MessageComposer>
               label: 'Document',
               icon: Icons.description_outlined,
               color: colors.info,
-              onTap: () => widget.onSendAttachment?.call(MessageAttachmentKind.document),
+              onTap: () =>
+                  widget.onSendAttachment?.call(MessageAttachmentKind.document),
             ),
             SizedBox(width: context.sp(theme.spacing.xs)),
             _quickPill(
@@ -447,7 +458,9 @@ class MessageComposerState extends State<MessageComposer>
             ),
             if (widget.shareableRefs.isNotEmpty) ...<Widget>[
               SizedBox(width: context.sp(theme.spacing.xs)),
-              for (final AppLinkRef ref in widget.shareableRefs.take(2)) ...<Widget>[
+              for (final AppLinkRef ref in widget.shareableRefs.take(
+                2,
+              )) ...<Widget>[
                 _quickPill(
                   context,
                   label: ref.title,
@@ -591,7 +604,8 @@ class MessageComposerState extends State<MessageComposer>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: List<Widget>.generate(18, (int i) {
-                        final double h = 4.0 +
+                        final double h =
+                            4.0 +
                             ((i * 3 + _recordSeconds * 4) % 18).toDouble();
                         return Container(
                           width: context.sz(2.5),
@@ -645,25 +659,29 @@ class MessageComposerState extends State<MessageComposer>
           label: 'Technical Chart',
           icon: Icons.candlestick_chart_rounded,
           description: 'Share live candlestick setup',
-          onPressed: () => widget.onSendAttachment?.call(MessageAttachmentKind.chart),
+          onPressed: () =>
+              widget.onSendAttachment?.call(MessageAttachmentKind.chart),
         ),
         UiMenuItem(
           label: 'Trade Setup',
           icon: Icons.trending_up_rounded,
           description: 'Entry, stop loss & profit target',
-          onPressed: () => widget.onSendAttachment?.call(MessageAttachmentKind.tradeSetup),
+          onPressed: () =>
+              widget.onSendAttachment?.call(MessageAttachmentKind.tradeSetup),
         ),
         UiMenuItem(
           label: 'Photo / Image',
           icon: Icons.image_outlined,
           description: 'Upload from device photo library',
-          onPressed: () => widget.onSendAttachment?.call(MessageAttachmentKind.image),
+          onPressed: () =>
+              widget.onSendAttachment?.call(MessageAttachmentKind.image),
         ),
         UiMenuItem(
           label: 'Document',
           icon: Icons.description_outlined,
           description: 'PDF or analysis reports',
-          onPressed: () => widget.onSendAttachment?.call(MessageAttachmentKind.document),
+          onPressed: () =>
+              widget.onSendAttachment?.call(MessageAttachmentKind.document),
         ),
         UiMenuItem(
           label: 'Voice Note',

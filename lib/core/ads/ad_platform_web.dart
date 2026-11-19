@@ -55,6 +55,7 @@ void suspendAds() {
     _suspend();
   } catch (_) {}
 }
+
 Widget adPlatformView({
   required AdPlacement placement,
   required int occurrence,

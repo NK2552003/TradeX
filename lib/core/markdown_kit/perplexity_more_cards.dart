@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import 'perplexity_domain_cards.dart';
 import 'research/research_metrics.dart';
@@ -40,7 +40,8 @@ class PerplexityLinksCard extends StatelessWidget {
       'sources',
       'bookmarks',
     ]);
-    if (items.isEmpty && PerplexityCardDataUtils.str(data, ['url', 'href']) != null) {
+    if (items.isEmpty &&
+        PerplexityCardDataUtils.str(data, ['url', 'href']) != null) {
       items = <Map<String, dynamic>>[data];
     }
     if (items.isEmpty) return const SizedBox.shrink();
@@ -229,11 +230,7 @@ class _LinkItemCard extends StatelessWidget {
 
 /// Perplexity Video, Podcast & Earnings Call Recording Card.
 class PerplexityVideoCard extends StatelessWidget {
-  const PerplexityVideoCard({
-    super.key,
-    required this.data,
-    this.onTapUrl,
-  });
+  const PerplexityVideoCard({super.key, required this.data, this.onTapUrl});
 
   final Map<String, dynamic> data;
   final PerplexityOpenUrlCallback? onTapUrl;
@@ -543,11 +540,7 @@ class PerplexityPulseCard extends StatelessWidget {
               if (changePct != null)
                 UiBadge.delta(changePct)
               else if (changeLabel != null)
-                UiBadge(
-                  label: changeLabel,
-                  intent: intent,
-                  size: UiSize.xs,
-                ),
+                UiBadge(label: changeLabel, intent: intent, size: UiSize.xs),
               if (sparkline.length >= 2)
                 SizedBox(
                   width: context.sz(108),
@@ -654,12 +647,7 @@ class _PulseTile extends StatelessWidget {
         ]) ??
         'Item';
     final String value =
-        PerplexityCardDataUtils.str(item, [
-          'value',
-          'price',
-          'last',
-          'temp',
-        ]) ??
+        PerplexityCardDataUtils.str(item, ['value', 'price', 'last', 'temp']) ??
         '—';
     final String? delta = PerplexityCardDataUtils.str(item, [
       'change',
@@ -667,7 +655,10 @@ class _PulseTile extends StatelessWidget {
       'delta',
       'condition',
     ]);
-    final String? ticker = PerplexityCardDataUtils.str(item, ['ticker', 'symbol']);
+    final String? ticker = PerplexityCardDataUtils.str(item, [
+      'ticker',
+      'symbol',
+    ]);
     final UiIntent intent = delta != null
         ? PerplexityCardDataUtils.parseIntent(
             delta,
@@ -723,11 +714,7 @@ class _PulseTile extends StatelessWidget {
 
 /// Interactive Schedule, Earnings Calendar & Event Scoreboard Card.
 class PerplexityScheduleCard extends StatelessWidget {
-  const PerplexityScheduleCard({
-    super.key,
-    required this.data,
-    this.onOpenRef,
-  });
+  const PerplexityScheduleCard({super.key, required this.data, this.onOpenRef});
 
   final Map<String, dynamic> data;
   final PerplexityOpenRefCallback? onOpenRef;
@@ -892,12 +879,19 @@ class _PerplexityScenarioMatrixCardState
           PerplexityCardDataUtils.str(s, ['name', 'title', 'case', 'label']) ??
           'Case';
       if (prob != null && prob > 0) {
-        weights.add(UiCategoryItem(label: '$label ${prob.round()}%', value: prob));
+        weights.add(
+          UiCategoryItem(label: '$label ${prob.round()}%', value: prob),
+        );
       }
     }
 
     final String activeName =
-        PerplexityCardDataUtils.str(active, ['name', 'title', 'case', 'label']) ??
+        PerplexityCardDataUtils.str(active, [
+          'name',
+          'title',
+          'case',
+          'label',
+        ]) ??
         'Scenario';
     final String? target = PerplexityCardDataUtils.str(active, [
       'target',
@@ -1302,7 +1296,8 @@ class PerplexityPortfolioCard extends StatelessWidget {
                         AppSiteLogo(ticker: ticker, label: name, size: 16),
                         if (ticker != null && onOpenRef != null)
                           UiBadge(
-                            label: '\$${PerplexityCardDataUtils.cleanTicker(ticker)}',
+                            label:
+                                '\$${PerplexityCardDataUtils.cleanTicker(ticker)}',
                             intent: UiIntent.primary,
                             size: UiSize.xs,
                             onTap: () {
@@ -1397,7 +1392,10 @@ class PerplexityDocumentCard extends StatelessWidget {
       'company',
       'author',
     ]);
-    final String? ticker = PerplexityCardDataUtils.str(data, ['ticker', 'symbol']);
+    final String? ticker = PerplexityCardDataUtils.str(data, [
+      'ticker',
+      'symbol',
+    ]);
     final String? url = PerplexityCardDataUtils.str(data, ['url', 'link']);
     final String? summary = PerplexityCardDataUtils.str(data, [
       'summary',
@@ -1478,7 +1476,9 @@ class PerplexityDocumentCard extends StatelessWidget {
                   if (url != null && onTapUrl != null)
                     AppSiteLinkChip(
                       url: url,
-                      title: SiteLogoResolver.extractDomain(url) ?? 'View document',
+                      title:
+                          SiteLogoResolver.extractDomain(url) ??
+                          'View document',
                       onTap: () => onTapUrl!(url),
                     ),
                   if (onPromptTap != null)
@@ -1593,8 +1593,14 @@ class PerplexityWikiCard extends StatelessWidget {
                         (PerplexityCardDataUtils.str(f, ['value', 'val']) ?? '')
                             .isNotEmpty)
                       UiKeyValueRow(
-                        label: PerplexityCardDataUtils.str(f, ['label', 'key'])!,
-                        value: PerplexityCardDataUtils.str(f, ['value', 'val'])!,
+                        label: PerplexityCardDataUtils.str(f, [
+                          'label',
+                          'key',
+                        ])!,
+                        value: PerplexityCardDataUtils.str(f, [
+                          'value',
+                          'val',
+                        ])!,
                       ),
                 ],
                 showShareBars: false,
@@ -1725,7 +1731,8 @@ class PerplexityRiskPlanCard extends StatelessWidget {
                   UiTableColumn<Map<String, dynamic>>(
                     header: 'Profit',
                     cell: (BuildContext ctx, Map<String, dynamic> r) => UiBadge(
-                      label: PerplexityCardDataUtils.str(r, [
+                      label:
+                          PerplexityCardDataUtils.str(r, [
                             'profit',
                             'gain',
                             'pnl',

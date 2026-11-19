@@ -248,7 +248,8 @@ class DeskStatsOverview extends StatelessWidget {
                         Text(
                           data.secondary!,
                           style: context.uiText.caption.copyWith(
-                            color: data.secondaryColor ?? colors.foregroundMuted,
+                            color:
+                                data.secondaryColor ?? colors.foregroundMuted,
                             fontFamily: 'monospace',
                             fontWeight: FontWeight.w600,
                           ),
@@ -621,9 +622,7 @@ class DeskPaginationBar extends StatelessWidget {
         SizedBox(width: context.sp(theme.spacing.sm)),
         Text(
           'Page $currentPage of $totalPages',
-          style: context.uiText.caption.copyWith(
-            fontWeight: FontWeight.w500,
-          ),
+          style: context.uiText.caption.copyWith(fontWeight: FontWeight.w500),
         ),
         SizedBox(width: context.sp(theme.spacing.sm)),
         UiButton(
@@ -639,9 +638,7 @@ class DeskPaginationBar extends StatelessWidget {
 
     final Widget infoWidget = Text(
       infoText,
-      style: context.uiText.caption.copyWith(
-        color: colors.foregroundMuted,
-      ),
+      style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
       textAlign: isMobile ? TextAlign.center : TextAlign.left,
     );
 
@@ -663,10 +660,7 @@ class DeskPaginationBar extends StatelessWidget {
           : Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                infoWidget,
-                controls,
-              ],
+              children: [infoWidget, controls],
             ),
     );
   }

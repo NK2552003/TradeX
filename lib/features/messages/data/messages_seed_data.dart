@@ -1,8 +1,8 @@
 import 'dart:math';
 
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
 
 /// All mock content for the Messages feature lives here — never inside widgets.
 ///

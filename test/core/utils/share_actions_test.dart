@@ -5,9 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:share_plus_platform_interface/share_plus_platform_interface.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/utils/share_actions.dart';
-import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/utils/share_actions.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 
 class FakeShare extends SharePlatform {
   ShareResult result = const ShareResult('', ShareResultStatus.dismissed);

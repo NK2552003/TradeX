@@ -185,7 +185,11 @@ class WorkspaceMutations {
         ]) {
           if (input.containsKey(flag)) settings[flag] = input[flag] == true;
         }
-        if (['concise', 'balanced', 'detailed'].contains(input['responseStyle'])) {
+        if ([
+          'concise',
+          'balanced',
+          'detailed',
+        ].contains(input['responseStyle'])) {
           settings['responseStyle'] = input['responseStyle'];
         }
         if (['inline', 'footnotes'].contains(input['citationsStyle'])) {

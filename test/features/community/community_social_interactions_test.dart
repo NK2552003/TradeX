@@ -8,19 +8,19 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/ai/unified_ai_service.dart';
-import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/data/community_writing_assistant.dart';
-import 'package:tradex/features/community/models/community_activity.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_discussion_comment.dart';
-import 'package:tradex/features/community/presentation/widgets/community_emoji_picker.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_discussion.dart';
-import 'package:tradex/features/community/presentation/widgets/community_reactions_dialog.dart';
+import 'package:alphajournal/core/ai/unified_ai_service.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart' hide CommunityPostCard;
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/data/community_writing_assistant.dart';
+import 'package:alphajournal/features/community/models/community_activity.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_discussion_comment.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_emoji_picker.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_discussion.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_reactions_dialog.dart';
 
 const author = CommunityAuthor(
   id: 'author',
@@ -81,7 +81,7 @@ Widget host(Widget child) => MaterialApp(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
-    if (Platform.environment['TRADEX_CAPTURE_UI'] == '1') {
+    if (Platform.environment['ALPHAJOURNAL_CAPTURE_UI'] == '1') {
       await (FontLoader(
         'MaterialIcons',
       )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
@@ -269,7 +269,7 @@ void main() {
       expect(find.text('Comment reply'), findsOneWidget);
       expect(navigations, 0);
       expect(tester.takeException(), isNull);
-      if (Platform.environment['TRADEX_CAPTURE_UI'] == '1') {
+      if (Platform.environment['ALPHAJOURNAL_CAPTURE_UI'] == '1') {
         await tester.runAsync(() async {
           final render =
               boundary.currentContext!.findRenderObject()!
@@ -277,7 +277,7 @@ void main() {
           final image = await render.toImage(pixelRatio: 1.5);
           final data = await image.toByteData(format: ui.ImageByteFormat.png);
           await File(
-            '/tmp/tradex-comments-${width.toInt()}.png',
+            '/tmp/alphajournal-comments-${width.toInt()}.png',
           ).writeAsBytes(data!.buffer.asUint8List());
         });
       }

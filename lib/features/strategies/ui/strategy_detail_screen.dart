@@ -1,27 +1,27 @@
-import 'package:tradex/core/config/record_access.dart';
+import 'package:alphajournal/core/config/record_access.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/core/markdown_kit/markdown_kit.dart';
-import 'package:tradex/core/utils/export_progress.dart';
-import 'package:tradex/core/utils/markdown_pdf_export.dart';
-import 'package:tradex/core/utils/pdf_export_options.dart';
-import 'package:tradex/features/linking/link_graph_service.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_kit.dart';
+import 'package:alphajournal/core/utils/export_progress.dart';
+import 'package:alphajournal/core/utils/markdown_pdf_export.dart';
+import 'package:alphajournal/core/utils/pdf_export_options.dart';
+import 'package:alphajournal/features/linking/link_graph_service.dart';
 
 import '../data/strategies_repository.dart';
 import '../data/strategy_attachments.dart';
 import 'revision_note_prompt.dart';
-import 'package:tradex/features/copilot/copilot.dart';
-import 'package:tradex/features/community/data/unified_comments_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
-import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
+import 'package:alphajournal/features/copilot/copilot.dart';
+import 'package:alphajournal/features/community/data/unified_comments_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/universal_comments_section.dart';
+import 'package:alphajournal/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 
 /// Read-only view of one strategy playbook: the rules, the track record they
 /// produced, the revisions they went through, and everything attached.

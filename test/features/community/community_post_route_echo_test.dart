@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/features/community/presentation/community_root_screen.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
-import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/core/widgets/app_scaffold.dart';
+import 'package:alphajournal/features/community/presentation/community_root_screen.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_card.dart';
+import 'package:alphajournal/features/community/presentation/views/community_post_detail_view.dart';
 
 void main() {
   testWidgets(

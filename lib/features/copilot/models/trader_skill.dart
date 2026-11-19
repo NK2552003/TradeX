@@ -64,7 +64,7 @@ Trader skills
 ${command == null ? 'Choose the most relevant skill from the meaning of the request, conversation and attachments. Answer unrelated questions normally. For an unknown slash command, explain how to browse Trader skills.' : 'The user explicitly selected ${command.command}. Start with that skill.'}
 For a skill request, identify the skill(s) used. Run only the stages needed for the requested outcome, in dependency order. Use open_trader_skill when available to run the supplied toolkit. Otherwise use these methods with the available evidence and tools. Cite dated sources, ask for missing inputs, and distinguish computations from estimates. Never use example portfolios as user data.
 For a sized copy portfolio, pass copycat targets to budget and proposed orders to risk. For stock selection, pass analyst metrics to screener. For rebalancing or harvesting, pass proposed orders to risk. Broker requires a current risk pass for the exact ticket. Carry intermediate values through the conversation and show enough inputs and results to resume. Stop at a blocked or incomplete stage.
-TradeX prepares tickets for review only. Never submit an order, record an approval or fill, connect a broker, or claim ongoing monitoring as part of these skills.
+AlphaJournal prepares tickets for review only. Never submit an order, record an approval or fill, connect a broker, or claim ongoing monitoring as part of these skills.
 ${values.map((s) => '${s.command} — ${s.method}').join('\n')}
 ''';
   }

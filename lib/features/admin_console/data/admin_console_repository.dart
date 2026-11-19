@@ -1,28 +1,31 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/admin_console/models/admin_console_models.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_workspace_repository.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
-import 'package:tradex/features/settings/data/repositories/desk_risk_repository.dart';
-import 'package:tradex/features/settings/data/repositories/organization_settings_repository.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/models/desk_risk_model.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/admin_console/models/admin_console_models.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_application_repository.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_workspace_repository.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_workspace.dart';
+import 'package:alphajournal/features/settings/data/repositories/desk_risk_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/organization_settings_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/desk_risk_model.dart';
 
 class AdminConsoleRepository {
   AdminConsoleRepository._();
 
   static final AdminConsoleRepository instance = AdminConsoleRepository._();
 
-  static const String _seatsPrefsKey = 'tradex.admin_console.seats.v1';
-  static const String _consumersPrefsKey = 'tradex.admin_console.consumers.v1';
-  static const String _ordersPrefsKey = 'tradex.admin_console.orders.v1';
-  static const String _breachesPrefsKey = 'tradex.admin_console.breaches.v1';
-  static const String _auditsPrefsKey = 'tradex.admin_console.audits.v1';
-  static const String _breakerPrefsKey = 'tradex.admin_console.breaker.v1';
+  static const String _seatsPrefsKey = 'alphajournal.admin_console.seats.v1';
+  static const String _consumersPrefsKey =
+      'alphajournal.admin_console.consumers.v1';
+  static const String _ordersPrefsKey = 'alphajournal.admin_console.orders.v1';
+  static const String _breachesPrefsKey =
+      'alphajournal.admin_console.breaches.v1';
+  static const String _auditsPrefsKey = 'alphajournal.admin_console.audits.v1';
+  static const String _breakerPrefsKey =
+      'alphajournal.admin_console.breaker.v1';
 
   final OrganizationSettingsRepository _orgRepo =
       OrganizationSettingsRepositoryImpl();
@@ -189,7 +192,7 @@ class AdminConsoleRepository {
           ? 'CIRCUIT_BREAKER_TRIPPED'
           : 'DESK_EXECUTION_RESUMED',
       targetType: 'desk_circuit_breaker',
-      targetLabel: 'alphajournal Institutional Desk',
+      targetLabel: 'AlphaJournal Institutional Desk',
       severity: state == 'halted' ? 'critical' : 'warning',
       details: reason?.trim().isNotEmpty == true
           ? reason!.trim()
@@ -1228,7 +1231,7 @@ class AdminConsoleRepository {
         userId: '00000000-0000-0000-0000-000000000001',
         handle: 'nitish_admin',
         displayName: 'Nitish Kumar (Managing Partner)',
-        email: 'nitish@tradex.in',
+        email: 'nitish@alphajournal.in',
         role: 'owner',
         deskDivision: 'Index & Options Desk',
         allocatedCapitalInr: 65000000, // ₹6.50 Cr
@@ -1247,7 +1250,7 @@ class AdminConsoleRepository {
         userId: '00000000-0000-0000-0000-000000000002',
         handle: 'sarah_quant',
         displayName: 'Sarah Jenkins (Head of Quant Risk)',
-        email: 'sarah.quant@tradex.in',
+        email: 'sarah.quant@alphajournal.in',
         role: 'risk_manager',
         deskDivision: 'Quant & Arbitrage',
         allocatedCapitalInr: 45000000, // ₹4.50 Cr
@@ -1266,7 +1269,7 @@ class AdminConsoleRepository {
         userId: '00000000-0000-0000-0000-000000000003',
         handle: 'marcus_trader',
         displayName: 'Marcus Vance (Senior F&O Trader)',
-        email: 'marcus.vance@tradex.in',
+        email: 'marcus.vance@alphajournal.in',
         role: 'trader',
         deskDivision: 'Index & Options Desk',
         allocatedCapitalInr: 35000000, // ₹3.50 Cr
@@ -1285,7 +1288,7 @@ class AdminConsoleRepository {
         userId: '00000000-0000-0000-0000-000000000004',
         handle: 'aditya_momentum',
         displayName: 'Aditya Deshmukh (Equities Lead)',
-        email: 'aditya.d@tradex.in',
+        email: 'aditya.d@alphajournal.in',
         role: 'trader',
         deskDivision: 'Equities Momentum',
         allocatedCapitalInr: 25000000, // ₹2.50 Cr
@@ -1304,7 +1307,7 @@ class AdminConsoleRepository {
         userId: '00000000-0000-0000-0000-000000000005',
         handle: 'rohan_mcx',
         displayName: 'Rohan Malhotra (Commodities Desk)',
-        email: 'rohan.mcx@tradex.in',
+        email: 'rohan.mcx@alphajournal.in',
         role: 'trader',
         deskDivision: 'Commodities & FX',
         allocatedCapitalInr: 15000000, // ₹1.50 Cr
@@ -1328,7 +1331,7 @@ class AdminConsoleRepository {
       AdminConsumerAccount(
         userId: 'f040d8c1-c063-45f4-b963-beb1a7f9fc9f',
         handle: 'admin',
-        displayName: 'alphajournal System Admin',
+        displayName: 'AlphaJournal System Admin',
         email: 'admin@alphajournal.in',
         subscriptionTier: 'Enterprise',
         monthlySubscriptionInr: 999.0,
@@ -1544,7 +1547,7 @@ class AdminConsoleRepository {
         category: 'risk_control',
         action: 'DESK_RISK_POLICY_VERIFIED',
         targetType: 'desk_risk_configs',
-        targetLabel: 'alphajournal Institutional Alpha Desk',
+        targetLabel: 'AlphaJournal Institutional Alpha Desk',
         severity: 'info',
         ipAddress: '103.21.244.18 (Mumbai-DC1)',
         sha256Hash:

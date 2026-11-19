@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/core/navigation/role_navigation_config.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/presentation/views/community_explore_view.dart';
-import 'package:tradex/features/community/presentation/views/community_feed_view.dart';
-import 'package:tradex/features/workspace/ui/workspace_screen.dart';
-import 'package:tradex/features/community/presentation/views/community_follow_view.dart';
-import 'package:tradex/features/community/presentation/views/community_profile_view.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/widgets/app_scaffold.dart';
+import 'package:alphajournal/core/navigation/role_navigation_config.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/presentation/views/community_explore_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_feed_view.dart';
+import 'package:alphajournal/features/workspace/ui/workspace_screen.dart';
+import 'package:alphajournal/features/community/presentation/views/community_follow_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_profile_view.dart';
 
 void main() {
   test(
@@ -141,21 +141,25 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('desktop global header omits Features pill while keeping Help button', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1280, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'desktop global header omits Features pill while keeping Help button',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(
-      const MaterialApp(home: AppScaffold(initialDestination: 'workspace')),
-    );
-    await tester.pump(const Duration(seconds: 1));
+      await tester.pumpWidget(
+        const MaterialApp(home: AppScaffold(initialDestination: 'workspace')),
+      );
+      await tester.pump(const Duration(seconds: 1));
 
-    expect(find.byKey(const ValueKey<String>('header-feature-guide-btn')), findsNothing);
-    expect(find.byIcon(Icons.help_outline_rounded), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(
+        find.byKey(const ValueKey<String>('header-feature-guide-btn')),
+        findsNothing,
+      );
+      expect(find.byIcon(Icons.help_outline_rounded), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

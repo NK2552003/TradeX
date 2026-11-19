@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// Resolves clean website domains and real favicon / brand logo URLs for
 /// links, citations, publishers, and market entities.
@@ -157,9 +157,7 @@ class SiteLogoResolver {
       return explicit;
     }
     final String? host =
-        extractDomain(url) ??
-        extractDomain(domain) ??
-        domainForTicker(ticker);
+        extractDomain(url) ?? extractDomain(domain) ?? domainForTicker(ticker);
     if (host == null || host.isEmpty) return null;
     return 'https://www.google.com/s2/favicons?domain=${Uri.encodeComponent(host)}&sz=$size';
   }

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:tradex/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
 import 'agent_runner.dart';
 import 'agent_tools.dart';
 import 'auth.dart';
@@ -70,7 +70,10 @@ class CopilotVoice {
         final stateFile = File(
           p.join(store.directory.path, '.voice-leases.json'),
         );
-        Json state = {'leases': <String, dynamic>{}, 'owners': <String, dynamic>{}};
+        Json state = {
+          'leases': <String, dynamic>{},
+          'owners': <String, dynamic>{},
+        };
         if (await stateFile.exists()) {
           try {
             final raw = await stateFile.readAsString();
@@ -122,8 +125,7 @@ class CopilotVoice {
     });
 
     final dayCutoffMs = nowMs - const Duration(hours: 24).inMilliseconds;
-    final windowCutoffMs =
-        nowMs - config.voiceRateLimitWindow.inMilliseconds;
+    final windowCutoffMs = nowMs - config.voiceRateLimitWindow.inMilliseconds;
     final owners = state['owners'] as Map<String, dynamic>;
     for (final entry in owners.entries.toList()) {
       final ownerData = Map<String, dynamic>.from(entry.value as Map? ?? {});
@@ -143,7 +145,9 @@ class CopilotVoice {
     }
   }
 
-  Future<({String leaseId, int dailyAudioBytesUsed, Duration remainingDailyDuration})>
+  Future<
+    ({String leaseId, int dailyAudioBytesUsed, Duration remainingDailyDuration})
+  >
   _reserveCapacity(String owner, String threadId) {
     return _withSharedAccounting((state) {
       final nowMs = _clock().millisecondsSinceEpoch;
@@ -318,10 +322,7 @@ class CopilotVoice {
       try {
         hasHello = await incoming.moveNext().timeout(config.voiceAuthTimeout);
       } on TimeoutException {
-        throw const CopilotFailure(
-          'Voice authentication timed out.',
-          408,
-        );
+        throw const CopilotFailure('Voice authentication timed out.', 408);
       }
       if (!hasHello) {
         return;
@@ -478,7 +479,9 @@ class CopilotVoice {
         while (await incoming.moveNext()) {
           final raw = incoming.current;
           if (raw is! String) {
-            throw const CopilotFailure('Binary voice frames are not supported.');
+            throw const CopilotFailure(
+              'Binary voice frames are not supported.',
+            );
           }
           final rawBytes = utf8.encode(raw).length;
           if (rawBytes > config.voiceMaxFrameBytes) {
@@ -496,10 +499,7 @@ class CopilotVoice {
           }
           framesThisSecond++;
           if (framesThisSecond > config.voiceMaxFramesPerSecond) {
-            throw const CopilotFailure(
-              'Voice frame rate limit exceeded.',
-              429,
-            );
+            throw const CopilotFailure('Voice frame rate limit exceeded.', 429);
           }
 
           final event = jsonDecode(raw) as Json;

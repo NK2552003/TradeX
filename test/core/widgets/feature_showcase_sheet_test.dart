@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/widgets/feature_showcase_catalog.dart';
-import 'package:tradex/core/widgets/feature_showcase_sheet.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/widgets/feature_showcase_catalog.dart';
+import 'package:alphajournal/core/widgets/feature_showcase_sheet.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 
 Widget _wrapWithTheme(Widget child, {Size size = const Size(1280, 800)}) {
   return MediaQuery(
@@ -54,10 +54,19 @@ void main() {
 
       // Overlay header + catalog items visible
       expect(find.text('Feature Explorer & Live Previews'), findsOneWidget);
-      expect(find.byKey(const ValueKey('feature-nav-workspace')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('feature-nav-workspace')),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('feature-nav-journal')), findsOneWidget);
-      expect(find.byKey(const ValueKey('feature-nav-calculators')), findsOneWidget);
-      expect(find.byKey(const ValueKey('feature-nav-community')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('feature-nav-calculators')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('feature-nav-community')),
+        findsOneWidget,
+      );
 
       // Select Calculators & verify 2-column editorial + specs + interactive slider/toggle preview
       await tester.tap(find.byKey(const ValueKey('feature-nav-calculators')));
@@ -103,7 +112,10 @@ void main() {
         'playbook',
       );
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('feature-nav-strategies')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('feature-nav-strategies')),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('feature-nav-market')), findsNothing);
 
       // Interactive page tour action works for Strategies

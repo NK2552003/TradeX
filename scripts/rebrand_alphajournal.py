@@ -1,9 +1,9 @@
-"""Apply the alphajournal display and domain rebrand to editable sources.
+"""Apply the AlphaJournal application, package, and domain rebrand.
 
 Run from any directory: python3 scripts/rebrand_alphajournal.py --write
 Use --check in CI to find old names in active sources. Historical migrations,
-package names, OAuth schemes and repository URLs are intentionally preserved;
-changing those requires a compatibility migration and store configuration.
+the deployed ``tradex_private`` schema, legacy compatibility keys, and repository
+URLs are intentionally preserved because renaming them would break existing data.
 """
 
 from __future__ import annotations
@@ -25,7 +25,8 @@ EXTENSIONS = {
 }
 SKIP_PARTS = {".git", "build", ".dart_tool", "node_modules", "Pods"}
 OLD = "hejournal.in"
-BRAND = "alphajournal"
+BRAND = "AlphaJournal"
+PACKAGE = "alphajournal"
 DOMAIN = "alphajournal.in"
 
 
@@ -51,7 +52,7 @@ def active_files() -> list[Path]:
 
 def change(path: Path, contents: str) -> str:
     # Preserve the domain only where it is a network identifier. Elsewhere
-    # the product's visible name is alphajournal without a domain suffix.
+    # the product's visible name is AlphaJournal without a domain suffix.
     contents = contents.replace("https://hejournal.in", f"https://{DOMAIN}")
     contents = contents.replace("http://hejournal.in", f"http://{DOMAIN}")
     contents = contents.replace("@hejournal.in", f"@{DOMAIN}")
@@ -63,7 +64,7 @@ def change(path: Path, contents: str) -> str:
         contents = contents.replace("'hejournal.in'", f"'{DOMAIN}'")
         contents = contents.replace('DOMAIN = "hejournal.in"', f'DOMAIN = "{DOMAIN}"')
     contents = contents.replace(OLD, BRAND)
-    contents = contents.replace("hejournal_business", "alphajournal_business")
+    contents = contents.replace("hejournal_business", f"{PACKAGE}_business")
     contents = contents.replace(
         "HEJOURNAL_BILLING_AND_PUBLICATION", "ALPHAJOURNAL_BILLING_AND_PUBLICATION"
     )
@@ -82,22 +83,23 @@ def change(path: Path, contents: str) -> str:
         "test/features/ai_assistant/ai_assistant_overlay_sheet_test.dart",
         "test/features/community/community_layout_edit_regression_test.dart",
     }:
-        contents = contents.replace("TradeX", BRAND)
+        contents = contents.replace("AlphaJournal", BRAND)
     if relative == "README.md":
-        contents = contents.replace("# TradeX App Scaffold", "# alphajournal App Scaffold")
+        contents = contents.replace("# alphajournal App Scaffold", "# AlphaJournal App Scaffold")
     if relative == "pubspec.yaml":
-        contents = contents.replace("TradeX Flutter project.", "alphajournal Flutter project.")
+        contents = contents.replace("alphajournal Flutter project.", "AlphaJournal Flutter project.")
     if relative == "web/manifest.json":
-        contents = contents.replace("TradeX", BRAND)
+        contents = contents.replace('"name": "alphajournal"', '"name": "AlphaJournal"')
+        contents = contents.replace('"short_name": "alphajournal"', '"short_name": "AlphaJournal"')
     if relative == "linux/runner/my_application.cc":
-        contents = contents.replace('"TradeX"', f'"{BRAND}"')
+        contents = contents.replace('"alphajournal"', f'"{BRAND}"')
     if relative == "windows/runner/main.cpp":
-        contents = contents.replace('L"TradeX"', f'L"{BRAND}"')
+        contents = contents.replace('L"alphajournal"', f'L"{BRAND}"')
     if relative == "windows/runner/Runner.rc":
-        contents = contents.replace('"FileDescription", "TradeX"', f'"FileDescription", "{BRAND}"')
-        contents = contents.replace('"ProductName", "TradeX"', f'"ProductName", "{BRAND}"')
-    if relative == "lib/features/auth/presentation/widgets/tradex_footer.dart":
-        contents = contents.replace("TradeX connects via", "alphajournal connects via")
+        contents = contents.replace('"FileDescription", "alphajournal"', f'"FileDescription", "{BRAND}"')
+        contents = contents.replace('"ProductName", "alphajournal"', f'"ProductName", "{BRAND}"')
+    if relative == "lib/features/auth/presentation/widgets/alphajournal_footer.dart":
+        contents = contents.replace("alphajournal connects via", "AlphaJournal connects via")
     return contents
 
 

@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 
-import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
+import 'package:alphajournal/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/views/community_hashtag_page.dart';
-import 'package:tradex/features/community/presentation/widgets/community_follow_button.dart';
-import 'package:tradex/features/community/presentation/widgets/community_widgets.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_view.dart'
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/views/community_hashtag_page.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_follow_button.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_widgets.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_view.dart'
     show marketFieldLabel;
-import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
+import 'package:alphajournal/features/market_data/presentation/market_news_widgets.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
 
 /// One Explore category tab (X-style), mapped to real posts, trends and wire news.
 class ExploreTabSpec {

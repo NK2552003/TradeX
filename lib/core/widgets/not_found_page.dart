@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// Full-page "404" experience: a lost astronaut-trader drifting past a broken
 /// candlestick chart. The illustration is pure vector (no raster/logo assets),
@@ -122,7 +122,10 @@ class _LostAstronautState extends State<_LostAstronaut>
   @override
   Widget build(BuildContext context) {
     final UiColors colors = context.ui.colors;
-    final double side = math.min(context.sz(300), MediaQuery.sizeOf(context).width - 48);
+    final double side = math.min(
+      context.sz(300),
+      MediaQuery.sizeOf(context).width - 48,
+    );
     return SizedBox(
       width: side,
       height: side * 0.82,
@@ -176,12 +179,15 @@ class _AstronautPainter extends CustomPainter {
       const Offset(150, 120),
       108,
       Paint()
-        ..shader = RadialGradient(
-          colors: <Color>[
-            primary.withValues(alpha: 0.28),
-            primary.withValues(alpha: 0),
-          ],
-        ).createShader(Rect.fromCircle(center: const Offset(150, 120), radius: 108)),
+        ..shader =
+            RadialGradient(
+              colors: <Color>[
+                primary.withValues(alpha: 0.28),
+                primary.withValues(alpha: 0),
+              ],
+            ).createShader(
+              Rect.fromCircle(center: const Offset(150, 120), radius: 108),
+            ),
     );
 
     // Stars
@@ -371,7 +377,10 @@ class _AstronautPainter extends CustomPainter {
     canvas.drawCircle(
       const Offset(-30, -94),
       5,
-      Paint()..color = bear.withValues(alpha: 0.6 + 0.4 * math.sin(t * 2 * math.pi * 3)),
+      Paint()
+        ..color = bear.withValues(
+          alpha: 0.6 + 0.4 * math.sin(t * 2 * math.pi * 3),
+        ),
     );
     canvas.restore();
 

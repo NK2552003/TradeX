@@ -1,8 +1,8 @@
-import 'package:tradex/features/copilot/models/workspace.dart';
-import 'package:tradex/features/copilot/models/workspace_mutations.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/models/workspace_mutations.dart';
 import 'store.dart';
 
-export 'package:tradex/features/copilot/models/workspace_mutations.dart'
+export 'package:alphajournal/features/copilot/models/workspace_mutations.dart'
     show requiredText;
 
 class WorkspaceActions {

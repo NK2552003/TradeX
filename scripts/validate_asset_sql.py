@@ -11,7 +11,7 @@ def main():
     for binary in ['initdb', 'pg_ctl', 'psql']:
         if not shutil.which(binary):
             raise RuntimeError(f'{binary} is required for SQL integration validation')
-    with tempfile.TemporaryDirectory(prefix='tradex-sql-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='alphajournal-sql-') as temporary:
         base = Path(temporary)
         cluster = base / 'cluster'
         env = {**os.environ, 'LC_ALL': 'C'}

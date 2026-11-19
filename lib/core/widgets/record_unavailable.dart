@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// Animated vector emblem + surface banner shown while opening a linked record
 /// (journal trade, strategy playbook, research note) or switching subdomains.
@@ -52,10 +52,8 @@ class _RecordOpeningBannerState extends State<RecordOpeningBanner>
             tween: Tween(begin: 0.94, end: 1.0),
             duration: theme.motion.normal,
             curve: Curves.easeOutCubic,
-            builder: (context, scale, child) => Transform.scale(
-              scale: scale,
-              child: child,
-            ),
+            builder: (context, scale, child) =>
+                Transform.scale(scale: scale, child: child),
             child: UiCard(
               variant: UiCardVariant.surface,
               accentColor: theme.colors.primary,
@@ -170,11 +168,7 @@ class _AnimatedEmblemPainter extends CustomPainter {
     canvas.drawCircle(center, radius, glowPaint);
 
     // Inner badge disc
-    canvas.drawCircle(
-      center,
-      radius * 0.56,
-      Paint()..color = surface,
-    );
+    canvas.drawCircle(center, radius * 0.56, Paint()..color = surface);
     canvas.drawCircle(
       center,
       radius * 0.56,
@@ -192,11 +186,7 @@ class _AnimatedEmblemPainter extends CustomPainter {
       ..shader = SweepGradient(
         startAngle: angle,
         endAngle: angle + math.pi * 1.4,
-        colors: [
-          primary.withValues(alpha: 0.0),
-          primary,
-          accent,
-        ],
+        colors: [primary.withValues(alpha: 0.0), primary, accent],
       ).createShader(Rect.fromCircle(center: center, radius: radius * 0.78));
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius * 0.78),

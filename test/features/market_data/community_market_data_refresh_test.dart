@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
 
 class _SnapshotMarketRepository extends AssetMarketRepository {
   _SnapshotMarketRepository(this.snapshotValue);
@@ -12,7 +12,7 @@ class _SnapshotMarketRepository extends AssetMarketRepository {
   bool failFirst = false;
 
   @override
-  Future<MarketSnapshot> snapshot({bool refresh = false}) async {
+  Future<MarketSnapshot> communityPreview({bool refresh = false}) async {
     attempts++;
     if (failFirst && attempts == 1) {
       throw StateError('temporary market failure');

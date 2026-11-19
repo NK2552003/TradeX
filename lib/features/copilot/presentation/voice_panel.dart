@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../data/voice_controller.dart';
 
@@ -114,8 +114,8 @@ class _CopilotVoicePanelState extends State<CopilotVoicePanel>
                         voice.stage == CopilotVoiceStage.speaking
                             ? Icons.volume_up_rounded
                             : (voice.microphoneMuted
-                                ? Icons.mic_off_rounded
-                                : Icons.graphic_eq_rounded),
+                                  ? Icons.mic_off_rounded
+                                  : Icons.graphic_eq_rounded),
                         size: context.sz(16),
                         color: accentColor,
                       ),
@@ -169,7 +169,8 @@ class _CopilotVoicePanelState extends State<CopilotVoicePanel>
                       size: UiSize.xs,
                       expand: true,
                       options: <UiOption<CopilotVoiceModel>>[
-                        for (final CopilotVoiceModel m in CopilotVoiceModel.values)
+                        for (final CopilotVoiceModel m
+                            in CopilotVoiceModel.values)
                           UiOption<CopilotVoiceModel>(
                             label: m.label,
                             description: m.description,
@@ -186,7 +187,9 @@ class _CopilotVoicePanelState extends State<CopilotVoicePanel>
                     icon: voice.minimized
                         ? Icons.keyboard_arrow_down_rounded
                         : Icons.keyboard_arrow_up_rounded,
-                    tooltip: voice.minimized ? 'Expand voice studio' : 'Minimize voice studio',
+                    tooltip: voice.minimized
+                        ? 'Expand voice studio'
+                        : 'Minimize voice studio',
                     size: UiSize.xs,
                     variant: UiVariant.ghost,
                     onPressed: () {
@@ -226,7 +229,9 @@ class _CopilotVoicePanelState extends State<CopilotVoicePanel>
                           vertical: context.sp(theme.spacing.xxs),
                         ),
                         decoration: BoxDecoration(
-                          color: theme.colors.surfaceMuted.withValues(alpha: 0.6),
+                          color: theme.colors.surfaceMuted.withValues(
+                            alpha: 0.6,
+                          ),
                           borderRadius: context.radius(theme.radii.md),
                           border: Border.all(
                             color: theme.colors.border.withValues(alpha: 0.25),
@@ -313,7 +318,8 @@ class _CopilotVoicePanelState extends State<CopilotVoicePanel>
                                   size: UiSize.xs,
                                   variant: UiVariant.soft,
                                   rounded: true,
-                                  onPressed: () => voice.submitVoiceTurn(prompt),
+                                  onPressed: () =>
+                                      voice.submitVoiceTurn(prompt),
                                 ),
                               ),
                           ],

@@ -1,4 +1,4 @@
-import 'package:tradex/core/widgets/publication_confirmation.dart';
+import 'package:alphajournal/core/widgets/publication_confirmation.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -13,18 +13,18 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
-import 'package:tradex/features/linking/record_link_picker.dart';
-import 'package:tradex/core/markdown_kit/markdown_kit.dart';
-import 'package:tradex/features/linking/link_graph_service.dart';
-import 'package:tradex/features/notes/data/note_ai_refactor.dart';
-import 'package:tradex/features/notes/data/note_attachments.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/admin_console/data/admin_console_repository.dart';
+import 'package:alphajournal/features/linking/record_link_picker.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_kit.dart';
+import 'package:alphajournal/features/linking/link_graph_service.dart';
+import 'package:alphajournal/features/notes/data/note_ai_refactor.dart';
+import 'package:alphajournal/features/notes/data/note_attachments.dart';
 
 import '../data/journal_attachments.dart';
 import '../data/journal_repository.dart';
@@ -1064,7 +1064,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
         UiToast.warning(
           context,
           title: 'Dictation is not available',
-          message: 'Check the microphone permission for alphajournal.',
+          message: 'Check the microphone permission for AlphaJournal.',
         );
       }
       return;

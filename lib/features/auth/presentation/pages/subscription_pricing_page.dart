@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
-import 'package:tradex/features/auth/models/pricing_models.dart';
-import 'package:tradex/features/public_site/presentation/public_pricing_content.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/auth/data/repositories/subscription_pricing_repository.dart';
+import 'package:alphajournal/features/auth/models/pricing_models.dart';
+import 'package:alphajournal/features/public_site/presentation/public_pricing_content.dart';
 
 class SubscriptionPricingPage extends StatefulWidget {
   const SubscriptionPricingPage({

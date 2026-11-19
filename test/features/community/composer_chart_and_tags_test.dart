@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/markdown_kit/markdown_preview.dart';
-import 'package:tradex/features/community/data/community_chart_detector.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_highlighted_text.dart';
-import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_preview.dart';
+import 'package:alphajournal/features/community/data/community_chart_detector.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_highlighted_text.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_attachment_tile.dart';
 
 class _Picker extends ImagePickerPlatform {
   @override

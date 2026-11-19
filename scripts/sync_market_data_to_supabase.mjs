@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * AlphaJournal (TradeX) — Automated Supabase Market Intelligence & News Sync
+ * AlphaJournal (AlphaJournal) — Automated Supabase Market Intelligence & News Sync
  *
  * Syncs tickers, live quotes, fundamentals, OHLCV price history, screeners, whole
  * company details (stock_details), and financial news articles directly into

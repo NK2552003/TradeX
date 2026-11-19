@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../data/copilot_controller.dart';
 import '../models/workspace.dart';
@@ -325,9 +325,9 @@ class _Specialists extends StatelessWidget {
   Widget build(BuildContext context) {
     final specialists = controller.workspace.specialists
         .where(
-          (s) => '${s.name} ${s.role} ${s.instructions}'
-              .toLowerCase()
-              .contains(query.toLowerCase()),
+          (s) => '${s.name} ${s.role} ${s.instructions}'.toLowerCase().contains(
+            query.toLowerCase(),
+          ),
         )
         .toList();
     return ListView(

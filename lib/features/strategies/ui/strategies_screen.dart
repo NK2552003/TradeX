@@ -1,16 +1,16 @@
-import 'package:tradex/core/widgets/record_unavailable.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/core/config/record_access.dart';
+import 'package:alphajournal/core/widgets/record_unavailable.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/record_access.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/linking/link_graph_service.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/features/linking/link_graph_service.dart';
 
 import '../data/strategies_repository.dart';
 import '../data/strategy_templates.dart';

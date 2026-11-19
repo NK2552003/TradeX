@@ -1,19 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/app_session.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/data/app_session.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/security/private_message_service.dart';
-import 'package:tradex/features/copilot/data/copilot_controller.dart';
-import 'package:tradex/features/copilot/models/workspace.dart';
-import 'package:tradex/features/copilot/presentation/connection_settings.dart';
-import 'package:tradex/features/copilot/presentation/memory_settings.dart';
-import 'package:tradex/features/settings/data/repositories/ai_settings_repository.dart';
-import 'package:tradex/features/settings/models/ai_settings_model.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/security/private_message_service.dart';
+import 'package:alphajournal/features/copilot/data/copilot_controller.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/presentation/connection_settings.dart';
+import 'package:alphajournal/features/copilot/presentation/memory_settings.dart';
+import 'package:alphajournal/features/settings/data/repositories/ai_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/ai_settings_model.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_nav_row.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 /// Unified AI & Copilot settings page consolidated into Settings.
 ///
@@ -103,15 +103,15 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
   Future<void> _loadSettings() async {
     final loaded = await _repo.getSettings(copilotController: _copilot);
     if (!mounted) return;
-    if (_copilot.connected &&
-        !_wasCopilotConnected &&
-        !_syncingWorkspace) {
+    if (_copilot.connected && !_wasCopilotConnected && !_syncingWorkspace) {
       _wasCopilotConnected = true;
       await _reconcileWorkspace();
       if (!mounted) return;
     }
     setState(() {
-      _settings = _repo.cachedSettings == loaded ? loaded : _repo.cachedSettings;
+      _settings = _repo.cachedSettings == loaded
+          ? loaded
+          : _repo.cachedSettings;
       _loading = false;
     });
   }
@@ -170,7 +170,8 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
           : (_copilot.connected
                 ? 'Workspace Connected (Preferences Pending)'
                 : 'Copilot Service Offline'),
-      message: syncErr ??
+      message:
+          syncErr ??
           (_copilot.connected
               ? 'Workspace settings and specialists synced.'
               : (_copilot.error ??
@@ -237,7 +238,9 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
               UiButton(
                 label: 'Cancel',
                 variant: UiVariant.ghost,
-                onPressed: unlocking ? null : () => Navigator.of(ctx).pop(false),
+                onPressed: unlocking
+                    ? null
+                    : () => Navigator.of(ctx).pop(false),
               ),
               UiButton(
                 label: 'Unlock',
@@ -259,9 +262,7 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
                           if (!ctx.mounted) return;
                           setModalState(() {
                             unlocking = false;
-                            dialogError = e is StateError
-                                ? e.message
-                                : '$e';
+                            dialogError = e is StateError ? e.message : '$e';
                           });
                         }
                       },
@@ -300,7 +301,13 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
       'role': specialist.role,
       'instructions': specialist.instructions,
       'spaceIds': specialist.spaceIds,
-      for (final flag in const ['research', 'memory', 'code', 'apps', 'learning'])
+      for (final flag in const [
+        'research',
+        'memory',
+        'code',
+        'apps',
+        'learning',
+      ])
         flag: flag == field ? value : _specialistAllows(specialist, flag),
     };
     bool synced = false;
@@ -416,7 +423,8 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
                                   style: context.uiText.bodyStrong,
                                 ),
                                 UiBadge(
-                                  label: _copilot.connected &&
+                                  label:
+                                      _copilot.connected &&
                                           _repo.lastSyncError == null
                                       ? 'Connected'
                                       : (_repo.hasCloudPreferences
@@ -424,7 +432,8 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
                                             : (_needsE2eeUnlock
                                                   ? 'Locked'
                                                   : 'Local Sync')),
-                                  intent: _copilot.connected &&
+                                  intent:
+                                      _copilot.connected &&
                                           _repo.lastSyncError == null
                                       ? UiIntent.success
                                       : (_repo.lastSyncError != null
@@ -693,10 +702,7 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
                       value: _settings.citationsStyle,
                       options: const <UiToggleOption<String>>[
                         UiToggleOption(label: 'Inline links', value: 'inline'),
-                        UiToggleOption(
-                          label: 'Footnotes',
-                          value: 'footnotes',
-                        ),
+                        UiToggleOption(label: 'Footnotes', value: 'footnotes'),
                       ],
                       onChanged: (val) => _saveSettings(
                         _settings.copyWith(citationsStyle: val),

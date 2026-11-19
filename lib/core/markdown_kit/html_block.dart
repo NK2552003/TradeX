@@ -1,11 +1,11 @@
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
-import 'package:tradex/core/markdown_kit/math_syntax.dart'
+import 'package:alphajournal/core/markdown_kit/math_syntax.dart'
     show HighlightMarkBuilder;
-import 'package:tradex/core/markdown_kit/scrollable_table.dart';
+import 'package:alphajournal/core/markdown_kit/scrollable_table.dart';
 
 /// ---------------------------------------------------------------------
 /// Safe raw-HTML support for [RichMarkdownPreview].

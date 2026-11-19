@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/messages/presentation/widgets/presence_avatar.dart';
-import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/messages/presentation/widgets/presence_avatar.dart';
+import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
 
 /// A single thread row in the inbox list.
 ///
@@ -124,11 +124,10 @@ class ConversationTile extends StatelessWidget {
             if (thread.lastFromMe && !typing) ...<Widget>[
               Builder(
                 builder: (context) {
-                  final showReceipts =
-                      PrivacyRepositoryImpl
-                          .instance
-                          .cachedSettings
-                          .showReadReceipts;
+                  final showReceipts = PrivacyRepositoryImpl
+                      .instance
+                      .cachedSettings
+                      .showReadReceipts;
                   final displayStatus =
                       !showReceipts && thread.lastStatus == MessageStatus.read
                       ? MessageStatus.delivered

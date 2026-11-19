@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:tradex/core/ai/unified_ai_service.dart';
+import 'package:alphajournal/core/ai/unified_ai_service.dart';
 
 enum CommunityWritingAction { polish, tickers, setup, catalysts }
 

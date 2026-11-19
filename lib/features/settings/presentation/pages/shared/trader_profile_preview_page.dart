@@ -1,29 +1,29 @@
-import 'package:tradex/core/navigation/share_links.dart';
-import 'package:tradex/core/utils/share_actions.dart';
+import 'package:alphajournal/core/navigation/share_links.dart';
+import 'package:alphajournal/core/utils/share_actions.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // Required unified primitive import for the profile preview surface.
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/config/record_access.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
-import 'package:tradex/features/strategies/ui/strategy_detail_screen.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_space_history.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_card.dart'
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/config/record_access.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
+import 'package:alphajournal/features/strategies/ui/strategy_detail_screen.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_space_history.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_card.dart'
     as community;
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/journal/ui/journal_entry_screen.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/notes/ui/note_preview_screen.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/journal/ui/journal_entry_screen.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/notes/ui/note_preview_screen.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
 
 String _formatCount(int count) {
   if (count >= 1000000) {
@@ -877,7 +877,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                     : (isAdmin
                           ? 'Chief Risk Officer & Proprietary Desk Overseer. Managing firm-wide risk boundaries, capital allocation matrices, and trading engine infrastructure.'
                           : (isAffiliate
-                                ? 'Official alphajournal Partner & trading educator. Sharing trade setups, execution blueprints, and member discounts.'
+                                ? 'Official AlphaJournal Partner & trading educator. Sharing trade setups, execution blueprints, and member discounts.'
                                 : ''))));
 
     final List<UiTabItem> tabItems = switch (effectiveRole) {
@@ -919,7 +919,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           content: _AffiliateCampaignsPreview(
             displayName: effectiveDisplayName,
             handle: _cleanHandle,
-            referralCode: widget.referralCode ?? 'TRADEX-PARTNER-2026',
+            referralCode: widget.referralCode ?? 'ALPHAJOURNAL-PARTNER-2026',
             avatarUrl: effectiveAvatarUrl,
             verifiedColor: verifiedColor,
           ),
@@ -928,7 +928,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           label: 'Community Perks',
           icon: Icons.card_giftcard_rounded,
           content: _AffiliateReferralPortalPreview(
-            referralCode: widget.referralCode ?? 'TRADEX-PARTNER-2026',
+            referralCode: widget.referralCode ?? 'ALPHAJOURNAL-PARTNER-2026',
             audienceReach: widget.audienceReach ?? '10,000 – 100,000',
             niche: widget.niche ?? widget.primaryMarket,
             payoutMethod: widget.payoutMethod,
@@ -1625,7 +1625,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       widget.adminTerminalUrl?.isNotEmpty ==
                                           true
                                       ? widget.adminTerminalUrl!
-                                      : 'tradex.internal/root',
+                                      : 'alphajournal.internal/root',
                                   isLink: true,
                                 ),
                               ] else ...[
@@ -3649,14 +3649,14 @@ class _AffiliateCampaignsPreview extends StatelessWidget {
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
               Text(
-                'Exclusive alphajournal Community Discount 🎉',
+                'Exclusive AlphaJournal Community Discount 🎉',
                 style: context.uiText.heading.copyWith(
                   fontSize: context.fs(16),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Get 20% OFF all alphajournal Pro & Team annual memberships. Includes access to my verified trade journals, setup notes, and private strategy templates.',
+                'Get 20% OFF all AlphaJournal Pro & Team annual memberships. Includes access to my verified trade journals, setup notes, and private strategy templates.',
                 style: context.uiText.body.copyWith(
                   height: 1.45,
                   fontSize: context.fs(13.5),
@@ -3757,7 +3757,7 @@ class _AffiliateCampaignsPreview extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'In this 35-minute workshop, I break down my exact execution rules, risk management plan, and why alphajournal orderflow charts give an unfair edge.',
+                'In this 35-minute workshop, I break down my exact execution rules, risk management plan, and why AlphaJournal orderflow charts give an unfair edge.',
                 style: context.uiText.body.copyWith(height: 1.4),
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
@@ -3989,7 +3989,7 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                 stepNumber: '1',
                 title: 'Create Your Free Account',
                 description:
-                    'Sign up on alphajournal in under 60 seconds with your email, mobile number, or Google auth.',
+                    'Sign up on AlphaJournal in under 60 seconds with your email, mobile number, or Google auth.',
                 statusText: 'Step 1',
                 statusIntent: UiIntent.primary,
               ),
@@ -4257,7 +4257,7 @@ class _AffiliateCommunityOverviewPreview extends StatelessWidget {
                 timeAgo: '3 days ago',
                 rating: 5,
                 comment:
-                    'Clear, zero-noise technical analysis. The private weekend workshops and alphajournal orderflow charts give immense clarity before market open.',
+                    'Clear, zero-noise technical analysis. The private weekend workshops and AlphaJournal orderflow charts give immense clarity before market open.',
               ),
             ],
           ),
@@ -4374,7 +4374,7 @@ class _AdminCommandCenterPreview extends StatelessWidget {
         : '₹148.2 Cr';
     final String activeTerminal = terminalUrl?.isNotEmpty == true
         ? terminalUrl!
-        : 'tradex.internal/root';
+        : 'alphajournal.internal/root';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

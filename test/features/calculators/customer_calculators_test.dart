@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/features/calculators/logic/tax_calculators.dart';
-import 'package:tradex/features/calculators/logic/trading_calculators.dart';
+import 'package:alphajournal/features/calculators/logic/tax_calculators.dart';
+import 'package:alphajournal/features/calculators/logic/trading_calculators.dart';
 
 void main() {
   test('current listed equity rates and annual exemption', () {

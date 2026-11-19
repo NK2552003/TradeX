@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_application_model.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 
 /// Page shown to active traders highlighting the benefits of the Affiliate Partner Program.
 class TraderAffiliatePerksPage extends StatefulWidget {
@@ -120,7 +120,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                                 ),
                                 SizedBox(height: context.sp(theme.spacing.sm)),
                                 Text(
-                                  'alphajournal Partner & Affiliate Program',
+                                  'AlphaJournal Partner & Affiliate Program',
                                   style: context.uiText.heading,
                                 ),
                                 SizedBox(height: context.sp(theme.spacing.xxs)),
@@ -157,7 +157,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'alphajournal Partner & Affiliate Program',
+                                      'AlphaJournal Partner & Affiliate Program',
                                       style: context.uiText.heading,
                                     ),
                                     Text(
@@ -181,7 +181,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       ),
                       SizedBox(height: context.sp(theme.spacing.md)),
                       Text(
-                        'Apply to introduce your audience to alphajournal. After approval, your Partner Hub provides your own referral links, campaign reporting, and payouts. Qualifying commissions follow your partner account terms.',
+                        'Apply to introduce your audience to AlphaJournal. After approval, your Partner Hub provides your own referral links, campaign reporting, and payouts. Qualifying commissions follow your partner account terms.',
                         style: context.uiText.body.copyWith(
                           color: colors.foregroundMuted,
                           height: 1.5,
@@ -262,7 +262,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       icon: Icons.all_inclusive_rounded,
                       title: 'Up to 35% INR RevShare',
                       description:
-                          'Earn 15% to 35% in ₹ INR of every Pro (₹2,499/mo) or Business (₹999/mo) subscription every month.',
+                          'Earn 15% to 35% in ₹ INR of every Basic (₹299/mo) or Pro (₹499/mo) subscription every month.',
                       badge: 'INR RECURRING',
                     ),
                     _buildBenefitCard(
@@ -270,9 +270,9 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       theme,
                       colors,
                       icon: Icons.card_membership_rounded,
-                      title: 'Free alphajournal Pro Tier',
+                      title: 'Free AlphaJournal Pro Tier',
                       description:
-                          'Refer active traders to automatically unlock complimentary alphajournal Pro & Enterprise desk access.',
+                          'Refer active traders to automatically unlock complimentary AlphaJournal Basic or Pro desk access.',
                       badge: 'FREE PRO',
                     ),
                     _buildBenefitCard(
@@ -292,7 +292,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       icon: Icons.palette_outlined,
                       title: 'SEBI/ASCI Compliant Kit',
                       description:
-                          'Get high-res alphajournal badges, UTM campaign links, Form 16A TDS statements, and compliant disclosures.',
+                          'Get high-res AlphaJournal badges, UTM campaign links, Form 16A TDS statements, and compliant disclosures.',
                       badge: 'ASSETS',
                     ),
                   ];
@@ -463,7 +463,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
               // Action Callout Banner
               UiCallout(
                 intent: UiIntent.warning,
-                title: 'Your alphajournal Partner Program',
+                title: 'Your AlphaJournal Partner Program',
                 message:
                     'Complete the four-step identity, audience, payout, and review application. Your trader account stays active while an administrator reviews it.',
                 action: UiButton(

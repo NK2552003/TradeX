@@ -399,10 +399,7 @@ class AppScreenshotImportCard extends StatelessWidget {
                   ? ClipRRect(
                       borderRadius: context.radius(theme.radii.lg),
                       child: SizedBox.expand(
-                        child: UiRemoteImage(
-                          url: imageUrl!,
-                          fit: BoxFit.cover,
-                        ),
+                        child: UiRemoteImage(url: imageUrl!, fit: BoxFit.cover),
                       ),
                     )
                   : Column(

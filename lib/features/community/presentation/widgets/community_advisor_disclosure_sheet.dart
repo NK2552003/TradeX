@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_design.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_design.dart';
 
 /// Modal bottom sheet displaying verified Research Analyst / RIA regulatory credentials
 /// and mandatory conflict of interest disclosures.
@@ -105,7 +105,9 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
                           ? 'Verified Profile (Identity Confirmed)'
                           : 'Community Member (Unverified Advisor Status)',
                       style: context.uiText.label.copyWith(
-                        color: author.verified ? colors.success : colors.foregroundMuted,
+                        color: author.verified
+                            ? colors.success
+                            : colors.foregroundMuted,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -163,7 +165,7 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
           Text(
             '1. Securities investments are subject to market risks. Read all scheme and offer documents carefully.\n'
             '2. The analyst or their associates may have personal or financial interest in the securities recommended above.\n'
-            '3. Past performance does not guarantee future results. alphajournal and the analyst do not offer guaranteed returns.\n'
+            '3. Past performance does not guarantee future results. AlphaJournal and the analyst do not offer guaranteed returns.\n'
             '4. Research reports are prepared for general circulation and do not account for individual investor objectives.',
             style: context.uiText.caption.copyWith(
               color: colors.foregroundMuted,

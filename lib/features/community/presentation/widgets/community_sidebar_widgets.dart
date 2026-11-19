@@ -1,20 +1,21 @@
-import 'package:tradex/core/notifications/push_service.dart';
-import 'package:tradex/features/settings/presentation/widgets/help/publication_reader.dart';
-import 'package:tradex/features/settings/presentation/widgets/help/cookie_preferences_dialog.dart';
+import 'package:alphajournal/core/notifications/push_service.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/help/publication_reader.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/help/cookie_preferences_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/features/market_data/presentation/market_movers_panel.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/market_data/presentation/market_movers_panel.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/presentation/widgets/community_article_sheet.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_advisor_disclosure_sheet.dart';
-import 'package:tradex/features/community/presentation/widgets/community_guidelines_dialog.dart';
-import 'package:tradex/features/community/presentation/widgets/community_live_room_sheet.dart';
-import 'package:tradex/features/community/presentation/widgets/community_trader_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_design.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_article_sheet.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_advisor_disclosure_sheet.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_guidelines_dialog.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_live_room_sheet.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_trader_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_design.dart';
 
 // ---------------------------------------------------------------------------
 // Main Sidebar Orchestrator
@@ -98,7 +99,10 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
             200,
           ),
         deferred((_) => const CommunityPremiumCard(), 200),
-        deferred((_) => const MarketMoversPanel(), 650),
+        deferred(
+          (_) => const MarketMoversPanel(limitedCommunityAccess: true),
+          650,
+        ),
         if (news.isNotEmpty)
           deferred(
             (_) => CommunityNewsWidget(
@@ -301,7 +305,7 @@ class CommunityLiveRoomWidget extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Premium Card
+// 2. Subscription Card
 // ---------------------------------------------------------------------------
 
 class CommunityPremiumCard extends StatelessWidget {
@@ -316,12 +320,12 @@ class CommunityPremiumCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Subscribe to Premium',
+            'Unlock AlphaJournal Markets',
             style: context.uiText.heading.copyWith(fontWeight: FontWeight.w800),
           ),
           SizedBox(height: context.sp(theme.spacing.xs)),
           Text(
-            'Get real-time level 2 signals, priority copilot tokens, verified checkmark, and zero ads.',
+            'Basic unlocks full Market Intelligence, private Messages, and advanced calculators. Pro adds exports, analytics, backtesting, and higher limits.',
             style: context.uiText.caption.copyWith(
               color: theme.colors.foregroundMuted,
               height: 1.4,
@@ -329,18 +333,16 @@ class CommunityPremiumCard extends StatelessWidget {
           ),
           SizedBox(height: context.sp(theme.spacing.md)),
           UiButton(
-            label: 'Subscribe',
+            label: 'View Basic & Pro',
             variant: UiVariant.primary,
             size: UiSize.sm,
             expand: true,
-            onPressed: () {
-              UiToast.show(
-                context,
-                title: 'alphajournal Pro',
-                message: 'Opening subscription tier upgrades...',
-                intent: UiIntent.primary,
-              );
-            },
+            onPressed: () => CustomerLimitations.showPlanUpgradeDialog(
+              context,
+              featureTitle: 'AlphaJournal Basic & Pro',
+              reason:
+                  'Upgrade to use full Market Intelligence, private Messages, and advanced calculators.',
+            ),
           ),
         ],
       ),
@@ -841,7 +843,7 @@ class CommunityDisclaimerCard extends StatelessWidget {
           ),
           SizedBox(height: context.sp(theme.spacing.xs)),
           Text(
-            'alphajournal Community posts, charts, trade setups, and comments are strictly for educational purposes and do not constitute financial advice or investment recommendations under SEBI/SEC regulations.',
+            'AlphaJournal Community posts, charts, trade setups, and comments are strictly for educational purposes and do not constitute financial advice or investment recommendations under SEBI/SEC regulations.',
             style: context.uiText.caption.copyWith(
               color: theme.colors.foregroundSubtle,
               fontSize: context.fs(11),
@@ -927,7 +929,7 @@ class CommunityFooterLinks extends StatelessWidget {
           onPressed: () => CookiePreferencesDialog.show(context),
         ),
         Text(
-          '© ${DateTime.now().year} Alphajournal',
+          '© ${DateTime.now().year} AlphaJournal',
           style: context.uiText.caption,
         ),
       ],

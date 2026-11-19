@@ -1,31 +1,31 @@
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import '../../data/community_chart_detector.dart';
 import 'community_chart_review.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/features/community/data/workspace_attachment_service.dart';
+import 'package:alphajournal/core/config/customer_data_policy.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/features/community/data/workspace_attachment_service.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:crypto/crypto.dart';
-import 'package:tradex/core/utils/attachment_compression_service.dart';
+import 'package:alphajournal/core/utils/attachment_compression_service.dart';
 
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
+import 'package:alphajournal/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
 import '../../data/community_writing_assistant.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_attachment_picker.dart';
-import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
-import 'package:tradex/features/community/presentation/widgets/community_mention_autocomplete.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_attachment_picker.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_attachment_tile.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_mention_autocomplete.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_card.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:tradex/features/community/presentation/widgets/community_quote_card.dart';
-import 'package:tradex/features/community/presentation/widgets/community_schedule_dialog.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/notes/data/notes_repository.dart';
-import 'package:tradex/features/strategies/data/strategies_repository.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_quote_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_schedule_dialog.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/notes/data/notes_repository.dart';
+import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
 import 'package:uuid/uuid.dart';
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:tradex/features/copilot/models/workspace.dart';
+import 'package:alphajournal/features/copilot/models/workspace.dart';
 
 import '../../../server/copilot/agent_runner.dart';
 import '../../../server/copilot/agent_tools.dart';
@@ -22,7 +22,9 @@ void main() {
   late WorkspaceStore store;
   late WorkspaceActions actions;
   setUp(() async {
-    directory = await Directory.systemTemp.createTemp('tradex-copilot-test-');
+    directory = await Directory.systemTemp.createTemp(
+      'alphajournal-copilot-test-',
+    );
     final rng = Random.secure();
     testEncryptionKey = base64.encode(
       List<int>.generate(32, (_) => rng.nextInt(255) + 1),

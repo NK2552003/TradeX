@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
-import 'package:tradex/core/navigation/share_links.dart';
-import 'package:tradex/core/utils/share_actions.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/data/app_entitlements.dart';
+import 'package:alphajournal/core/data/app_session.dart';
+// Required unified primitive import for application UI.
+// ignore: unnecessary_import
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/messages/presentation/widgets/messages_widgets.dart';
+import 'package:alphajournal/core/navigation/share_links.dart';
+import 'package:alphajournal/core/utils/share_actions.dart';
 
 /// Sends a Writing-Desk record ([AppLinkRef]) into a direct conversation.
 ///
@@ -39,7 +45,15 @@ class ShareToConversationDialog extends StatefulWidget {
     AppLinkRef? reference,
     String? initialText,
     void Function(String threadId)? onShared,
-  }) {
+  }) async {
+    if (!AppEntitlement.messages.allows(AppSession.instance.tier.value)) {
+      await CustomerLimitations.showPlanUpgradeDialog(
+        context,
+        featureTitle: 'Messages · Basic or Pro',
+        reason: AppEntitlement.messages.reason,
+      );
+      return;
+    }
     final MessagesRepository repo =
         repository ?? MessagesRepositoryScope.repository;
     return UiDialog.show<void>(
@@ -60,7 +74,15 @@ class ShareToConversationDialog extends StatefulWidget {
     required MessagesRepository repository,
     required ChatMessage message,
     void Function(String threadId)? onForwarded,
-  }) {
+  }) async {
+    if (!AppEntitlement.messages.allows(AppSession.instance.tier.value)) {
+      await CustomerLimitations.showPlanUpgradeDialog(
+        context,
+        featureTitle: 'Messages · Basic or Pro',
+        reason: AppEntitlement.messages.reason,
+      );
+      return;
+    }
     return UiDialog.show<void>(
       context,
       child: MessagesDensityScope(
@@ -73,7 +95,7 @@ class ShareToConversationDialog extends StatefulWidget {
     );
   }
 
-  /// Universal share menu sheet providing options to send via alphajournal chat,
+  /// Universal share menu sheet providing options to send via AlphaJournal chat,
   /// copy public web link, or export as PDF.
   static Future<void> showShareMenu(
     BuildContext context, {
@@ -182,7 +204,7 @@ class ShareToConversationDialog extends StatefulWidget {
                       _buildShareAction(
                         ctx,
                         icon: Icons.send_rounded,
-                        title: 'Send via alphajournal Messages',
+                        title: 'Send via AlphaJournal Messages',
                         subtitle: 'Share privately into trader conversation',
                         onTap: () {
                           Navigator.of(ctx).pop();

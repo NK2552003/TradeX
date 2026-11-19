@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/presentation/market_movers_panel.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/presentation/market_movers_panel.dart';
 
 /// Compact community context; the complete browser lives in Market Intelligence.
 class MarketSidebar extends StatelessWidget {
@@ -8,5 +8,5 @@ class MarketSidebar extends StatelessWidget {
   final AssetMarketRepository? repository;
   @override
   Widget build(BuildContext context) =>
-      MarketMoversPanel(repository: repository);
+      MarketMoversPanel(repository: repository, limitedCommunityAccess: true);
 }

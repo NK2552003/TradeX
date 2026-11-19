@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/ads/ad_config.dart';
-import 'package:tradex/core/ads/ad_slot.dart';
-import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
+import 'package:alphajournal/core/ads/ad_config.dart';
+import 'package:alphajournal/core/ads/ad_slot.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_design.dart';
-import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_design.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_post_card.dart';
 
 /// Renders a Twitter/Threads-grade flat feed timeline with hairline dividers and
 /// continuous vertical thread-lines between posts.
@@ -70,12 +70,8 @@ class CommunityFeedList extends StatelessWidget {
         itemCount: 3,
         itemBuilder: (BuildContext ctx, int index) {
           return Padding(
-            padding: EdgeInsets.symmetric(
-              vertical: ctx.sp(ctx.ui.spacing.xs),
-            ),
-            child: CommunityPostCardSkeleton(
-              hasMedia: index % 2 == 0,
-            ),
+            padding: EdgeInsets.symmetric(vertical: ctx.sp(ctx.ui.spacing.xs)),
+            child: CommunityPostCardSkeleton(hasMedia: index % 2 == 0),
           );
         },
       );
@@ -128,11 +124,7 @@ class CommunityFeedList extends StatelessWidget {
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            empty,
-            const UiDivider(spacing: 0),
-            previewAd,
-          ],
+          children: <Widget>[empty, const UiDivider(spacing: 0), previewAd],
         );
       }
       return empty;
@@ -229,10 +221,7 @@ class CommunityFeedList extends StatelessWidget {
               onOpenRef: onOpenRef,
               onQuote: onQuote,
             ),
-            if (adSlot != null) ...[
-              const UiDivider(spacing: 0),
-              adSlot,
-            ],
+            if (adSlot != null) ...[const UiDivider(spacing: 0), adSlot],
           ],
         );
       },

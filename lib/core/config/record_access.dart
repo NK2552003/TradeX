@@ -1,7 +1,7 @@
 import 'customer_data_policy.dart';
 import 'supabase_config.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/auth/data/services/auth_backend_service.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
 
 /// UI permissions use record ownership; route flags never confer ownership.
 class RecordAccess {

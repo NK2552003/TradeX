@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
-import 'package:tradex/features/settings/data/repositories/notification_prefs_repository.dart';
-import 'package:tradex/features/settings/models/notification_prefs_model.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_sidebar_widgets.dart';
+import 'package:alphajournal/features/settings/data/repositories/notification_prefs_repository.dart';
+import 'package:alphajournal/features/settings/models/notification_prefs_model.dart';
 
 class NotificationsSettingsPage extends StatefulWidget {
   const NotificationsSettingsPage({super.key, this.repository});
@@ -16,7 +16,8 @@ class NotificationsSettingsPage extends StatefulWidget {
 }
 
 class _NotificationsSettingsPageState extends State<NotificationsSettingsPage> {
-  static const String _dismissedPushBannerKey = 'tradex_push_card_dismissed_v1';
+  static const String _dismissedPushBannerKey =
+      'alphajournal_push_card_dismissed_v1';
 
   late final NotificationPrefsRepository _repo;
   NotificationPrefsModel _prefs = NotificationPrefsModel.defaultPrefs();
@@ -95,17 +96,15 @@ class _NotificationsSettingsPageState extends State<NotificationsSettingsPage> {
   }
 
   Future<void> _pickCustomQuietTime({required bool isStart}) async {
-    final raw = (isStart ? _prefs.quietHoursStart : _prefs.quietHoursEnd) ??
+    final raw =
+        (isStart ? _prefs.quietHoursStart : _prefs.quietHoursEnd) ??
         (isStart ? '22:00' : '07:00');
     final parts = raw.split(':');
     final initial = TimeOfDay(
       hour: int.tryParse(parts.first) ?? (isStart ? 22 : 7),
       minute: int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0,
     );
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initial,
-    );
+    final picked = await showTimePicker(context: context, initialTime: initial);
     if (picked == null || !mounted) return;
     final formatted =
         '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';

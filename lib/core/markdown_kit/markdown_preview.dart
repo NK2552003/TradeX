@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
-import 'package:tradex/core/app-ui/models/app_models.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/core/markdown_kit/code_block.dart';
-import 'package:tradex/core/markdown_kit/html_block.dart';
-import 'package:tradex/core/markdown_kit/inline_balance.dart';
-import 'package:tradex/core/markdown_kit/markdown_outline.dart';
-import 'package:tradex/core/markdown_kit/math_syntax.dart';
-import 'package:tradex/core/markdown_kit/scrollable_table.dart';
-import 'package:tradex/core/markdown_kit/ticker_syntax.dart';
+import 'package:alphajournal/core/app-ui/models/app_models.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:alphajournal/core/markdown_kit/code_block.dart';
+import 'package:alphajournal/core/markdown_kit/html_block.dart';
+import 'package:alphajournal/core/markdown_kit/inline_balance.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_outline.dart';
+import 'package:alphajournal/core/markdown_kit/math_syntax.dart';
+import 'package:alphajournal/core/markdown_kit/scrollable_table.dart';
+import 'package:alphajournal/core/markdown_kit/ticker_syntax.dart';
 import 'research/typing_cursor_syntax.dart';
 
 /// Renders Markdown with (near-)full GitHub-Flavored-Markdown support plus
@@ -58,7 +58,7 @@ class RichMarkdownPreview extends StatelessWidget {
   final MarkdownOutlineController? outlineController;
 
   /// When provided, following a record/ticker link inside this markdown document
-  /// (e.g. `$AAPL`, `[Tesla](tradex://ticker/TSLA)`) delegates here.
+  /// (e.g. `$AAPL`, `[Tesla](alphajournal://ticker/TSLA)`) delegates here.
   final void Function(AppLinkRef ref)? onOpenRef;
 
   /// Fallback handler for standard non-internal hyperlinks.
@@ -121,26 +121,14 @@ class RichMarkdownPreview extends StatelessWidget {
 
     final MarkdownOutlineController? outline = outlineController;
     if (outline == null) {
-      final Widget rendered =
-          (!showTypingCursor && source.length > 2400)
+      final Widget rendered = (!showTypingCursor && source.length > 2400)
           ? _ProgressiveMarkdownChunks(
               chunks: _splitIntoRenderChunks(source, maxChunkChars: 1200),
               spacing: styleSheet.blockSpacing ?? 14,
-              chunkBuilder: (String chunk) => _body(
-                context,
-                chunk,
-                styleSheet,
-                dark,
-                htmlRegistry,
-              ),
+              chunkBuilder: (String chunk) =>
+                  _body(context, chunk, styleSheet, dark, htmlRegistry),
             )
-          : _body(
-              context,
-              source,
-              styleSheet,
-              dark,
-              htmlRegistry,
-            );
+          : _body(context, source, styleSheet, dark, htmlRegistry);
       return selectable && SelectionContainer.maybeOf(context) == null
           ? SelectionArea(child: rendered)
           : rendered;
@@ -910,10 +898,7 @@ String _wrapBareResearchPanelJson(String source) {
 /// Splits [source] at top-level blank lines outside fenced code blocks into
 /// chunks of roughly [maxChunkChars] so huge documents can render progressively
 /// without blocking a single frame.
-List<String> _splitIntoRenderChunks(
-  String source, {
-  int maxChunkChars = 1200,
-}) {
+List<String> _splitIntoRenderChunks(String source, {int maxChunkChars = 1200}) {
   final List<String> lines = source.split('\n');
   final List<String> chunks = <String>[];
   final StringBuffer current = StringBuffer();

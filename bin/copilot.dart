@@ -8,7 +8,7 @@ import '../server/copilot/store.dart';
 Future<void> main(List<String> arguments) async {
   if (arguments.contains('--help')) {
     stdout.writeln(
-      'Usage: dart run bin/copilot.dart [path/to/.env]\nStarts the TradeX Dart copilot service.',
+      'Usage: dart run bin/copilot.dart [path/to/.env]\nStarts the AlphaJournal Dart copilot service.',
     );
     return;
   }
@@ -46,7 +46,9 @@ Future<void> main(List<String> arguments) async {
     exitCode = 78;
     return;
   }
-  stdout.writeln('TradeX copilot listening on ${config.host}:${config.port}');
+  stdout.writeln(
+    'AlphaJournal copilot listening on ${config.host}:${config.port}',
+  );
   final stopped = Completer<void>();
   final signals = [
     ProcessSignal.sigint.watch().listen((_) {

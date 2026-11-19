@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1320" viewBox="0 0 1800 1320" role="img" aria-labelledby="title desc">
-  <title id="title">alphajournal AI Copilot IDE redesign mockups</title>
+  <title id="title">AlphaJournal AI Copilot IDE redesign mockups</title>
   <desc id="desc">Static design preview showing desktop, tablet, and mobile AI Copilot IDE layouts.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -45,7 +45,7 @@
     <rect x="70" y="150" width="1660" height="710" rx="14" fill="#0f0f0f" stroke="#383836"/>
     <rect x="70" y="150" width="1660" height="42" rx="14" fill="#20201f"/>
     <circle cx="96" cy="171" r="5" fill="#555451"/><circle cx="114" cy="171" r="5" fill="#555451"/><circle cx="132" cy="171" r="5" fill="#555451"/>
-    <text x="158" y="176" class="ui muted label">alphajournal / copilot</text>
+    <text x="158" y="176" class="ui muted label">AlphaJournal / copilot</text>
 
     <!-- activity rail -->
     <rect x="70" y="192" width="68" height="668" fill="#171717"/>

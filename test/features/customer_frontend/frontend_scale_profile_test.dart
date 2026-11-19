@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/linking/link_graph.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/linking/link_graph.dart';
 
 void main() {
   test('profile graph rebuilds and Markdown extraction at increasing sizes', () {
@@ -11,7 +11,7 @@ void main() {
           id: 'n$index',
           title: 'Note $index',
           content:
-              '## Trade plan\nLinked [next](tradex://note/n${(index + 1) % count}) and \$AAPL.\n',
+              '## Trade plan\nLinked [next](alphajournal://note/n${(index + 1) % count}) and \$AAPL.\n',
           createdAt: DateTime(2026),
           updatedAt: DateTime(2026),
         ),
@@ -60,7 +60,7 @@ void main() {
     final original = AppNote(
       id: 'source',
       title: 'Source',
-      content: '[old](tradex://note/old)',
+      content: '[old](alphajournal://note/old)',
       createdAt: DateTime(2026),
       updatedAt: DateTime(2026),
     );
@@ -75,7 +75,7 @@ void main() {
       isTrue,
     );
     final after = AppLinkGraph(
-      notes: [original.copyWith(content: '[new](tradex://note/new)')],
+      notes: [original.copyWith(content: '[new](alphajournal://note/new)')],
     );
     expect(
       after.hasInlineConnection(
@@ -106,7 +106,7 @@ void main() {
     );
     final document = List.filled(
       5000,
-      '## Research\n- [x] Reviewed \$AAPL [thesis](tradex://note/plan)\n',
+      '## Research\n- [x] Reviewed \$AAPL [thesis](alphajournal://note/plan)\n',
     ).join();
     final clock = Stopwatch()..start();
     final stats = AppMarkdownStats.of(document);

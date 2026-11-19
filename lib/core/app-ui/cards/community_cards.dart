@@ -209,7 +209,8 @@ class AppPostCard extends StatelessWidget {
                     size: UiSize.sm,
                     tooltip: 'Share',
                     onPressed:
-                        onShare ?? () => AppPostShareModal.showForPost(context, post),
+                        onShare ??
+                        () => AppPostShareModal.showForPost(context, post),
                   ),
                 ],
               ),
@@ -984,7 +985,7 @@ class AppPostShareModal extends StatefulWidget {
     final String excerpt = clean.length <= 280
         ? clean
         : '${clean.substring(0, 280).trimRight()}…';
-    buf.writeln('$authorName ($handle) on alphajournal');
+    buf.writeln('$authorName ($handle) on AlphaJournal');
     buf.writeln();
     buf.writeln('“$excerpt”');
     if (tickers.isNotEmpty) {
@@ -994,7 +995,7 @@ class AppPostShareModal extends StatefulWidget {
       );
     }
     buf.writeln();
-    buf.writeln('View on alphajournal Community:');
+    buf.writeln('View on AlphaJournal Community:');
     buf.write(postUrlFor(postId));
     return buf.toString();
   }
@@ -1025,8 +1026,7 @@ class AppPostShareModal extends StatefulWidget {
     final String resolvedHandle =
         authorHandle ??
         authorName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
-    final String resolvedId =
-        postId ?? 'post-${authorName.hashCode.abs()}';
+    final String resolvedId = postId ?? 'post-${authorName.hashCode.abs()}';
     return _present(
       context,
       AppPostShareModal(
@@ -1340,7 +1340,7 @@ class _AppPostShareModalState extends State<AppPostShareModal> {
                     await SharePlus.instance.share(
                       ShareParams(
                         text: _shareText,
-                        subject: 'Post by @$cleanHandle on alphajournal',
+                        subject: 'Post by @$cleanHandle on AlphaJournal',
                       ),
                     );
                   } catch (_) {}

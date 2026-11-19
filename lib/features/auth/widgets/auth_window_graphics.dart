@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/data/demo_data_source.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 
 /// Which slice of alphajournal the showcase panel previews. Every scene is
 /// built entirely out of real `app-ui` domain cards and charts — there are
@@ -23,7 +23,7 @@ class AuthWindowGraphics extends StatefulWidget {
   const AuthWindowGraphics({
     super.key,
     this.role = UserRole.customer,
-    this.title = 'alphajournal',
+    this.title = 'AlphaJournal',
     this.scene = AuthScene.social,
     this.height,
     this.compact = false,

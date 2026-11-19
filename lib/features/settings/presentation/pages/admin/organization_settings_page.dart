@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/settings/data/repositories/organization_settings_repository.dart';
-import 'package:tradex/features/settings/models/org_models.dart';
-import 'package:tradex/features/settings/presentation/pages/admin/team_roles_page.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/settings/data/repositories/organization_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/org_models.dart';
+import 'package:alphajournal/features/settings/presentation/pages/admin/team_roles_page.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_nav_row.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class OrganizationSettingsPage extends StatefulWidget {
   const OrganizationSettingsPage({super.key, this.repository});
@@ -248,13 +248,15 @@ class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
                 const UiGap.v(12),
                 SettingsNavRow(
                   title: 'Team & Roles',
-                  subtitle: 'Review access, change roles and invite colleagues.',
+                  subtitle:
+                      'Review access, change roles and invite colleagues.',
                   icon: Icons.group_outlined,
                   badgeLabel: '${_members.length} members',
                   onTap: () => openSettingsSubpage(
                     context,
                     title: 'Team Directory & Roles',
-                    subtitle: 'Manage trader seats, role privileges and invites',
+                    subtitle:
+                        'Manage trader seats, role privileges and invites',
                     icon: Icons.groups_outlined,
                     page: TeamRolesPage(repository: _repo),
                   ),

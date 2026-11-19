@@ -5,29 +5,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
-import 'package:tradex/core/utils/zip_archive_builder.dart';
-import 'package:tradex/core/widgets/app_notifications_overlay.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/views/community_follow_view.dart';
-import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
-import 'package:tradex/features/journal/data/journal_templates.dart';
-import 'package:tradex/features/market_data/data/asset_market_repository.dart';
-import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
-import 'package:tradex/features/messages/data/messages_repository.dart';
-import 'package:tradex/features/messages/models/messages_models.dart';
-import 'package:tradex/features/settings/data/repositories/notification_prefs_repository.dart';
-import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
-import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/settings/models/active_session_model.dart';
-import 'package:tradex/features/settings/models/connected_account_model.dart';
-import 'package:tradex/features/settings/models/notification_prefs_model.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/account_security_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/appearance_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/shared/notifications_settings_page.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart' hide CommunityPostCard;
+import 'package:alphajournal/core/utils/zip_archive_builder.dart';
+import 'package:alphajournal/core/widgets/app_notifications_overlay.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/community/data/community_repository.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/views/community_follow_view.dart';
+import 'package:alphajournal/features/community/presentation/views/community_post_detail_view.dart';
+import 'package:alphajournal/features/journal/data/journal_templates.dart';
+import 'package:alphajournal/features/market_data/data/asset_market_repository.dart';
+import 'package:alphajournal/features/market_data/presentation/market_instrument_view.dart';
+import 'package:alphajournal/features/messages/data/messages_repository.dart';
+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import 'package:alphajournal/features/settings/data/repositories/notification_prefs_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/models/active_session_model.dart';
+import 'package:alphajournal/features/settings/models/connected_account_model.dart';
+import 'package:alphajournal/features/settings/models/notification_prefs_model.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/account_security_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/appearance_settings_page.dart';
+import 'package:alphajournal/features/settings/presentation/pages/shared/notifications_settings_page.dart';
 
 import 'public_site/public_content_test.dart' show FileAssets;
 
@@ -199,10 +199,7 @@ class _FakeProfileSecurityRepository implements ProfileSettingsRepository {
   ) => _delegate.updateSecurityPreferences(prefs);
 }
 
-Widget _wrapWithTheme(
-  Widget child, {
-  AppThemeController? controller,
-}) {
+Widget _wrapWithTheme(Widget child, {AppThemeController? controller}) {
   final ctrl = controller ?? AppThemeController();
   return AppThemeScope(
     controller: ctrl,
@@ -541,7 +538,10 @@ void main() {
           isFalse,
         );
         expect(
-          repo.shouldSurfaceInApp(CommunityNotificationType.signal, now: midday),
+          repo.shouldSurfaceInApp(
+            CommunityNotificationType.signal,
+            now: midday,
+          ),
           isFalse,
         );
         expect(
@@ -625,7 +625,7 @@ void main() {
   group('Issue 6: Privacy, GDPR ZIP Archive & Spam Filtering', () {
     test('ZipArchiveBuilder writes valid PKZIP headers and CRC32', () {
       final zip = ZipArchiveBuilder()
-        ..addString('README.txt', 'TradeX GDPR Export')
+        ..addString('README.txt', 'AlphaJournal GDPR Export')
         ..addJson('profile.json', <String, dynamic>{'public': true});
       final Uint8List bytes = zip.build(
         timestamp: DateTime(2026, 11, 15, 12, 0),
@@ -639,14 +639,14 @@ void main() {
       final asciiText = latin1.decode(bytes);
       expect(asciiText, contains('README.txt'));
       expect(asciiText, contains('profile.json'));
-      expect(asciiText, contains('TradeX GDPR Export'));
+      expect(asciiText, contains('AlphaJournal GDPR Export'));
     });
 
     test(
       'PrivacyRepositoryImpl builds valid GDPR ZIP archive offline while keeping requestDataExport offline contract',
       () async {
-        final archive =
-            await PrivacyRepositoryImpl.instance.buildDataExportArchive();
+        final archive = await PrivacyRepositoryImpl.instance
+            .buildDataExportArchive();
         expect(archive.filename, endsWith('.zip'));
         expect(archive.bytes[0], 0x50);
         expect(archive.bytes[1], 0x4b);
@@ -753,7 +753,10 @@ void main() {
 
         ctrl.setColorConvention('Colorblind-Safe (Blue/Orange)');
         await tester.pumpAndSettle();
-        expect(find.text('Colorblind-Safe (Blue/Orange)'), findsAtLeastNWidgets(1));
+        expect(
+          find.text('Colorblind-Safe (Blue/Orange)'),
+          findsAtLeastNWidgets(1),
+        );
       },
     );
 
@@ -771,8 +774,9 @@ void main() {
           await repo.detail('AAPL');
           return snap;
         }))!;
-        final instrument =
-            snapshot.instruments.firstWhere((q) => q.symbol == 'AAPL');
+        final instrument = snapshot.instruments.firstWhere(
+          (q) => q.symbol == 'AAPL',
+        );
 
         final ctrl = AppThemeController(
           ThemeMode.dark,

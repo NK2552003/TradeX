@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 import '../../data/admin_repository.dart';
 import '../../models/admin_records.dart';
@@ -184,10 +184,7 @@ class _AdminRecordDetailPageState extends State<AdminRecordDetailPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              record.title,
-                              style: context.uiText.heading,
-                            ),
+                            Text(record.title, style: context.uiText.heading),
                             const UiGap.v(4),
                             Wrap(
                               spacing: 8,
@@ -261,7 +258,8 @@ class _AdminRecordDetailPageState extends State<AdminRecordDetailPage> {
         ],
         AdminSection(
           title: 'Live preview',
-          description: 'Formatted operational preview rendered from stored fields.',
+          description:
+              'Formatted operational preview rendered from stored fields.',
           child: AdminRecordPreviewContent(
             resource: widget.resource,
             record: record,
@@ -312,8 +310,9 @@ class _AdminRecordDetailPageState extends State<AdminRecordDetailPage> {
                         title: adminLabel(item.text('action')),
                         subtitle: [
                           item.text('actor_handle'),
-                          adminMap(item.values['metadata'])['reason']
-                                  ?.toString() ??
+                          adminMap(
+                                item.values['metadata'],
+                              )['reason']?.toString() ??
                               'Recorded change',
                         ].where((e) => e.isNotEmpty).join(' · '),
                         timestamp: adminDate(item.values['created_at']),
@@ -340,8 +339,9 @@ class _AdminRecordDetailPageState extends State<AdminRecordDetailPage> {
                     header: 'Reason',
                     flex: 2,
                     valueGetter: (row) =>
-                        adminMap(row.values['metadata'])['reason']
-                            ?.toString() ??
+                        adminMap(
+                          row.values['metadata'],
+                        )['reason']?.toString() ??
                         'Recorded change',
                   ),
                   UiTableColumn(

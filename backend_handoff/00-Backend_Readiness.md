@@ -1,8 +1,8 @@
-# TradeX backend readiness
+# AlphaJournal backend readiness
 
 ## Purpose and current boundary
 
-TradeX is a Flutter client with repository interfaces already separating UI
+AlphaJournal is a Flutter client with repository interfaces already separating UI
 from data access. Several implementations intentionally use in-memory demo
 data. Backend work therefore has two parts: apply the Supabase schema/RLS
 contract and provide live implementations behind the existing repository
@@ -50,7 +50,7 @@ The product vocabulary in [CONTEXT.md](../CONTEXT.md) is intentional:
 - A community post may reference **one** Writing Desk source: one note, one
   journal entry, or one strategy. It is a post attachment, not an implicit
   grant to every linked record.
-- Internal `tradex://` links are authenticated-app navigation only. They are
+- Internal `alphajournal://` links are authenticated-app navigation only. They are
   not web sharing URLs and must still pass authorization at the destination.
 
 Use `public_document(kind, id)` for anonymous document reads. It projects only

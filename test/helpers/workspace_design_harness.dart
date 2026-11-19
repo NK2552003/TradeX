@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/app-ui/theme/app_theme_controller.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/theme/app_theme_controller.dart';
 
 const captureWorkspaceUi = bool.fromEnvironment('CAPTURE_WORKSPACE_UI');
 const workspaceCaptureKey = ValueKey('workspace-design-capture');

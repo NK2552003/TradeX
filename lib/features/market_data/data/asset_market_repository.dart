@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/market_data/models/market_snapshot.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/market_data/models/market_snapshot.dart';
 
 class MarketPageResult<T> {
   const MarketPageResult({required this.items, required this.totalCount});
@@ -36,25 +36,25 @@ class AssetMarketRepository {
   final Map<String, List<double>> _sparkCache = {};
   final Map<String, Future<List<double>>> _inFlightSparks = {};
   DateTime? _snapshotExpiresAt;
-  static const Duration _snapshotTtl = Duration(minutes: 2);
+  Future<MarketSnapshot>? _communityPreviewSnapshot;
+  DateTime? _communityPreviewExpiresAt;
+  static const Duration _snapshotTtl = Duration(minutes: 5);
+  static const Duration _communityPreviewTtl = Duration(minutes: 15);
 
   /// True when this repository should query live Supabase tables instead of
   /// reading bundled JSON assets.
   bool get usesDatabase =>
       _customBundle == null && (client != null || SupabaseConfig.isConfigured);
 
-  Future<dynamic> read(String path) => _cache.putIfAbsent(
-    path,
-    () async {
-      if (usesDatabase) {
-        return _readFromDatabase(path);
-      }
-      if (_customBundle == null) {
-        throw StateError('Market database is not configured.');
-      }
-      return jsonDecode(await _bundle.loadString('assets/data/$path.json'));
-    },
-  );
+  Future<dynamic> read(String path) => _cache.putIfAbsent(path, () async {
+    if (usesDatabase) {
+      return _readFromDatabase(path);
+    }
+    if (_customBundle == null) {
+      throw StateError('Market database is not configured.');
+    }
+    return jsonDecode(await _bundle.loadString('assets/data/$path.json'));
+  });
 
   Future<List<Map<String, dynamic>>> _fetchPaged(
     Future<dynamic> Function(int from, int to) fetchPage, {
@@ -150,14 +150,50 @@ class AssetMarketRepository {
     if (totalQuotes <= 0) return null;
     try {
       final counts = await Future.wait<int>([
-        _database.from('stock_quotes').count(CountOption.exact).gt('change_pct', 0).catchError((_) => 0),
-        _database.from('stock_quotes').count(CountOption.exact).lt('change_pct', 0).catchError((_) => 0),
-        _database.from('stock_quotes').count(CountOption.exact).lt('change_pct', -5).catchError((_) => 0),
-        _database.from('stock_quotes').count(CountOption.exact).gte('change_pct', -5).lt('change_pct', -2).catchError((_) => 0),
-        _database.from('stock_quotes').count(CountOption.exact).gte('change_pct', -2).lt('change_pct', 0).catchError((_) => 0),
-        _database.from('stock_quotes').count(CountOption.exact).gte('change_pct', 0).lt('change_pct', 2).catchError((_) => 0),
-        _database.from('stock_quotes').count(CountOption.exact).gte('change_pct', 2).lt('change_pct', 5).catchError((_) => 0),
-        _database.from('stock_quotes').count(CountOption.exact).gte('change_pct', 5).catchError((_) => 0),
+        _database
+            .from('stock_quotes')
+            .count(CountOption.exact)
+            .gt('change_pct', 0)
+            .catchError((_) => 0),
+        _database
+            .from('stock_quotes')
+            .count(CountOption.exact)
+            .lt('change_pct', 0)
+            .catchError((_) => 0),
+        _database
+            .from('stock_quotes')
+            .count(CountOption.exact)
+            .lt('change_pct', -5)
+            .catchError((_) => 0),
+        _database
+            .from('stock_quotes')
+            .count(CountOption.exact)
+            .gte('change_pct', -5)
+            .lt('change_pct', -2)
+            .catchError((_) => 0),
+        _database
+            .from('stock_quotes')
+            .count(CountOption.exact)
+            .gte('change_pct', -2)
+            .lt('change_pct', 0)
+            .catchError((_) => 0),
+        _database
+            .from('stock_quotes')
+            .count(CountOption.exact)
+            .gte('change_pct', 0)
+            .lt('change_pct', 2)
+            .catchError((_) => 0),
+        _database
+            .from('stock_quotes')
+            .count(CountOption.exact)
+            .gte('change_pct', 2)
+            .lt('change_pct', 5)
+            .catchError((_) => 0),
+        _database
+            .from('stock_quotes')
+            .count(CountOption.exact)
+            .gte('change_pct', 5)
+            .catchError((_) => 0),
       ]);
       final binSum = counts.skip(2).fold<int>(0, (a, b) => a + b);
       if (binSum == 0 || binSum > totalQuotes * 2) return null;
@@ -279,16 +315,19 @@ class AssetMarketRepository {
       if (safeQ.isNotEmpty) {
         quoteQuery = quoteQuery.ilike('ticker', '%$safeQ%');
       }
-      final quoteRows = (await quoteQuery
-              .order(orderCol, ascending: false)
-              .range(from, to)) as List? ??
+      final quoteRows =
+          (await quoteQuery.order(orderCol, ascending: false).range(from, to))
+              as List? ??
           const <dynamic>[];
       final symbols = [
         for (final r in quoteRows.whereType<Map>())
           if ('${r['ticker'] ?? ''}'.isNotEmpty) '${r['ticker']}',
       ];
       if (symbols.isEmpty) {
-        return const MarketPageResult(items: <MarketInstrument>[], totalCount: 0);
+        return const MarketPageResult(
+          items: <MarketInstrument>[],
+          totalCount: 0,
+        );
       }
       final metaValues = await Future.wait<dynamic>([
         client
@@ -302,7 +341,9 @@ class AssetMarketRepository {
             )
             .inFilter('ticker', symbols),
         _loadSparksBatch(symbols),
-        safeQ.isEmpty ? _exactCount('stock_quotes') : Future.value(symbols.length),
+        safeQ.isEmpty
+            ? _exactCount('stock_quotes')
+            : Future.value(symbols.length),
       ]);
       final metaMap = <String, Map<String, dynamic>>{
         for (final r in (metaValues[0] as List? ?? const []).whereType<Map>())
@@ -345,15 +386,22 @@ class AssetMarketRepository {
     try {
       var uQuery = client
           .from('market_universe')
-          .select('ticker, display_symbol, rank, name, exchange, sector, market_cap');
+          .select(
+            'ticker, display_symbol, rank, name, exchange, sector, market_cap',
+          );
       if (safeQ.isNotEmpty) {
         uQuery = uQuery.or('ticker.ilike.%$safeQ%,name.ilike.%$safeQ%');
       }
-      final raw = (await uQuery
-              .order(sort == 'symbol' ? 'ticker' : 'rank', ascending: true)
-              .range(from, to)) as List? ??
+      final raw =
+          (await uQuery
+                  .order(sort == 'symbol' ? 'ticker' : 'rank', ascending: true)
+                  .range(from, to))
+              as List? ??
           const <dynamic>[];
-      dirRows = raw.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).toList();
+      dirRows = raw
+          .whereType<Map>()
+          .map((r) => Map<String, dynamic>.from(r))
+          .toList();
       if (safeQ.isEmpty) {
         totalCount = await _exactCount('market_universe');
       } else {
@@ -369,20 +417,28 @@ class AssetMarketRepository {
       var tQuery = client
           .from('tickers')
           .select('ticker, name, market, exchange, currency');
-      final raw = (await tQuery.order('ticker', ascending: true).range(from, to))
+      final raw =
+          (await tQuery.order('ticker', ascending: true).range(from, to))
               as List? ??
           const <dynamic>[];
-      dirRows = raw.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).toList();
+      dirRows = raw
+          .whereType<Map>()
+          .map((r) => Map<String, dynamic>.from(r))
+          .toList();
       totalCount = await _exactCount('tickers');
     } else if (dirRows.isEmpty && safeQ.isNotEmpty) {
       var tQuery = client
           .from('tickers')
           .select('ticker, name, market, exchange, currency')
           .or('ticker.ilike.%$safeQ%,name.ilike.%$safeQ%');
-      final raw = (await tQuery.order('ticker', ascending: true).range(from, to))
+      final raw =
+          (await tQuery.order('ticker', ascending: true).range(from, to))
               as List? ??
           const <dynamic>[];
-      dirRows = raw.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).toList();
+      dirRows = raw
+          .whereType<Map>()
+          .map((r) => Map<String, dynamic>.from(r))
+          .toList();
       totalCount = dirRows.length < pageSize
           ? from + dirRows.length
           : from + dirRows.length + 1;
@@ -486,33 +542,41 @@ class AssetMarketRepository {
       if (safeQ.isNotEmpty) {
         uQuery = uQuery.or('ticker.ilike.%$safeQ%,name.ilike.%$safeQ%');
       }
-      final raw = (await uQuery.order('rank', ascending: true).range(from, to))
+      final raw =
+          (await uQuery.order('rank', ascending: true).range(from, to))
               as List? ??
           const <dynamic>[];
       dirRows = raw
           .whereType<Map>()
-          .map((r) => <String, dynamic>{
-                ...Map<String, dynamic>.from(r),
-                'market': 'US',
-              })
+          .map(
+            (r) => <String, dynamic>{
+              ...Map<String, dynamic>.from(r),
+              'market': 'US',
+            },
+          )
           .toList();
       totalCount = safeQ.isEmpty
           ? await _exactCount('market_universe')
           : (dirRows.length < pageSize
-              ? from + dirRows.length
-              : from + dirRows.length + 1);
+                ? from + dirRows.length
+                : from + dirRows.length + 1);
     } on PostgrestException catch (error) {
       if (error.code != 'PGRST205' && error.code != '42P01') rethrow;
     }
 
     if (dirRows.isEmpty && safeQ.isEmpty && page == 0) {
-      final raw = (await client
-              .from('tickers')
-              .select('ticker, name, market, exchange')
-              .order('ticker', ascending: true)
-              .range(from, to)) as List? ??
+      final raw =
+          (await client
+                  .from('tickers')
+                  .select('ticker, name, market, exchange')
+                  .order('ticker', ascending: true)
+                  .range(from, to))
+              as List? ??
           const <dynamic>[];
-      dirRows = raw.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).toList();
+      dirRows = raw
+          .whereType<Map>()
+          .map((r) => Map<String, dynamic>.from(r))
+          .toList();
       totalCount = await _exactCount('tickers');
     }
 
@@ -522,10 +586,12 @@ class AssetMarketRepository {
     ];
     final quoteMap = <String, Map<String, dynamic>>{};
     if (symbols.isNotEmpty) {
-      final quotes = (await client
-              .from('stock_quotes')
-              .select('ticker, price, change_pct')
-              .inFilter('ticker', symbols)) as List? ??
+      final quotes =
+          (await client
+                  .from('stock_quotes')
+                  .select('ticker, price, change_pct')
+                  .inFilter('ticker', symbols))
+              as List? ??
           const <dynamic>[];
       for (final r in quotes.whereType<Map>()) {
         quoteMap['${r['ticker']}'] = Map<String, dynamic>.from(r);
@@ -536,7 +602,8 @@ class AssetMarketRepository {
         <String, dynamic>{
           ...r,
           'has_quote': quoteMap.containsKey('${r['ticker']}'),
-          if (quoteMap.containsKey('${r['ticker']}')) ...quoteMap['${r['ticker']}']!,
+          if (quoteMap.containsKey('${r['ticker']}'))
+            ...quoteMap['${r['ticker']}']!,
         },
     ];
     return MarketPageResult(
@@ -552,18 +619,16 @@ class AssetMarketRepository {
         final universeRows = await _fetchPaged(
           (from, to) => client
               .from('market_universe')
-              .select('ticker, display_symbol, rank, name, exchange, sector, market_cap')
+              .select(
+                'ticker, display_symbol, rank, name, exchange, sector, market_cap',
+              )
               .order('rank', ascending: true)
               .range(from, to),
         );
         if (universeRows.isNotEmpty) {
           return [
             for (final r in universeRows)
-              <String, dynamic>{
-                ...r,
-                'market': 'US',
-                'currency': 'USD',
-              },
+              <String, dynamic>{...r, 'market': 'US', 'currency': 'USD'},
           ];
         }
       } on PostgrestException catch (error) {
@@ -714,6 +779,105 @@ class AssetMarketRepository {
   }
 
   Future<MarketSnapshot>? _snapshot;
+
+  /// Small, server-whitelisted market payload used only by Community.
+  ///
+  /// This intentionally never falls back to [snapshot] for live databases: a
+  /// Free account must not accidentally trigger the full paid market query
+  /// graph when the limited RPC is unavailable.
+  Future<MarketSnapshot> communityPreview({bool refresh = false}) {
+    final now = DateTime.now();
+    if (refresh ||
+        (_communityPreviewExpiresAt != null &&
+            now.isAfter(_communityPreviewExpiresAt!))) {
+      _communityPreviewSnapshot = null;
+      _communityPreviewExpiresAt = null;
+    }
+    final active = _communityPreviewSnapshot;
+    if (active != null) return active;
+    final future = _loadCommunityPreview();
+    _communityPreviewSnapshot = future;
+    _communityPreviewExpiresAt = now.add(_communityPreviewTtl);
+    return future;
+  }
+
+  Future<MarketSnapshot> _loadCommunityPreview() async {
+    if (!usesDatabase) {
+      if (_customBundle == null) {
+        return const MarketSnapshot(
+          instruments: <MarketInstrument>[],
+          articles: <MarketArticle>[],
+        );
+      }
+      final local = await _loadSnapshot();
+      final quotes = local.instruments.take(8).toList();
+      return MarketSnapshot(
+        manifest: const <String, dynamic>{
+          'data_source': 'community_preview',
+          'limited': true,
+        },
+        instruments: quotes,
+        screeners: <String, List<MarketInstrument>>{
+          'top_gainers': [...quotes]
+            ..sort((a, b) => b.changePercent.compareTo(a.changePercent)),
+          'top_losers': [...quotes]
+            ..sort((a, b) => a.changePercent.compareTo(b.changePercent)),
+        },
+        articles: local.articles.take(6).toList(),
+      );
+    }
+
+    try {
+      final raw = await _database.rpc('community_market_preview');
+      if (raw is! Map) throw const FormatException('Invalid preview payload');
+      final payload = Map<String, dynamic>.from(raw);
+      final instruments = (payload['quotes'] as List? ?? const <dynamic>[])
+          .whereType<Map>()
+          .map(
+            (row) => MarketInstrument.fromJson(
+              Map<String, dynamic>.from(row),
+              const <String, dynamic>{},
+            ),
+          )
+          .where((quote) => quote.symbol.isNotEmpty && quote.price.isFinite)
+          .toList();
+      final gainers = [...instruments]
+        ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
+      final losers = [...instruments]
+        ..sort((a, b) => a.changePercent.compareTo(b.changePercent));
+      final articles = (payload['news'] as List? ?? const <dynamic>[])
+          .whereType<Map>()
+          .map((row) => MarketArticle.fromJson(Map<String, dynamic>.from(row)))
+          .where((article) => article.title.isNotEmpty)
+          .toList();
+      return MarketSnapshot(
+        manifest: <String, dynamic>{
+          'data_source': 'community_preview',
+          'limited': true,
+          'quote_count': instruments.length,
+        },
+        instruments: instruments,
+        screeners: <String, List<MarketInstrument>>{
+          'top_gainers': gainers.where((q) => q.changePercent >= 0).toList(),
+          'top_losers': losers.where((q) => q.changePercent < 0).toList(),
+        },
+        articles: articles,
+      );
+    } catch (error) {
+      debugPrint(
+        '[AssetMarketRepository] Community preview unavailable: $error',
+      );
+      return const MarketSnapshot(
+        manifest: <String, dynamic>{
+          'data_source': 'community_preview',
+          'limited': true,
+        },
+        instruments: <MarketInstrument>[],
+        articles: <MarketArticle>[],
+      );
+    }
+  }
+
   Future<MarketSnapshot> snapshot({bool refresh = false}) {
     final now = DateTime.now();
     final expired =
@@ -861,7 +1025,8 @@ class AssetMarketRepository {
       for (final raw in rawNews) {
         if (raw is Map) {
           final a = MarketArticle.fromJson(Map<String, dynamic>.from(raw));
-          if (a.title.isNotEmpty && seen.add(a.link.isEmpty ? a.title : a.link)) {
+          if (a.title.isNotEmpty &&
+              seen.add(a.link.isEmpty ? a.title : a.link)) {
             articles.add(a);
           }
         }
@@ -947,15 +1112,19 @@ class AssetMarketRepository {
     }
 
     // Ensure core screens are never empty
-    if (!screens.containsKey('top_gainers') || screens['top_gainers']!.isEmpty) {
-      screens['top_gainers'] = enriched.where((q) => q.changePercent > 0).toList()
-        ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
+    if (!screens.containsKey('top_gainers') ||
+        screens['top_gainers']!.isEmpty) {
+      screens['top_gainers'] =
+          enriched.where((q) => q.changePercent > 0).toList()
+            ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
     }
     if (!screens.containsKey('top_losers') || screens['top_losers']!.isEmpty) {
-      screens['top_losers'] = enriched.where((q) => q.changePercent < 0).toList()
-        ..sort((a, b) => a.changePercent.compareTo(b.changePercent));
+      screens['top_losers'] =
+          enriched.where((q) => q.changePercent < 0).toList()
+            ..sort((a, b) => a.changePercent.compareTo(b.changePercent));
     }
-    if (!screens.containsKey('most_active') || screens['most_active']!.isEmpty) {
+    if (!screens.containsKey('most_active') ||
+        screens['most_active']!.isEmpty) {
       screens['most_active'] = [...enriched]
         ..sort((a, b) => b.volume.compareTo(a.volume));
     }
@@ -1002,6 +1171,18 @@ class AssetMarketRepository {
   }
 
   Future<MarketSnapshot> _loadDatabaseSnapshot() async {
+    try {
+      return await _loadDatabaseOverviewPayload();
+    } on PostgrestException catch (error) {
+      if (error.code != 'PGRST202' && error.code != '42883') rethrow;
+      debugPrint(
+        '[AssetMarketRepository] Aggregated market RPC is not deployed; using compatibility queries.',
+      );
+    } on FormatException catch (error) {
+      debugPrint(
+        '[AssetMarketRepository] Aggregated market RPC returned an invalid payload; using compatibility queries: $error',
+      );
+    }
     final client = _database;
     final values = await Future.wait<dynamic>([
       client
@@ -1091,10 +1272,12 @@ class AssetMarketRepository {
     // Scope to market_universe when available.
     if (neededSymbols.isNotEmpty) {
       try {
-        final uRows = (await client
-                .from('market_universe')
-                .select('ticker')
-                .inFilter('ticker', neededSymbols.toList())) as List? ??
+        final uRows =
+            (await client
+                    .from('market_universe')
+                    .select('ticker')
+                    .inFilter('ticker', neededSymbols.toList()))
+                as List? ??
             const <dynamic>[];
         if (uRows.isNotEmpty) {
           final allowed = {
@@ -1156,8 +1339,7 @@ class AssetMarketRepository {
     if (rawNews is List) {
       for (final raw in rawNews.whereType<Map>()) {
         final a = MarketArticle.fromJson(Map<String, dynamic>.from(raw));
-        if (a.title.isNotEmpty &&
-            seen.add(a.link.isEmpty ? a.title : a.link)) {
+        if (a.title.isNotEmpty && seen.add(a.link.isEmpty ? a.title : a.link)) {
           articles.add(a);
         }
       }
@@ -1202,7 +1384,8 @@ class AssetMarketRepository {
       }
     }
 
-    if (!screens.containsKey('top_gainers') || screens['top_gainers']!.isEmpty) {
+    if (!screens.containsKey('top_gainers') ||
+        screens['top_gainers']!.isEmpty) {
       screens['top_gainers'] =
           enriched.where((q) => q.changePercent > 0).toList()
             ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
@@ -1212,7 +1395,8 @@ class AssetMarketRepository {
           enriched.where((q) => q.changePercent < 0).toList()
             ..sort((a, b) => a.changePercent.compareTo(b.changePercent));
     }
-    if (!screens.containsKey('most_active') || screens['most_active']!.isEmpty) {
+    if (!screens.containsKey('most_active') ||
+        screens['most_active']!.isEmpty) {
       screens['most_active'] = [...enriched]
         ..sort((a, b) => b.volume.compareTo(a.volume));
     }
@@ -1221,8 +1405,9 @@ class AssetMarketRepository {
     final effectiveDetails = detailCount > 0
         ? detailCount
         : (fundCount > 0 ? fundCount : enriched.length);
-    final effectiveUniverse =
-        universeCount > 0 ? universeCount : effectiveQuotes;
+    final effectiveUniverse = universeCount > 0
+        ? universeCount
+        : effectiveQuotes;
     final bestGain = ranked.isNotEmpty ? ranked.first.changePercent : 0.0;
     final worstLoss = ranked.isNotEmpty ? ranked.last.changePercent : 0.0;
     final metaFutures = await Future.wait<dynamic>([
@@ -1264,6 +1449,87 @@ class AssetMarketRepository {
     );
   }
 
+  Future<MarketSnapshot> _loadDatabaseOverviewPayload() async {
+    final raw = await _database.rpc('market_overview_payload');
+    if (raw is! Map) {
+      throw const FormatException('Invalid market overview payload');
+    }
+    final payload = Map<String, dynamic>.from(raw);
+    final instruments = (payload['quotes'] as List? ?? const <dynamic>[])
+        .whereType<Map>()
+        .map((row) {
+          final data = Map<String, dynamic>.from(row);
+          return MarketInstrument.fromJson(
+            data,
+            data,
+            history: (data['spark'] as List? ?? const <dynamic>[])
+                .whereType<num>()
+                .map((value) => value.toDouble())
+                .toList(),
+          );
+        })
+        .where((quote) => quote.symbol.isNotEmpty && quote.price.isFinite)
+        .toList();
+    final quoteBySymbol = <String, MarketInstrument>{
+      for (final quote in instruments) quote.symbol: quote,
+    };
+
+    final screeners = <String, List<MarketInstrument>>{};
+    final rawScreeners = payload['screeners'];
+    if (rawScreeners is Map) {
+      for (final entry in rawScreeners.entries) {
+        final rows = entry.value is List
+            ? entry.value as List
+            : const <dynamic>[];
+        screeners['${entry.key}'] = rows
+            .whereType<Map>()
+            .map((row) {
+              final data = Map<String, dynamic>.from(row);
+              final symbol = '${data['ticker'] ?? data['symbol'] ?? ''}';
+              return quoteBySymbol[symbol] ??
+                  MarketInstrument.fromJson(data, const <String, dynamic>{});
+            })
+            .where((quote) => quote.symbol.isNotEmpty)
+            .toList();
+      }
+    }
+
+    final articles = (payload['news'] as List? ?? const <dynamic>[])
+        .whereType<Map>()
+        .map((row) => MarketArticle.fromJson(Map<String, dynamic>.from(row)))
+        .where((article) => article.title.isNotEmpty)
+        .toList();
+    const standardTopics = <String>[
+      'stock_market_general',
+      'magnificent_seven',
+      'banks_and_financials',
+      'enterprise_cloud',
+      'pharma_and_biotech',
+      'clean_energy',
+      'aerospace_and_defense',
+      'oil_and_gas',
+      'cybersecurity',
+      'housing',
+      'crypto',
+    ];
+
+    return MarketSnapshot(
+      manifest: payload['manifest'] is Map
+          ? Map<String, dynamic>.from(payload['manifest'] as Map)
+          : const <String, dynamic>{'data_source': 'supabase_live'},
+      screenerPayloads: rawScreeners is Map
+          ? Map<String, dynamic>.from(rawScreeners)
+          : const <String, dynamic>{},
+      instruments: instruments,
+      screeners: screeners,
+      articles: articles,
+      topics: <String, List<MarketArticle>>{
+        for (final topic in standardTopics)
+          topic: _filterArticlesByTopic(articles, topic),
+      },
+    );
+  }
+
   // Older deployments may not have every supplemental market table. Only
   // missing relations are optional; authentication and transport errors surface.
   Future<T?> _optionalDetailQuery<T>(String table, Future<T> query) async {
@@ -1271,7 +1537,9 @@ class AssetMarketRepository {
       return await query;
     } on PostgrestException catch (error) {
       if (error.code != 'PGRST205' && error.code != '42P01') rethrow;
-      debugPrint('[AssetMarketRepository] Optional table $table is unavailable.');
+      debugPrint(
+        '[AssetMarketRepository] Optional table $table is unavailable.',
+      );
       return null;
     }
   }
@@ -1358,8 +1626,7 @@ class AssetMarketRepository {
     final fundRow = results[2] is Map
         ? Map<String, dynamic>.from(results[2] as Map)
         : <String, dynamic>{};
-    final historyRows = (results[3] as List? ?? const <dynamic>[])
-        .reversed
+    final historyRows = (results[3] as List? ?? const <dynamic>[]).reversed
         .whereType<Map>()
         .map((r) => Map<String, dynamic>.from(r))
         .toList();
@@ -1387,8 +1654,10 @@ class AssetMarketRepository {
         companyNews = allArticles
             .whereType<Map>()
             .where((a) {
-              final related = (a['related_tickers'] as List? ?? const <dynamic>[])
-                  .map((e) => '$e'.toUpperCase());
+              final related =
+                  (a['related_tickers'] as List? ?? const <dynamic>[]).map(
+                    (e) => '$e'.toUpperCase(),
+                  );
               return related.contains(symbol.toUpperCase()) ||
                   '${a['title'] ?? ''}'.toUpperCase().contains(
                     symbol.toUpperCase(),
@@ -1400,7 +1669,8 @@ class AssetMarketRepository {
       }
     } catch (_) {}
 
-    final storedDetail = results[8] is Map && (results[8] as Map)['detail'] is Map
+    final storedDetail =
+        results[8] is Map && (results[8] as Map)['detail'] is Map
         ? Map<String, dynamic>.from((results[8] as Map)['detail'] as Map)
         : <String, dynamic>{};
 
@@ -1415,7 +1685,9 @@ class AssetMarketRepository {
       mergedNews.add(item);
     }
 
-    for (final raw in (storedDetail['news'] as List? ?? const <dynamic>[]).whereType<Map>()) {
+    for (final raw
+        in (storedDetail['news'] as List? ?? const <dynamic>[])
+            .whereType<Map>()) {
       addNewsItem(Map<String, dynamic>.from(raw));
     }
     for (final item in companyNews) {
@@ -1431,7 +1703,8 @@ class AssetMarketRepository {
       ...quoteRow,
       'ticker': symbol,
       'price': quoteRow['price'] ?? storedQuote['price'] ?? 0.0,
-      'name': tickerRow['name'] ?? fundRow['name'] ?? storedQuote['name'] ?? symbol,
+      'name':
+          tickerRow['name'] ?? fundRow['name'] ?? storedQuote['name'] ?? symbol,
       'market':
           tickerRow['market'] ??
           storedQuote['market'] ??
@@ -1462,23 +1735,17 @@ class AssetMarketRepository {
     final chartData = historyRows.isNotEmpty
         ? historyRows
         : (storedChart['data'] as List? ?? const <dynamic>[])
-            .whereType<Map>()
-            .map((r) => Map<String, dynamic>.from(r))
-            .toList();
+              .whereType<Map>()
+              .map((r) => Map<String, dynamic>.from(r))
+              .toList();
 
     final normalizedDividends = [
       for (final r in dividendRows)
-        <String, dynamic>{
-          ...r,
-          'date': r['date'] ?? r['ex_date'],
-        },
+        <String, dynamic>{...r, 'date': r['date'] ?? r['ex_date']},
     ];
     final normalizedSplits = [
       for (final r in splitRows)
-        <String, dynamic>{
-          ...r,
-          'date': r['date'] ?? r['split_date'],
-        },
+        <String, dynamic>{...r, 'date': r['date'] ?? r['split_date']},
     ];
     final storedActions = storedDetail['dividends_and_splits'] is Map
         ? Map<String, dynamic>.from(storedDetail['dividends_and_splits'] as Map)
@@ -1486,15 +1753,15 @@ class AssetMarketRepository {
     final mergedDividends = normalizedDividends.isNotEmpty
         ? normalizedDividends
         : (storedActions['dividends'] as List? ?? const <dynamic>[])
-            .whereType<Map>()
-            .map((r) => Map<String, dynamic>.from(r))
-            .toList();
+              .whereType<Map>()
+              .map((r) => Map<String, dynamic>.from(r))
+              .toList();
     final mergedSplits = normalizedSplits.isNotEmpty
         ? normalizedSplits
         : (storedActions['splits'] as List? ?? const <dynamic>[])
-            .whereType<Map>()
-            .map((r) => Map<String, dynamic>.from(r))
-            .toList();
+              .whereType<Map>()
+              .map((r) => Map<String, dynamic>.from(r))
+              .toList();
 
     final normalizedRecs = [
       for (final r in analystRows)
@@ -1510,13 +1777,16 @@ class AssetMarketRepository {
     final mergedRecs = normalizedRecs.isNotEmpty
         ? normalizedRecs
         : (storedDetail['recommendations'] as List? ?? const <dynamic>[])
-            .whereType<Map>()
-            .map((r) => Map<String, dynamic>.from(r))
-            .toList();
+              .whereType<Map>()
+              .map((r) => Map<String, dynamic>.from(r))
+              .toList();
 
-    Map<String, dynamic> normalizeHolder(Map<String, dynamic> r) => <String, dynamic>{
+    Map<String, dynamic> normalizeHolder(
+      Map<String, dynamic> r,
+    ) => <String, dynamic>{
       ...r,
-      if (r['Holder'] == null && r['holder_name'] != null) 'Holder': r['holder_name'],
+      if (r['Holder'] == null && r['holder_name'] != null)
+        'Holder': r['holder_name'],
       if (r['pctHeld'] == null && r['pct_out'] != null) 'pctHeld': r['pct_out'],
       if (r['Shares'] == null && r['shares'] != null) 'Shares': r['shares'],
       if (r['Value'] == null && r['value'] != null) 'Value': r['value'],
@@ -1543,7 +1813,10 @@ class AssetMarketRepository {
 
     final mergedOptions = storedDetail['options'] is Map
         ? Map<String, dynamic>.from(storedDetail['options'] as Map)
-        : const <String, dynamic>{'expirations': <dynamic>[], 'chains': <String, dynamic>{}};
+        : const <String, dynamic>{
+            'expirations': <dynamic>[],
+            'chains': <String, dynamic>{},
+          };
 
     final res = <String, dynamic>{
       'ticker': symbol,
@@ -1564,10 +1837,12 @@ class AssetMarketRepository {
         'splits': mergedSplits,
       },
       'options': mergedOptions,
-      if (storedDetail['universe'] != null) 'universe': storedDetail['universe'],
+      if (storedDetail['universe'] != null)
+        'universe': storedDetail['universe'],
       if (storedDetail['availability'] != null)
         'availability': storedDetail['availability'],
-      if (storedDetail['snapshot'] != null) 'snapshot': storedDetail['snapshot'],
+      if (storedDetail['snapshot'] != null)
+        'snapshot': storedDetail['snapshot'],
       'data_source': 'supabase_live',
       'fetched_at':
           quoteRow['updated_at'] ??
@@ -1690,7 +1965,9 @@ class AssetMarketRepository {
     return {'data': []};
   }
 
-  Future<Map<String, List<double>>> _loadSparksBatch(List<String> symbols) async {
+  Future<Map<String, List<double>>> _loadSparksBatch(
+    List<String> symbols,
+  ) async {
     final out = <String, List<double>>{};
     final missing = <String>[];
     for (final sym in symbols) {
@@ -1734,8 +2011,9 @@ class AssetMarketRepository {
             if (list.length < 36) list.add(close);
           }
           for (final sym in chunk) {
-            final chronological =
-                (groupedDesc[sym] ?? const <double>[]).reversed.toList();
+            final chronological = (groupedDesc[sym] ?? const <double>[])
+                .reversed
+                .toList();
             _sparkCache[sym] = chronological;
             out[sym] = chronological;
           }
@@ -1769,7 +2047,9 @@ class AssetMarketRepository {
               .limit(36);
           rows = result.reversed.toList();
         } catch (_) {
-          return const <double>[]; // Allow the next request to retry a temporary outage.
+          return const <
+            double
+          >[]; // Allow the next request to retry a temporary outage.
         }
       } else {
         final hist = await history(symbol);
@@ -1837,7 +2117,9 @@ class AssetMarketRepository {
       }
       final instruments = rows
           .whereType<Map>()
-          .map((r) => screenInstrument(Map<String, dynamic>.from(r), qMap, fMap))
+          .map(
+            (r) => screenInstrument(Map<String, dynamic>.from(r), qMap, fMap),
+          )
           .whereType<MarketInstrument>()
           .toList();
       _screenerCache[category] = instruments;
@@ -1859,10 +2141,14 @@ class AssetMarketRepository {
     }
 
     // 3. Fallback: synthesize from quotes universe
-    if (category == 'top_gainers' || category == 'top_losers' || category == 'most_active') {
+    if (category == 'top_gainers' ||
+        category == 'top_losers' ||
+        category == 'most_active') {
       final universe = qMap.values
           .whereType<Map>()
-          .map((r) => screenInstrument(Map<String, dynamic>.from(r), qMap, fMap))
+          .map(
+            (r) => screenInstrument(Map<String, dynamic>.from(r), qMap, fMap),
+          )
           .whereType<MarketInstrument>()
           .where((i) => i.price.isFinite)
           .toList();
@@ -1879,7 +2165,8 @@ class AssetMarketRepository {
         return losers;
       }
       if (category == 'most_active') {
-        final active = [...universe]..sort((a, b) => b.volume.compareTo(a.volume));
+        final active = [...universe]
+          ..sort((a, b) => b.volume.compareTo(a.volume));
         _screenerCache[category] = active;
         return active;
       }
@@ -1944,82 +2231,206 @@ class AssetMarketRepository {
 }
 
 /// Categorizes news articles into topics when running from a single consolidated JSON file.
-List<MarketArticle> _filterArticlesByTopic(List<MarketArticle> articles, String topicKey) {
+List<MarketArticle> _filterArticlesByTopic(
+  List<MarketArticle> articles,
+  String topicKey,
+) {
   final key = topicKey.toLowerCase();
   switch (key) {
     case 'magnificent_seven':
-      const mag7 = {'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA'};
-      return articles.where((a) => a.tickers.any((t) => mag7.contains(t.toUpperCase()))).toList();
+      const mag7 = {
+        'AAPL',
+        'MSFT',
+        'GOOGL',
+        'GOOG',
+        'AMZN',
+        'NVDA',
+        'META',
+        'TSLA',
+      };
+      return articles
+          .where((a) => a.tickers.any((t) => mag7.contains(t.toUpperCase())))
+          .toList();
     case 'crypto':
-      return articles.where((a) =>
-        a.tickers.any((t) => t.endsWith('-USD') || t == 'BTC' || t == 'ETH' || t == 'SOL' || t == 'XRP') ||
-        a.title.toLowerCase().contains('crypto') ||
-        a.title.toLowerCase().contains('bitcoin')
-      ).toList();
+      return articles
+          .where(
+            (a) =>
+                a.tickers.any(
+                  (t) =>
+                      t.endsWith('-USD') ||
+                      t == 'BTC' ||
+                      t == 'ETH' ||
+                      t == 'SOL' ||
+                      t == 'XRP',
+                ) ||
+                a.title.toLowerCase().contains('crypto') ||
+                a.title.toLowerCase().contains('bitcoin'),
+          )
+          .toList();
     case 'banks_and_financials':
-      return articles.where((a) =>
-        a.tickers.any((t) => {'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS'}.contains(t.toUpperCase())) ||
-        a.title.toLowerCase().contains('bank') ||
-        a.title.toLowerCase().contains('treasury') ||
-        a.title.toLowerCase().contains('yield') ||
-        a.title.toLowerCase().contains('fed')
-      ).toList();
+      return articles
+          .where(
+            (a) =>
+                a.tickers.any(
+                  (t) => {
+                    'JPM',
+                    'BAC',
+                    'WFC',
+                    'C',
+                    'GS',
+                    'MS',
+                    'HDFCBANK.NS',
+                    'ICICIBANK.NS',
+                    'SBIN.NS',
+                  }.contains(t.toUpperCase()),
+                ) ||
+                a.title.toLowerCase().contains('bank') ||
+                a.title.toLowerCase().contains('treasury') ||
+                a.title.toLowerCase().contains('yield') ||
+                a.title.toLowerCase().contains('fed'),
+          )
+          .toList();
     case 'enterprise_cloud':
-      return articles.where((a) =>
-        a.tickers.any((t) => {'CRM', 'NOW', 'SNOW', 'ORCL', 'ADBE', 'MSFT', 'INFY.NS', 'TCS.NS'}.contains(t.toUpperCase())) ||
-        a.title.toLowerCase().contains('cloud') ||
-        a.title.toLowerCase().contains('software') ||
-        a.title.toLowerCase().contains('ai')
-      ).toList();
+      return articles
+          .where(
+            (a) =>
+                a.tickers.any(
+                  (t) => {
+                    'CRM',
+                    'NOW',
+                    'SNOW',
+                    'ORCL',
+                    'ADBE',
+                    'MSFT',
+                    'INFY.NS',
+                    'TCS.NS',
+                  }.contains(t.toUpperCase()),
+                ) ||
+                a.title.toLowerCase().contains('cloud') ||
+                a.title.toLowerCase().contains('software') ||
+                a.title.toLowerCase().contains('ai'),
+          )
+          .toList();
     case 'pharma_and_biotech':
-      return articles.where((a) =>
-        a.tickers.any((t) => {'LLY', 'NVO', 'PFE', 'MRK', 'ABBV', 'JNJ'}.contains(t.toUpperCase())) ||
-        a.title.toLowerCase().contains('pharma') ||
-        a.title.toLowerCase().contains('drug') ||
-        a.title.toLowerCase().contains('biotech') ||
-        a.title.toLowerCase().contains('fda')
-      ).toList();
+      return articles
+          .where(
+            (a) =>
+                a.tickers.any(
+                  (t) => {
+                    'LLY',
+                    'NVO',
+                    'PFE',
+                    'MRK',
+                    'ABBV',
+                    'JNJ',
+                  }.contains(t.toUpperCase()),
+                ) ||
+                a.title.toLowerCase().contains('pharma') ||
+                a.title.toLowerCase().contains('drug') ||
+                a.title.toLowerCase().contains('biotech') ||
+                a.title.toLowerCase().contains('fda'),
+          )
+          .toList();
     case 'clean_energy':
-      return articles.where((a) =>
-        a.tickers.any((t) => {'TSLA', 'ENPH', 'SEDG', 'FSLR', 'NEE'}.contains(t.toUpperCase())) ||
-        a.title.toLowerCase().contains('energy') ||
-        a.title.toLowerCase().contains('solar') ||
-        a.title.toLowerCase().contains('ev')
-      ).toList();
+      return articles
+          .where(
+            (a) =>
+                a.tickers.any(
+                  (t) => {
+                    'TSLA',
+                    'ENPH',
+                    'SEDG',
+                    'FSLR',
+                    'NEE',
+                  }.contains(t.toUpperCase()),
+                ) ||
+                a.title.toLowerCase().contains('energy') ||
+                a.title.toLowerCase().contains('solar') ||
+                a.title.toLowerCase().contains('ev'),
+          )
+          .toList();
     case 'aerospace_and_defense':
-      return articles.where((a) =>
-        a.tickers.any((t) => {'BA', 'LMT', 'RTX', 'NOC', 'GD'}.contains(t.toUpperCase())) ||
-        a.title.toLowerCase().contains('aerospace') ||
-        a.title.toLowerCase().contains('defense') ||
-        a.title.toLowerCase().contains('boeing')
-      ).toList();
+      return articles
+          .where(
+            (a) =>
+                a.tickers.any(
+                  (t) => {
+                    'BA',
+                    'LMT',
+                    'RTX',
+                    'NOC',
+                    'GD',
+                  }.contains(t.toUpperCase()),
+                ) ||
+                a.title.toLowerCase().contains('aerospace') ||
+                a.title.toLowerCase().contains('defense') ||
+                a.title.toLowerCase().contains('boeing'),
+          )
+          .toList();
     case 'oil_and_gas':
-      return articles.where((a) =>
-        a.tickers.any((t) => {'XOM', 'CVX', 'COP', 'BP', 'SHEL', 'RELIANCE.NS'}.contains(t.toUpperCase())) ||
-        a.title.toLowerCase().contains('oil') ||
-        a.title.toLowerCase().contains('gas') ||
-        a.title.toLowerCase().contains('crude')
-      ).toList();
+      return articles
+          .where(
+            (a) =>
+                a.tickers.any(
+                  (t) => {
+                    'XOM',
+                    'CVX',
+                    'COP',
+                    'BP',
+                    'SHEL',
+                    'RELIANCE.NS',
+                  }.contains(t.toUpperCase()),
+                ) ||
+                a.title.toLowerCase().contains('oil') ||
+                a.title.toLowerCase().contains('gas') ||
+                a.title.toLowerCase().contains('crude'),
+          )
+          .toList();
     case 'cybersecurity':
-      return articles.where((a) =>
-        a.tickers.any((t) => {'CRWD', 'PANW', 'FTNT', 'ZS', 'NET'}.contains(t.toUpperCase())) ||
-        a.title.toLowerCase().contains('cyber') ||
-        a.title.toLowerCase().contains('hack') ||
-        a.title.toLowerCase().contains('security')
-      ).toList();
+      return articles
+          .where(
+            (a) =>
+                a.tickers.any(
+                  (t) => {
+                    'CRWD',
+                    'PANW',
+                    'FTNT',
+                    'ZS',
+                    'NET',
+                  }.contains(t.toUpperCase()),
+                ) ||
+                a.title.toLowerCase().contains('cyber') ||
+                a.title.toLowerCase().contains('hack') ||
+                a.title.toLowerCase().contains('security'),
+          )
+          .toList();
     case 'housing':
-      return articles.where((a) =>
-        a.tickers.any((t) => {'DHI', 'LEN', 'TOL', 'HD', 'LOW'}.contains(t.toUpperCase())) ||
-        a.title.toLowerCase().contains('housing') ||
-        a.title.toLowerCase().contains('mortgage') ||
-        a.title.toLowerCase().contains('home')
-      ).toList();
+      return articles
+          .where(
+            (a) =>
+                a.tickers.any(
+                  (t) => {
+                    'DHI',
+                    'LEN',
+                    'TOL',
+                    'HD',
+                    'LOW',
+                  }.contains(t.toUpperCase()),
+                ) ||
+                a.title.toLowerCase().contains('housing') ||
+                a.title.toLowerCase().contains('mortgage') ||
+                a.title.toLowerCase().contains('home'),
+          )
+          .toList();
     case 'stock_market_general':
     default:
-      final matches = articles.where((a) =>
-        a.title.toLowerCase().contains(key.replaceAll('_', ' ')) ||
-        a.summary.toLowerCase().contains(key.replaceAll('_', ' '))
-      ).toList();
+      final matches = articles
+          .where(
+            (a) =>
+                a.title.toLowerCase().contains(key.replaceAll('_', ' ')) ||
+                a.summary.toLowerCase().contains(key.replaceAll('_', ' ')),
+          )
+          .toList();
       return matches.isNotEmpty ? matches : articles.take(15).toList();
   }
 }

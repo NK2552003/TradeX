@@ -2,8 +2,8 @@ self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('push', event => {
   let data = {};
   try { data = event.data?.json() || {}; } catch (_) { /* Never display raw payloads. */ }
-  event.waitUntil(self.registration.showNotification('alphajournal', {
-    body: 'You have new activity. Open alphajournal to view it.',
+  event.waitUntil(self.registration.showNotification('AlphaJournal', {
+    body: 'You have new activity. Open AlphaJournal to view it.',
     tag: typeof data.id === 'string' ? data.id : 'activity',
     data: {url: new URL('../', self.registration.scope).href},
   }));

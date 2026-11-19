@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/security/message_cipher.dart';
-import 'package:tradex/core/security/private_message_service.dart';
+import 'package:alphajournal/core/security/message_cipher.dart';
+import 'package:alphajournal/core/security/private_message_service.dart';
 
 void main() {
   final cipher = MessageCipher();
@@ -122,15 +122,18 @@ void main() {
     );
   });
 
-  test('newIdentity yields clamped bytes so signing keys survive seed reload', () async {
-    final identity = await cipher.newIdentity();
-    final seed = await identity.extractPrivateKeyBytes();
-    final reloaded = await X25519().newKeyPairFromSeed(seed);
-    expect(
-      (await cipher.signingPublicKey(reloaded)).bytes,
-      (await cipher.signingPublicKey(identity)).bytes,
-    );
-  });
+  test(
+    'newIdentity yields clamped bytes so signing keys survive seed reload',
+    () async {
+      final identity = await cipher.newIdentity();
+      final seed = await identity.extractPrivateKeyBytes();
+      final reloaded = await X25519().newKeyPairFromSeed(seed);
+      expect(
+        (await cipher.signingPublicKey(reloaded)).bytes,
+        (await cipher.signingPublicKey(identity)).bytes,
+      );
+    },
+  );
 
   test(
     'identityFromSeedBytes preserves unclamped WebCrypto seeds and decryptWithKeys recovers self rows',
@@ -207,8 +210,8 @@ void main() {
     () async {
       final pair = await cipher.newIdentity();
       final seed = await pair.extractPrivateKeyBytes();
-      final wrappingKey =
-          await (await AesGcm.with256bits().newSecretKey()).extractBytes();
+      final wrappingKey = await (await AesGcm.with256bits().newSecretKey())
+          .extractBytes();
 
       final envelope = await PrivateMessageService.sealHandoffSeed(
         seed: seed,

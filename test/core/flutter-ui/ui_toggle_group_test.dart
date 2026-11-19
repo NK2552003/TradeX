@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradex/core/app-ui/blocks/desk_blocks.dart';
-import 'package:tradex/core/app-ui/theme/app_tokens.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/app-ui/blocks/desk_blocks.dart';
+import 'package:alphajournal/core/app-ui/theme/app_tokens.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 void main() {
   group('AppWorkspaceCalendarBar layout', () {

@@ -380,12 +380,14 @@ class AppSettingCard extends StatelessWidget {
         final bool isToggleGroup = control is UiToggleGroup;
         final bool shouldStack =
             !isSwitch && (forceStack || isToggleGroup || stack);
-        final VoidCallback? effectiveOnTap = onTap ??
+        final VoidCallback? effectiveOnTap =
+            onTap ??
             (control is UiSwitch &&
                     (control as UiSwitch).enabled &&
                     (control as UiSwitch).onChanged != null
-                ? () => (control as UiSwitch)
-                    .onChanged!(!(control as UiSwitch).value)
+                ? () => (control as UiSwitch).onChanged!(
+                    !(control as UiSwitch).value,
+                  )
                 : null);
         final Widget copy = Row(
           crossAxisAlignment: CrossAxisAlignment.center,

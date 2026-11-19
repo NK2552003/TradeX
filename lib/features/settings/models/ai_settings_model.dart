@@ -88,12 +88,15 @@ class AiSettingsModel {
   /// on top of existing settings.
   AiSettingsModel mergeWorkspaceSettings(Map<String, dynamic> workspace) {
     final String rawAppearance = (workspace['appearance'] ?? '').toString();
-    final String rawSpec =
-        (workspace['defaultSpecialistId'] ?? '').toString().trim();
-    final String rawStyle =
-        (workspace['responseStyle'] ?? '').toString().trim();
-    final String rawCitations =
-        (workspace['citationsStyle'] ?? '').toString().trim();
+    final String rawSpec = (workspace['defaultSpecialistId'] ?? '')
+        .toString()
+        .trim();
+    final String rawStyle = (workspace['responseStyle'] ?? '')
+        .toString()
+        .trim();
+    final String rawCitations = (workspace['citationsStyle'] ?? '')
+        .toString()
+        .trim();
 
     return copyWith(
       appearance: ['system', 'light', 'dark'].contains(rawAppearance)
@@ -112,10 +115,9 @@ class AiSettingsModel {
           ? workspace['apps'] == true
           : null,
       defaultSpecialistId: rawSpec.isNotEmpty ? rawSpec : null,
-      responseStyle:
-          ['concise', 'balanced', 'detailed'].contains(rawStyle)
-              ? rawStyle
-              : null,
+      responseStyle: ['concise', 'balanced', 'detailed'].contains(rawStyle)
+          ? rawStyle
+          : null,
       citationsStyle: ['inline', 'footnotes'].contains(rawCitations)
           ? rawCitations
           : null,
@@ -158,19 +160,22 @@ class AiSettingsModel {
     return AiSettingsModel(
       appearance: ['system', 'light', 'dark'].contains(app) ? app : 'system',
       paused: json['paused'] == true,
-      allowWebResearch: json['research'] as bool? ?? json['allowWebResearch'] as bool? ?? true,
-      allowMemory: json['memory'] as bool? ?? json['allowMemory'] as bool? ?? true,
-      allowConnectedApps: json['apps'] as bool? ?? json['allowConnectedApps'] as bool? ?? true,
+      allowWebResearch:
+          json['research'] as bool? ??
+          json['allowWebResearch'] as bool? ??
+          true,
+      allowMemory:
+          json['memory'] as bool? ?? json['allowMemory'] as bool? ?? true,
+      allowConnectedApps:
+          json['apps'] as bool? ?? json['allowConnectedApps'] as bool? ?? true,
       defaultSpecialistId:
           ((json['defaultSpecialistId'] as String?)?.trim().isNotEmpty ?? false)
-              ? (json['defaultSpecialistId'] as String).trim()
-              : 'analyst',
+          ? (json['defaultSpecialistId'] as String).trim()
+          : 'analyst',
       responseStyle: ['concise', 'balanced', 'detailed'].contains(style)
           ? style
           : 'balanced',
-      citationsStyle: ['inline', 'footnotes'].contains(cite)
-          ? cite
-          : 'inline',
+      citationsStyle: ['inline', 'footnotes'].contains(cite) ? cite : 'inline',
       autoAttachContext: json['autoAttachContext'] as bool? ?? true,
       requireToolApproval: json['requireToolApproval'] as bool? ?? true,
       voiceAutoSpeak: json['voiceAutoSpeak'] as bool? ?? false,

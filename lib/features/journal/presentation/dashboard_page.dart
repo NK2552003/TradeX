@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
-import 'package:tradex/features/journal/data/supabase_trade_repository.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/features/journal/data/supabase_trade_repository.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key, this.repository});

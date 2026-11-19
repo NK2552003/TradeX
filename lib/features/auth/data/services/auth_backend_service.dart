@@ -1,11 +1,11 @@
 import 'dart:math';
-import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
-import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
-import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
-import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
-import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/models/user_profile_model.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_application_repository.dart';
+import 'package:alphajournal/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:alphajournal/features/auth/data/repositories/auth_repository.dart';
+import 'package:alphajournal/features/auth/data/services/auth_session_storage.dart';
+import 'package:alphajournal/features/auth/models/affiliate_profile_model.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
+import 'package:alphajournal/features/auth/models/user_profile_model.dart';
 
 /// Complete backend authentication service implementing AuthRepository.
 class AuthBackendService implements AuthRepository {
@@ -111,7 +111,8 @@ class AuthBackendService implements AuthRepository {
 
     // 5. Generate System Metadata & Referral Code
     final userId = 'usr_${Random().nextInt(899999) + 100000}';
-    final generatedReferralCode = 'REF-TRADEX-${Random().nextInt(8999) + 1000}';
+    final generatedReferralCode =
+        'REF-ALPHAJOURNAL-${Random().nextInt(8999) + 1000}';
     final displayName = _deriveDisplayName(cleanEmail, cleanHandle);
 
     // 6. Build User Profile
@@ -237,7 +238,7 @@ class AuthBackendService implements AuthRepository {
           _affiliatesById[profile.id] ??
           AffiliateProfileModel(
             id: profile.id,
-            affiliateCode: profile.referralCode ?? 'REF-TRADEX-PARTNER',
+            affiliateCode: profile.referralCode ?? 'REF-ALPHAJOURNAL-PARTNER',
             tier: 'silver',
             commissionRate: 0.18,
             totalReferrals: 14,

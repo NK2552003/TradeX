@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/markdown_kit/markdown_editor_field.dart';
-import 'package:tradex/core/markdown_kit/markdown_snippets.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_editor_field.dart';
+import 'package:alphajournal/core/markdown_kit/markdown_snippets.dart';
 
 /// Floating formatting bar for [RichMarkdownEditorField]. Meant to be
 /// positioned above the larger of the keyboard inset and the app's dock-safe
@@ -31,10 +31,10 @@ class MarkdownEditorToolbar extends StatelessWidget {
   /// static entry in [MarkdownSnippets].
   final VoidCallback? onInsertTicker;
 
-  /// Opens the strategy picker, which writes a `tradex://strategy/<id>` link.
+  /// Opens the strategy picker, which writes a `alphajournal://strategy/<id>` link.
   final VoidCallback? onInsertStrategy;
 
-  /// Opens the trade picker, which writes a `tradex://journal/<id>` link. A
+  /// Opens the trade picker, which writes a `alphajournal://journal/<id>` link. A
   /// playbook cites the trades that tested it; an entry cites the playbook it
   /// followed. Both directions of the same edge.
   final VoidCallback? onInsertJournal;
@@ -207,7 +207,11 @@ class MarkdownEditorToolbar extends StatelessWidget {
               ],
               PopupMenuButton<String>(
                 tooltip: 'Heading',
-                icon: Icon(Icons.title, size: 20, color: colors.foregroundMuted),
+                icon: Icon(
+                  Icons.title,
+                  size: 20,
+                  color: colors.foregroundMuted,
+                ),
                 splashRadius: 20,
                 padding: EdgeInsets.zero,
                 onSelected: (value) => _editor?.prefixCurrentLine(value),
@@ -263,7 +267,8 @@ class MarkdownEditorToolbar extends StatelessWidget {
                 icon: Icons.link,
                 hint: 'Link a record',
                 onTap:
-                    onInsertRecord ?? () => _editor?.wrapSelection('[', '](url)'),
+                    onInsertRecord ??
+                    () => _editor?.wrapSelection('[', '](url)'),
               ),
               if (onPickImage != null)
                 _ToolbarButton(

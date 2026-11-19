@@ -136,7 +136,9 @@ class ScrollableTableBuilder extends MarkdownElementBuilder {
               for (int r = 0; r < rows.length; r++)
                 TableRow(
                   decoration: _isHeaderRow(rows[r])
-                      ? BoxDecoration(color: borderColor.withValues(alpha: 0.22))
+                      ? BoxDecoration(
+                          color: borderColor.withValues(alpha: 0.22),
+                        )
                       : (r.isEven
                             ? BoxDecoration(
                                 color: borderColor.withValues(alpha: 0.05),

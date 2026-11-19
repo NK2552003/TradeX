@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
-import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/settings/models/notification_prefs_model.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/settings/models/notification_prefs_model.dart';
 
 abstract class NotificationPrefsRepository {
   Future<NotificationPrefsModel> getPreferences();
@@ -21,7 +21,7 @@ class NotificationPrefsRepositoryImpl implements NotificationPrefsRepository {
 
   factory NotificationPrefsRepositoryImpl() => instance;
 
-  static const String _cacheKeyPrefix = 'tradex_notification_prefs_v1:';
+  static const String _cacheKeyPrefix = 'alphajournal_notification_prefs_v1:';
 
   NotificationPrefsModel _prefs = NotificationPrefsModel.defaultPrefs();
   final ValueNotifier<NotificationPrefsModel> notifier =

@@ -3,13 +3,13 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
 // ignore: unused_import, unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
-import 'package:tradex/features/journal/ui/journal_editor_screen.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import 'package:alphajournal/features/journal/data/journal_repository.dart';
+import 'package:alphajournal/features/journal/ui/journal_editor_screen.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// Opens a reviewable trade entry pre-populated from a calculator and persists
 /// it to the backend journal repository and calculator trade history on save.
@@ -218,7 +218,7 @@ class CalculatorHistoryStore extends ChangeNotifier {
   CalculatorHistoryStore._();
   static final CalculatorHistoryStore instance = CalculatorHistoryStore._();
 
-  static const String _prefsKey = 'tradex_calculator_logged_trades_v1';
+  static const String _prefsKey = 'alphajournal_calculator_logged_trades_v1';
   final List<CalculatorHistoryRecord> _localRecords =
       <CalculatorHistoryRecord>[];
   bool _loaded = false;

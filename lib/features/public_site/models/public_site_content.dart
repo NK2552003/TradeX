@@ -1,4 +1,4 @@
-import 'package:tradex/features/auth/models/pricing_models.dart';
+import 'package:alphajournal/features/auth/models/pricing_models.dart';
 
 /// The `content` column of public_site_pages; JSON arrays preserve editorial order.
 class PublicSiteContent {
