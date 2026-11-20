@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'community_video_embed_stub.dart'
+    if (dart.library.js_interop) 'community_video_embed_web.dart';
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import 'community_emoji_picker.dart';
 
@@ -58,6 +60,7 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar>
   final GlobalKey _likeButtonKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   Timer? _hideTimer;
+  bool _videoGuardHeld = false;
 
   void _showOverlay() {
     _hideTimer?.cancel();
@@ -160,6 +163,10 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar>
       },
     );
 
+    if (!_videoGuardHeld) {
+      _videoGuardHeld = true;
+      CommunityVideoPointerGuard.acquire();
+    }
     overlay.insert(_overlayEntry!);
     _motion.forward(from: 0);
     if (mounted) setState(() {});
@@ -192,6 +199,10 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar>
     _overlayEntry?.dispose();
     _overlayEntry = null;
     _closing = false;
+    if (_videoGuardHeld) {
+      _videoGuardHeld = false;
+      CommunityVideoPointerGuard.release();
+    }
   }
 
   @override

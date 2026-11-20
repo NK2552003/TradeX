@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
 import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 import 'package:alphajournal/features/community/models/community_models.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_composer_pickers.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_highlighted_text.dart';
 
 /// Reusable comment / reply row supporting threaded indents, author verification,
@@ -124,7 +125,7 @@ class CommunityCommentCard extends StatelessWidget {
                         top: context.sp(theme.spacing.xxs),
                       ),
                       child: CommunityHighlightedText(
-                        text: comment.body,
+                        text: CommunityCommentLinkCodec.strip(comment.body),
                         style: context.uiText.body.copyWith(
                           fontSize: context.fs(13),
                           height: 1.4,

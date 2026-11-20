@@ -130,7 +130,46 @@ class SupabaseCopilotApi extends CopilotApi {
           'Resume your copilot in Settings before sending a message.',
         );
       }
-      final thread = recordById(state, 'threads', threadId);
+      final existingThreads = state['threads'] as List? ?? <dynamic>[];
+      Json? existingThread;
+      for (final item in existingThreads) {
+        if (item is Map && item['id'] == threadId) {
+          existingThread = item as Json;
+          break;
+        }
+      }
+      final Json thread;
+      if (existingThread != null) {
+        thread = existingThread;
+      } else {
+        final specialistsList = records(state['specialists']);
+        final fallbackSpecId = specialistsList.isNotEmpty
+            ? textOf(specialistsList.first, 'id', 'analyst')
+            : 'analyst';
+        final requestedSpecId = textOf(body, 'specialistId', fallbackSpecId);
+        final resolvedSpecId = specialistsList.any(
+              (s) => s['id'] == requestedSpecId,
+            )
+            ? requestedSpecId
+            : fallbackSpecId;
+        final stamp = now();
+        thread = <String, dynamic>{
+          'id': threadId,
+          'title': 'New conversation',
+          'specialistId': resolvedSpecId,
+          'pageId': null,
+          'createdAt': stamp,
+          'updatedAt': stamp,
+          'status': 'idle',
+          'messages': <Json>[],
+          'approvals': <Json>[],
+          'pinned': false,
+        };
+        if (state['threads'] is! List) {
+          state['threads'] = <Json>[];
+        }
+        (state['threads'] as List).insert(0, thread);
+      }
       if (thread['status'] == 'running') {
         throw const CopilotFailure(
           'This conversation is already responding.',

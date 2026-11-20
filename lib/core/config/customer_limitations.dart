@@ -9,6 +9,7 @@ import 'package:alphajournal/features/admin_console/data/admin_console_repositor
 import 'package:alphajournal/features/affiliate_program/models/affiliate_workspace.dart';
 import 'package:alphajournal/features/public_site/data/public_site_repository.dart';
 import 'package:alphajournal/features/settings/models/desk_risk_model.dart';
+import 'package:alphajournal/features/settings/presentation/pages/trader/change_plan_page.dart';
 
 /// Subscription tier entitlements and quota limits on the customer (trader) side.
 /// All pricing is denominated in Indian Rupees (INR / ₹).
@@ -795,164 +796,361 @@ class CustomerLimitations {
     ],
   };
 
-  /// Displays a redesigned INR plan comparison modal showing every feature per tier.
+  /// Displays a sleek full-featured INR subscription comparison overlay showing
+  /// only the currently available plans (Free, Basic, Pro) with grouped,
+  /// icon-labeled entitlements and direct upgrade navigation.
   static Future<void> showPlanUpgradeDialog(
     BuildContext context, {
     required String featureTitle,
     required String reason,
   }) async {
     final AppSession session = AppSession.instance;
-    await UiDialog.show<void>(
-      context,
-      maxWidth: 920,
-      child: StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setModalState) {
-          final AppTier activeTier = session.tier.value;
-          final UiTheme theme = ctx.ui;
-          final bool compact = ctx.uiRes.isMobile;
+    final NavigatorState rootNavigator = Navigator.of(context);
+    bool openChangePlanAfterClose = false;
 
-          Widget buildTierCard(AppTier tier) {
-            final CustomerTierQuota q = CustomerTierQuota.forTier(tier);
-            final bool selected = tier == activeTier;
-            final bool highlighted = tier == AppTier.premium;
-            final features = featuresForTier(q);
-            final IconData tierIcon = switch (tier) {
-              AppTier.free => Icons.bolt_outlined,
-              AppTier.premium => Icons.auto_awesome_rounded,
-              AppTier.enterprise => Icons.workspace_premium_rounded,
-            };
-            final String tagline = switch (tier) {
-              AppTier.free => 'Core journaling, Community & market previews',
-              AppTier.premium =>
-                'Full Market Intelligence, Messages & advanced calculators',
-              AppTier.enterprise =>
-                'Exports, backtesting, analytics & highest workspace limits',
-            };
-            return Container(
-              padding: EdgeInsets.all(ctx.sp(theme.spacing.md)),
-              decoration: BoxDecoration(
-                color: selected
-                    ? theme.colors.surfaceMuted.withValues(alpha: 0.45)
-                    : theme.colors.surface,
-                borderRadius: ctx.radius(theme.radii.lg),
-                border: Border.all(
-                  color: selected || highlighted
-                      ? theme.colors.primary.withValues(
-                          alpha: selected ? 0.65 : 0.4,
-                        )
-                      : theme.colors.border,
-                  width: selected || highlighted ? 1.5 : theme.borders.hairline,
-                ),
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.72),
+      builder: (BuildContext ctx) {
+        final AppTier activeTier = session.tier.value;
+        final UiTheme theme = ctx.ui;
+        final bool compact = MediaQuery.sizeOf(ctx).width < 820;
+
+        final Color modalBg = theme.colors.surface;
+        final Color cardBg = theme.colors.surfaceMuted.withValues(alpha: 0.38);
+        final Color cardBorder = theme.colors.border;
+        final Color dividerColor = theme.colors.border;
+
+        String formatQuota(int value, String singular, String plural) {
+          if (value >= 100000) return 'Unlimited $plural';
+          return '$value ${value == 1 ? singular : plural}';
+        }
+
+        List<({String heading, List<({IconData icon, String label})> items})>
+        sectionsForTier(CustomerTierQuota q) {
+          return switch (q.tier) {
+            AppTier.free => [
+              (
+                heading: 'Workspace & Journaling',
+                items: [
+                  (
+                    icon: Icons.edit_note_rounded,
+                    label: formatQuota(q.maxNotes, 'note', 'notes'),
+                  ),
+                  (
+                    icon: Icons.candlestick_chart_rounded,
+                    label: formatQuota(q.maxTrades, 'trade log', 'trade logs'),
+                  ),
+                  (
+                    icon: Icons.track_changes_rounded,
+                    label: formatQuota(
+                      q.maxLiveStrategies,
+                      'live strategy',
+                      'live strategies',
+                    ),
+                  ),
+                  (
+                    icon: Icons.bookmark_border_rounded,
+                    label: formatQuota(
+                      q.maxWatchlists,
+                      'watchlist',
+                      'watchlists',
+                    ),
+                  ),
+                  (
+                    icon: Icons.notifications_none_rounded,
+                    label: formatQuota(q.maxAlerts, 'price alert', 'price alerts'),
+                  ),
+                ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Container(
-                        padding: EdgeInsets.all(ctx.sp(theme.spacing.xs)),
-                        decoration: BoxDecoration(
-                          color: theme.colors.primary.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          tierIcon,
-                          size: ctx.sz(16),
-                          color: theme.colors.primary,
-                        ),
+              (
+                heading: 'Community & Markets',
+                items: [
+                  (
+                    icon: Icons.forum_outlined,
+                    label:
+                        '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+                  ),
+                  (
+                    icon: Icons.show_chart_rounded,
+                    label: 'Market previews & basic calculators',
+                  ),
+                ],
+              ),
+            ],
+            AppTier.premium => [
+              (
+                heading: 'Markets & Desk',
+                items: [
+                  (
+                    icon: Icons.candlestick_chart_rounded,
+                    label:
+                        '${formatQuota(q.maxNotes, 'note', 'notes')} & ${formatQuota(q.maxTrades, 'trade', 'trades')}',
+                  ),
+                  (
+                    icon: Icons.track_changes_rounded,
+                    label:
+                        '${formatQuota(q.maxLiveStrategies, 'strategy', 'strategies')} & ${formatQuota(q.maxWatchlists, 'watchlist', 'watchlists')}',
+                  ),
+                  (
+                    icon: Icons.insights_rounded,
+                    label: 'Full Market Intelligence & screeners',
+                  ),
+                  (
+                    icon: Icons.calculate_outlined,
+                    label: 'Advanced risk & position calculators',
+                  ),
+                  (
+                    icon: Icons.mail_outline_rounded,
+                    label: 'Direct messages & trader network',
+                  ),
+                ],
+              ),
+              (
+                heading: 'AI & Alerts',
+                items: [
+                  (
+                    icon: Icons.auto_awesome_rounded,
+                    label: '${q.maxAiQueriesPerMonth} AI Copilot queries / mo',
+                  ),
+                  (
+                    icon: Icons.notifications_active_outlined,
+                    label: formatQuota(q.maxAlerts, 'active alert', 'active alerts'),
+                  ),
+                  (
+                    icon: Icons.forum_outlined,
+                    label:
+                        '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+                  ),
+                ],
+              ),
+            ],
+            AppTier.enterprise => [
+              (
+                heading: 'Institutional Desk',
+                items: [
+                  (
+                    icon: Icons.layers_outlined,
+                    label:
+                        '${formatQuota(q.maxNotes, 'note', 'notes')} & ${formatQuota(q.maxTrades, 'trade', 'trades')}',
+                  ),
+                  (
+                    icon: Icons.picture_as_pdf_outlined,
+                    label: 'CSV & PDF performance exports',
+                  ),
+                  (
+                    icon: Icons.science_outlined,
+                    label: 'Advanced strategy backtesting',
+                  ),
+                  (
+                    icon: Icons.query_stats_rounded,
+                    label: 'Deep expectancy & drawdown analytics',
+                  ),
+                ],
+              ),
+              (
+                heading: 'AI & Priority',
+                items: [
+                  (
+                    icon: Icons.bolt_rounded,
+                    label: '${q.maxAiQueriesPerMonth} AI Copilot queries / mo',
+                  ),
+                  (
+                    icon: Icons.notifications_active_rounded,
+                    label: formatQuota(q.maxAlerts, 'active alert', 'active alerts'),
+                  ),
+                  (
+                    icon: Icons.verified_outlined,
+                    label:
+                        '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+                  ),
+                ],
+              ),
+            ],
+          };
+        }
+
+        Widget buildTierCard(AppTier tier) {
+          final CustomerTierQuota q = CustomerTierQuota.forTier(tier);
+          final bool selected = tier == activeTier;
+          final bool highlighted = tier == AppTier.premium;
+          final sections = sectionsForTier(q);
+
+          final String introLine = switch (tier) {
+            AppTier.free => 'Our introductory plan:',
+            AppTier.premium => 'Everything in Free, and:',
+            AppTier.enterprise => 'Everything in Basic, and:',
+          };
+
+          final String ctaLabel = selected
+              ? 'Current plan'
+              : (tier == AppTier.free
+                    ? 'Switch to Free'
+                    : 'Get ${q.planName}');
+
+          final String? badgeText = selected
+              ? 'Current plan'
+              : (highlighted
+                    ? 'Most popular'
+                    : (tier == AppTier.enterprise ? 'Full desk' : null));
+
+          final UiIntent badgeIntent = selected
+              ? UiIntent.success
+              : (highlighted ? UiIntent.primary : UiIntent.neutral);
+
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: selected || highlighted
+                  ? theme.colors.surfaceMuted.withValues(alpha: 0.55)
+                  : cardBg,
+              borderRadius: ctx.radius(theme.radii.lg),
+              border: Border.all(
+                color: selected
+                    ? theme.colors.success.withValues(alpha: 0.5)
+                    : (highlighted
+                          ? theme.colors.primary.withValues(alpha: 0.45)
+                          : cardBorder),
+                width: selected || highlighted ? 1.25 : theme.borders.hairline,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Text(
+                      q.planName,
+                      style: ctx.uiText.heading.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colors.foreground,
                       ),
-                      const Spacer(),
+                    ),
+                    const Spacer(),
+                    if (badgeText != null)
                       UiBadge(
-                        label: selected
-                            ? 'Current Plan'
-                            : (highlighted ? 'Popular' : 'Preview'),
-                        icon: selected
-                            ? Icons.check_circle_outline_rounded
-                            : null,
-                        intent: selected
-                            ? UiIntent.success
-                            : (highlighted
-                                  ? UiIntent.primary
-                                  : UiIntent.neutral),
+                        label: badgeText,
+                        intent: badgeIntent,
                         variant: UiBadgeVariant.soft,
                         size: UiSize.xs,
                       ),
-                    ],
-                  ),
-                  SizedBox(height: ctx.sp(theme.spacing.sm)),
-                  Text(
-                    q.planName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: ctx.uiText.heading.copyWith(
-                      fontSize: ctx.fs(16),
-                      fontWeight: FontWeight.w700,
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: <Widget>[
+                    Text(
+                      q.monthlyPriceInr == 0
+                          ? '₹0'
+                          : formatInrAmount(q.monthlyPriceInr),
+                      style: ctx.uiText.display.copyWith(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.8,
+                        color: theme.colors.foreground,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '/month',
+                      style: ctx.uiText.caption.copyWith(
+                        fontSize: 12,
+                        color: theme.colors.foregroundSubtle,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  height: 42,
+                  child: Material(
+                    color: selected
+                        ? theme.colors.surfaceMuted
+                        : (highlighted
+                              ? theme.colors.primary
+                              : theme.colors.surface),
+                    borderRadius: ctx.radius(theme.radii.pill),
+                    child: InkWell(
+                      onTap: selected
+                          ? null
+                          : () {
+                              openChangePlanAfterClose = true;
+                              Navigator.of(ctx).pop();
+                            },
+                      borderRadius: ctx.radius(theme.radii.pill),
+                      child: Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: ctx.radius(theme.radii.pill),
+                          border: selected || highlighted
+                              ? null
+                              : Border.all(color: theme.colors.borderStrong),
+                        ),
+                        child: Text(
+                          ctaLabel,
+                          style: ctx.uiText.body.copyWith(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: selected
+                                ? theme.colors.foregroundSubtle
+                                : (highlighted
+                                      ? theme.colors.onPrimary
+                                      : theme.colors.foreground),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  SizedBox(height: ctx.sp(theme.spacing.xxs)),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  introLine,
+                  style: ctx.uiText.caption.copyWith(
+                    fontSize: 12,
+                    color: theme.colors.foregroundMuted,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                for (int s = 0; s < sections.length; s++) ...<Widget>[
+                  if (s > 0) const SizedBox(height: 14),
                   Text(
-                    tagline,
+                    sections[s].heading,
                     style: ctx.uiText.caption.copyWith(
-                      color: theme.colors.foregroundMuted,
-                      height: 1.3,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colors.foregroundSubtle,
                     ),
                   ),
-                  SizedBox(height: ctx.sp(theme.spacing.sm)),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: <Widget>[
-                      Text(
-                        q.monthlyPriceInr == 0
-                            ? '₹0'
-                            : formatInrAmount(q.monthlyPriceInr),
-                        style: ctx.uiText.display.copyWith(
-                          fontSize: ctx.fs(24),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      SizedBox(width: ctx.sp(theme.spacing.xxs)),
-                      Text(
-                        q.monthlyPriceInr == 0 ? 'free forever' : '/ mo',
-                        style: ctx.uiText.caption.copyWith(
-                          color: theme.colors.foregroundSubtle,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: ctx.sp(theme.spacing.sm)),
-                  const UiDivider(spacing: 0),
-                  SizedBox(height: ctx.sp(theme.spacing.sm)),
-                  for (final item in features)
+                  const SizedBox(height: 6),
+                  Divider(height: 1, thickness: 1, color: dividerColor),
+                  const SizedBox(height: 10),
+                  for (final item in sections[s].items)
                     Padding(
-                      padding: EdgeInsets.only(
-                        bottom: ctx.sp(theme.spacing.xs),
-                      ),
+                      padding: const EdgeInsets.only(bottom: 9),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Padding(
                             padding: const EdgeInsets.only(top: 1),
                             child: Icon(
-                              item.included
-                                  ? Icons.check_rounded
-                                  : Icons.lock_outline_rounded,
-                              size: ctx.sz(14),
-                              color: item.included
-                                  ? theme.colors.success
-                                  : theme.colors.foregroundSubtle,
+                              item.icon,
+                              size: 15,
+                              color: theme.colors.foregroundMuted,
                             ),
                           ),
-                          SizedBox(width: ctx.sp(theme.spacing.xs)),
+                          const SizedBox(width: 9),
                           Expanded(
                             child: Text(
                               item.label,
                               style: ctx.uiText.caption.copyWith(
-                                color: item.included
-                                    ? theme.colors.foreground
-                                    : theme.colors.foregroundSubtle,
-                                height: 1.35,
+                                fontSize: 12.5,
+                                color: theme.colors.foreground,
+                                height: 1.32,
                               ),
                             ),
                           ),
@@ -960,48 +1158,188 @@ class CustomerLimitations {
                       ),
                     ),
                 ],
-              ),
-            );
-          }
+              ],
+            ),
+          );
+        }
 
-          return UiDialog(
-            title: featureTitle,
-            description: reason,
-            content: SingleChildScrollView(
-              child: compact
-                  ? Column(
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: compact ? 12 : 24,
+            vertical: compact ? 16 : 24,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 1000,
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.9,
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: modalBg,
+                borderRadius: ctx.radius(theme.radii.xl),
+                border: Border.all(color: theme.colors.border),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: theme.colors.overlay.withValues(alpha: 0.4),
+                    blurRadius: 36,
+                    offset: const Offset(0, 16),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  // Top header row
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      compact ? 16 : 24,
+                      compact ? 14 : 18,
+                      compact ? 12 : 16,
+                      compact ? 10 : 14,
+                    ),
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        for (int i = 0; i < AppTier.values.length; i++) ...<Widget>[
-                          if (i > 0) SizedBox(height: ctx.sp(theme.spacing.sm)),
-                          buildTierCard(AppTier.values[i]),
+                        Row(
+                          children: <Widget>[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colors.surfaceMuted,
+                                borderRadius: ctx.radius(theme.radii.pill),
+                                border: Border.all(color: cardBorder),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Icon(
+                                    Icons.auto_awesome_rounded,
+                                    size: 14,
+                                    color: theme.colors.foreground,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'AlphaJournal',
+                                    style: ctx.uiText.caption.copyWith(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: theme.colors.foreground,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.of(ctx).pop(),
+                              tooltip: 'Close',
+                              icon: Icon(
+                                Icons.close_rounded,
+                                size: 20,
+                                color: theme.colors.foregroundMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'One subscription. Access to everything.',
+                          textAlign: TextAlign.center,
+                          style: ctx.uiText.display.copyWith(
+                            fontSize: compact ? 20 : 26,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.5,
+                            color: theme.colors.foreground,
+                          ),
+                        ),
+                        if (featureTitle.isNotEmpty || reason.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: 6),
+                          Text(
+                            reason.isNotEmpty ? reason : featureTitle,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: ctx.uiText.caption.copyWith(
+                              fontSize: 12.5,
+                              color: theme.colors.foregroundMuted,
+                            ),
+                          ),
                         ],
                       ],
-                    )
-                  : IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: <Widget>[
-                          for (int i = 0; i < AppTier.values.length; i++) ...<Widget>[
-                            if (i > 0) SizedBox(width: ctx.sp(theme.spacing.sm)),
-                            Expanded(child: buildTierCard(AppTier.values[i])),
-                          ],
-                        ],
+                    ),
+                  ),
+
+                  // Scrollable cards body
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        compact ? 14 : 24,
+                        4,
+                        compact ? 14 : 24,
+                        16,
+                      ),
+                      child: compact
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: <Widget>[
+                                for (int i = 0; i < AppTier.values.length; i++) ...<Widget>[
+                                  if (i > 0) const SizedBox(height: 12),
+                                  buildTierCard(AppTier.values[i]),
+                                ],
+                              ],
+                            )
+                          : IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: <Widget>[
+                                  for (int i = 0; i < AppTier.values.length; i++) ...<Widget>[
+                                    if (i > 0) const SizedBox(width: 14),
+                                    Expanded(
+                                      child: buildTierCard(AppTier.values[i]),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  // Subtle footer note
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      compact ? 16 : 24,
+                      0,
+                      compact ? 16 : 24,
+                      14,
+                    ),
+                    child: Text(
+                      'Prices shown in INR. Cancel or change your plan anytime from Settings → Billing.',
+                      textAlign: TextAlign.center,
+                      style: ctx.uiText.caption.copyWith(
+                        fontSize: 11,
+                        color: theme.colors.foregroundSubtle,
                       ),
                     ),
-            ),
-            actions: <Widget>[
-              UiButton(
-                label: 'Close',
-                variant: UiVariant.outline,
-                onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
               ),
-            ],
-          );
-        },
-      ),
+            ),
+          ),
+        );
+      },
     );
+
+    if (openChangePlanAfterClose && context.mounted) {
+      await rootNavigator.push(
+        MaterialPageRoute<void>(builder: (_) => const ChangePlanPage()),
+      );
+    }
   }
 }
 

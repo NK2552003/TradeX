@@ -19,18 +19,37 @@ class MathBlockSyntax extends md.InlineSyntax {
 }
 
 /// Matches inline `$...$` LaTeX. Requires non-`$` content with no adjacent
-/// `$` on either side (so it never fires inside a `$$...$$` block) and
-/// forbids a leading space right after the opening `$` / trailing space
-/// right before the closing `$` (the common convention used by Obsidian
-/// and Typora) to cut down on false positives against plain currency like
-/// "$5 or $10". A literal dollar sign can still be escaped as `\$`.
+/// `$` on either side (so it never fires inside a `$$...$$` block), forbids a
+/// leading/trailing space inside the delimiters, and forbids a closing `$`
+/// immediately followed by a digit (e.g. `$1.75 trillion ... $1.5 trillion`)
+/// plus URLs / markdown links / currency prose so financial amounts never get
+/// misparsed as LaTeX math. A literal dollar sign can still be escaped as `\$`.
 class MathInlineSyntax extends md.InlineSyntax {
-  MathInlineSyntax() : super(r'(?<!\$)\$(?!\$)(\S(?:[^$\n]*?\S)?)\$(?!\$)');
+  MathInlineSyntax() : super(r'(?<!\$)\$(?!\$)(\S(?:[^$\n]*?\S)?)\$(?![\$\d])');
+
+  static final RegExp _hasMathOperator = RegExp(
+    r'[\\^_=<>±×÷≤≥≠≈∑∫√]',
+  );
+  static final RegExp _currencyStart = RegExp(
+    r'^\d[\d,.]*(?:\s|[kKmMbBtT]\b)',
+  );
+  static final RegExp _multiWordProse = RegExp(
+    r'[A-Za-z]{3,}\s+[A-Za-z]{2,}\s+[A-Za-z]{3,}',
+  );
 
   @override
   bool onMatch(md.InlineParser parser, Match match) {
     final String tex = (match[1] ?? '').trim();
     if (tex.isEmpty) return false;
+    if (tex.contains('http://') ||
+        tex.contains('https://') ||
+        tex.contains('](')) {
+      return false;
+    }
+    if (!_hasMathOperator.hasMatch(tex) &&
+        (_currencyStart.hasMatch(tex) || _multiWordProse.hasMatch(tex))) {
+      return false;
+    }
     parser.addNode(md.Element.text('math_inline', tex));
     return true;
   }
@@ -55,17 +74,20 @@ class MathInlineBuilder extends MarkdownElementBuilder {
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     final String tex = element.textContent;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: Math.tex(
-        tex,
-        mathStyle: MathStyle.text,
-        textStyle: preferredStyle,
-        onErrorFallback: (FlutterMathException e) => Text(
-          '\$$tex\$',
-          style: preferredStyle?.copyWith(
-            color: Colors.redAccent,
-            fontFamily: 'monospace',
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 1),
+        child: Math.tex(
+          tex,
+          mathStyle: MathStyle.text,
+          textStyle: preferredStyle,
+          onErrorFallback: (FlutterMathException e) => Text(
+            '\$$tex\$',
+            style: preferredStyle?.copyWith(
+              color: Colors.redAccent,
+              fontFamily: 'monospace',
+            ),
           ),
         ),
       ),

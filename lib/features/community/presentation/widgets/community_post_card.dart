@@ -24,7 +24,10 @@ import 'package:alphajournal/features/community/presentation/widgets/community_r
 import 'package:alphajournal/features/community/presentation/widgets/community_share_sheet.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_trade_setup_tile.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_copilot_launcher.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_design.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_video_parser.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_video_player_card.dart';
 import 'package:alphajournal/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// Visual presentation variant for [CommunityPostCard].
@@ -690,6 +693,11 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             onBookmark: _handleBookmark,
             bookmarked: _bookmarked,
             onEdit: _isAuthor ? () => _handleEditPost(context) : null,
+            onExplainAi: () => showCommunityCopilotForPost(
+              context,
+              post: _currentPost,
+              onOpenRef: widget.onOpenRef,
+            ),
             onMoreTap: () {
               CommunityPostOptionsSheet.show(
                 context,
@@ -748,6 +756,17 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                     size: UiSize.xs,
                     tooltip: 'Share',
                     onPressed: () => _handleShare(context),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xxs)),
+                  UiIconButton(
+                    icon: Icons.auto_awesome_outlined,
+                    size: UiSize.xs,
+                    tooltip: 'Explain post with AI',
+                    onPressed: () => showCommunityCopilotForPost(
+                      context,
+                      post: _currentPost,
+                      onOpenRef: widget.onOpenRef,
+                    ),
                   ),
                   SizedBox(width: context.sp(theme.spacing.xxs)),
                   UiIconButton(
@@ -914,6 +933,17 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                   ),
                 ),
             ],
+          ),
+        ],
+
+        // Embedded Video Player (YouTube, Vimeo, Dailymotion, Twitch, MP4/WebM)
+        if ((post.videoUrl != null && post.videoUrl!.trim().isNotEmpty) ||
+            CommunityVideoParser.extractFromText(post.body) != null) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          CommunityVideoPlayerCard(
+            url: (post.videoUrl != null && post.videoUrl!.trim().isNotEmpty)
+                ? post.videoUrl!.trim()
+                : CommunityVideoParser.extractFromText(post.body)!.url,
           ),
         ],
 

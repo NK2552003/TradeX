@@ -21,6 +21,7 @@ class CommunityAuthorHeader extends StatelessWidget {
     this.bookmarked = false,
     this.onMute,
     this.onReport,
+    this.onExplainAi,
     this.onMoreTap,
     this.onEdit,
   });
@@ -35,6 +36,7 @@ class CommunityAuthorHeader extends StatelessWidget {
   final bool bookmarked;
   final VoidCallback? onMute;
   final VoidCallback? onReport;
+  final VoidCallback? onExplainAi;
   final VoidCallback? onMoreTap;
   final VoidCallback? onEdit;
 
@@ -92,6 +94,13 @@ class CommunityAuthorHeader extends StatelessWidget {
           ),
           SizedBox(width: context.sp(theme.spacing.xs)),
         ],
+        if (onExplainAi != null)
+          UiIconButton(
+            icon: Icons.auto_awesome_outlined,
+            size: context.uiRes.isMobile ? UiSize.md : UiSize.xs,
+            tooltip: 'Explain post with AI',
+            onPressed: onExplainAi,
+          ),
         if (onMoreTap != null)
           UiIconButton(
             icon: Icons.more_horiz_rounded,

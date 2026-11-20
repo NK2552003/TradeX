@@ -1,6 +1,7 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show kReleaseMode;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:alphajournal/core/ads/ad_scope.dart';
 import 'package:alphajournal/core/ads/promotion_preview.dart';
@@ -765,15 +766,32 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
 
         // ── Floating Action Button (+) with top stack ──────────────────
         Positioned(
-          right: gutter,
-          bottom: context.uiPageBottomInset + gutter,
-          child: _WorkspaceFab(
-            key: _fabKey,
-            onNewNote: _handleNewNote,
-            onNewTrade: _handleNewTrade,
-            onNewPlaybook: _handleNewPlaybook,
-            onOpenChanged: (bool open) => setState(() => _isFabOpen = open),
-          ),
+          right: context.uiRes.isMobile ? 12.0 : gutter,
+          bottom: context.uiRes.isMobile
+              ? MediaQuery.paddingOf(context).bottom +
+                    (!kIsWeb && defaultTargetPlatform == TargetPlatform.android
+                        ? 8.0
+                        : 16.0)
+              : context.uiPageBottomInset + gutter,
+          child: context.uiRes.isMobile
+              ? AppDockSyncedFab(
+                  child: _WorkspaceFab(
+                    key: _fabKey,
+                    onNewNote: _handleNewNote,
+                    onNewTrade: _handleNewTrade,
+                    onNewPlaybook: _handleNewPlaybook,
+                    onOpenChanged: (bool open) =>
+                        setState(() => _isFabOpen = open),
+                  ),
+                )
+              : _WorkspaceFab(
+                  key: _fabKey,
+                  onNewNote: _handleNewNote,
+                  onNewTrade: _handleNewTrade,
+                  onNewPlaybook: _handleNewPlaybook,
+                  onOpenChanged: (bool open) =>
+                      setState(() => _isFabOpen = open),
+                ),
         ),
       ],
     );
@@ -1373,37 +1391,43 @@ class _WorkspaceFabState extends State<_WorkspaceFab>
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
 
-              // Action button circle — matches the 52x52 size, shape, shadow and alignment of the floating + button
+              // Action button circle — matches the 56x56 size, 28px radius, glass fill & border of the dock
               Container(
-                width: 52,
-                height: 52,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(28),
                   boxShadow: <BoxShadow>[
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.24),
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.36 : 0.10,
+                      ),
                       blurRadius: 18,
                       spreadRadius: 0,
                       offset: const Offset(0, 6),
                     ),
                   ],
                 ),
-                child: ClipOval(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isDark
-                          ? const Color(0xDC1A1817)
-                          : theme.colors.surface.withValues(alpha: 0.92),
-                      border: Border.all(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.18)
-                            : Colors.black.withValues(alpha: 0.12),
-                        width: 1.2,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: BackdropFilter(
+                    filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(28),
+                        color: theme.colors.surface.withValues(
+                          alpha: isDark ? 0.62 : 0.74,
+                        ),
+                        border: Border.all(
+                          color: theme.colors.borderStrong.withValues(
+                            alpha: isDark ? 0.65 : 0.75,
+                          ),
+                          width: 1.2,
+                        ),
                       ),
-                    ),
-                    child: Center(
-                      child: Icon(icon, size: context.sz(24), color: color),
+                      child: Center(
+                        child: Icon(icon, size: context.sz(22), color: color),
+                      ),
                     ),
                   ),
                 ),
@@ -1472,45 +1496,51 @@ class _WorkspaceFabState extends State<_WorkspaceFab>
               SizedBox(height: ctx.sp(theme.spacing.sm)),
             ],
 
-            // Main FAB Button (+)
+            // Main FAB Button (+) — matches 56x56 dock height, 28px radius & frosted glass
             GestureDetector(
               onTap: toggle,
               behavior: HitTestBehavior.opaque,
               child: Container(
-                width: 52,
-                height: 52,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(28),
                   boxShadow: <BoxShadow>[
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.24),
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.36 : 0.10,
+                      ),
                       blurRadius: 18,
                       spreadRadius: 0,
                       offset: const Offset(0, 6),
                     ),
                   ],
                 ),
-                child: ClipOval(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isDark
-                          ? const Color(0xDC1A1817)
-                          : theme.colors.surface.withValues(alpha: 0.92),
-                      border: Border.all(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.18)
-                            : Colors.black.withValues(alpha: 0.12),
-                        width: 1.2,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: BackdropFilter(
+                    filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(28),
+                        color: theme.colors.surface.withValues(
+                          alpha: isDark ? 0.62 : 0.74,
+                        ),
+                        border: Border.all(
+                          color: theme.colors.borderStrong.withValues(
+                            alpha: isDark ? 0.65 : 0.75,
+                          ),
+                          width: 1.2,
+                        ),
                       ),
-                    ),
-                    child: Center(
-                      child: RotationTransition(
-                        turns: _rotateAnimation,
-                        child: Icon(
-                          Icons.add_rounded,
-                          size: ctx.sz(28),
-                          color: activeFg,
+                      child: Center(
+                        child: RotationTransition(
+                          turns: _rotateAnimation,
+                          child: Icon(
+                            Icons.add_rounded,
+                            size: ctx.sz(26),
+                            color: activeFg,
+                          ),
                         ),
                       ),
                     ),

@@ -397,6 +397,7 @@ class CommunityRepository extends ChangeNotifier {
     }
 
     final List<CommunityPost> posts = [];
+    final Map<String, String> quotedPostIdsByPostId = <String, String>{};
     for (final row in rawRows) {
       final postId = row['id']?.toString() ?? '';
       final authorProfile = row['profiles'] as Map<String, dynamic>?;
@@ -552,11 +553,17 @@ class CommunityRepository extends ChangeNotifier {
         }
       }
 
+      final ({String body, String? quotedId, String? videoUrl}) parsedBody =
+          _extractQuotedPostRef(row['body'] as String? ?? '');
+      if (parsedBody.quotedId != null && parsedBody.quotedId!.isNotEmpty) {
+        quotedPostIdsByPostId[postId] = parsedBody.quotedId!;
+      }
+
       posts.add(
         CommunityPost(
           id: postId,
           author: author,
-          body: row['body'] as String? ?? '',
+          body: parsedBody.body,
           createdAt:
               DateTime.tryParse(row['created_at']?.toString() ?? '') ??
               DateTime.now(),
@@ -571,6 +578,7 @@ class CommunityRepository extends ChangeNotifier {
           tradeSetup: setup,
           imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
           imageUrls: imageUrls,
+          videoUrl: parsedBody.videoUrl,
           attachment: attachment,
           poll: poll,
           likes: (row['likes_count'] as num?)?.toInt() ?? 0,
@@ -585,6 +593,35 @@ class CommunityRepository extends ChangeNotifier {
           moderationStatus: row['moderation_status']?.toString() ?? 'approved',
         ),
       );
+    }
+
+    if (quotedPostIdsByPostId.isNotEmpty) {
+      final Map<String, CommunityPost> resolvedQuoted = <String, CommunityPost>{
+        for (final p in posts) p.id: p,
+      };
+      final Set<String> missingIds = <String>{};
+      for (final String qId in quotedPostIdsByPostId.values) {
+        if (resolvedQuoted.containsKey(qId)) continue;
+        final CommunityPost? cached = findPost(qId);
+        if (cached != null) {
+          resolvedQuoted[qId] = cached;
+        } else if (_isUuid(qId)) {
+          missingIds.add(qId);
+        }
+      }
+      if (missingIds.isNotEmpty) {
+        final Map<String, CommunityPost> fetched =
+            await _fetchMinimalQuotedPosts(client, missingIds);
+        resolvedQuoted.addAll(fetched);
+      }
+      for (int i = 0; i < posts.length; i++) {
+        final String? qId = quotedPostIdsByPostId[posts[i].id];
+        if (qId == null) continue;
+        final CommunityPost? qPost = resolvedQuoted[qId];
+        if (qPost != null) {
+          posts[i] = posts[i].copyWith(quoted: qPost);
+        }
+      }
     }
 
     final Map<String, List<CommunityComment>> pageComments = {};
@@ -758,6 +795,99 @@ class CommunityRepository extends ChangeNotifier {
     } catch (error) {
       debugPrint('[CommunityRepository] Error fetching saved posts: $error');
       return null;
+    }
+  }
+
+  static final RegExp _quotedPostRefPattern = RegExp(
+    r'(?:\r?\n)*Quoted post:\s*/community\?post=([^\s]+)\s*$',
+    caseSensitive: false,
+  );
+  static final RegExp _videoRefPattern = RegExp(
+    r'(?:\r?\n)*Video:\s*(https?://[^\s]+)\s*$',
+    caseSensitive: false,
+  );
+
+  static ({String body, String? quotedId, String? videoUrl})
+  _extractQuotedPostRef(String rawBody) {
+    String clean = rawBody;
+    String? quotedId;
+    String? videoUrl;
+
+    final Match? qMatch = _quotedPostRefPattern.firstMatch(clean);
+    if (qMatch != null) {
+      final String rawId = qMatch.group(1)?.trim() ?? '';
+      String decodedId = rawId;
+      try {
+        decodedId = Uri.decodeQueryComponent(rawId);
+      } catch (_) {}
+      if (decodedId.isNotEmpty) quotedId = decodedId;
+      clean = clean.substring(0, qMatch.start).trimRight();
+    }
+
+    final Match? vMatch = _videoRefPattern.firstMatch(clean);
+    if (vMatch != null) {
+      final String url = vMatch.group(1)?.trim() ?? '';
+      if (url.isNotEmpty) videoUrl = url;
+      clean = clean.substring(0, vMatch.start).trimRight();
+    }
+
+    return (body: clean, quotedId: quotedId, videoUrl: videoUrl);
+  }
+
+  Future<Map<String, CommunityPost>> _fetchMinimalQuotedPosts(
+    SupabaseClient client,
+    Set<String> ids,
+  ) async {
+    final List<String> validIds = ids.where(_isUuid).toList(growable: false);
+    if (validIds.isEmpty) return const <String, CommunityPost>{};
+    try {
+      final res = await client
+          .from('community_posts')
+          .select(
+            'id, author_id, body, tickers, tags, is_public, created_at, '
+            'likes_count, comments_count, reposts_count, views_count, moderation_status, '
+            'profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, bio, role, verified)',
+          )
+          .inFilter('id', validIds);
+      final Map<String, CommunityPost> result = <String, CommunityPost>{};
+      for (final dynamic item in (res as List)) {
+        if (item is! Map<String, dynamic>) continue;
+        final String id = item['id']?.toString() ?? '';
+        if (id.isEmpty) continue;
+        final String authorId = item['author_id']?.toString() ?? '';
+        final author = mapProfileToCommunityAuthor(
+          authorId: authorId,
+          authorProfile: item['profiles'] as Map<String, dynamic>?,
+          isFollowing: _followedAuthorIds.contains(authorId),
+        );
+        final ({String body, String? quotedId, String? videoUrl}) cleaned =
+            _extractQuotedPostRef(item['body'] as String? ?? '');
+        result[id] = CommunityPost(
+          id: id,
+          author: author,
+          body: cleaned.body,
+          createdAt:
+              DateTime.tryParse(item['created_at']?.toString() ?? '') ??
+              DateTime.now(),
+          isPublic: item['is_public'] as bool? ?? true,
+          tickers:
+              (item['tickers'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
+          tags:
+              (item['tags'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
+          videoUrl: cleaned.videoUrl,
+          likes: (item['likes_count'] as num?)?.toInt() ?? 0,
+          comments: (item['comments_count'] as num?)?.toInt() ?? 0,
+          reposts: (item['reposts_count'] as num?)?.toInt() ?? 0,
+          views: (item['views_count'] as num?)?.toInt() ?? 0,
+          moderationStatus: item['moderation_status']?.toString() ?? 'approved',
+        );
+      }
+      return result;
+    } catch (e) {
+      debugPrint('[CommunityRepository] _fetchMinimalQuotedPosts error: $e');
+      return const <String, CommunityPost>{};
     }
   }
 
@@ -3469,6 +3599,7 @@ class CommunityRepository extends ChangeNotifier {
     CommunityTradeSetup? tradeSetup,
     String? imageUrl,
     List<String> imageUrls = const <String>[],
+    String? videoUrl,
     AppWritingPostAttachment? attachment,
     CommunityPoll? poll,
     CommunityPost? quoted,
@@ -3504,6 +3635,7 @@ class CommunityRepository extends ChangeNotifier {
       imageUrls: imageUrls.isNotEmpty
           ? imageUrls
           : (imageUrl != null ? <String>[imageUrl] : const <String>[]),
+      videoUrl: videoUrl,
       attachment: attachment,
       poll: poll,
       quoted: quoted,
@@ -3864,6 +3996,10 @@ class CommunityRepository extends ChangeNotifier {
     bool clearPoll = false,
     CommunitySentiment? sentiment,
     bool clearSentiment = false,
+    CommunityPost? quoted,
+    bool clearQuoted = false,
+    String? videoUrl,
+    bool clearVideoUrl = false,
     CommunityReplyAudience? replyAudience,
     List<String>? imageUrls,
   }) async {
@@ -3875,6 +4011,22 @@ class CommunityRepository extends ChangeNotifier {
     if (existing.author.id != actor) {
       throw StateError('Only the author can edit this post.');
     }
+    final CommunityPost? effectiveQuoted = clearQuoted
+        ? null
+        : (quoted ?? existing.quoted);
+    final String? effectiveVideoUrl = clearVideoUrl
+        ? null
+        : (videoUrl ?? existing.videoUrl);
+    final StringBuffer bodyBuf = StringBuffer(newBody);
+    if (effectiveVideoUrl != null && effectiveVideoUrl.trim().isNotEmpty) {
+      bodyBuf.write('\n\nVideo: ${effectiveVideoUrl.trim()}');
+    }
+    if (effectiveQuoted != null) {
+      bodyBuf.write(
+        '\n\nQuoted post: /community?post=${Uri.encodeQueryComponent(effectiveQuoted.id)}',
+      );
+    }
+    final String persistedBody = bodyBuf.toString();
     final removedAttachmentUrls = <String>{
       if (imageUrls != null)
         ...existing.effectiveImageUrls.toSet().difference(imageUrls.toSet()),
@@ -3886,7 +4038,7 @@ class CommunityRepository extends ChangeNotifier {
           await client
               .from('community_posts')
               .update({
-                'body': newBody,
+                'body': persistedBody,
                 'tickers': ?tickers,
                 'tags': ?tags,
                 'updated_at': DateTime.now().toIso8601String(),
@@ -4040,6 +4192,10 @@ class CommunityRepository extends ChangeNotifier {
       clearPoll: clearPoll,
       sentiment: sentiment,
       clearSentiment: clearSentiment,
+      quoted: quoted,
+      clearQuoted: clearQuoted,
+      videoUrl: videoUrl,
+      clearVideoUrl: clearVideoUrl,
       replyAudience: replyAudience,
       imageUrls: imageUrls,
     );
@@ -4057,6 +4213,10 @@ class CommunityRepository extends ChangeNotifier {
       clearPoll: clearPoll,
       sentiment: sentiment,
       clearSentiment: clearSentiment,
+      quoted: quoted,
+      clearQuoted: clearQuoted,
+      videoUrl: videoUrl,
+      clearVideoUrl: clearVideoUrl,
       replyAudience: replyAudience,
       imageUrls: imageUrls,
     );
@@ -4074,6 +4234,10 @@ class CommunityRepository extends ChangeNotifier {
       clearPoll: clearPoll,
       sentiment: sentiment,
       clearSentiment: clearSentiment,
+      quoted: quoted,
+      clearQuoted: clearQuoted,
+      videoUrl: videoUrl,
+      clearVideoUrl: clearVideoUrl,
       replyAudience: replyAudience,
       imageUrls: imageUrls,
     );
@@ -4144,6 +4308,10 @@ class CommunityRepository extends ChangeNotifier {
     bool clearPoll = false,
     CommunitySentiment? sentiment,
     bool clearSentiment = false,
+    CommunityPost? quoted,
+    bool clearQuoted = false,
+    String? videoUrl,
+    bool clearVideoUrl = false,
     CommunityReplyAudience? replyAudience,
     List<String>? imageUrls,
   }) {
@@ -4161,6 +4329,10 @@ class CommunityRepository extends ChangeNotifier {
         clearPoll: clearPoll,
         sentiment: sentiment,
         clearSentiment: clearSentiment,
+        quoted: quoted,
+        clearQuoted: clearQuoted,
+        videoUrl: videoUrl,
+        clearVideoUrl: clearVideoUrl,
         replyAudience: replyAudience,
         imageUrls: imageUrls,
         isEdited: true,
@@ -4585,10 +4757,22 @@ class CommunityRepository extends ChangeNotifier {
             );
           }
         }
+        final ({String body, String? quotedId, String? videoUrl}) parsedBody =
+            _extractQuotedPostRef(row['body'] as String? ?? '');
+        CommunityPost? quotedPost;
+        if (parsedBody.quotedId != null && parsedBody.quotedId!.isNotEmpty) {
+          quotedPost = findPost(parsedBody.quotedId!);
+          if (quotedPost == null && _isUuid(parsedBody.quotedId!)) {
+            final fetched = await _fetchMinimalQuotedPosts(client, <String>{
+              parsedBody.quotedId!,
+            });
+            quotedPost = fetched[parsedBody.quotedId!];
+          }
+        }
         final post = CommunityPost(
           id: postId,
           author: author,
-          body: row['body'] as String? ?? '',
+          body: parsedBody.body,
           createdAt:
               DateTime.tryParse(row['created_at']?.toString() ?? '') ??
               DateTime.now(),
@@ -4603,8 +4787,10 @@ class CommunityRepository extends ChangeNotifier {
           tradeSetup: setup,
           imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
           imageUrls: imageUrls,
+          videoUrl: parsedBody.videoUrl,
           attachment: attachment,
           poll: poll,
+          quoted: quotedPost,
           likes: (row['likes_count'] as num?)?.toInt() ?? 0,
           comments: (row['comments_count'] as num?)?.toInt() ?? 0,
           reposts: (row['reposts_count'] as num?)?.toInt() ?? 0,

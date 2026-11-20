@@ -4,7 +4,9 @@ import 'package:alphajournal/core/app-ui/app_ui.dart';
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import '../../data/community_repository.dart';
 import '../../models/community_models.dart';
+import 'community_composer_pickers.dart';
 import 'community_highlighted_text.dart';
+import 'community_quote_card.dart';
 import 'community_reactions_dialog.dart';
 import 'community_follow_button.dart';
 import 'community_emoji_picker.dart';
@@ -74,9 +76,12 @@ class _CommunityDiscussionCommentState
 
   int _visibleReplies = 2;
 
+  String? get _linkedPostId =>
+      CommunityCommentLinkCodec.extractPostId(widget.comment.body);
+
   String get _displayBody {
     final CommunityAuthor? parentAuthor = widget.replyingTo;
-    final String body = widget.comment.body.trim();
+    final String body = CommunityCommentLinkCodec.strip(widget.comment.body);
     if (parentAuthor == null || body.isEmpty) return body;
     final Set<String> handles = <String>{
       parentAuthor.displayHandle.trim(),
@@ -177,11 +182,17 @@ class _CommunityDiscussionCommentState
                       ],
                     ),
                     UiGap.v(theme.spacing.xs),
-                    CommunityHighlightedText(
-                      text: _displayBody,
-                      style: context.uiText.body,
-                      onTagTap: widget.onTagTap,
-                    ),
+                    if (_displayBody.isNotEmpty)
+                      CommunityHighlightedText(
+                        text: _displayBody,
+                        style: context.uiText.body,
+                        onTagTap: widget.onTagTap,
+                      ),
+                    if (_linkedPostId != null &&
+                        repo?.findPost(_linkedPostId!) != null) ...[
+                      if (_displayBody.isNotEmpty) UiGap.v(theme.spacing.xs),
+                      CommunityQuoteCard(post: repo!.findPost(_linkedPostId!)!),
+                    ],
                     UiGap.v(theme.spacing.xs),
                     LayoutBuilder(
                       builder: (context, constraints) {

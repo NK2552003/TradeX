@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:alphajournal/core/config/customer_limitations.dart';
 import 'package:alphajournal/core/linking/link_graph.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:alphajournal/features/community/presentation/widgets/public_record_detail_modal.dart';
 import 'package:alphajournal/core/ads/ad_config.dart';
@@ -795,15 +796,17 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
           final bool isMobile = r.isMobile;
           final bool onFeedTab = _tabController.index == 0;
           final double safeBottom = MediaQuery.paddingOf(context).bottom;
-          // In AppShell, MediaQuery.paddingOf(context).bottom already includes the
-          // floating dock clearance (~76px). Position the dock just above it.
+          final bool compactAndroid =
+              !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+          final double dockMargin = compactAndroid ? 8.0 : 16.0;
+          // Align mobile floating buttons flush with the bottom dock baseline.
           final double floatingBottom = isMobile
-              ? (widget.embedInScaffold || safeBottom > 50
-                    ? (safeBottom + context.sp(theme.spacing.xs))
+              ? (widget.embedInScaffold
+                    ? (safeBottom + dockMargin)
                     : (context.sz(74) + safeBottom))
               : context.sp(theme.spacing.lg);
           final double floatingRight = isMobile
-              ? context.sp(theme.spacing.md)
+              ? 12.0
               : context.sp(theme.spacing.lg);
 
           return Stack(
@@ -820,10 +823,17 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
               Positioned(
                 right: floatingRight,
                 bottom: floatingBottom,
-                child: CommunityCopilotLauncher(
-                  onCompose: _showComposer,
-                  showCompose: isMobile && onFeedTab,
-                ),
+                child: isMobile
+                    ? AppDockSyncedFab(
+                        child: CommunityCopilotLauncher(
+                          onCompose: _showComposer,
+                          showCompose: onFeedTab,
+                        ),
+                      )
+                    : CommunityCopilotLauncher(
+                        onCompose: _showComposer,
+                        showCompose: false,
+                      ),
               ),
             ],
           );

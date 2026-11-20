@@ -169,6 +169,8 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
   int _tab = 0;
   final Set<int> _built = <int>{0};
   final Map<int, ScrollController> _controllers = <int, ScrollController>{};
+  final Map<String, int> _visiblePostLimitByTab = <String, int>{};
+  static const int _initialVisiblePosts = 3;
 
   List<AppStrategy> _publicStrategies = const <AppStrategy>[];
   List<AppNote> _publicNotes = const <AppNote>[];
@@ -322,43 +324,40 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 1040;
-        final column = Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        final Widget pillBar = CommunityPillTabBar(
+          key: const ValueKey('explore-category-tabs'),
+          tabs: [for (final t in kExploreTabs) t.label],
+          selectedIndex: _tab,
+          onChanged: (i) => setState(() {
+            _tab = i;
+            _built.add(i);
+          }),
+        );
+        final Widget tabBody = IndexedStack(
+          index: _tab,
           children: [
-            _searchBar(context, theme),
-            UiTabs(
-              key: const ValueKey('explore-category-tabs'),
-              tabs: [for (final t in kExploreTabs) t.label],
-              selectedIndex: _tab,
-              scrollable: true,
-              showPanel: false,
-              onChanged: (i) => setState(() {
-                _tab = i;
-                _built.add(i);
-              }),
-            ),
-            Expanded(
-              child: IndexedStack(
-                index: _tab,
-                children: [
-                  for (var i = 0; i < kExploreTabs.length; i++)
-                    _built.contains(i)
-                        ? _tabBody(context, i, wide)
-                        : const SizedBox.shrink(),
-                ],
-              ),
-            ),
+            for (var i = 0; i < kExploreTabs.length; i++)
+              _built.contains(i)
+                  ? _tabBody(context, i, wide)
+                  : const SizedBox.shrink(),
           ],
         );
         if (!wide) {
-          return Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: context.sz(680)),
-              child: column,
+          return CommunityFloatingTabShell(
+            tabBar: pillBar,
+            body: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: context.sz(680)),
+                child: tabBody,
+              ),
             ),
           );
         }
+        final column = CommunityFloatingTabShell(
+          tabBar: pillBar,
+          body: tabBody,
+        );
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,43 +393,6 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
       },
     );
   }
-
-  Widget _searchBar(BuildContext context, UiTheme theme) => Padding(
-    padding: EdgeInsets.fromLTRB(
-      context.sp(theme.spacing.md),
-      context.sp(theme.spacing.sm),
-      context.sp(theme.spacing.md),
-      context.sp(theme.spacing.xs),
-    ),
-    child: Semantics(
-      button: true,
-      label: 'Search community',
-      child: UiCard(
-        key: const ValueKey('explore-search-bar'),
-        variant: UiCardVariant.subtle,
-        onTap: widget.onSearchTap,
-        child: Row(
-          children: [
-            Icon(
-              Icons.search_rounded,
-              size: context.sz(20),
-              color: theme.colors.foregroundMuted,
-            ),
-            UiGap.h(theme.spacing.sm),
-            Expanded(
-              child: Text(
-                _query.isEmpty ? 'Search traders, tickers, #tags' : _query,
-                style: context.uiText.body.copyWith(
-                  color: theme.colors.foregroundMuted,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 
   Widget _tabBody(BuildContext context, int index, bool wide) {
     final theme = context.ui;
@@ -554,15 +516,44 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
       );
     }
 
+    final int visibleLimit =
+        _visiblePostLimitByTab[spec.id] ?? _initialVisiblePosts;
+    final int visibleCount = loading || hasError
+        ? 0
+        : (posts.length < visibleLimit ? posts.length : visibleLimit);
+    final bool hasMorePosts =
+        !loading && !hasError && posts.length > visibleCount;
+    final int remainingCount = posts.length - visibleCount;
+
     return RefreshIndicator(
       onRefresh: _refresh,
       child: UiLazyList(
         key: PageStorageKey<String>('explore-list-${spec.id}-$_query'),
         controller: _controller(index),
         padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-        itemCount: loading || hasError ? 0 : posts.length,
+        itemCount: visibleCount + (hasMorePosts ? 1 : 0),
         headerBuilder: header,
         itemBuilder: (_, i) {
+          if (hasMorePosts && i == visibleCount) {
+            return Padding(
+              padding: EdgeInsets.only(
+                top: context.sp(theme.spacing.xs),
+                bottom: context.sp(theme.spacing.md),
+              ),
+              child: UiButton(
+                label: 'Show more ($remainingCount more)',
+                leadingIcon: Icons.expand_more_rounded,
+                variant: UiVariant.outline,
+                size: UiSize.md,
+                expand: true,
+                onPressed: () {
+                  setState(() {
+                    _visiblePostLimitByTab[spec.id] = visibleCount + 5;
+                  });
+                },
+              ),
+            );
+          }
           final post = posts[i];
           return Padding(
             padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
@@ -949,7 +940,7 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
                   children: <Widget>[
                     Icon(
                       Icons.article_outlined,
-                      color: theme.colors.secondary,
+                      color: theme.colors.info,
                       size: context.sz(24),
                     ),
                     SizedBox(width: context.sp(theme.spacing.sm)),

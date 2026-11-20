@@ -4,6 +4,93 @@ import 'package:flutter/material.dart';
 import 'package:quiet_dock/quiet_dock.dart';
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
+/// Shared visibility state for the floating mobile dock so every floating
+/// action button (left search, right compose/copilot, right workspace `+`)
+/// hides and reveals in perfect lockstep on scroll.
+class AppDockVisibility {
+  AppDockVisibility._();
+  static final ValueNotifier<bool> hidden = ValueNotifier<bool>(false);
+}
+
+/// Wraps any mobile floating action button so it slides, fades, and scales in
+/// exact sync with [AppQuietDockScaffold] on scroll up/down.
+class AppDockSyncedFab extends StatefulWidget {
+  const AppDockSyncedFab({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<AppDockSyncedFab> createState() => _AppDockSyncedFabState();
+}
+
+class _AppDockSyncedFabState extends State<AppDockSyncedFab>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _anim = AnimationController(
+    vsync: this,
+    value: AppDockVisibility.hidden.value ? 0.0 : 1.0,
+    duration: const Duration(milliseconds: 260),
+    reverseDuration: const Duration(milliseconds: 220),
+  );
+  late final Animation<double> _curve = CurvedAnimation(
+    parent: _anim,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
+  late final Animation<Offset> _slide = Tween<Offset>(
+    begin: const Offset(0, 1.35),
+    end: Offset.zero,
+  ).animate(_curve);
+  late final Animation<double> _scale = Tween<double>(
+    begin: 0.94,
+    end: 1.0,
+  ).animate(_curve);
+
+  @override
+  void initState() {
+    super.initState();
+    AppDockVisibility.hidden.addListener(_onChanged);
+  }
+
+  void _onChanged() {
+    if (!mounted) return;
+    final bool isHidden = AppDockVisibility.hidden.value;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _anim.value = isHidden ? 0.0 : 1.0;
+    } else if (isHidden) {
+      _anim.reverse();
+    } else {
+      _anim.forward();
+    }
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    AppDockVisibility.hidden.removeListener(_onChanged);
+    _anim.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isHidden = AppDockVisibility.hidden.value;
+    return SlideTransition(
+      position: _slide,
+      child: FadeTransition(
+        opacity: _curve,
+        child: ScaleTransition(
+          scale: _scale,
+          alignment: Alignment.bottomCenter,
+          child: IgnorePointer(
+            ignoring: isHidden,
+            child: ExcludeSemantics(excluding: isHidden, child: widget.child),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Enhanced mobile dock shell wrapping [QuietDock], adding frosted glass blur
 /// to every quick-grid tile opened by the center button and full-bleed
 /// edge-to-edge body layering beneath the floating dock.
@@ -19,6 +106,9 @@ class AppQuietDockScaffold extends StatefulWidget {
     this.onDestinationSelected,
     this.centerAction,
     this.centerActionActive = false,
+    this.leftActionIcon,
+    this.leftActionTooltip,
+    this.onLeftActionPressed,
     this.lockedDestinationIndices = const <int>{},
     this.lockedCenterIndices = const <int>{},
     this.swipeEnabled = false,
@@ -39,6 +129,9 @@ class AppQuietDockScaffold extends StatefulWidget {
   final ValueChanged<int>? onDestinationSelected;
   final QuietDockCenterAction? centerAction;
   final bool centerActionActive;
+  final IconData? leftActionIcon;
+  final String? leftActionTooltip;
+  final VoidCallback? onLeftActionPressed;
   final Set<int> lockedDestinationIndices;
   final Set<int> lockedCenterIndices;
   final bool swipeEnabled;
@@ -98,6 +191,7 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
   void _setDockHidden(bool hidden, {bool immediate = false}) {
     if (_dockHidden == hidden) return;
     setState(() => _dockHidden = hidden);
+    AppDockVisibility.hidden.value = hidden;
     final bool reduced =
         mounted && MediaQuery.disableAnimationsOf(context);
     if (immediate || reduced) {
@@ -118,6 +212,7 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
       _menuOpen = false;
       if (_dockHidden) {
         _dockHidden = false;
+        AppDockVisibility.hidden.value = false;
         _dockAnim.forward();
       }
     }
@@ -131,6 +226,7 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
 
   @override
   void dispose() {
+    AppDockVisibility.hidden.value = false;
     _dockAnim.dispose();
     if (_controller.handler == _select) _controller.handler = null;
     if (widget.controller == null) _controller.dispose();
@@ -334,6 +430,18 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
                       onCenterActionPressed: _toggleMenu,
                       theme: widget.theme,
                     ),
+                    if (widget.leftActionIcon != null &&
+                        widget.onLeftActionPressed != null)
+                      Positioned(
+                        left: 12,
+                        bottom:
+                            MediaQuery.paddingOf(context).bottom + theme.margin,
+                        child: _DockLeftGlassButton(
+                          icon: widget.leftActionIcon!,
+                          tooltip: widget.leftActionTooltip ?? 'Search',
+                          onPressed: widget.onLeftActionPressed!,
+                        ),
+                      ),
                     if (widget.lockedDestinationIndices.isNotEmpty)
                       Positioned.fill(
                         child: IgnorePointer(
@@ -387,6 +495,76 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
                         ),
                       ),
                   ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DockLeftGlassButton extends StatelessWidget {
+  const _DockLeftGlassButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final uiTheme = context.ui;
+    final bool isDark = uiTheme.brightness == Brightness.dark;
+    final BorderRadius radius = BorderRadius.circular(28);
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.36 : 0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: uiTheme.colors.surface.withValues(
+                alpha: isDark ? 0.62 : 0.74,
+              ),
+              borderRadius: radius,
+              border: Border.all(
+                color: uiTheme.colors.borderStrong.withValues(
+                  alpha: isDark ? 0.65 : 0.75,
+                ),
+                width: 1.2,
+              ),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: Tooltip(
+                message: tooltip,
+                child: InkWell(
+                  borderRadius: radius,
+                  onTap: onPressed,
+                  child: Center(
+                    child: Icon(
+                      icon,
+                      size: 22,
+                      color: uiTheme.colors.foreground,
+                    ),
+                  ),
                 ),
               ),
             ),

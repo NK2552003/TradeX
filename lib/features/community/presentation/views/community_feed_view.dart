@@ -47,6 +47,9 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   late TabController _subTabController;
   late final ScrollController _forYouScrollController = ScrollController();
   int _newPostsCount = 0;
+  final List<CommunityAuthor> _newPostAuthors = <CommunityAuthor>[];
+  final Set<String> _seenPostIds = <String>{};
+  bool _initializedSeenPosts = false;
 
   static const List<String> _subTabs = <String>[
     'For you',
@@ -63,12 +66,24 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     _subTabController = TabController(length: _subTabs.length, vsync: this);
     _subTabController.addListener(_routeSubTab);
     _forYouScrollController.addListener(_onFeedScroll);
+    final initial = widget.repository.forYouPosts;
+    if (initial.isNotEmpty) {
+      _seenPostIds.addAll(initial.map((p) => p.id));
+      _initializedSeenPosts = true;
+    }
     widget.repository.addListener(_onDataChanged);
   }
 
   void _onFeedScroll() {
     if (!_forYouScrollController.hasClients) return;
     final pos = _forYouScrollController.position;
+    if (pos.pixels <= 16 && _newPostsCount > 0) {
+      setState(() {
+        _newPostsCount = 0;
+        _newPostAuthors.clear();
+        _seenPostIds.addAll(widget.repository.forYouPosts.map((p) => p.id));
+      });
+    }
     if (pos.pixels >= pos.maxScrollExtent - 320) {
       unawaited(widget.repository.loadMorePosts());
     }
@@ -115,7 +130,47 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     super.dispose();
   }
 
-  void _onDataChanged() => setState(() {});
+  void _onDataChanged() {
+    final List<CommunityPost> current = widget.repository.forYouPosts;
+    if (!_initializedSeenPosts) {
+      if (current.isNotEmpty) {
+        _seenPostIds.addAll(current.map((p) => p.id));
+        _initializedSeenPosts = true;
+      }
+      if (mounted) setState(() {});
+      return;
+    }
+
+    final List<CommunityPost> arrived = current
+        .where(
+          (p) =>
+              p.isPublic &&
+              !_seenPostIds.contains(p.id) &&
+              p.author.id != widget.currentUser.id,
+        )
+        .toList();
+
+    if (arrived.isNotEmpty) {
+      for (final p in arrived) {
+        _seenPostIds.add(p.id);
+        if (!_newPostAuthors.any((a) => a.id == p.author.id)) {
+          _newPostAuthors.insert(0, p.author);
+        }
+      }
+      if (_newPostAuthors.length > 5) {
+        _newPostAuthors.removeRange(5, _newPostAuthors.length);
+      }
+      _newPostsCount += arrived.length;
+    } else {
+      // Track any newly created local posts by current user as already seen.
+      for (final p in current) {
+        if (p.author.id == widget.currentUser.id) {
+          _seenPostIds.add(p.id);
+        }
+      }
+    }
+    if (mounted) setState(() {});
+  }
 
   Future<void> _refresh() async {
     try {
@@ -140,56 +195,35 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        if (widget.repository.refreshError != null)
-          UiCallout(
-            title: 'Community could not refresh',
-            message: widget.repository.refreshError!,
-            intent: UiIntent.warning,
-          ),
-        // Full width top bar tab toggle spanning across the centered panel
-        _buildTopBar(context, theme, isMobile),
-
-        // Sub-Tab Content Views (feeds centered at maxWidth 700px beneath the bar)
-        Expanded(
-          child: TabBarView(
-            controller: _subTabController,
-            physics: context.uiRes.isDesktop
-                ? const NeverScrollableScrollPhysics()
-                : null,
-            children: <Widget>[
-              // Tab 0: For you
-              _CommunityKeepAliveTab(child: _buildForYouTab()),
-              // Tab 1: Following
-              _CommunityKeepAliveTab(child: _buildFollowingTab()),
-              // Tab 2: Signals & Setups
-              _CommunityKeepAliveTab(child: _buildSignalsTab()),
-              // Tab 3: Market News
-              _CommunityKeepAliveTab(child: _buildNewsTab()),
-              // Tab 4: Crypto
-              _CommunityKeepAliveTab(child: _buildCryptoTab()),
-              // Tab 5: Equities
-              _CommunityKeepAliveTab(child: _buildEquitiesTab()),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Top bar container holding the floating capsule pill bar,
-  /// moved outside the feed scroll view so posts never scroll over it.
-  Widget _buildTopBar(BuildContext context, UiTheme theme, bool isMobile) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        context.sp(theme.spacing.xs),
+    return CommunityFloatingTabShell(
+      banner: widget.repository.refreshError != null
+          ? UiCallout(
+              title: 'Community could not refresh',
+              message: widget.repository.refreshError!,
+              intent: UiIntent.warning,
+            )
+          : null,
+      tabBar: _buildFloatingBar(context, theme, isMobile),
+      body: TabBarView(
+        controller: _subTabController,
+        physics: context.uiRes.isDesktop
+            ? const NeverScrollableScrollPhysics()
+            : null,
+        children: <Widget>[
+          // Tab 0: For you
+          _CommunityKeepAliveTab(child: _buildForYouTab()),
+          // Tab 1: Following
+          _CommunityKeepAliveTab(child: _buildFollowingTab()),
+          // Tab 2: Signals & Setups
+          _CommunityKeepAliveTab(child: _buildSignalsTab()),
+          // Tab 3: Market News
+          _CommunityKeepAliveTab(child: _buildNewsTab()),
+          // Tab 4: Crypto
+          _CommunityKeepAliveTab(child: _buildCryptoTab()),
+          // Tab 5: Equities
+          _CommunityKeepAliveTab(child: _buildEquitiesTab()),
+        ],
       ),
-      child: _buildFloatingBar(context, theme, isMobile),
     );
   }
 
@@ -489,13 +523,23 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
             right: 0,
             child: CommunityNewPostsPill(
               count: _newPostsCount,
+              authors: _newPostAuthors,
               onTap: () {
-                _forYouScrollController.animateTo(
-                  0,
-                  duration: const Duration(milliseconds: 320),
-                  curve: Curves.easeOutCubic,
-                );
-                setState(() => _newPostsCount = 0);
+                setState(() {
+                  _newPostsCount = 0;
+                  _newPostAuthors.clear();
+                  _seenPostIds.addAll(
+                    widget.repository.forYouPosts.map((p) => p.id),
+                  );
+                });
+                if (_forYouScrollController.hasClients) {
+                  _forYouScrollController.animateTo(
+                    0,
+                    duration: const Duration(milliseconds: 360),
+                    curve: Curves.easeOutCubic,
+                  );
+                }
+                unawaited(_refresh());
               },
             ),
           ),

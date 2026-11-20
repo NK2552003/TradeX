@@ -69,7 +69,39 @@ Future<void> main() async {
         _debugLog('[main] SystemChrome configuration skipped', e);
       }
 
-      // 4. Custom ErrorWidget to avoid blank white screens if a render error occurs
+      // 4. Guard FlutterError.onError & PlatformDispatcher.onError against raw
+      // JS objects (LegacyJavaScriptObject) on Flutter Web so DiagnosticsNode
+      // serialization never prints secondary TypeError noise.
+      final previousOnError = FlutterError.onError;
+      FlutterError.onError = (FlutterErrorDetails details) {
+        final String exType = details.exception.runtimeType.toString();
+        final String exText = details.exceptionAsString();
+        if (exType.contains('JavaScriptObject') ||
+            exText.contains('LegacyJavaScriptObject')) {
+          _debugLog('[FlutterError/Web] $exText');
+          return;
+        }
+        try {
+          if (previousOnError != null) {
+            previousOnError(details);
+          } else {
+            FlutterError.presentError(details);
+          }
+        } catch (_) {
+          _debugLog('[FlutterError] $exText', null, details.stack);
+        }
+      };
+      WidgetsBinding.instance.platformDispatcher.onError =
+          (Object error, StackTrace stack) {
+            final String typeName = error.runtimeType.toString();
+            if (typeName.contains('JavaScriptObject')) {
+              _debugLog('[PlatformDispatcher/Web] $error');
+              return true;
+            }
+            return false;
+          };
+
+      // 5. Custom ErrorWidget to avoid blank white screens if a render error occurs
       ErrorWidget.builder = (FlutterErrorDetails details) {
         return Material(
           color: const Color(0xFF151312),

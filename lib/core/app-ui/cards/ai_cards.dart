@@ -399,10 +399,16 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
           if (!mine && !message.pending && !isAnimatingStream)
             Padding(
               padding: EdgeInsets.only(top: context.sp(theme.spacing.xxs)),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: context.uiRes.isMobile
+                      ? double.infinity
+                      : context.sz(widget.minimal ? 840 : 600),
+                ),
+                child: Wrap(
+                  spacing: context.sp(theme.spacing.xxs),
+                  runSpacing: context.sp(theme.spacing.xxs),
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: <Widget>[
                     if (widget.onCopy != null)
                       UiIconButton(
@@ -464,16 +470,7 @@ class _AppAiMessageBubbleState extends State<AppAiMessageBubble> {
                           ),
                         ),
                       ),
-                    if (extraActions.isNotEmpty) ...<Widget>[
-                      for (int i = 0; i < extraActions.length; i++) ...<Widget>[
-                        if (i > 0 ||
-                            widget.onCopy != null ||
-                            widget.onRetry != null ||
-                            message.sentAt != null)
-                          SizedBox(width: context.sp(theme.spacing.xxs)),
-                        extraActions[i],
-                      ],
-                    ],
+                    ...extraActions,
                   ],
                 ),
               ),
