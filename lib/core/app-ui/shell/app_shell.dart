@@ -535,9 +535,15 @@ class _AppShellState extends State<AppShell> {
         },
         lockedDestinationIndices: lockedDestinationIndices,
         lockedCenterIndices: lockedCenterIndices,
-        leftActionIcon: widget.onSearch != null ? Icons.search_rounded : null,
-        leftActionTooltip: widget.searchHint ?? 'Search',
-        onLeftActionPressed: widget.onSearch,
+        leftActionIcon: _isCommunityRoute
+            ? Icons.edit_note_rounded
+            : (widget.onSearch != null ? Icons.search_rounded : null),
+        leftActionTooltip: _isCommunityRoute
+            ? 'Writing Desk'
+            : (widget.searchHint ?? 'Search'),
+        onLeftActionPressed: _isCommunityRoute
+            ? () => widget.onSelect('workspace')
+            : widget.onSearch,
         centerAction: QuietDockCenterAction(
           semanticLabel: _isCommunityRoute ? 'Switch to App' : 'More tools',
           icon: _isCommunityRoute

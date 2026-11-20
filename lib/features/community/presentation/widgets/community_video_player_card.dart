@@ -59,9 +59,24 @@ class _CommunityVideoPlayerCardState extends State<CommunityVideoPlayerCard> {
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
-              if (_playing && kIsWeb)
-                CommunityVideoEmbed(video: video)
-              else
+              if (_playing && kIsWeb) ...<Widget>[
+                // Keep poster backdrop behind the iframe while it loads so
+                // mobile browsers never flash a blank card.
+                if (video.thumbnailUrl != null)
+                  Image.network(
+                    video.thumbnailUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => _fallbackBackdrop(theme, video),
+                  )
+                else
+                  _fallbackBackdrop(theme, video),
+                Positioned.fill(
+                  child: CommunityVideoEmbed(
+                    key: ValueKey<String>(video.embedUrl),
+                    video: video,
+                  ),
+                ),
+              ] else
                 _buildPosterPreview(context, theme, video),
 
               if (widget.onRemove != null)

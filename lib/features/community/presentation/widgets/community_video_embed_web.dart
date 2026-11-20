@@ -72,11 +72,17 @@ class _CommunityVideoEmbedState extends State<CommunityVideoEmbed> {
           ..controls = true
           ..autoplay = true
           ..playsInline = true
+          ..preload = 'auto'
+          ..style.position = 'absolute'
+          ..style.inset = '0'
+          ..style.display = 'block'
           ..style.width = '100%'
           ..style.height = '100%'
           ..style.border = 'none'
           ..style.backgroundColor = '#000000'
           ..style.objectFit = 'contain';
+        el.setAttribute('playsinline', '');
+        el.setAttribute('webkit-playsinline', '');
         _element = el;
         CommunityVideoPointerGuard.register(el);
         return el;
@@ -84,13 +90,21 @@ class _CommunityVideoEmbedState extends State<CommunityVideoEmbed> {
 
       final web.HTMLIFrameElement iframe = web.HTMLIFrameElement()
         ..src = resolved.embedUrl
+        ..referrerPolicy = 'strict-origin-when-cross-origin'
         ..allow =
-            'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen'
+            'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen'
         ..allowFullscreen = true
+        ..style.position = 'absolute'
+        ..style.inset = '0'
+        ..style.display = 'block'
         ..style.width = '100%'
         ..style.height = '100%'
         ..style.border = 'none'
         ..style.backgroundColor = '#000000';
+      iframe.setAttribute('frameborder', '0');
+      iframe.setAttribute('allowfullscreen', 'true');
+      iframe.setAttribute('webkitallowfullscreen', 'true');
+      iframe.setAttribute('mozallowfullscreen', 'true');
       _element = iframe;
       CommunityVideoPointerGuard.register(iframe);
       return iframe;

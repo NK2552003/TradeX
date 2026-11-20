@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -5,19 +6,30 @@ import 'package:quiet_dock/quiet_dock.dart';
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
 /// Shared visibility state for the floating mobile dock so every floating
-/// action button (left search, right compose/copilot, right workspace `+`)
-/// hides and reveals in perfect lockstep on scroll.
+/// action button (left search/writing desk, right compose/copilot, right
+/// workspace `+`) hides and reveals in lockstep on scroll.
 class AppDockVisibility {
   AppDockVisibility._();
   static final ValueNotifier<bool> hidden = ValueNotifier<bool>(false);
 }
 
-/// Wraps any mobile floating action button so it slides, fades, and scales in
-/// exact sync with [AppQuietDockScaffold] on scroll up/down.
+/// Edge from which a dock-synced floating control enters and exits on scroll.
+enum AppDockRevealEdge { bottom, left, right }
+
+/// Wraps any mobile floating action button so it slides from [edge] (with an
+/// optional stagger [delay]), fades, and scales in sync with
+/// [AppQuietDockScaffold] on scroll up/down.
 class AppDockSyncedFab extends StatefulWidget {
-  const AppDockSyncedFab({super.key, required this.child});
+  const AppDockSyncedFab({
+    super.key,
+    required this.child,
+    this.edge = AppDockRevealEdge.right,
+    this.delay = Duration.zero,
+  });
 
   final Widget child;
+  final AppDockRevealEdge edge;
+  final Duration delay;
 
   @override
   State<AppDockSyncedFab> createState() => _AppDockSyncedFabState();
@@ -25,6 +37,7 @@ class AppDockSyncedFab extends StatefulWidget {
 
 class _AppDockSyncedFabState extends State<AppDockSyncedFab>
     with SingleTickerProviderStateMixin {
+  Timer? _delayTimer;
   late final AnimationController _anim = AnimationController(
     vsync: this,
     value: AppDockVisibility.hidden.value ? 0.0 : 1.0,
@@ -36,14 +49,22 @@ class _AppDockSyncedFabState extends State<AppDockSyncedFab>
     curve: Curves.easeOutCubic,
     reverseCurve: Curves.easeInCubic,
   );
-  late final Animation<Offset> _slide = Tween<Offset>(
-    begin: const Offset(0, 1.35),
-    end: Offset.zero,
-  ).animate(_curve);
   late final Animation<double> _scale = Tween<double>(
-    begin: 0.94,
+    begin: 0.92,
     end: 1.0,
   ).animate(_curve);
+
+  Offset get _hiddenOffset => switch (widget.edge) {
+    AppDockRevealEdge.bottom => const Offset(0, 1.35),
+    AppDockRevealEdge.left => const Offset(-1.45, 0),
+    AppDockRevealEdge.right => const Offset(1.45, 0),
+  };
+
+  Alignment get _scaleAlignment => switch (widget.edge) {
+    AppDockRevealEdge.bottom => Alignment.bottomCenter,
+    AppDockRevealEdge.left => Alignment.centerLeft,
+    AppDockRevealEdge.right => Alignment.centerRight,
+  };
 
   @override
   void initState() {
@@ -53,19 +74,33 @@ class _AppDockSyncedFabState extends State<AppDockSyncedFab>
 
   void _onChanged() {
     if (!mounted) return;
+    _delayTimer?.cancel();
     final bool isHidden = AppDockVisibility.hidden.value;
     if (MediaQuery.disableAnimationsOf(context)) {
       _anim.value = isHidden ? 0.0 : 1.0;
-    } else if (isHidden) {
-      _anim.reverse();
-    } else {
-      _anim.forward();
+      setState(() {});
+      return;
     }
-    setState(() {});
+    void run() {
+      if (!mounted) return;
+      if (isHidden) {
+        _anim.reverse();
+      } else {
+        _anim.forward();
+      }
+      setState(() {});
+    }
+
+    if (widget.delay > Duration.zero) {
+      _delayTimer = Timer(widget.delay, run);
+    } else {
+      run();
+    }
   }
 
   @override
   void dispose() {
+    _delayTimer?.cancel();
     AppDockVisibility.hidden.removeListener(_onChanged);
     _anim.dispose();
     super.dispose();
@@ -74,13 +109,17 @@ class _AppDockSyncedFabState extends State<AppDockSyncedFab>
   @override
   Widget build(BuildContext context) {
     final bool isHidden = AppDockVisibility.hidden.value;
+    final Animation<Offset> slide = Tween<Offset>(
+      begin: _hiddenOffset,
+      end: Offset.zero,
+    ).animate(_curve);
     return SlideTransition(
-      position: _slide,
+      position: slide,
       child: FadeTransition(
         opacity: _curve,
         child: ScaleTransition(
           scale: _scale,
-          alignment: Alignment.bottomCenter,
+          alignment: _scaleAlignment,
           child: IgnorePointer(
             ignoring: isHidden,
             child: ExcludeSemantics(excluding: isHidden, child: widget.child),
@@ -397,6 +436,21 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
               bottom: 0,
               child: _buildDock(context, t),
             ),
+          if (t.height > 0 &&
+              widget.leftActionIcon != null &&
+              widget.onLeftActionPressed != null)
+            Positioned(
+              left: 12,
+              bottom: MediaQuery.paddingOf(context).bottom + t.margin,
+              child: AppDockSyncedFab(
+                edge: AppDockRevealEdge.left,
+                child: _DockLeftGlassButton(
+                  icon: widget.leftActionIcon!,
+                  tooltip: widget.leftActionTooltip ?? 'Search',
+                  onPressed: widget.onLeftActionPressed!,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -430,18 +484,6 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
                       onCenterActionPressed: _toggleMenu,
                       theme: widget.theme,
                     ),
-                    if (widget.leftActionIcon != null &&
-                        widget.onLeftActionPressed != null)
-                      Positioned(
-                        left: 12,
-                        bottom:
-                            MediaQuery.paddingOf(context).bottom + theme.margin,
-                        child: _DockLeftGlassButton(
-                          icon: widget.leftActionIcon!,
-                          tooltip: widget.leftActionTooltip ?? 'Search',
-                          onPressed: widget.onLeftActionPressed!,
-                        ),
-                      ),
                     if (widget.lockedDestinationIndices.isNotEmpty)
                       Positioned.fill(
                         child: IgnorePointer(
