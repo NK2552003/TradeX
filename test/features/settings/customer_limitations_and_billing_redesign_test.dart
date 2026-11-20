@@ -72,7 +72,7 @@ void main() {
           findsOneWidget,
         );
 
-        // Verify all 8 quota metric cards & feature capability badges are present
+        // Verify all 8 quota metric cards are present
         expect(find.text('RESEARCH NOTES'), findsOneWidget);
         expect(find.text('JOURNAL TRADES'), findsOneWidget);
         expect(find.text('LIVE PLAYBOOKS'), findsOneWidget);
@@ -81,8 +81,12 @@ void main() {
         expect(find.text('PRICE ALERTS'), findsOneWidget);
         expect(find.text('COMMUNITY POSTS / DAY'), findsOneWidget);
         expect(find.text('COMMENTS / DAY'), findsOneWidget);
-        expect(find.textContaining('PDF & CSV Exports'), findsOneWidget);
-        expect(find.textContaining('Advanced Backtest'), findsOneWidget);
+
+        // Feature capability cards are omitted by default (e.g. on Workspace)
+        expect(find.text('INCLUDED IN FREE'), findsNothing);
+        expect(find.text('UNLOCK WITH UPGRADE'), findsNothing);
+        expect(find.textContaining('PDF & CSV Exports'), findsNothing);
+        expect(find.textContaining('Advanced Backtest'), findsNothing);
 
         // Verify upgrade plan button is present
         expect(find.widgetWithText(UiButton, 'Upgrade Plan'), findsOneWidget);
@@ -105,7 +109,7 @@ void main() {
     );
 
     testWidgets(
-      'BillingSettingsPage renders CustomerLimitationsBanner data panel',
+      'BillingSettingsPage renders CustomerLimitationsBanner data panel and feature cards outside the panel',
       (tester) async {
         tester.view.physicalSize = const Size(1200, 900);
         tester.view.devicePixelRatio = 1.0;
@@ -136,6 +140,18 @@ void main() {
         expect(find.text('PRICE ALERTS'), findsOneWidget);
         expect(find.text('COMMUNITY POSTS / DAY'), findsOneWidget);
         expect(find.text('COMMENTS / DAY'), findsOneWidget);
+
+        // Verify feature cards are displayed on settings_billing and sit outside UiDataPanel
+        expect(find.text('INCLUDED IN FREE'), findsOneWidget);
+        expect(find.text('UNLOCK WITH UPGRADE'), findsOneWidget);
+        expect(find.textContaining('PDF & CSV Exports'), findsOneWidget);
+        expect(find.textContaining('Advanced Backtest'), findsOneWidget);
+
+        final Rect panelRect = tester.getRect(find.byType(UiDataPanel));
+        final Rect includedHeaderRect = tester.getRect(
+          find.text('INCLUDED IN FREE'),
+        );
+        expect(includedHeaderRect.top, greaterThanOrEqualTo(panelRect.bottom));
       },
     );
   });

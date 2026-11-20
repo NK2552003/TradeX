@@ -457,6 +457,7 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                   alertCount: sub.alertsUsed,
                   communityPostsToday: sub.communityPostsToday,
                   communityCommentsToday: sub.communityCommentsToday,
+                  showFeatureCards: true,
                 ),
               ],
               SizedBox(height: context.sp(theme.spacing.lg)),
