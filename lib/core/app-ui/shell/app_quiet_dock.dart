@@ -440,13 +440,14 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
               widget.leftActionIcon != null &&
               widget.onLeftActionPressed != null)
             Positioned(
-              left: 12,
+              left: MediaQuery.sizeOf(context).width < 430 ? 10 : 12,
               bottom: MediaQuery.paddingOf(context).bottom + t.margin,
               child: AppDockSyncedFab(
                 edge: AppDockRevealEdge.left,
                 child: _DockLeftGlassButton(
                   icon: widget.leftActionIcon!,
                   tooltip: widget.leftActionTooltip ?? 'Search',
+                  size: t.height,
                   onPressed: widget.onLeftActionPressed!,
                 ),
               ),
@@ -552,20 +553,22 @@ class _DockLeftGlassButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onPressed,
+    this.size = 56,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     final uiTheme = context.ui;
     final bool isDark = uiTheme.brightness == Brightness.dark;
-    final BorderRadius radius = BorderRadius.circular(28);
+    final BorderRadius radius = BorderRadius.circular(size / 2);
     return Container(
-      width: 56,
-      height: 56,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         borderRadius: radius,
         boxShadow: <BoxShadow>[

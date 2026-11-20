@@ -1390,7 +1390,9 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.noteCount != widget.noteCount ||
         oldWidget.tradeCount != widget.tradeCount ||
-        oldWidget.liveStrategyCount != widget.liveStrategyCount) {
+        oldWidget.liveStrategyCount != widget.liveStrategyCount ||
+        oldWidget.communityPostsToday != widget.communityPostsToday ||
+        oldWidget.communityCommentsToday != widget.communityCommentsToday) {
       _loadAccountUsage();
     }
   }
@@ -1665,7 +1667,19 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                             label: 'Community Posts / Day',
                             value: '$postsToday / $postsLimit',
                             hint: postsToday >= postsLimit
-                                ? 'Daily post cap reached'
+                                ? () {
+                                    final DateTime nowUtc = DateTime.now()
+                                        .toUtc();
+                                    final DateTime nextReset = DateTime.utc(
+                                      nowUtc.year,
+                                      nowUtc.month,
+                                      nowUtc.day + 1,
+                                    );
+                                    final Duration rem = nextReset.difference(
+                                      nowUtc,
+                                    );
+                                    return 'Cap reached · resets in ${rem.inHours}h ${rem.inMinutes.remainder(60)}m (UTC)';
+                                  }()
                                 : '${(postsLimit - postsToday).clamp(0, 99999)} posts left today',
                             intent: postsToday >= postsLimit
                                 ? UiIntent.warning
@@ -1676,7 +1690,19 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                             label: 'Comments / Day',
                             value: '$commentsToday / $commentsLimit',
                             hint: commentsToday >= commentsLimit
-                                ? 'Daily comment cap reached'
+                                ? () {
+                                    final DateTime nowUtc = DateTime.now()
+                                        .toUtc();
+                                    final DateTime nextReset = DateTime.utc(
+                                      nowUtc.year,
+                                      nowUtc.month,
+                                      nowUtc.day + 1,
+                                    );
+                                    final Duration rem = nextReset.difference(
+                                      nowUtc,
+                                    );
+                                    return 'Cap reached · resets in ${rem.inHours}h ${rem.inMinutes.remainder(60)}m (UTC)';
+                                  }()
                                 : '${(commentsLimit - commentsToday).clamp(0, 99999)} replies left today',
                             intent: commentsToday >= commentsLimit
                                 ? UiIntent.warning
@@ -1693,157 +1719,386 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                           context.sp(theme.spacing.md),
                           context.sp(theme.spacing.md),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'INCLUDED IN ${quota.planName.toUpperCase()}',
-                              style: context.uiText.caption.copyWith(
-                                fontSize: context.fs(10),
-                                letterSpacing: 0.7,
-                                fontWeight: FontWeight.w600,
-                                color: theme.colors.foregroundSubtle,
+                        child: Builder(
+                          builder: (BuildContext ctx) {
+                            final bool stacked = ctx.uiRes.isMobile;
+                            final List<
+                              ({IconData icon, String title, String desc})
+                            >
+                            includedItems = [
+                              (
+                                icon: Icons.edit_note_rounded,
+                                title: 'Writing Desk & Journal',
+                                desc:
+                                    '${_accountUsage?.notesLimit ?? quota.maxNotes} notes · ${_accountUsage?.tradesLimit ?? quota.maxTrades} trades · ${_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies} live strategy',
                               ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.xs)),
-                            Wrap(
-                              spacing: context.sp(theme.spacing.xs),
-                              runSpacing: context.sp(theme.spacing.xs),
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: <Widget>[
-                                const UiBadge(
-                                  label: 'Writing Desk & Trade Journal',
-                                  icon: Icons.check_circle_outline_rounded,
-                                  intent: UiIntent.success,
-                                  variant: UiBadgeVariant.soft,
-                                  size: UiSize.xs,
+                              (
+                                icon: Icons.forum_outlined,
+                                title: 'Community Feed & Posts',
+                                desc:
+                                    '$postsLimit posts & $commentsLimit replies per day',
+                              ),
+                              (
+                                icon: Icons.bookmark_border_rounded,
+                                title: 'Watchlists & Alerts',
+                                desc:
+                                    '$watchlistsLimit ${watchlistsLimit == 1 ? 'watchlist' : 'watchlists'} · $alertsLimit price alerts',
+                              ),
+                              (
+                                icon: Icons.auto_awesome_rounded,
+                                title: 'AI Copilot Workspace',
+                                desc: '$aiLimit AI queries / month',
+                              ),
+                              (
+                                icon: Icons.show_chart_rounded,
+                                title: tier == AppTier.free
+                                    ? 'Market Previews & Calculators'
+                                    : 'Full Market Intelligence',
+                                desc: tier == AppTier.free
+                                    ? 'Live previews & core sizing calculators'
+                                    : 'Screeners, watchlists & advanced calculators',
+                              ),
+                              if (tier != AppTier.free)
+                                (
+                                  icon: Icons.mail_outline_rounded,
+                                  title: 'Private Messages (E2EE)',
+                                  desc: 'Encrypted direct trader conversations',
                                 ),
-                                const UiBadge(
-                                  label: 'Community Feed & Public Posts',
-                                  icon: Icons.check_circle_outline_rounded,
-                                  intent: UiIntent.success,
-                                  variant: UiBadgeVariant.soft,
-                                  size: UiSize.xs,
+                              if (pdfUnlocked)
+                                (
+                                  icon: Icons.picture_as_pdf_outlined,
+                                  title: 'PDF & CSV Exports',
+                                  desc: 'Export full reports & trade logs',
                                 ),
-                                const UiBadge(
-                                  label: 'Core Trading Calculators',
-                                  icon: Icons.check_circle_outline_rounded,
-                                  intent: UiIntent.success,
-                                  variant: UiBadgeVariant.soft,
-                                  size: UiSize.xs,
+                              if (backtestUnlocked)
+                                (
+                                  icon: Icons.science_outlined,
+                                  title: 'Advanced Backtesting',
+                                  desc: 'Multi-session playbook simulations',
                                 ),
-                                UiBadge(
-                                  label: tier == AppTier.free
-                                      ? 'Community Market Previews'
-                                      : 'Full Market Intelligence',
-                                  icon: Icons.check_circle_outline_rounded,
-                                  intent: UiIntent.success,
-                                  variant: UiBadgeVariant.soft,
-                                  size: UiSize.xs,
+                            ];
+
+                            final List<
+                              ({
+                                IconData icon,
+                                String title,
+                                String desc,
+                                String badge,
+                              })
+                            >
+                            upgradeItems = [
+                              if (tier == AppTier.free) ...[
+                                (
+                                  icon: Icons.insights_rounded,
+                                  title: 'Full Market Intelligence',
+                                  desc:
+                                      'Deep screeners, sector flow & full watchlists',
+                                  badge: 'Basic+',
                                 ),
-                                const UiBadge(
-                                  label: 'AI Copilot Workspace',
-                                  icon: Icons.check_circle_outline_rounded,
-                                  intent: UiIntent.success,
-                                  variant: UiBadgeVariant.soft,
-                                  size: UiSize.xs,
+                                (
+                                  icon: Icons.mail_outline_rounded,
+                                  title: 'Private Messages (E2EE)',
+                                  desc: 'Encrypted 1-on-1 trader messaging',
+                                  badge: 'Basic+',
                                 ),
-                                if (tier != AppTier.free) ...<Widget>[
-                                  const UiBadge(
-                                    label: 'Private Messages (E2EE)',
-                                    icon: Icons.check_circle_outline_rounded,
-                                    intent: UiIntent.success,
-                                    variant: UiBadgeVariant.soft,
-                                    size: UiSize.xs,
-                                  ),
-                                  const UiBadge(
-                                    label: 'Advanced Calculators',
-                                    icon: Icons.check_circle_outline_rounded,
-                                    intent: UiIntent.success,
-                                    variant: UiBadgeVariant.soft,
-                                    size: UiSize.xs,
-                                  ),
-                                ],
-                                if (pdfUnlocked)
-                                  const UiBadge(
-                                    label: 'PDF & CSV Exports',
-                                    icon: Icons.picture_as_pdf_outlined,
-                                    intent: UiIntent.success,
-                                    variant: UiBadgeVariant.soft,
-                                    size: UiSize.xs,
-                                  ),
-                                if (backtestUnlocked)
-                                  const UiBadge(
-                                    label: 'Advanced Backtest',
-                                    icon: Icons.insights_outlined,
-                                    intent: UiIntent.success,
-                                    variant: UiBadgeVariant.soft,
-                                    size: UiSize.xs,
-                                  ),
+                                (
+                                  icon: Icons.calculate_outlined,
+                                  title: 'Advanced Calculators',
+                                  desc:
+                                      'Expectancy, Kelly & multi-leg risk tools',
+                                  badge: 'Basic+',
+                                ),
                               ],
-                            ),
-                            if (tier == AppTier.free ||
-                                !pdfUnlocked ||
-                                !backtestUnlocked) ...<Widget>[
-                              SizedBox(height: context.sp(theme.spacing.sm)),
-                              Text(
-                                'UNLOCK WITH UPGRADE',
-                                style: context.uiText.caption.copyWith(
-                                  fontSize: context.fs(10),
-                                  letterSpacing: 0.7,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.colors.foregroundSubtle,
+                              if (!pdfUnlocked)
+                                (
+                                  icon: Icons.picture_as_pdf_outlined,
+                                  title: 'PDF & CSV Exports',
+                                  desc:
+                                      'Download tax-ready & audit-ready exports',
+                                  badge: 'Pro',
                                 ),
-                              ),
-                              SizedBox(height: context.sp(theme.spacing.xs)),
-                              Wrap(
-                                spacing: context.sp(theme.spacing.xs),
-                                runSpacing: context.sp(theme.spacing.xs),
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: <Widget>[
-                                  if (tier == AppTier.free) ...<Widget>[
-                                    const UiBadge(
-                                      label: 'Full Market Intelligence: Basic+',
-                                      icon: Icons.lock_outline_rounded,
-                                      intent: UiIntent.neutral,
-                                      variant: UiBadgeVariant.soft,
-                                      size: UiSize.xs,
+                              if (!backtestUnlocked)
+                                (
+                                  icon: Icons.science_outlined,
+                                  title: 'Advanced Backtesting',
+                                  desc:
+                                      'Deep historical expectancy & drawdown stats',
+                                  badge: 'Pro',
+                                ),
+                            ];
+
+                            Widget buildListCard({
+                              required String heading,
+                              required Widget child,
+                              Widget? trailing,
+                            }) {
+                              return Container(
+                                padding: EdgeInsets.all(
+                                  ctx.sp(theme.spacing.sm) + 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colors.surfaceMuted.withValues(
+                                    alpha: 0.32,
+                                  ),
+                                  borderRadius: ctx.radius(theme.radii.md),
+                                  border: Border.all(
+                                    color: theme.colors.border,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Row(
+                                      children: <Widget>[
+                                        Text(
+                                          heading,
+                                          style: ctx.uiText.caption.copyWith(
+                                            fontSize: ctx.fs(10.5),
+                                            letterSpacing: 0.7,
+                                            fontWeight: FontWeight.w700,
+                                            color:
+                                                theme.colors.foregroundSubtle,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        ?trailing,
+                                      ],
                                     ),
-                                    const UiBadge(
-                                      label: 'Private Messages: Basic+',
-                                      icon: Icons.lock_outline_rounded,
-                                      intent: UiIntent.neutral,
-                                      variant: UiBadgeVariant.soft,
-                                      size: UiSize.xs,
-                                    ),
-                                    const UiBadge(
-                                      label: 'Advanced Calculators: Basic+',
-                                      icon: Icons.lock_outline_rounded,
-                                      intent: UiIntent.neutral,
-                                      variant: UiBadgeVariant.soft,
-                                      size: UiSize.xs,
-                                    ),
+                                    SizedBox(height: ctx.sp(theme.spacing.xs)),
+                                    const UiDivider(spacing: 0),
+                                    SizedBox(height: ctx.sp(theme.spacing.xs)),
+                                    child,
                                   ],
-                                  if (!pdfUnlocked)
-                                    const UiBadge(
-                                      label: 'PDF & CSV Exports: Pro Plan',
-                                      icon: Icons.lock_outline_rounded,
-                                      intent: UiIntent.neutral,
-                                      variant: UiBadgeVariant.soft,
-                                      size: UiSize.xs,
-                                    ),
-                                  if (!backtestUnlocked)
-                                    const UiBadge(
-                                      label: 'Advanced Backtest: Pro Plan',
-                                      icon: Icons.lock_outline_rounded,
-                                      intent: UiIntent.neutral,
-                                      variant: UiBadgeVariant.soft,
-                                      size: UiSize.xs,
+                                ),
+                              );
+                            }
+
+                            final Widget includedCard = buildListCard(
+                              heading:
+                                  'INCLUDED IN ${quota.planName.toUpperCase()}',
+                              trailing: UiBadge(
+                                label: '${includedItems.length} active',
+                                intent: UiIntent.success,
+                                variant: UiBadgeVariant.soft,
+                                size: UiSize.xs,
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  for (int i = 0; i < includedItems.length; i++)
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        bottom: i == includedItems.length - 1
+                                            ? 0
+                                            : 9,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          Container(
+                                            width: 26,
+                                            height: 26,
+                                            alignment: Alignment.center,
+                                            decoration: BoxDecoration(
+                                              color: theme.colors.success
+                                                  .withValues(alpha: 0.12),
+                                              borderRadius: ctx.radius(
+                                                theme.radii.sm,
+                                              ),
+                                            ),
+                                            child: Icon(
+                                              includedItems[i].icon,
+                                              size: 14,
+                                              color: theme.colors.success,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: <Widget>[
+                                                Text(
+                                                  includedItems[i].title,
+                                                  style: ctx.uiText.caption
+                                                      .copyWith(
+                                                        fontSize: 12.5,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: theme
+                                                            .colors
+                                                            .foreground,
+                                                      ),
+                                                ),
+                                                Text(
+                                                  includedItems[i].desc,
+                                                  style: ctx.uiText.caption
+                                                      .copyWith(
+                                                        fontSize: 11,
+                                                        color: theme
+                                                            .colors
+                                                            .foregroundMuted,
+                                                      ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                 ],
                               ),
-                            ],
-                          ],
+                            );
+
+                            if (upgradeItems.isEmpty) {
+                              return includedCard;
+                            }
+
+                            final Widget upgradeCard = buildListCard(
+                              heading: 'UNLOCK WITH UPGRADE',
+                              trailing: InkWell(
+                                borderRadius: ctx.radius(theme.radii.sm),
+                                onTap: () =>
+                                    CustomerLimitations.showPlanUpgradeDialog(
+                                      ctx,
+                                      featureTitle: 'Upgrade Plan',
+                                      reason:
+                                          'Compare Free, Basic, and Pro features.',
+                                    ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  child: Text(
+                                    'View plans →',
+                                    style: ctx.uiText.caption.copyWith(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  for (int i = 0; i < upgradeItems.length; i++)
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        bottom: i == upgradeItems.length - 1
+                                            ? 0
+                                            : 9,
+                                      ),
+                                      child: InkWell(
+                                        borderRadius: ctx.radius(
+                                          theme.radii.sm,
+                                        ),
+                                        onTap: () =>
+                                            CustomerLimitations.showPlanUpgradeDialog(
+                                              ctx,
+                                              featureTitle:
+                                                  upgradeItems[i].title,
+                                              reason: upgradeItems[i].desc,
+                                            ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: <Widget>[
+                                            Container(
+                                              width: 26,
+                                              height: 26,
+                                              alignment: Alignment.center,
+                                              decoration: BoxDecoration(
+                                                color: theme.colors.surface,
+                                                borderRadius: ctx.radius(
+                                                  theme.radii.sm,
+                                                ),
+                                                border: Border.all(
+                                                  color: theme.colors.border,
+                                                ),
+                                              ),
+                                              child: Icon(
+                                                upgradeItems[i].icon,
+                                                size: 14,
+                                                color: theme
+                                                    .colors
+                                                    .foregroundMuted,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: <Widget>[
+                                                  Text(
+                                                    upgradeItems[i].title,
+                                                    style: ctx.uiText.caption
+                                                        .copyWith(
+                                                          fontSize: 12.5,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: theme
+                                                              .colors
+                                                              .foreground,
+                                                        ),
+                                                  ),
+                                                  Text(
+                                                    upgradeItems[i].desc,
+                                                    style: ctx.uiText.caption
+                                                        .copyWith(
+                                                          fontSize: 11,
+                                                          color: theme
+                                                              .colors
+                                                              .foregroundMuted,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            UiBadge(
+                                              label: upgradeItems[i].badge,
+                                              icon: Icons.lock_outline_rounded,
+                                              intent:
+                                                  upgradeItems[i].badge == 'Pro'
+                                                  ? UiIntent.primary
+                                                  : UiIntent.neutral,
+                                              variant: UiBadgeVariant.soft,
+                                              size: UiSize.xs,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
+
+                            if (stacked) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: <Widget>[
+                                  includedCard,
+                                  SizedBox(height: ctx.sp(theme.spacing.sm)),
+                                  upgradeCard,
+                                ],
+                              );
+                            }
+                            return IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: <Widget>[
+                                  Expanded(child: includedCard),
+                                  SizedBox(width: ctx.sp(theme.spacing.sm)),
+                                  Expanded(child: upgradeCard),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],

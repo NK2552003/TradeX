@@ -3,6 +3,7 @@ import 'package:alphajournal/features/market_data/presentation/market_root_scree
     deferred as deferred_market_root;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_search_overlay.dart';
 import 'package:alphajournal/features/community/presentation/widgets/public_record_detail_modal.dart';
 import 'package:alphajournal/core/ads/ad_config.dart';
 import 'package:alphajournal/core/ads/ad_scope.dart';
@@ -776,24 +777,14 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
   );
 
-  Future<void> _showCommunitySearch() => UiDrawer.show<void>(
+  Future<void> _showCommunitySearch() => CommunitySearchOverlay.show(
     context,
-    title: 'Search community',
-    child: StatefulBuilder(
-      builder: (drawerContext, updateDrawer) => UiInput.search(
-        value: _communityQuery,
-        hintText: 'Search traders, tickers, #tags, posts...',
-        autofocus: true,
-        onChanged: (value) {
-          setState(() => _communityQuery = value);
-          updateDrawer(() {});
-        },
-        onClear: () {
-          setState(() => _communityQuery = '');
-          updateDrawer(() {});
-        },
-      ),
-    ),
+    repository: _communityRepo,
+    initialQuery: _communityQuery,
+    onApplyQuery: (String value) {
+      if (mounted) setState(() => _communityQuery = value);
+    },
+    onOpenRef: _openLinkRef,
   );
 
   Future<void> _showMessagesSearch() => UiDrawer.show<void>(

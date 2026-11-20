@@ -806,7 +806,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                     : (context.sz(74) + safeBottom))
               : context.sp(theme.spacing.lg);
           final double floatingRight = isMobile
-              ? 12.0
+              ? (MediaQuery.sizeOf(context).width < 430 ? 10.0 : 12.0)
               : context.sp(theme.spacing.lg);
 
           return Stack(

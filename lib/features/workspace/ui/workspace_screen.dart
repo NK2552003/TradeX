@@ -1496,33 +1496,43 @@ class _WorkspaceFabState extends State<_WorkspaceFab>
               SizedBox(height: ctx.sp(theme.spacing.sm)),
             ],
 
-            // Main FAB Button (+) — matches 56x56 dock height, 28px radius & frosted glass
-            GestureDetector(
-              onTap: toggle,
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: isDark ? 0.36 : 0.10,
-                      ),
-                      blurRadius: 18,
-                      spreadRadius: 0,
-                      offset: const Offset(0, 6),
+            // Main FAB Button (+) — matches dock height, radius & frosted glass
+            Builder(
+              builder: (BuildContext fabCtx) {
+                final double fabSize =
+                    fabCtx.uiRes.isMobile &&
+                        MediaQuery.sizeOf(fabCtx).width < 430
+                    ? 48.0
+                    : 56.0;
+                final BorderRadius fabRadius = BorderRadius.circular(
+                  fabSize / 2,
+                );
+                return GestureDetector(
+                  onTap: toggle,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    width: fabSize,
+                    height: fabSize,
+                    decoration: BoxDecoration(
+                      borderRadius: fabRadius,
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: isDark ? 0.36 : 0.10,
+                          ),
+                          blurRadius: 18,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: BackdropFilter(
-                    filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: ClipRRect(
+                      borderRadius: fabRadius,
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(28),
+                        borderRadius: fabRadius,
                         color: theme.colors.surface.withValues(
                           alpha: isDark ? 0.62 : 0.74,
                         ),
@@ -1547,6 +1557,8 @@ class _WorkspaceFabState extends State<_WorkspaceFab>
                   ),
                 ),
               ),
+            );
+              },
             ),
           ],
         );

@@ -1073,15 +1073,19 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
               : Icons.public_rounded);
 
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final double topInset = isMobile
+        ? MediaQuery.paddingOf(context).top + 8.0
+        : context.sp(theme.spacing.md);
     final double bottomInset = isMobile
         ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
+    final double mobileCardRadius = 20.0;
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
-        context.sp(isMobile ? theme.spacing.sm : theme.spacing.lg),
-        context.sp(theme.spacing.md),
-        context.sp(isMobile ? theme.spacing.sm : theme.spacing.lg),
+        isMobile ? 12.0 : context.sp(theme.spacing.lg),
+        topInset,
+        isMobile ? 12.0 : context.sp(theme.spacing.lg),
         bottomInset,
       ),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -1098,50 +1102,62 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
               UiCard(
                 padding: EdgeInsets.zero,
                 variant: UiCardVariant.surface,
+                borderRadius: isMobile
+                    ? BorderRadius.circular(mobileCardRadius)
+                    : null,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     // 1. Cover / Banner Header
-                    Container(
-                      height: context.sz(isMobile ? 120 : 160),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: <Color>[
-                            bannerColor.withValues(alpha: 0.85),
-                            theme.colors.surfaceMuted,
-                            bannerColor.withValues(alpha: 0.35),
-                          ],
+                    ClipRRect(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(
+                          isMobile ? mobileCardRadius : theme.radii.lg,
                         ),
                       ),
-                      child: Stack(
-                        children: <Widget>[
-                          // Subtle financial grid pattern overlay
-                          Positioned.fill(
-                            child: CustomPaint(
-                              painter: _GridPatternPainter(
-                                gridColor: Colors.white.withValues(alpha: 0.08),
+                      child: Container(
+                        height: context.sz(isMobile ? 120 : 160),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: <Color>[
+                              bannerColor.withValues(alpha: 0.85),
+                              theme.colors.surfaceMuted,
+                              bannerColor.withValues(alpha: 0.35),
+                            ],
+                          ),
+                        ),
+                        child: Stack(
+                          children: <Widget>[
+                            // Subtle financial grid pattern overlay
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: _GridPatternPainter(
+                                  gridColor: Colors.white.withValues(
+                                    alpha: 0.08,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                          // Top banner badge
-                          Positioned(
-                            top: context.sp(theme.spacing.sm),
-                            right: context.sp(theme.spacing.sm),
-                            child: UiBadge(
-                              label: bannerBadgeText,
-                              icon: bannerBadgeIcon,
-                              intent: isAdmin
-                                  ? UiIntent.danger
-                                  : (isAffiliate
-                                        ? UiIntent.warning
-                                        : UiIntent.primary),
-                              variant: UiBadgeVariant.solid,
-                              size: UiSize.xs,
+                            // Top banner badge
+                            Positioned(
+                              top: context.sp(theme.spacing.sm),
+                              right: context.sp(theme.spacing.sm),
+                              child: UiBadge(
+                                label: bannerBadgeText,
+                                icon: bannerBadgeIcon,
+                                intent: isAdmin
+                                    ? UiIntent.danger
+                                    : (isAffiliate
+                                          ? UiIntent.warning
+                                          : UiIntent.primary),
+                                variant: UiBadgeVariant.solid,
+                                size: UiSize.xs,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
 

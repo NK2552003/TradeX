@@ -134,23 +134,36 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
             )
           : null,
       tabBar: _buildFloatingBar(context, theme, isMobile),
-      body: TabBarView(
-        controller: _tabController,
-        physics: context.uiRes.isDesktop
-            ? const NeverScrollableScrollPhysics()
-            : null,
-        children: <Widget>[
-          _CommunityKeepAliveTab(
-            child: _networkState(_buildSuggestedTab()),
-          ),
-          _CommunityKeepAliveTab(
-            child: _networkState(_buildFollowingTab()),
-          ),
-          _CommunityKeepAliveTab(
-            child: _networkState(_buildFollowersTab()),
-          ),
-          _CommunityKeepAliveTab(child: _buildLeaderboardTab()),
-        ],
+      body: Builder(
+        builder: (BuildContext bodyCtx) {
+          final double innerTop = MediaQuery.paddingOf(bodyCtx).top;
+          return TabBarView(
+            controller: _tabController,
+            physics: context.uiRes.isDesktop
+                ? const NeverScrollableScrollPhysics()
+                : null,
+            children: <Widget>[
+              _CommunityKeepAliveTab(
+                child: _networkState(
+                  _buildSuggestedTab(topPadding: innerTop),
+                ),
+              ),
+              _CommunityKeepAliveTab(
+                child: _networkState(
+                  _buildFollowingTab(topPadding: innerTop),
+                ),
+              ),
+              _CommunityKeepAliveTab(
+                child: _networkState(
+                  _buildFollowersTab(topPadding: innerTop),
+                ),
+              ),
+              _CommunityKeepAliveTab(
+                child: _buildLeaderboardTab(topPadding: innerTop),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -292,7 +305,7 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   // Tab 3: Leaderboard
   // ---------------------------------------------------------------------------
 
-  Widget _buildLeaderboardTab() {
+  Widget _buildLeaderboardTab({double topPadding = 0}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final rawEntries = widget.repository.leaderboardForPeriod(
@@ -313,7 +326,7 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
         Padding(
           padding: EdgeInsets.fromLTRB(
             context.sp(theme.spacing.md),
-            MediaQuery.paddingOf(context).top + context.sp(theme.spacing.xs),
+            topPadding + context.sp(theme.spacing.xs),
             context.sp(theme.spacing.md),
             context.sp(theme.spacing.xs),
           ),
@@ -426,7 +439,7 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     UiTheme theme, {
     double topPadding = 0,
   }) {
-    final double effectiveTop = topPadding + MediaQuery.paddingOf(context).top;
+    final double effectiveTop = topPadding;
     if (traders.isEmpty) {
       return Center(
         child: Padding(
