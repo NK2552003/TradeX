@@ -351,13 +351,42 @@ class _AppScaffoldState extends State<AppScaffold> {
     }
   }
 
-  AppEntitlement? _blockedEntitlement(String destination) {
+  AppEntitlement? _blockedEntitlement(String destination, [AppTier? tier]) {
     final entitlement = AppEntitlement.forDestination(destination);
-    if (entitlement == null || entitlement.allows(_session.tier.value)) {
+    final effectiveTier = tier ?? _session.tier.value;
+    if (entitlement == null || entitlement.allows(effectiveTier)) {
       return null;
     }
     return entitlement;
   }
+
+  AppNavItem _withTierLocks(AppNavItem item, AppTier tier) => AppNavItem(
+    id: item.id,
+    label: item.label,
+    icon: item.icon,
+    selectedIcon: item.selectedIcon,
+    badgeCount: item.badgeCount,
+    tierLocked: item.tierLocked || _blockedEntitlement(item.id, tier) != null,
+    subItems: item.subItems
+        ?.map((AppNavItem sub) => _withTierLocks(sub, tier))
+        .toList(growable: false),
+    actionItems: item.actionItems,
+    url: item.url,
+  );
+
+  List<AppNavSection> _sectionsWithTierLocks(
+    List<AppNavSection> sections,
+    AppTier tier,
+  ) => sections
+      .map(
+        (AppNavSection section) => AppNavSection(
+          title: section.title,
+          items: section.items
+              .map((AppNavItem item) => _withTierLocks(item, tier))
+              .toList(growable: false),
+        ),
+      )
+      .toList(growable: false);
 
   Future<void> _showEntitlementUpgrade(AppEntitlement entitlement) =>
       CustomerLimitations.showPlanUpgradeDialog(
@@ -2320,9 +2349,13 @@ class _AppScaffoldState extends State<AppScaffold> {
             key: ValueKey<String>(
               '${AppConstants.appName}_${_effectiveRole.id}',
             ),
-            sections: navigation.sections,
-            mobilePrimaryItems: navigation.mobilePrimaryItems,
-            mobileMoreItems: navigation.mobileMoreItems,
+            sections: _sectionsWithTierLocks(navigation.sections, tier),
+            mobilePrimaryItems: navigation.mobilePrimaryItems
+                .map((AppNavItem item) => _withTierLocks(item, tier))
+                .toList(growable: false),
+            mobileMoreItems: navigation.mobileMoreItems
+                .map((AppNavItem item) => _withTierLocks(item, tier))
+                .toList(growable: false),
             userMenuItems: navigation.userMenuItems,
             selectedId: _showAffiliateApplication
                 ? 'affiliate_application'

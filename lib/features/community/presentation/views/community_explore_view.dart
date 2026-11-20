@@ -1099,57 +1099,76 @@ class CommunityMarketWirePage extends StatelessWidget {
     required this.category,
     required this.items,
     this.snapshot,
+    this.showHeader = true,
   });
   final String category;
   final List<CommunityNewsItem> items;
   final MarketSnapshot? snapshot;
+  final bool showHeader;
+
+  List<CommunityNewsItem> _deduplicatedItems() {
+    final seen = <String>{};
+    final result = <CommunityNewsItem>[];
+    for (final item in items) {
+      final key = item.headline.trim().toLowerCase();
+      if (key.isEmpty || !seen.add(key)) continue;
+      result.add(item);
+    }
+    return result;
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
-            child: Row(
-              children: [
-                UiIconButton(
-                  icon: Icons.arrow_back,
-                  tooltip: 'Back to Explore',
-                  onPressed: () => Navigator.of(context).pop(),
+  Widget build(BuildContext context) {
+    final visibleItems = _deduplicatedItems();
+    return Scaffold(
+      body: SafeArea(
+        top: showHeader,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (showHeader)
+              Padding(
+                padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+                child: Row(
+                  children: [
+                    UiIconButton(
+                      icon: Icons.arrow_back,
+                      tooltip: 'Back to Explore',
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    UiGap.h(context.ui.spacing.sm),
+                    Expanded(
+                      child: Text(
+                        marketFieldLabel(category),
+                        style: context.uiText.heading,
+                      ),
+                    ),
+                    UiBadge(label: '${visibleItems.length} articles'),
+                  ],
                 ),
-                UiGap.h(context.ui.spacing.sm),
-                Expanded(
-                  child: Text(
-                    marketFieldLabel(category),
-                    style: context.uiText.heading,
+              ),
+            Expanded(
+              child: UiLazyList(
+                itemCount: visibleItems.length,
+                maxWidth: context.sz(900),
+                padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+                itemBuilder: (_, index) => MarketNewsCard(
+                  article: communityMarketArticle(visibleItems[index]),
+                  snapshot:
+                      snapshot ??
+                      const MarketSnapshot(instruments: [], articles: []),
+                  row: true,
+                  onTap: () => CommunityArticleSheet.show(
+                    context,
+                    article: visibleItems[index],
+                    snapshot: snapshot,
                   ),
-                ),
-                UiBadge(label: '${items.length} articles'),
-              ],
-            ),
-          ),
-          Expanded(
-            child: UiLazyList(
-              itemCount: items.length,
-              maxWidth: context.sz(900),
-              padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
-              itemBuilder: (_, index) => MarketNewsCard(
-                article: communityMarketArticle(items[index]),
-                snapshot:
-                    snapshot ??
-                    const MarketSnapshot(instruments: [], articles: []),
-                row: true,
-                onTap: () => CommunityArticleSheet.show(
-                  context,
-                  article: items[index],
-                  snapshot: snapshot,
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

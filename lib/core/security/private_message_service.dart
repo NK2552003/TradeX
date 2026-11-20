@@ -454,17 +454,30 @@ class PrivateMessageService {
     final identity = await _identity(user);
     final senderPublicKey = await publicKey(sender);
     final senderSigningKey = await signingPublicKey(sender);
-    final plain = await decryptWithKeys(
-      value,
-      context: context,
-      user: user,
-      sender: sender,
-      identity: identity,
-      senderPublicKey: senderPublicKey,
-      senderSigningKey: senderSigningKey,
-    );
-    if (owner != user) throw StateError('Account changed. Please try again.');
-    return plain;
+    try {
+      final plain = await decryptWithKeys(
+        value,
+        context: context,
+        user: user,
+        sender: sender,
+        identity: identity,
+        senderPublicKey: senderPublicKey,
+        senderSigningKey: senderSigningKey,
+      );
+      if (owner != user) throw StateError('Account changed. Please try again.');
+      return plain;
+    } on SecretBoxAuthenticationError {
+      if (sender == user) {
+        final localPublic = await identity.extractPublicKey();
+        if (!_bytesEqual(localPublic.bytes, senderPublicKey.bytes)) {
+          await clearLocalUnlockCache(userId: user);
+          throw StateError(
+            'Unlock encrypted messaging with your account password or recovery passphrase.',
+          );
+        }
+      }
+      rethrow;
+    }
   }
 
   /// Opens an encrypted payload using already-resolved keys, with single-user

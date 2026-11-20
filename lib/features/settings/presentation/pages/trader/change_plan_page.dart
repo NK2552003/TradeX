@@ -697,15 +697,16 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
               if (isCurrent)
                 const UiBadge(
                   label: 'CURRENT PLAN',
+                  icon: Icons.check_circle_outline_rounded,
                   intent: UiIntent.success,
-                  variant: UiBadgeVariant.solid,
+                  variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 )
               else if (plan.badgeLabel != null)
                 UiBadge(
                   label: plan.badgeLabel!,
                   intent: UiIntent.primary,
-                  variant: UiBadgeVariant.solid,
+                  variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
             ],
@@ -820,76 +821,113 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
 
           if (!isMobile)
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  for (final String f in plan.featuresSummary)
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: context.sp(theme.spacing.xxs),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Icon(
-                            Icons.check_rounded,
-                            size: context.sz(14),
-                            color: isFeatured ? colors.primary : colors.bullish,
-                          ),
-                          SizedBox(width: context.sp(theme.spacing.xs)),
-                          Expanded(
-                            child: Text(
-                              f,
-                              style: context.uiText.caption.copyWith(
-                                color: colors.foregroundMuted,
-                                fontSize: 12.0,
-                                height: 1.35,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+              child: _buildPlanFeatureRows(
+                context,
+                theme,
+                colors,
+                plan,
+                isFeatured: isFeatured,
               ),
             )
           else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                for (final String f in plan.featuresSummary)
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: context.sp(theme.spacing.xxs),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Icon(
-                          Icons.check_rounded,
-                          size: context.sz(14),
-                          color: isFeatured ? colors.primary : colors.bullish,
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.xs)),
-                        Expanded(
-                          child: Text(
-                            f,
-                            style: context.uiText.caption.copyWith(
-                              color: colors.foregroundMuted,
-                              fontSize: 12.0,
-                              height: 1.35,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
+            _buildPlanFeatureRows(
+              context,
+              theme,
+              colors,
+              plan,
+              isFeatured: isFeatured,
             ),
         ],
       ),
     );
   }
+
+  Widget _buildPlanFeatureRows(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors,
+    PricingPlanModel plan, {
+    required bool isFeatured,
+  }) {
+    final List<String> rows = plan.featuresSummary.isNotEmpty
+        ? plan.featuresSummary
+        : _defaultFeaturesForTier(plan.tier);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        for (final String f in rows) ...<Widget>[
+          Builder(
+            builder: (BuildContext context) {
+              final lower = f.trim().toLowerCase();
+              final bool excluded =
+                  lower.startsWith('no ') || lower.contains('not included');
+              return Padding(
+                padding: EdgeInsets.symmetric(
+                  vertical: context.sp(theme.spacing.xxs),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Icon(
+                      excluded
+                          ? Icons.lock_outline_rounded
+                          : Icons.check_rounded,
+                      size: context.sz(14),
+                      color: excluded
+                          ? colors.foregroundSubtle
+                          : (isFeatured ? colors.primary : colors.bullish),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Expanded(
+                      child: Text(
+                        f,
+                        style: context.uiText.caption.copyWith(
+                          color: excluded
+                              ? colors.foregroundSubtle
+                              : colors.foregroundMuted,
+                          fontSize: 12.0,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ],
+    );
+  }
+
+  List<String> _defaultFeaturesForTier(AppTier tier) => switch (tier) {
+    AppTier.free => const <String>[
+      'Up to 3 research notes, 15 logged trades & 1 live playbook',
+      '5 AI Copilot queries/month',
+      '1 watchlist & up to 3 price alerts',
+      'Community feed, public posts (2/day) & replies (10/day)',
+      'Core trading calculators',
+      'Community market previews (top movers, charts & wire)',
+      'No private Messages or full Market Intelligence',
+    ],
+    AppTier.premium => const <String>[
+      'Up to 25 research notes, 100 logged trades & 3 live playbooks',
+      '20 AI Copilot queries/month',
+      '5 watchlists & 25 price alerts',
+      'Full Market Intelligence, live screeners & global coverage',
+      'End-to-end encrypted Private Messages',
+      'All advanced options, forex, margin & tax calculators',
+      '15 Community posts/day & 50 replies/day',
+    ],
+    AppTier.enterprise => const <String>[
+      'Up to 10,000 research notes, 50,000 trades & 250 playbooks',
+      '5,000 AI Copilot queries/month',
+      '100 watchlists & 500 price alerts',
+      'PDF & CSV journal and report exports',
+      'Advanced backtesting, analytics & desk risk controls',
+      '100 Community posts/day & 500 replies/day',
+    ],
+  };
 
   Widget _buildFeatureMatrixSection(
     BuildContext context,

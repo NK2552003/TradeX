@@ -1,7 +1,6 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:quiet_dock/quiet_dock.dart';
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 
@@ -20,6 +19,8 @@ class AppQuietDockScaffold extends StatefulWidget {
     this.onDestinationSelected,
     this.centerAction,
     this.centerActionActive = false,
+    this.lockedDestinationIndices = const <int>{},
+    this.lockedCenterIndices = const <int>{},
     this.swipeEnabled = false,
     this.lazy = true,
     this.keepAlive = false,
@@ -38,6 +39,8 @@ class AppQuietDockScaffold extends StatefulWidget {
   final ValueChanged<int>? onDestinationSelected;
   final QuietDockCenterAction? centerAction;
   final bool centerActionActive;
+  final Set<int> lockedDestinationIndices;
+  final Set<int> lockedCenterIndices;
   final bool swipeEnabled;
   final bool lazy;
   final bool keepAlive;
@@ -48,13 +51,37 @@ class AppQuietDockScaffold extends StatefulWidget {
   State<AppQuietDockScaffold> createState() => _AppQuietDockScaffoldState();
 }
 
-class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
+class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
+    with SingleTickerProviderStateMixin {
   late QuietDockController _controller;
   PageController? _pageController;
+  late final AnimationController _dockAnim = AnimationController(
+    vsync: this,
+    value: 1.0,
+    duration: const Duration(milliseconds: 260),
+    reverseDuration: const Duration(milliseconds: 220),
+  );
+  late final Animation<double> _dockCurve = CurvedAnimation(
+    parent: _dockAnim,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
+  late final Animation<Offset> _dockSlide = Tween<Offset>(
+    begin: const Offset(0, 1.35),
+    end: Offset.zero,
+  ).animate(_dockCurve);
+  late final Animation<double> _dockScale = Tween<double>(
+    begin: 0.94,
+    end: 1.0,
+  ).animate(_dockCurve);
   late int _index;
   final Set<int> _visited = <int>{};
   bool _menuOpen = false;
   bool _dockHidden = false;
+  double _scrollDelta = 0.0;
+
+  static const double _hideThreshold = 28.0;
+  static const double _revealThreshold = 16.0;
 
   @override
   void initState() {
@@ -68,13 +95,31 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
     _pageController = PageController(initialPage: _index);
   }
 
+  void _setDockHidden(bool hidden, {bool immediate = false}) {
+    if (_dockHidden == hidden) return;
+    setState(() => _dockHidden = hidden);
+    final bool reduced =
+        mounted && MediaQuery.disableAnimationsOf(context);
+    if (immediate || reduced) {
+      _dockAnim.value = hidden ? 0.0 : 1.0;
+    } else if (hidden) {
+      _dockAnim.reverse();
+    } else {
+      _dockAnim.forward();
+    }
+  }
+
   @override
   void didUpdateWidget(covariant AppQuietDockScaffold oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.activeDestination != oldWidget.activeDestination ||
         widget.theme.height != oldWidget.theme.height) {
-      _dockHidden = false;
+      _scrollDelta = 0.0;
       _menuOpen = false;
+      if (_dockHidden) {
+        _dockHidden = false;
+        _dockAnim.forward();
+      }
     }
     if (widget.controller != oldWidget.controller) {
       oldWidget.controller?.handler = null;
@@ -86,6 +131,7 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
 
   @override
   void dispose() {
+    _dockAnim.dispose();
     if (_controller.handler == _select) _controller.handler = null;
     if (widget.controller == null) _controller.dispose();
     _pageController?.dispose();
@@ -97,10 +143,11 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
     final int previous = _index;
     setState(() {
       _menuOpen = false;
-      _dockHidden = false;
+      _scrollDelta = 0.0;
       _visited.add(index);
       _index = index;
     });
+    _setDockHidden(false);
     _controller.syncIndex(index);
 
     final PageController? page = _pageController;
@@ -119,22 +166,58 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
     if (index != previous) widget.onDestinationSelected?.call(index);
   }
 
-  void _toggleMenu() => setState(() => _menuOpen = !_menuOpen);
+  void _toggleMenu() {
+    setState(() => _menuOpen = !_menuOpen);
+    if (_menuOpen) _setDockHidden(false);
+  }
 
-  bool _onUserScroll(UserScrollNotification notification) {
+  bool _onScrollNotification(ScrollNotification notification) {
     if (_menuOpen ||
         widget.theme.height == 0 ||
-        notification.metrics.axis != Axis.vertical ||
-        notification.metrics.maxScrollExtent <=
-            notification.metrics.minScrollExtent ||
-        notification.direction == ScrollDirection.idle) {
+        notification.metrics.axis != Axis.vertical) {
       return false;
     }
-    // Reversed lists change their scroll offset in the opposite direction.
-    final hide =
-        (notification.direction == ScrollDirection.reverse) ==
-        (notification.metrics.axisDirection == AxisDirection.down);
-    if (hide != _dockHidden) setState(() => _dockHidden = hide);
+    final metrics = notification.metrics;
+    if (metrics.maxScrollExtent <= metrics.minScrollExtent + 32) {
+      if (_dockHidden) _setDockHidden(false);
+      return false;
+    }
+    if (notification is ScrollEndNotification) {
+      _scrollDelta = 0.0;
+      return false;
+    }
+    if (notification is! ScrollUpdateNotification) return false;
+    final double? delta = notification.scrollDelta;
+    if (delta == null || delta == 0) return false;
+
+    final bool reversed = metrics.axisDirection == AxisDirection.up;
+    final double effectiveDelta = reversed ? -delta : delta;
+    final double distanceFromStart = reversed
+        ? metrics.maxScrollExtent - metrics.pixels
+        : metrics.pixels - metrics.minScrollExtent;
+
+    if (distanceFromStart <= 16.0) {
+      _scrollDelta = 0.0;
+      if (_dockHidden) _setDockHidden(false);
+      return false;
+    }
+
+    // Ignore overscroll bounce past either edge.
+    if (metrics.outOfRange) return false;
+
+    if ((effectiveDelta > 0 && _scrollDelta < 0) ||
+        (effectiveDelta < 0 && _scrollDelta > 0)) {
+      _scrollDelta = 0.0;
+    }
+    _scrollDelta += effectiveDelta;
+
+    if (!_dockHidden && _scrollDelta >= _hideThreshold) {
+      _scrollDelta = 0.0;
+      _setDockHidden(true);
+    } else if (_dockHidden && _scrollDelta <= -_revealThreshold) {
+      _scrollDelta = 0.0;
+      _setDockHidden(false);
+    }
     return false;
   }
 
@@ -179,8 +262,8 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
       body: Stack(
         children: <Widget>[
           Positioned.fill(
-            child: NotificationListener<UserScrollNotification>(
-              onNotification: _onUserScroll,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _onScrollNotification,
               child: pages,
             ),
           ),
@@ -206,70 +289,106 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
               child: _FrostedQuickGrid(
                 action: action,
                 theme: t,
+                lockedIndices: widget.lockedCenterIndices,
                 onClose: () => setState(() => _menuOpen = false),
               ),
             ),
           ],
+          if (t.height > 0)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildDock(context, t),
+            ),
         ],
       ),
-      bottomNavigationBar: t.height == 0 ? null : _buildDock(context, t),
     );
   }
 
   Widget _buildDock(BuildContext context, QuietDockTheme theme) {
-    final motion = context.ui.motion;
-    return AnimatedSlide(
+    return SlideTransition(
       key: const ValueKey('app-dock-slide'),
-      offset: _dockHidden ? const Offset(0, 1) : Offset.zero,
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : motion.normal,
-      curve: motion.curve,
-      child: ExcludeFocus(
-        excluding: _dockHidden,
-        child: ExcludeSemantics(
-          excluding: _dockHidden,
-          child: IgnorePointer(
-            ignoring: _dockHidden,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                QuietDock(
-                  destinations: widget.destinations,
-                  selectedIndex: _index,
-                  onDestinationSelected: _handleDestinationTap,
-                  centerAction: widget.centerAction,
-                  centerActionActive: _menuOpen || widget.centerActionActive,
-                  onCenterActionPressed: _toggleMenu,
-                  theme: widget.theme,
-                ),
-                if (widget.centerActionActive)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: MediaQuery.paddingOf(context).bottom + theme.margin,
-                    child: IgnorePointer(
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: SizedBox(
-                          width: 56,
-                          height: theme.height,
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 8, right: 8),
+      position: _dockSlide,
+      child: FadeTransition(
+        opacity: _dockCurve,
+        child: ScaleTransition(
+          scale: _dockScale,
+          alignment: Alignment.bottomCenter,
+          child: ExcludeFocus(
+            excluding: _dockHidden,
+            child: ExcludeSemantics(
+              excluding: _dockHidden,
+              child: IgnorePointer(
+                ignoring: _dockHidden,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    QuietDock(
+                      destinations: widget.destinations,
+                      selectedIndex: _index,
+                      onDestinationSelected: _handleDestinationTap,
+                      centerAction: widget.centerAction,
+                      centerActionActive:
+                          _menuOpen || widget.centerActionActive,
+                      onCenterActionPressed: _toggleMenu,
+                      theme: widget.theme,
+                    ),
+                    if (widget.lockedDestinationIndices.isNotEmpty)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: SafeArea(
+                            top: false,
                             child: Align(
-                              alignment: Alignment.topRight,
-                              child: Icon(
-                                Icons.arrow_back_rounded,
-                                size: context.sz(11),
-                                color: context.ui.colors.primary,
+                              alignment: Alignment.bottomCenter,
+                              child: Container(
+                                width: theme.width,
+                                height: theme.height,
+                                margin: EdgeInsets.only(bottom: theme.margin),
+                                child: _DockLockOverlayRow(
+                                  destinationCount: widget.destinations.length,
+                                  hasCenter: widget.centerAction != null,
+                                  lockedIndices:
+                                      widget.lockedDestinationIndices,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-              ],
+                    if (widget.centerActionActive)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom:
+                            MediaQuery.paddingOf(context).bottom + theme.margin,
+                        child: IgnorePointer(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: SizedBox(
+                              width: 56,
+                              height: theme.height,
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 8,
+                                  right: 8,
+                                ),
+                                child: Align(
+                                  alignment: Alignment.topRight,
+                                  child: Icon(
+                                    Icons.arrow_back_rounded,
+                                    size: context.sz(11),
+                                    color: context.ui.colors.primary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -278,15 +397,102 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold> {
   }
 }
 
+class _DockLockBadge extends StatelessWidget {
+  const _DockLockBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final ui = context.ui;
+    return Container(
+      width: 15,
+      height: 15,
+      decoration: BoxDecoration(
+        color: ui.colors.surface,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: ui.colors.borderStrong,
+          width: 1,
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.28),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.lock_rounded,
+        size: 9,
+        color: ui.colors.foregroundMuted,
+      ),
+    );
+  }
+}
+
+class _DockLockOverlayRow extends StatelessWidget {
+  const _DockLockOverlayRow({
+    required this.destinationCount,
+    required this.hasCenter,
+    required this.lockedIndices,
+  });
+
+  final int destinationCount;
+  final bool hasCenter;
+  final Set<int> lockedIndices;
+
+  @override
+  Widget build(BuildContext context) {
+    final int centerSlot = destinationCount ~/ 2;
+    final int slots = destinationCount + (hasCenter ? 1 : 0);
+    return Row(
+      children: <Widget>[
+        for (int slot = 0; slot < slots; slot++)
+          Expanded(
+            child: () {
+              if (hasCenter && slot == centerSlot) {
+                return const SizedBox.shrink();
+              }
+              final int index =
+                  hasCenter && slot > centerSlot ? slot - 1 : slot;
+              if (!lockedIndices.contains(index)) {
+                return const SizedBox.shrink();
+              }
+              return const Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: <Widget>[
+                      Positioned(
+                        top: -2,
+                        right: -4,
+                        child: _DockLockBadge(),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }(),
+          ),
+      ],
+    );
+  }
+}
+
 class _FrostedQuickGrid extends StatelessWidget {
   const _FrostedQuickGrid({
     required this.action,
     required this.theme,
+    required this.lockedIndices,
     required this.onClose,
   });
 
   final QuietDockCenterAction action;
   final QuietDockTheme theme;
+  final Set<int> lockedIndices;
   final VoidCallback onClose;
 
   @override
@@ -319,6 +525,7 @@ class _FrostedQuickGrid extends StatelessWidget {
                     child: (row * columns + col) < items.length
                         ? _FrostedQuickGridTile(
                             item: items[row * columns + col],
+                            locked: lockedIndices.contains(row * columns + col),
                             theme: theme,
                             onClose: onClose,
                           )
@@ -337,11 +544,13 @@ class _FrostedQuickGrid extends StatelessWidget {
 class _FrostedQuickGridTile extends StatelessWidget {
   const _FrostedQuickGridTile({
     required this.item,
+    required this.locked,
     required this.theme,
     required this.onClose,
   });
 
   final QuickGridItem item;
+  final bool locked;
   final QuietDockTheme theme;
   final VoidCallback onClose;
 
@@ -369,13 +578,24 @@ class _FrostedQuickGridTile extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: colors.primary.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(item.icon, size: 18, color: colors.primary),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(item.icon, size: 18, color: colors.primary),
+                    ),
+                    if (locked)
+                      const Positioned(
+                        top: -3,
+                        right: -4,
+                        child: _DockLockBadge(),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Padding(

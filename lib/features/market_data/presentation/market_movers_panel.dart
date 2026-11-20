@@ -239,21 +239,83 @@ class _CommunityInstrumentPreview extends StatelessWidget {
 
   final MarketInstrument instrument;
 
+  String _compactNumber(num value) {
+    final abs = value.abs();
+    if (abs >= 1e12) return '${(value / 1e12).toStringAsFixed(2)}T';
+    if (abs >= 1e9) return '${(value / 1e9).toStringAsFixed(2)}B';
+    if (abs >= 1e6) return '${(value / 1e6).toStringAsFixed(2)}M';
+    if (abs >= 1e3) return '${(value / 1e3).toStringAsFixed(1)}K';
+    return value.toStringAsFixed(0);
+  }
+
+  double? _numField(String key) {
+    final raw = instrument.raw[key];
+    return raw is num && raw.isFinite ? raw.toDouble() : null;
+  }
+
+  String _textField(String key) => '${instrument.raw[key] ?? ''}'.trim();
+
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
+    final bool positive = instrument.changePercent >= 0;
+    final Color trendColor = positive
+        ? theme.colors.success
+        : theme.colors.danger;
+    final double? dayLow = _numField('day_low');
+    final double? dayHigh = _numField('day_high');
+    final double? week52Low = _numField('fifty_two_week_low');
+    final double? week52High = _numField('fifty_two_week_high');
+    final double? marketCap = _numField('market_cap');
+    final double? peRatio = _numField('pe_ratio');
+    final double? beta = _numField('beta');
+    final double? dividendYield = _numField('dividend_yield');
+    final String sector = _textField('sector');
+    final String industry = _textField('industry');
+    final String exchange = _textField('exchange');
+
+    final List<({String label, String value})> detailRows =
+        <({String label, String value})>[
+          if (instrument.previousClose != null)
+            (
+              label: 'Previous close',
+              value:
+                  '${instrument.previousClose!.toStringAsFixed(2)} ${instrument.currency}',
+            ),
+          if (dayLow != null && dayHigh != null)
+            (
+              label: 'Day range',
+              value:
+                  '${dayLow.toStringAsFixed(2)} – ${dayHigh.toStringAsFixed(2)}',
+            ),
+          if (week52Low != null && week52High != null)
+            (
+              label: '52-week range',
+              value:
+                  '${week52Low.toStringAsFixed(2)} – ${week52High.toStringAsFixed(2)}',
+            ),
+          if (instrument.volume > 0)
+            (label: 'Volume', value: _compactNumber(instrument.volume)),
+          if (marketCap != null && marketCap > 0)
+            (label: 'Market cap', value: _compactNumber(marketCap)),
+          if (peRatio != null && peRatio > 0)
+            (label: 'P/E ratio', value: peRatio.toStringAsFixed(2)),
+          if (beta != null) (label: 'Beta', value: beta.toStringAsFixed(2)),
+          if (dividendYield != null && dividendYield > 0)
+            (
+              label: 'Dividend yield',
+              value: '${(dividendYield * 100).toStringAsFixed(2)}%',
+            ),
+          if (exchange.isNotEmpty) (label: 'Exchange', value: exchange),
+          if (sector.isNotEmpty) (label: 'Sector', value: sector),
+          if (industry.isNotEmpty) (label: 'Industry', value: industry),
+        ];
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(context.sp(theme.spacing.md)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const UiCallout(
-            title: 'Community market preview',
-            message:
-                'Free includes this limited quote preview. Full charts, fundamentals, screeners, and coverage require AlphaJournal Basic or Pro.',
-            intent: UiIntent.info,
-          ),
-          UiGap.v(theme.spacing.md),
           UiCardGrid(
             mobileColumns: 1,
             tabletColumns: 2,
@@ -264,15 +326,17 @@ class _CommunityInstrumentPreview extends StatelessWidget {
                 label: 'Last price',
                 value: instrument.price.toStringAsFixed(2),
                 change:
-                    '${instrument.changePercent >= 0 ? '+' : ''}${instrument.changePercent.toStringAsFixed(2)}%',
-                isPositive: instrument.changePercent >= 0,
-                subtitle: instrument.currency,
+                    '${positive ? '+' : ''}${instrument.changePercent.toStringAsFixed(2)}%',
+                isPositive: positive,
+                subtitle: instrument.currency.isEmpty
+                    ? 'USD'
+                    : instrument.currency,
                 icon: Icons.price_change_outlined,
               ),
               UiMetricCard(
                 label: 'Market',
                 value: instrument.market.isEmpty ? 'Global' : instrument.market,
-                subtitle: instrument.name,
+                subtitle: exchange.isNotEmpty ? exchange : instrument.name,
                 icon: Icons.public_rounded,
               ),
             ],
@@ -280,16 +344,59 @@ class _CommunityInstrumentPreview extends StatelessWidget {
           if (instrument.spark.length > 1) ...<Widget>[
             UiGap.v(theme.spacing.md),
             UiCard(
-              title: 'Recent trend',
+              title: 'Recent closing trend',
               child: UiSparkChart(
-                values: instrument.spark,
-                height: context.sz(120),
-                color: instrument.changePercent >= 0
-                    ? theme.colors.success
-                    : theme.colors.danger,
+                data: instrument.spark,
+                height: context.sz(140),
+                color: trendColor,
+                filled: true,
               ),
             ),
           ],
+          if (detailRows.isNotEmpty) ...<Widget>[
+            UiGap.v(theme.spacing.md),
+            UiCard(
+              title: 'Ticker details',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  for (int i = 0; i < detailRows.length; i++) ...<Widget>[
+                    if (i > 0) const UiDivider(spacing: 0),
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: context.sp(theme.spacing.xs),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              detailRows[i].label,
+                              style: context.uiText.caption.copyWith(
+                                color: theme.colors.foregroundMuted,
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: context.sp(theme.spacing.sm)),
+                          Text(
+                            detailRows[i].value,
+                            style: context.uiText.bodyStrong,
+                            textAlign: TextAlign.right,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          UiGap.v(theme.spacing.md),
+          const UiCallout(
+            title: 'Community market preview',
+            message:
+                'Free includes live pricing, trend charts, and details for Community preview tickers. Full Market Intelligence, screeners, options, and global coverage unlock with AlphaJournal Basic or Pro.',
+            intent: UiIntent.info,
+          ),
         ],
       ),
     );

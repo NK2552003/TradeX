@@ -213,7 +213,9 @@ class UiDataPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               if (leadingIcon != null) iconWidget,
-              if (labelWidget != null)
+              if (labelWidget != null && hint == null)
+                Expanded(child: labelWidget)
+              else if (labelWidget != null)
                 Flexible(flex: 3, fit: FlexFit.loose, child: labelWidget),
               if (hint != null) ...<Widget>[
                 SizedBox(width: context.sp(theme.spacing.sm)),
@@ -232,7 +234,9 @@ class UiDataPanel extends StatelessWidget {
                     ),
                   ),
                 ),
-              ] else ...<Widget>[const Spacer()],
+              ] else if (labelWidget == null) ...<Widget>[
+                const Spacer(),
+              ],
               ?trailingWidget,
             ],
           );

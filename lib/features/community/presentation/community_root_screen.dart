@@ -654,6 +654,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         category: 'Market Wire',
         items: _repo.news,
         snapshot: _repo.marketSnapshot,
+        showHeader: false,
       ),
     );
   }

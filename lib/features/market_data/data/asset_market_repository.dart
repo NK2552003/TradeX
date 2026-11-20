@@ -831,35 +831,79 @@ class AssetMarketRepository {
       final raw = await _database.rpc('community_market_preview');
       if (raw is! Map) throw const FormatException('Invalid preview payload');
       final payload = Map<String, dynamic>.from(raw);
+      MarketInstrument? parsePreviewQuote(dynamic item) {
+        if (item is! Map) return null;
+        final map = Map<String, dynamic>.from(item);
+        final rawSpark = map['spark'];
+        final spark = rawSpark is List
+            ? rawSpark
+                  .whereType<num>()
+                  .map((v) => v.toDouble())
+                  .where((v) => v.isFinite)
+                  .toList()
+            : const <double>[];
+        if (map['ticker'] == null || map['price'] is! num) return null;
+        final inst = MarketInstrument.fromJson(map, map, history: spark);
+        if (inst.symbol.isEmpty || !inst.price.isFinite) return null;
+        if (spark.length > 1) {
+          _sparkCache[inst.symbol] = spark;
+        }
+        return inst;
+      }
+
       final instruments = (payload['quotes'] as List? ?? const <dynamic>[])
-          .whereType<Map>()
-          .map(
-            (row) => MarketInstrument.fromJson(
-              Map<String, dynamic>.from(row),
-              const <String, dynamic>{},
-            ),
-          )
-          .where((quote) => quote.symbol.isNotEmpty && quote.price.isFinite)
+          .map(parsePreviewQuote)
+          .whereType<MarketInstrument>()
           .toList();
-      final gainers = [...instruments]
-        ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
-      final losers = [...instruments]
-        ..sort((a, b) => a.changePercent.compareTo(b.changePercent));
-      final articles = (payload['news'] as List? ?? const <dynamic>[])
-          .whereType<Map>()
-          .map((row) => MarketArticle.fromJson(Map<String, dynamic>.from(row)))
-          .where((article) => article.title.isNotEmpty)
-          .toList();
+      final bySymbol = <String, MarketInstrument>{
+        for (final inst in instruments) inst.symbol: inst,
+      };
+      List<MarketInstrument> parseMoverList(dynamic rawList) {
+        if (rawList is! List) return const <MarketInstrument>[];
+        final out = <MarketInstrument>[];
+        for (final entry in rawList) {
+          final parsed = parsePreviewQuote(entry);
+          if (parsed != null) {
+            out.add(parsed);
+            bySymbol.putIfAbsent(parsed.symbol, () => parsed);
+          }
+        }
+        return out;
+      }
+
+      final explicitGainers = parseMoverList(payload['top_gainers']);
+      final explicitLosers = parseMoverList(payload['top_losers']);
+      final fallbackGainers =
+          instruments.where((q) => q.changePercent >= 0).toList()
+            ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
+      final fallbackLosers =
+          instruments.where((q) => q.changePercent < 0).toList()
+            ..sort((a, b) => a.changePercent.compareTo(b.changePercent));
+
+      final seenTitles = <String>{};
+      final articles = <MarketArticle>[];
+      for (final row in (payload['news'] as List? ?? const <dynamic>[])) {
+        if (row is! Map) continue;
+        final article = MarketArticle.fromJson(Map<String, dynamic>.from(row));
+        final key = article.title.trim().toLowerCase();
+        if (key.isEmpty || !seenTitles.add(key)) continue;
+        articles.add(article);
+      }
+
       return MarketSnapshot(
         manifest: <String, dynamic>{
           'data_source': 'community_preview',
           'limited': true,
-          'quote_count': instruments.length,
+          'quote_count': bySymbol.length,
         },
-        instruments: instruments,
+        instruments: bySymbol.values.toList(),
         screeners: <String, List<MarketInstrument>>{
-          'top_gainers': gainers.where((q) => q.changePercent >= 0).toList(),
-          'top_losers': losers.where((q) => q.changePercent < 0).toList(),
+          'top_gainers': explicitGainers.isNotEmpty
+              ? explicitGainers
+              : fallbackGainers,
+          'top_losers': explicitLosers.isNotEmpty
+              ? explicitLosers
+              : fallbackLosers,
         },
         articles: articles,
       );

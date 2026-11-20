@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:alphajournal/features/market_data/presentation/market_movers_panel.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
 import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/data/app_entitlements.dart';
+import 'package:alphajournal/core/data/app_session.dart';
 // ignore: unnecessary_import
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_article_sheet.dart';
@@ -100,7 +102,11 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
           ),
         deferred((_) => const CommunityPremiumCard(), 200),
         deferred(
-          (_) => const MarketMoversPanel(limitedCommunityAccess: true),
+          (_) => MarketMoversPanel(
+            limitedCommunityAccess: !AppEntitlement.marketIntelligence.allows(
+              AppSession.instance.tier.value,
+            ),
+          ),
           650,
         ),
         if (news.isNotEmpty)
@@ -371,9 +377,13 @@ class CommunityNewsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final seenHeadlines = <String>{};
     final List<CommunityNewsItem> visibleItems =
         items
-            .where((CommunityNewsItem item) => item.headline.trim().isNotEmpty)
+            .where((CommunityNewsItem item) {
+              final key = item.headline.trim().toLowerCase();
+              return key.isNotEmpty && seenHeadlines.add(key);
+            })
             .toList()
           ..sort(
             (CommunityNewsItem a, CommunityNewsItem b) =>

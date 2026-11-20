@@ -156,6 +156,17 @@ class CopilotController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
+  String _formatFailure(Object failure) {
+    final text = '$failure'.trim();
+    if (text.contains('SecretBox') ||
+        text.contains('message authentication code')) {
+      return 'Encrypted workspace could not be unlocked. Reconnect or verify your recovery passphrase in Settings.';
+    }
+    return text
+        .replaceFirst(RegExp(r'^Bad state:\s*'), '')
+        .replaceFirst(RegExp(r'^minified:Class\d+:\s*'), '');
+  }
+
   void _onVisibilityChanged(bool isVisible) {
     if (_disposed || !_autoLoad) return;
     if (!isVisible) {
@@ -234,7 +245,7 @@ class CopilotController extends ChangeNotifier {
       if (_disposed || epoch != _epoch || sequence != _loadSequence) return;
       _pollFailures++;
       if (!quiet) {
-        error = '$failure';
+        error = _formatFailure(failure);
         connected = false;
       }
     } finally {

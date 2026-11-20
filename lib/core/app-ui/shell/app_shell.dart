@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quiet_dock/quiet_dock.dart';
@@ -434,23 +436,24 @@ class _AppShellState extends State<AppShell> {
         );
 
     if (r.isMobile) {
-      // QuietDockScaffold intentionally extends its body beneath the floating
-      // dock. Reserve the complete dock footprint here so every page (even a
-      // page with its own ScrollView) receives safe layout constraints.
       const double dockHeight = 56;
       final double dockMargin = _isNativeAndroid ? 8 : 16;
-      final double dockClearance = keyboardVisible
-          ? mediaQuery.padding.bottom
-          : dockHeight + dockMargin + mediaQuery.padding.bottom;
-      // Expose the dock footprint via MediaQuery padding so scrollable views
-      // and inner SafeArea footers keep their last items reachable above the
-      // dock while allowing page content to flow transparently behind it.
-      final pageMedia = mediaQuery.removePadding(
-        removeTop: !widget.hideMobileTopBar,
-      );
-      final MediaQueryData dockSafeMedia = pageMedia
+      final double mobileHeaderClearance = widget.hideMobileTopBar
+          ? 0.0
+          : (_isNativeAndroid ? 52.0 : 60.0);
+      // Keep the real system bottom safe-area inset instead of inflating it
+      // with the floating dock height so SafeArea pages never render a blank
+      // dead band at the bottom of the screen. Provide top clearance for the
+      // floating frosted-glass header so content starts cleanly beneath it and
+      // scrolls smoothly behind it.
+      final MediaQueryData dockSafeMedia = mediaQuery
           .removeViewInsets(removeBottom: true)
-          .copyWith(padding: pageMedia.padding.copyWith(bottom: dockClearance));
+          .copyWith(
+            padding: mediaQuery.padding.copyWith(
+              top: mediaQuery.padding.top + mobileHeaderClearance,
+              bottom: mediaQuery.padding.bottom,
+            ),
+          );
       final Widget dockSafeContent = MediaQuery(
         data: dockSafeMedia,
         child: contentSurface,
@@ -475,6 +478,37 @@ class _AppShellState extends State<AppShell> {
         }
       }
       final bool moreRouteSelected = activeMoreItem != null;
+      final List<AppNavItem> quickGridNavItems =
+          <AppNavItem>[
+            if (_isCommunityRoute) ...<AppNavItem>[
+              for (final AppNavItem item
+                  in (widget.mobilePrimaryItems ?? const <AppNavItem>[]))
+                if (item.id != 'community' && !item.id.startsWith('community_'))
+                  item,
+              const AppNavItem(
+                id: 'community_bookmarks',
+                label: 'Bookmarks',
+                icon: Icons.bookmark_outline_rounded,
+              ),
+            ],
+            ...widget.mobileMoreItems,
+          ].fold<List<AppNavItem>>(<AppNavItem>[], (
+            List<AppNavItem> acc,
+            AppNavItem item,
+          ) {
+            if (acc.every((AppNavItem existing) => existing.id != item.id)) {
+              acc.add(item);
+            }
+            return acc;
+          });
+      final Set<int> lockedDestinationIndices = <int>{
+        for (int i = 0; i < destinations.length; i++)
+          if (destinations[i].tierLocked) i,
+      };
+      final Set<int> lockedCenterIndices = <int>{
+        for (int i = 0; i < quickGridNavItems.length; i++)
+          if (quickGridNavItems[i].tierLocked) i,
+      };
       final Widget dockScaffold = AppQuietDockScaffold(
         key: ValueKey<String>(
           'quiet_dock_${_isCommunityRoute ? "community" : "main"}',
@@ -499,6 +533,8 @@ class _AppShellState extends State<AppShell> {
             widget.onSelect(destinations[index].id);
           }
         },
+        lockedDestinationIndices: lockedDestinationIndices,
+        lockedCenterIndices: lockedCenterIndices,
         centerAction: QuietDockCenterAction(
           semanticLabel: _isCommunityRoute ? 'Switch to App' : 'More tools',
           icon: _isCommunityRoute
@@ -508,42 +544,15 @@ class _AppShellState extends State<AppShell> {
               ? (activeMoreItem.selectedIcon ?? activeMoreItem.icon)
               : Icons.close_rounded,
           columns: 3,
-          items:
-              <AppNavItem>[
-                    if (_isCommunityRoute) ...<AppNavItem>[
-                      for (final AppNavItem item
-                          in (widget.mobilePrimaryItems ??
-                              const <AppNavItem>[]))
-                        if (item.id != 'community' &&
-                            !item.id.startsWith('community_'))
-                          item,
-                      const AppNavItem(
-                        id: 'community_bookmarks',
-                        label: 'Bookmarks',
-                        icon: Icons.bookmark_outline_rounded,
-                      ),
-                    ],
-                    ...widget.mobileMoreItems,
-                  ]
-                  .fold<List<AppNavItem>>(<AppNavItem>[], (
-                    List<AppNavItem> acc,
-                    AppNavItem item,
-                  ) {
-                    if (acc.every(
-                      (AppNavItem existing) => existing.id != item.id,
-                    )) {
-                      acc.add(item);
-                    }
-                    return acc;
-                  })
-                  .map(
-                    (AppNavItem item) => QuickGridItem(
-                      icon: item.selectedIcon ?? item.icon,
-                      label: item.label,
-                      onTap: () => widget.onSelect(item.id),
-                    ),
-                  )
-                  .toList(),
+          items: quickGridNavItems
+              .map(
+                (AppNavItem item) => QuickGridItem(
+                  icon: item.selectedIcon ?? item.icon,
+                  label: item.label,
+                  onTap: () => widget.onSelect(item.id),
+                ),
+              )
+              .toList(),
         ),
         centerActionActive: moreRouteSelected,
         swipeEnabled: false,
@@ -599,17 +608,23 @@ class _AppShellState extends State<AppShell> {
           pageDuration: theme.motion.normal,
         ),
       );
-      // The header is intentionally outside QuietDockScaffold's PageView so
-      // only screen content participates in destination swipe transitions.
-      final Widget mobileShell = Column(
+      // Float the mobile header above the full-bleed dock scaffold so page
+      // content scrolls smoothly underneath its frosted-glass surface instead
+      // of clipping against a solid opaque bar.
+      final Widget mobileShell = Stack(
         children: <Widget>[
+          Positioned.fill(child: dockScaffold),
           if (!widget.hideMobileTopBar)
-            topBar(
-              onResearch: widget.researchPanelBuilder == null
-                  ? null
-                  : openResearchOverlay,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: topBar(
+                onResearch: widget.researchPanelBuilder == null
+                    ? null
+                    : openResearchOverlay,
+              ),
             ),
-          Expanded(child: dockScaffold),
         ],
       );
       // Let Scaffold resize the workspace and consume the IME inset for its
@@ -1325,7 +1340,7 @@ class _AppNavTileState extends State<AppNavTile> {
 
     final Widget mainTile = UiInteractive(
       onTap: () {
-        if (hasSubItems && !widget.collapsed) {
+        if (hasSubItems && !widget.collapsed && !widget.item.tierLocked) {
           setState(() => _expanded = !_expanded);
         }
         widget.onSelect(widget.item.id);
@@ -1357,14 +1372,40 @@ class _AppNavTileState extends State<AppNavTile> {
               : MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            Icon(
-              _isSelected
-                  ? (widget.item.selectedIcon ?? widget.item.icon)
-                  : widget.item.icon,
-              size: ctx.sz(17),
-              color: _isSelected
-                  ? theme.colors.primary
-                  : theme.colors.foregroundMuted,
+            Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                Icon(
+                  _isSelected
+                      ? (widget.item.selectedIcon ?? widget.item.icon)
+                      : widget.item.icon,
+                  size: ctx.sz(17),
+                  color: _isSelected
+                      ? theme.colors.primary
+                      : theme.colors.foregroundMuted,
+                ),
+                if (widget.collapsed && widget.item.tierLocked)
+                  Positioned(
+                    top: -4,
+                    right: -5,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: theme.colors.surface,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colors.borderStrong,
+                          width: theme.borders.hairline,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.lock_rounded,
+                        size: ctx.sz(8),
+                        color: theme.colors.foregroundMuted,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             if (!widget.collapsed) ...<Widget>[
               SizedBox(width: ctx.sp(theme.spacing.sm + 1)),
@@ -1384,7 +1425,7 @@ class _AppNavTileState extends State<AppNavTile> {
               ),
               if (widget.item.tierLocked)
                 Icon(
-                  Icons.lock_outline,
+                  Icons.lock_outline_rounded,
                   size: ctx.sz(14),
                   color: theme.colors.foregroundSubtle,
                 )
@@ -1501,19 +1542,35 @@ class _AppNavTileState extends State<AppNavTile> {
                                         )
                                       : null,
                                 ),
-                                child: Text(
-                                  sub.label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: ctx.uiText.body.copyWith(
-                                    fontSize: ctx.fs(13.0),
-                                    color: subSelected
-                                        ? theme.colors.foreground
-                                        : theme.colors.foregroundMuted,
-                                    fontWeight: subSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
-                                  ),
+                                child: Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: Text(
+                                        sub.label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: ctx.uiText.body.copyWith(
+                                          fontSize: ctx.fs(13.0),
+                                          color: subSelected
+                                              ? theme.colors.foreground
+                                              : theme.colors.foregroundMuted,
+                                          fontWeight: subSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    if (sub.tierLocked) ...<Widget>[
+                                      SizedBox(
+                                        width: ctx.sp(theme.spacing.xs),
+                                      ),
+                                      Icon(
+                                        Icons.lock_outline_rounded,
+                                        size: ctx.sz(13),
+                                        color: theme.colors.foregroundSubtle,
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               );
                             },
@@ -1694,6 +1751,94 @@ class AppTopBar extends StatelessWidget {
         decoration: TextDecoration.none,
       ),
     );
+    final Widget headerRow = Row(
+      children: <Widget>[
+        if (leading != null) ...[leading!, UiGap.h(theme.spacing.xs)],
+        if (onBack != null) ...[
+          UiIconButton(
+            icon: Icons.arrow_back_rounded,
+            tooltip: 'Back',
+            size: UiSize.sm,
+            onPressed: onBack,
+          ),
+          UiGap.h(theme.spacing.xs),
+        ],
+        Expanded(flex: 2, child: titleWidget),
+        if (showStatusBadge && statusBadgeText.isNotEmpty)
+          UiBadge(label: statusBadgeText, size: UiSize.xs),
+        if (showSearchInput) ...[
+          UiGap.h(theme.spacing.md),
+          Expanded(
+            flex: 3,
+            child: UiInput.search(
+              key: searchTargetKey,
+              value: searchQuery ?? '',
+              hintText: searchHint ?? 'Search...',
+              size: UiSize.sm,
+              onChanged: onSearchChanged,
+              onClear: () => onSearchChanged?.call(''),
+            ),
+          ),
+          UiGap.h(theme.spacing.sm),
+        ] else if (onSearch != null)
+          UiIconButton(
+            icon: Icons.search_rounded,
+            tooltip: 'Search',
+            size: UiSize.sm,
+            onPressed: onSearch,
+          ),
+        if (onResearch != null)
+          UiIconButton(
+            icon: Icons.travel_explore_rounded,
+            tooltip: 'Research desk',
+            size: UiSize.sm,
+            onPressed: onResearch,
+          ),
+        if (onCalculator != null)
+          UiIconButton(
+            icon: Icons.calculate_outlined,
+            tooltip: 'Calculators',
+            size: UiSize.sm,
+            onPressed: onCalculator,
+          ),
+        ...headerActions,
+        if (primaryAction != null)
+          primaryAction!
+        else if (onPrimaryAction != null && primaryActionLabel != null)
+          UiButton(
+            label: primaryActionLabel!,
+            size: UiSize.sm,
+            onPressed: onPrimaryAction,
+          ),
+        if (onNotifications != null)
+          UiIconButton(
+            icon: Icons.notifications_none_rounded,
+            tooltip: 'Notifications',
+            badgeCount: unread > 0 ? unread : null,
+            size: UiSize.sm,
+            onPressed: onNotifications,
+          ),
+        if (onHelp != null || onAi != null)
+          UiIconButton(
+            icon: Icons.help_outline_rounded,
+            tooltip: 'Help & Guides',
+            size: UiSize.sm,
+            onPressed: onHelp ?? onAi,
+          ),
+      ],
+    );
+
+    final EdgeInsets headerPadding = EdgeInsets.symmetric(
+      horizontal: context.sp(theme.spacing.sm),
+      vertical: context.sp(
+        compactAndroid ? theme.spacing.xxs : theme.spacing.xs,
+      ),
+    );
+    final BorderRadius headerRadius = context.radius(
+      isMobile ? theme.radii.pill : theme.radii.lg,
+    );
+    final bool isDark = theme.brightness == Brightness.dark;
+
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -1703,92 +1848,52 @@ class AppTopBar extends StatelessWidget {
           context.sp(theme.spacing.sm),
           compactAndroid ? 0 : context.sp(theme.spacing.xs),
         ),
-        child: UiCard(
-          key: const ValueKey<String>('app-header-surface'),
-          padding: EdgeInsets.symmetric(
-            horizontal: context.sp(theme.spacing.sm),
-            vertical: context.sp(
-              compactAndroid ? theme.spacing.xxs : theme.spacing.xs,
-            ),
-          ),
-          borderRadius: context.radius(theme.radii.lg),
-          child: Row(
-            children: <Widget>[
-              if (leading != null) ...[leading!, UiGap.h(theme.spacing.xs)],
-              if (onBack != null) ...[
-                UiIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  tooltip: 'Back',
-                  size: UiSize.sm,
-                  onPressed: onBack,
+        child: isMobile
+            ? Container(
+                key: const ValueKey<String>('app-header-surface'),
+                decoration: BoxDecoration(
+                  borderRadius: headerRadius,
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.34 : 0.08,
+                      ),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                UiGap.h(theme.spacing.xs),
-              ],
-              Expanded(flex: 2, child: titleWidget),
-              if (showStatusBadge && statusBadgeText.isNotEmpty)
-                UiBadge(label: statusBadgeText, size: UiSize.xs),
-              if (showSearchInput) ...[
-                UiGap.h(theme.spacing.md),
-                Expanded(
-                  flex: 3,
-                  child: UiInput.search(
-                    key: searchTargetKey,
-                    value: searchQuery ?? '',
-                    hintText: searchHint ?? 'Search...',
-                    size: UiSize.sm,
-                    onChanged: onSearchChanged,
-                    onClear: () => onSearchChanged?.call(''),
+                child: ClipRRect(
+                  borderRadius: headerRadius,
+                  child: BackdropFilter(
+                    filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: theme.colors.surface.withValues(
+                          alpha: isDark ? 0.68 : 0.78,
+                        ),
+                        borderRadius: headerRadius,
+                        border: Border.all(
+                          color: theme.colors.borderStrong.withValues(
+                            alpha: isDark ? 0.65 : 0.75,
+                          ),
+                          width: theme.borders.hairline,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: headerPadding,
+                        child: headerRow,
+                      ),
+                    ),
                   ),
                 ),
-                UiGap.h(theme.spacing.sm),
-              ] else if (onSearch != null)
-                UiIconButton(
-                  icon: Icons.search_rounded,
-                  tooltip: 'Search',
-                  size: UiSize.sm,
-                  onPressed: onSearch,
-                ),
-              if (onResearch != null)
-                UiIconButton(
-                  icon: Icons.travel_explore_rounded,
-                  tooltip: 'Research desk',
-                  size: UiSize.sm,
-                  onPressed: onResearch,
-                ),
-              if (onCalculator != null)
-                UiIconButton(
-                  icon: Icons.calculate_outlined,
-                  tooltip: 'Calculators',
-                  size: UiSize.sm,
-                  onPressed: onCalculator,
-                ),
-              ...headerActions,
-              if (primaryAction != null)
-                primaryAction!
-              else if (onPrimaryAction != null && primaryActionLabel != null)
-                UiButton(
-                  label: primaryActionLabel!,
-                  size: UiSize.sm,
-                  onPressed: onPrimaryAction,
-                ),
-              if (onNotifications != null)
-                UiIconButton(
-                  icon: Icons.notifications_none_rounded,
-                  tooltip: 'Notifications',
-                  badgeCount: unread > 0 ? unread : null,
-                  size: UiSize.sm,
-                  onPressed: onNotifications,
-                ),
-              if (onHelp != null || onAi != null)
-                UiIconButton(
-                  icon: Icons.help_outline_rounded,
-                  tooltip: 'Help & Guides',
-                  size: UiSize.sm,
-                  onPressed: onHelp ?? onAi,
-                ),
-            ],
-          ),
-        ),
+              )
+            : UiCard(
+                key: const ValueKey<String>('app-header-surface'),
+                padding: headerPadding,
+                borderRadius: headerRadius,
+                child: headerRow,
+              ),
       ),
     );
   }

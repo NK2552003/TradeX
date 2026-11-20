@@ -1,7 +1,10 @@
-import 'package:alphajournal/core/security/private_message_service.dart';
 import 'dart:convert';
 
+import 'package:cryptography/cryptography.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
+
+import 'package:alphajournal/core/security/private_message_service.dart';
 
 import '../models/workspace.dart';
 import '../models/workspace_errors.dart';
@@ -82,14 +85,47 @@ class CloudWorkspaceStore {
       final stored = Map<String, dynamic>.from(row['state'] as Map);
       if (stored['encrypted'] is String) {
         final encrypted = stored['encrypted'] as String;
-        final plain = decryptState != null
-            ? await decryptState!(encrypted)
-            : await PrivateMessageService.instance.decrypt(
-                encrypted,
-                'workspace/$owner',
-                owner,
-              );
-        row['state'] = jsonDecode(plain);
+        try {
+          final plain = decryptState != null
+              ? await decryptState!(encrypted)
+              : await PrivateMessageService.instance.decrypt(
+                  encrypted,
+                  'workspace/$owner',
+                  owner,
+                );
+          row['state'] = jsonDecode(plain);
+        } on SecretBoxAuthenticationError catch (error) {
+          if (decryptState != null) {
+            throw const CopilotFailure(
+              'Encrypted workspace could not be decrypted with the current key.',
+              401,
+            );
+          }
+          final status = await PrivateMessageService.instance.checkStatus();
+          if (!status.unlocked) {
+            throw const CopilotFailure(
+              'Unlock encrypted storage with your account password or recovery passphrase.',
+              401,
+            );
+          }
+          debugPrint(
+            '[CloudWorkspaceStore] Recovering unreadable workspace state (MAC mismatch): $error',
+          );
+          row['state'] = initialWorkspace();
+        } on FormatException catch (error) {
+          if (decryptState != null) rethrow;
+          final status = await PrivateMessageService.instance.checkStatus();
+          if (!status.unlocked) {
+            throw const CopilotFailure(
+              'Unlock encrypted storage with your account password or recovery passphrase.',
+              401,
+            );
+          }
+          debugPrint(
+            '[CloudWorkspaceStore] Recovering unreadable workspace state (format error): $error',
+          );
+          row['state'] = initialWorkspace();
+        }
       }
       return row;
     }

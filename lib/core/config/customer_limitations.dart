@@ -717,7 +717,85 @@ class CustomerLimitations {
     }
   }
 
-  /// Displays an INR upgrade modal allowing the user to compare and switch plans.
+  static List<({String label, bool included})> featuresForTier(
+    CustomerTierQuota q,
+  ) => switch (q.tier) {
+    AppTier.free => <({String label, bool included})>[
+      (
+        label:
+            '${q.maxTrades} logged trades · ${q.maxNotes} notes · ${q.maxLiveStrategies} live playbook',
+        included: true,
+      ),
+      (label: '${q.maxAiQueriesPerMonth} AI Copilot queries/mo', included: true),
+      (
+        label:
+            '${q.maxWatchlists} watchlist · ${q.maxAlerts} price alerts',
+        included: true,
+      ),
+      (
+        label:
+            'Community feed (${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies/day)',
+        included: true,
+      ),
+      (label: 'Core trading calculators', included: true),
+      (
+        label: 'Community market previews (movers, charts & wire)',
+        included: true,
+      ),
+      (label: 'Full Market Intelligence & screeners', included: false),
+      (label: 'End-to-end encrypted Private Messages', included: false),
+      (label: 'Advanced options, forex & tax calculators', included: false),
+      (label: 'PDF & CSV exports & advanced backtesting', included: false),
+    ],
+    AppTier.premium => <({String label, bool included})>[
+      (
+        label:
+            '${q.maxTrades} logged trades · ${q.maxNotes} notes · ${q.maxLiveStrategies} live playbooks',
+        included: true,
+      ),
+      (label: '${q.maxAiQueriesPerMonth} AI Copilot queries/mo', included: true),
+      (
+        label:
+            '${q.maxWatchlists} watchlists · ${q.maxAlerts} price alerts',
+        included: true,
+      ),
+      (
+        label:
+            'Community (${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies/day)',
+        included: true,
+      ),
+      (label: 'Full Market Intelligence, charts & screeners', included: true),
+      (label: 'End-to-end encrypted Private Messages', included: true),
+      (label: 'All core & advanced trading calculators', included: true),
+      (label: 'PDF & CSV exports', included: q.allowPdfExport),
+      (label: 'Advanced backtesting & analytics', included: q.allowAdvancedBacktest),
+    ],
+    AppTier.enterprise => <({String label, bool included})>[
+      (
+        label:
+            '${q.maxTrades} logged trades · ${q.maxNotes} notes · ${q.maxLiveStrategies} live playbooks',
+        included: true,
+      ),
+      (label: '${q.maxAiQueriesPerMonth} AI Copilot queries/mo', included: true),
+      (
+        label:
+            '${q.maxWatchlists} watchlists · ${q.maxAlerts} price alerts',
+        included: true,
+      ),
+      (
+        label:
+            'Community (${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies/day)',
+        included: true,
+      ),
+      (label: 'Full Market Intelligence, options & coverage', included: true),
+      (label: 'End-to-end encrypted Private Messages', included: true),
+      (label: 'All core & advanced trading calculators', included: true),
+      (label: 'PDF & CSV journal & report exports', included: true),
+      (label: 'Advanced backtesting & desk analytics', included: true),
+    ],
+  };
+
+  /// Displays a redesigned INR plan comparison modal showing every feature per tier.
   static Future<void> showPlanUpgradeDialog(
     BuildContext context, {
     required String featureTitle,
@@ -726,93 +804,192 @@ class CustomerLimitations {
     final AppSession session = AppSession.instance;
     await UiDialog.show<void>(
       context,
-      maxWidth: 520,
+      maxWidth: 920,
       child: StatefulBuilder(
         builder: (BuildContext ctx, StateSetter setModalState) {
           final AppTier activeTier = session.tier.value;
           final UiTheme theme = ctx.ui;
+          final bool compact = ctx.uiRes.isMobile;
+
+          Widget buildTierCard(AppTier tier) {
+            final CustomerTierQuota q = CustomerTierQuota.forTier(tier);
+            final bool selected = tier == activeTier;
+            final bool highlighted = tier == AppTier.premium;
+            final features = featuresForTier(q);
+            final IconData tierIcon = switch (tier) {
+              AppTier.free => Icons.bolt_outlined,
+              AppTier.premium => Icons.auto_awesome_rounded,
+              AppTier.enterprise => Icons.workspace_premium_rounded,
+            };
+            final String tagline = switch (tier) {
+              AppTier.free => 'Core journaling, Community & market previews',
+              AppTier.premium =>
+                'Full Market Intelligence, Messages & advanced calculators',
+              AppTier.enterprise =>
+                'Exports, backtesting, analytics & highest workspace limits',
+            };
+            return Container(
+              padding: EdgeInsets.all(ctx.sp(theme.spacing.md)),
+              decoration: BoxDecoration(
+                color: selected
+                    ? theme.colors.surfaceMuted.withValues(alpha: 0.45)
+                    : theme.colors.surface,
+                borderRadius: ctx.radius(theme.radii.lg),
+                border: Border.all(
+                  color: selected || highlighted
+                      ? theme.colors.primary.withValues(
+                          alpha: selected ? 0.65 : 0.4,
+                        )
+                      : theme.colors.border,
+                  width: selected || highlighted ? 1.5 : theme.borders.hairline,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Container(
+                        padding: EdgeInsets.all(ctx.sp(theme.spacing.xs)),
+                        decoration: BoxDecoration(
+                          color: theme.colors.primary.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          tierIcon,
+                          size: ctx.sz(16),
+                          color: theme.colors.primary,
+                        ),
+                      ),
+                      const Spacer(),
+                      UiBadge(
+                        label: selected
+                            ? 'Current Plan'
+                            : (highlighted ? 'Popular' : 'Preview'),
+                        icon: selected
+                            ? Icons.check_circle_outline_rounded
+                            : null,
+                        intent: selected
+                            ? UiIntent.success
+                            : (highlighted
+                                  ? UiIntent.primary
+                                  : UiIntent.neutral),
+                        variant: UiBadgeVariant.soft,
+                        size: UiSize.xs,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: ctx.sp(theme.spacing.sm)),
+                  Text(
+                    q.planName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: ctx.uiText.heading.copyWith(
+                      fontSize: ctx.fs(16),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: ctx.sp(theme.spacing.xxs)),
+                  Text(
+                    tagline,
+                    style: ctx.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                      height: 1.3,
+                    ),
+                  ),
+                  SizedBox(height: ctx.sp(theme.spacing.sm)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: <Widget>[
+                      Text(
+                        q.monthlyPriceInr == 0
+                            ? '₹0'
+                            : formatInrAmount(q.monthlyPriceInr),
+                        style: ctx.uiText.display.copyWith(
+                          fontSize: ctx.fs(24),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(width: ctx.sp(theme.spacing.xxs)),
+                      Text(
+                        q.monthlyPriceInr == 0 ? 'free forever' : '/ mo',
+                        style: ctx.uiText.caption.copyWith(
+                          color: theme.colors.foregroundSubtle,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: ctx.sp(theme.spacing.sm)),
+                  const UiDivider(spacing: 0),
+                  SizedBox(height: ctx.sp(theme.spacing.sm)),
+                  for (final item in features)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: ctx.sp(theme.spacing.xs),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Padding(
+                            padding: const EdgeInsets.only(top: 1),
+                            child: Icon(
+                              item.included
+                                  ? Icons.check_rounded
+                                  : Icons.lock_outline_rounded,
+                              size: ctx.sz(14),
+                              color: item.included
+                                  ? theme.colors.success
+                                  : theme.colors.foregroundSubtle,
+                            ),
+                          ),
+                          SizedBox(width: ctx.sp(theme.spacing.xs)),
+                          Expanded(
+                            child: Text(
+                              item.label,
+                              style: ctx.uiText.caption.copyWith(
+                                color: item.included
+                                    ? theme.colors.foreground
+                                    : theme.colors.foregroundSubtle,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }
+
           return UiDialog(
             title: featureTitle,
             description: reason,
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (final AppTier tier in AppTier.values) ...<Widget>[
-                  Builder(
-                    builder: (BuildContext context) {
-                      final CustomerTierQuota q = CustomerTierQuota.forTier(
-                        tier,
-                      );
-                      final bool selected = tier == activeTier;
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: ctx.sp(theme.spacing.xs),
-                        ),
-                        child: UiCard(
-                          variant: selected
-                              ? UiCardVariant.elevated
-                              : UiCardVariant.outlined,
-                          padding: EdgeInsets.all(ctx.sp(theme.spacing.sm)),
-                          onTap: null,
-                          child: Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Row(
-                                      children: <Widget>[
-                                        Expanded(
-                                          child: Text(
-                                            q.planName,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: ctx.uiText.bodyStrong,
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          width: ctx.sp(theme.spacing.xs),
-                                        ),
-                                        UiBadge(
-                                          label: q.priceLabel,
-                                          intent: tier == AppTier.free
-                                              ? UiIntent.neutral
-                                              : (tier == AppTier.premium
-                                                    ? UiIntent.primary
-                                                    : UiIntent.warning),
-                                          size: UiSize.xs,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${q.maxTrades} trades · ${q.maxNotes} notes · ${q.maxLiveStrategies} live playbooks · ${q.maxAiQueriesPerMonth} AI queries/mo',
-                                      style: ctx.uiText.caption.copyWith(
-                                        color: theme.colors.foregroundMuted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              UiBadge(
-                                label: selected ? 'Current' : 'Preview',
-                                intent: selected
-                                    ? UiIntent.success
-                                    : UiIntent.primary,
-                                variant: selected
-                                    ? UiBadgeVariant.soft
-                                    : UiBadgeVariant.solid,
-                                size: UiSize.xs,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ],
+            content: SingleChildScrollView(
+              child: compact
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        for (int i = 0; i < AppTier.values.length; i++) ...<Widget>[
+                          if (i > 0) SizedBox(height: ctx.sp(theme.spacing.sm)),
+                          buildTierCard(AppTier.values[i]),
+                        ],
+                      ],
+                    )
+                  : IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          for (int i = 0; i < AppTier.values.length; i++) ...<Widget>[
+                            if (i > 0) SizedBox(width: ctx.sp(theme.spacing.sm)),
+                            Expanded(child: buildTierCard(AppTier.values[i])),
+                          ],
+                        ],
+                      ),
+                    ),
             ),
             actions: <Widget>[
               UiButton(
@@ -1174,41 +1351,160 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                       Padding(
                         padding: EdgeInsets.fromLTRB(
                           context.sp(theme.spacing.md),
-                          context.sp(theme.spacing.xs),
-                          context.sp(theme.spacing.md),
                           context.sp(theme.spacing.sm),
+                          context.sp(theme.spacing.md),
+                          context.sp(theme.spacing.md),
                         ),
-                        child: Wrap(
-                          spacing: context.sp(theme.spacing.sm),
-                          runSpacing: context.sp(theme.spacing.xs),
-                          crossAxisAlignment: WrapCrossAlignment.center,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            UiBadge(
-                              label: pdfUnlocked
-                                  ? 'PDF & CSV Exports: Enabled'
-                                  : 'PDF & CSV Exports: Pro Plan',
-                              icon: pdfUnlocked
-                                  ? Icons.picture_as_pdf_outlined
-                                  : Icons.lock_outline_rounded,
-                              intent: pdfUnlocked
-                                  ? UiIntent.success
-                                  : UiIntent.neutral,
-                              variant: UiBadgeVariant.soft,
-                              size: UiSize.xs,
+                            Text(
+                              'INCLUDED IN ${quota.planName.toUpperCase()}',
+                              style: context.uiText.caption.copyWith(
+                                fontSize: context.fs(10),
+                                letterSpacing: 0.7,
+                                fontWeight: FontWeight.w600,
+                                color: theme.colors.foregroundSubtle,
+                              ),
                             ),
-                            UiBadge(
-                              label: backtestUnlocked
-                                  ? 'Advanced Backtest: Enabled'
-                                  : 'Advanced Backtest: Pro Plan',
-                              icon: backtestUnlocked
-                                  ? Icons.insights_outlined
-                                  : Icons.lock_outline_rounded,
-                              intent: backtestUnlocked
-                                  ? UiIntent.success
-                                  : UiIntent.neutral,
-                              variant: UiBadgeVariant.soft,
-                              size: UiSize.xs,
+                            SizedBox(height: context.sp(theme.spacing.xs)),
+                            Wrap(
+                              spacing: context.sp(theme.spacing.xs),
+                              runSpacing: context.sp(theme.spacing.xs),
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: <Widget>[
+                                const UiBadge(
+                                  label: 'Writing Desk & Trade Journal',
+                                  icon: Icons.check_circle_outline_rounded,
+                                  intent: UiIntent.success,
+                                  variant: UiBadgeVariant.soft,
+                                  size: UiSize.xs,
+                                ),
+                                const UiBadge(
+                                  label: 'Community Feed & Public Posts',
+                                  icon: Icons.check_circle_outline_rounded,
+                                  intent: UiIntent.success,
+                                  variant: UiBadgeVariant.soft,
+                                  size: UiSize.xs,
+                                ),
+                                const UiBadge(
+                                  label: 'Core Trading Calculators',
+                                  icon: Icons.check_circle_outline_rounded,
+                                  intent: UiIntent.success,
+                                  variant: UiBadgeVariant.soft,
+                                  size: UiSize.xs,
+                                ),
+                                UiBadge(
+                                  label: tier == AppTier.free
+                                      ? 'Community Market Previews'
+                                      : 'Full Market Intelligence',
+                                  icon: Icons.check_circle_outline_rounded,
+                                  intent: UiIntent.success,
+                                  variant: UiBadgeVariant.soft,
+                                  size: UiSize.xs,
+                                ),
+                                const UiBadge(
+                                  label: 'AI Copilot Workspace',
+                                  icon: Icons.check_circle_outline_rounded,
+                                  intent: UiIntent.success,
+                                  variant: UiBadgeVariant.soft,
+                                  size: UiSize.xs,
+                                ),
+                                if (tier != AppTier.free) ...<Widget>[
+                                  const UiBadge(
+                                    label: 'Private Messages (E2EE)',
+                                    icon: Icons.check_circle_outline_rounded,
+                                    intent: UiIntent.success,
+                                    variant: UiBadgeVariant.soft,
+                                    size: UiSize.xs,
+                                  ),
+                                  const UiBadge(
+                                    label: 'Advanced Calculators',
+                                    icon: Icons.check_circle_outline_rounded,
+                                    intent: UiIntent.success,
+                                    variant: UiBadgeVariant.soft,
+                                    size: UiSize.xs,
+                                  ),
+                                ],
+                                if (pdfUnlocked)
+                                  const UiBadge(
+                                    label: 'PDF & CSV Exports',
+                                    icon: Icons.picture_as_pdf_outlined,
+                                    intent: UiIntent.success,
+                                    variant: UiBadgeVariant.soft,
+                                    size: UiSize.xs,
+                                  ),
+                                if (backtestUnlocked)
+                                  const UiBadge(
+                                    label: 'Advanced Backtest',
+                                    icon: Icons.insights_outlined,
+                                    intent: UiIntent.success,
+                                    variant: UiBadgeVariant.soft,
+                                    size: UiSize.xs,
+                                  ),
+                              ],
                             ),
+                            if (tier == AppTier.free ||
+                                !pdfUnlocked ||
+                                !backtestUnlocked) ...<Widget>[
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              Text(
+                                'UNLOCK WITH UPGRADE',
+                                style: context.uiText.caption.copyWith(
+                                  fontSize: context.fs(10),
+                                  letterSpacing: 0.7,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colors.foregroundSubtle,
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.xs)),
+                              Wrap(
+                                spacing: context.sp(theme.spacing.xs),
+                                runSpacing: context.sp(theme.spacing.xs),
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: <Widget>[
+                                  if (tier == AppTier.free) ...<Widget>[
+                                    const UiBadge(
+                                      label: 'Full Market Intelligence: Basic+',
+                                      icon: Icons.lock_outline_rounded,
+                                      intent: UiIntent.neutral,
+                                      variant: UiBadgeVariant.soft,
+                                      size: UiSize.xs,
+                                    ),
+                                    const UiBadge(
+                                      label: 'Private Messages: Basic+',
+                                      icon: Icons.lock_outline_rounded,
+                                      intent: UiIntent.neutral,
+                                      variant: UiBadgeVariant.soft,
+                                      size: UiSize.xs,
+                                    ),
+                                    const UiBadge(
+                                      label: 'Advanced Calculators: Basic+',
+                                      icon: Icons.lock_outline_rounded,
+                                      intent: UiIntent.neutral,
+                                      variant: UiBadgeVariant.soft,
+                                      size: UiSize.xs,
+                                    ),
+                                  ],
+                                  if (!pdfUnlocked)
+                                    const UiBadge(
+                                      label: 'PDF & CSV Exports: Pro Plan',
+                                      icon: Icons.lock_outline_rounded,
+                                      intent: UiIntent.neutral,
+                                      variant: UiBadgeVariant.soft,
+                                      size: UiSize.xs,
+                                    ),
+                                  if (!backtestUnlocked)
+                                    const UiBadge(
+                                      label: 'Advanced Backtest: Pro Plan',
+                                      icon: Icons.lock_outline_rounded,
+                                      intent: UiIntent.neutral,
+                                      variant: UiBadgeVariant.soft,
+                                      size: UiSize.xs,
+                                    ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
