@@ -422,9 +422,11 @@ class CommunityCopilotLauncher extends StatefulWidget {
     super.key,
     this.onCompose,
     this.showCompose = false,
+    this.syncWithMobileDock = false,
   });
   final VoidCallback? onCompose;
   final bool showCompose;
+  final bool syncWithMobileDock;
 
   @override
   State<CommunityCopilotLauncher> createState() =>
@@ -510,30 +512,46 @@ class _CommunityCopilotLauncherState extends State<CommunityCopilotLauncher> {
             }
           };
 
+    Widget wrapSynced(Widget child, {Duration delay = Duration.zero}) {
+      if (!widget.syncWithMobileDock) return child;
+      return AppDockSyncedFab(
+        edge: AppDockRevealEdge.right,
+        delay: delay,
+        child: child,
+      );
+    }
+
     if (!hasCompose) {
-      return _glassPillButton(
-        context: context,
-        icon: Icons.chat_bubble_outline_rounded,
-        tooltip: 'Ask copilot',
-        onPressed: onCopilot,
+      return wrapSynced(
+        _glassPillButton(
+          context: context,
+          icon: Icons.chat_bubble_outline_rounded,
+          tooltip: 'Ask copilot',
+          onPressed: onCopilot,
+        ),
       );
     }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        _glassPillButton(
-          context: context,
-          icon: Icons.edit_outlined,
-          tooltip: 'Create post',
-          onPressed: widget.onCompose,
+        wrapSynced(
+          _glassPillButton(
+            context: context,
+            icon: Icons.edit_outlined,
+            tooltip: 'Create post',
+            onPressed: widget.onCompose,
+          ),
+          delay: const Duration(milliseconds: 70),
         ),
         const SizedBox(height: 10),
-        _glassPillButton(
-          context: context,
-          icon: Icons.chat_bubble_outline_rounded,
-          tooltip: 'Ask copilot',
-          onPressed: onCopilot,
+        wrapSynced(
+          _glassPillButton(
+            context: context,
+            icon: Icons.chat_bubble_outline_rounded,
+            tooltip: 'Ask copilot',
+            onPressed: onCopilot,
+          ),
         ),
       ],
     );

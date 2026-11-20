@@ -823,17 +823,11 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
               Positioned(
                 right: floatingRight,
                 bottom: floatingBottom,
-                child: isMobile
-                    ? AppDockSyncedFab(
-                        child: CommunityCopilotLauncher(
-                          onCompose: _showComposer,
-                          showCompose: onFeedTab,
-                        ),
-                      )
-                    : CommunityCopilotLauncher(
-                        onCompose: _showComposer,
-                        showCompose: false,
-                      ),
+                child: CommunityCopilotLauncher(
+                  onCompose: _showComposer,
+                  showCompose: isMobile && onFeedTab,
+                  syncWithMobileDock: isMobile,
+                ),
               ),
             ],
           );

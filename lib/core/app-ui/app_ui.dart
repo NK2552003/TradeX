@@ -60,6 +60,7 @@ export 'blocks/journal_note_blocks.dart';
 export 'blocks/strategy_note_blocks.dart';
 
 // Shell
-export 'shell/app_quiet_dock.dart' show AppDockVisibility, AppDockSyncedFab;
+export 'shell/app_quiet_dock.dart'
+    show AppDockRevealEdge, AppDockVisibility, AppDockSyncedFab;
 export 'shell/app_shell.dart';
 export 'shell/app_workspace.dart';

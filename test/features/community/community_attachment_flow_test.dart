@@ -59,6 +59,7 @@ class _Repository extends CommunityRepository {
     CommunityTradeSetup? tradeSetup,
     String? imageUrl,
     List<String> imageUrls = const [],
+    String? videoUrl,
     AppWritingPostAttachment? attachment,
     CommunityPoll? poll,
     CommunityPost? quoted,
