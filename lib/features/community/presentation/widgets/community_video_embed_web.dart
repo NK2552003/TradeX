@@ -66,6 +66,14 @@ class _CommunityVideoEmbedState extends State<CommunityVideoEmbed> {
         CommunityVideoParser.parse(video.url, webHost: host) ?? video;
 
     ui_web.platformViewRegistry.registerViewFactory(_viewType, (int _) {
+      final web.HTMLDivElement wrapper = web.HTMLDivElement()
+        ..style.position = 'relative'
+        ..style.width = '100%'
+        ..style.height = '100%'
+        ..style.borderRadius = '14px'
+        ..style.overflow = 'hidden'
+        ..style.backgroundColor = '#000000';
+
       if (resolved.isDirectVideo) {
         final web.HTMLVideoElement el = web.HTMLVideoElement()
           ..src = resolved.embedUrl
@@ -79,13 +87,15 @@ class _CommunityVideoEmbedState extends State<CommunityVideoEmbed> {
           ..style.width = '100%'
           ..style.height = '100%'
           ..style.border = 'none'
+          ..style.borderRadius = '14px'
           ..style.backgroundColor = '#000000'
           ..style.objectFit = 'contain';
         el.setAttribute('playsinline', '');
         el.setAttribute('webkit-playsinline', '');
         _element = el;
         CommunityVideoPointerGuard.register(el);
-        return el;
+        wrapper.append(el);
+        return wrapper;
       }
 
       final web.HTMLIFrameElement iframe = web.HTMLIFrameElement()
@@ -100,6 +110,7 @@ class _CommunityVideoEmbedState extends State<CommunityVideoEmbed> {
         ..style.width = '100%'
         ..style.height = '100%'
         ..style.border = 'none'
+        ..style.borderRadius = '14px'
         ..style.backgroundColor = '#000000';
       iframe.setAttribute('frameborder', '0');
       iframe.setAttribute('allowfullscreen', 'true');
@@ -107,7 +118,8 @@ class _CommunityVideoEmbedState extends State<CommunityVideoEmbed> {
       iframe.setAttribute('mozallowfullscreen', 'true');
       _element = iframe;
       CommunityVideoPointerGuard.register(iframe);
-      return iframe;
+      wrapper.append(iframe);
+      return wrapper;
     });
   }
 

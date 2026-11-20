@@ -444,10 +444,13 @@ class _CommunityCopilotLauncherState extends State<CommunityCopilotLauncher> {
   }) {
     final theme = context.ui;
     final bool isDark = theme.brightness == Brightness.dark;
-    final BorderRadius radius = BorderRadius.circular(28);
+    final bool narrowMobile =
+        context.uiRes.isMobile && MediaQuery.sizeOf(context).width < 430;
+    final double size = narrowMobile ? 48.0 : 56.0;
+    final BorderRadius radius = BorderRadius.circular(size / 2);
     return Container(
-      width: 56,
-      height: 56,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         borderRadius: radius,
         boxShadow: <BoxShadow>[
