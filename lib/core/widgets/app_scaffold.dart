@@ -776,6 +776,66 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
   );
 
+  Future<void> _showCommunitySearch() => UiDrawer.show<void>(
+    context,
+    title: 'Search community',
+    child: StatefulBuilder(
+      builder: (drawerContext, updateDrawer) => UiInput.search(
+        value: _communityQuery,
+        hintText: 'Search traders, tickers, #tags, posts...',
+        autofocus: true,
+        onChanged: (value) {
+          setState(() => _communityQuery = value);
+          updateDrawer(() {});
+        },
+        onClear: () {
+          setState(() => _communityQuery = '');
+          updateDrawer(() {});
+        },
+      ),
+    ),
+  );
+
+  Future<void> _showMessagesSearch() => UiDrawer.show<void>(
+    context,
+    title: 'Search messages',
+    child: StatefulBuilder(
+      builder: (drawerContext, updateDrawer) => UiInput.search(
+        value: _messagesQuery,
+        hintText: 'Search conversations, traders...',
+        autofocus: true,
+        onChanged: (value) {
+          _updateMessagesQuery(value);
+          updateDrawer(() {});
+        },
+        onClear: () {
+          _updateMessagesQuery('');
+          updateDrawer(() {});
+        },
+      ),
+    ),
+  );
+
+  Future<void> _showAiSearch() => UiDrawer.show<void>(
+    context,
+    title: 'Search AI Copilot',
+    child: StatefulBuilder(
+      builder: (drawerContext, updateDrawer) => UiInput.search(
+        value: _aiQuery,
+        hintText: 'Search copilot chats and prompts...',
+        autofocus: true,
+        onChanged: (value) {
+          _updateAiQuery(value);
+          updateDrawer(() {});
+        },
+        onClear: () {
+          _updateAiQuery('');
+          updateDrawer(() {});
+        },
+      ),
+    ),
+  );
+
   bool get _isMessagesFeature => _selectedId == 'messages';
 
   void _updateMessagesQuery(String value) {
@@ -2366,7 +2426,13 @@ class _AppScaffoldState extends State<AppScaffold> {
                 ? _showMarketSearch
                 : _isWritingFeature
                 ? _showWorkspaceSearch
-                : (_isCommunityFeature ? null : () => _go('search')),
+                : _isCommunityFeature
+                ? _showCommunitySearch
+                : _isMessagesFeature
+                ? _showMessagesSearch
+                : _isAiFeature
+                ? _showAiSearch
+                : () => _go('search'),
             searchQuery: _isMarketFeature
                 ? _marketQuery
                 : _isWritingFeature

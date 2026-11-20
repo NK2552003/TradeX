@@ -120,69 +120,46 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     final UiTheme theme = context.ui;
     final bool isMobile = context.uiRes.isMobile;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        // Full width top bar tab toggle across the centered panel
-        _buildTopBar(context, theme, isMobile),
-        if ((_refreshing || widget.repository.isLoading) &&
-            widget.repository.hasLoadedFollows)
-          Semantics(
-            liveRegion: true,
-            child: Text(
-              'Refreshing network…',
-              textAlign: TextAlign.center,
-              style: context.uiText.caption,
-            ),
+    return CommunityFloatingTabShell(
+      banner:
+          (_refreshing || widget.repository.isLoading) &&
+              widget.repository.hasLoadedFollows
+          ? Semantics(
+              liveRegion: true,
+              child: Text(
+                'Refreshing network…',
+                textAlign: TextAlign.center,
+                style: context.uiText.caption,
+              ),
+            )
+          : null,
+      tabBar: _buildFloatingBar(context, theme, isMobile),
+      body: TabBarView(
+        controller: _tabController,
+        physics: context.uiRes.isDesktop
+            ? const NeverScrollableScrollPhysics()
+            : null,
+        children: <Widget>[
+          _CommunityKeepAliveTab(
+            child: _networkState(_buildSuggestedTab()),
           ),
-
-        // Sub-Tab Content Views (trader cards centered at maxWidth 700px beneath the bar)
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            physics: context.uiRes.isDesktop
-                ? const NeverScrollableScrollPhysics()
-                : null,
-            children: <Widget>[
-              _CommunityKeepAliveTab(
-                child: _networkState(_buildSuggestedTab()),
-              ),
-              _CommunityKeepAliveTab(
-                child: _networkState(_buildFollowingTab()),
-              ),
-              _CommunityKeepAliveTab(
-                child: _networkState(_buildFollowersTab()),
-              ),
-              _CommunityKeepAliveTab(child: _buildLeaderboardTab()),
-            ],
+          _CommunityKeepAliveTab(
+            child: _networkState(_buildFollowingTab()),
           ),
-        ),
-      ],
-    );
-  }
-
-  /// Top bar container holding the floating capsule pill bar,
-  /// moved outside the scroll view so trader lists never scroll over it.
-  Widget _buildTopBar(BuildContext context, UiTheme theme, bool isMobile) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        context.sp(theme.spacing.xs),
+          _CommunityKeepAliveTab(
+            child: _networkState(_buildFollowersTab()),
+          ),
+          _CommunityKeepAliveTab(child: _buildLeaderboardTab()),
+        ],
       ),
-      child: _buildFloatingBar(context, theme, isMobile),
     );
   }
 
   Widget _buildFloatingBar(BuildContext context, UiTheme theme, bool isMobile) {
-    return UiTabs(
+    return CommunityPillTabBar(
       tabs: _tabLabels,
       selectedIndex: _tabController.index,
       onChanged: _tabController.animateTo,
-      variant: UiTabsVariant.pill,
-      scrollable: true,
-      showPanel: false,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -334,9 +311,11 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     final Widget content = Column(
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: context.sp(theme.spacing.md),
-            vertical: context.sp(theme.spacing.xs),
+          padding: EdgeInsets.fromLTRB(
+            context.sp(theme.spacing.md),
+            MediaQuery.paddingOf(context).top + context.sp(theme.spacing.xs),
+            context.sp(theme.spacing.md),
+            context.sp(theme.spacing.xs),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -447,10 +426,16 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     UiTheme theme, {
     double topPadding = 0,
   }) {
+    final double effectiveTop = topPadding + MediaQuery.paddingOf(context).top;
     if (traders.isEmpty) {
       return Center(
         child: Padding(
-          padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
+          padding: EdgeInsets.fromLTRB(
+            context.sp(theme.spacing.xl),
+            effectiveTop + context.sp(theme.spacing.xl),
+            context.sp(theme.spacing.xl),
+            context.sp(theme.spacing.xl),
+          ),
           child: UiEmptyState(
             icon: Icons.person_search_outlined,
             title: 'No traders found',
@@ -465,7 +450,7 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
       content = ListView.separated(
         padding: EdgeInsets.fromLTRB(
           context.sp(theme.spacing.sm),
-          topPadding + context.sp(theme.spacing.xs),
+          effectiveTop + context.sp(theme.spacing.xs),
           context.sp(theme.spacing.sm),
           context.sp(theme.spacing.md),
         ),
@@ -492,7 +477,7 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
             return ListView.separated(
               padding: EdgeInsets.fromLTRB(
                 context.sp(theme.spacing.md),
-                topPadding + context.sp(theme.spacing.xs),
+                effectiveTop + context.sp(theme.spacing.xs),
                 context.sp(theme.spacing.md),
                 context.sp(theme.spacing.md),
               ),
@@ -513,7 +498,7 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
           return ListView.builder(
             padding: EdgeInsets.fromLTRB(
               context.sp(theme.spacing.md),
-              topPadding + context.sp(theme.spacing.xs),
+              effectiveTop + context.sp(theme.spacing.xs),
               context.sp(theme.spacing.md),
               context.sp(theme.spacing.md),
             ),

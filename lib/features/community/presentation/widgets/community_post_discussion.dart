@@ -53,6 +53,8 @@ class _CommunityPostDiscussionState extends State<CommunityPostDiscussion> {
     return CommunityCommentComposer(
       key: ValueKey('reply-editor-${comment.id}'),
       author: widget.currentUser,
+      repository: widget.repository,
+      currentPostId: comment.postId,
       replyTo: comment.author,
       onCancel: () => setState(() => _replyTo = null),
       onSubmit: (text) =>
@@ -82,6 +84,7 @@ class _CommunityPostDiscussionState extends State<CommunityPostDiscussion> {
           CommunityCommentComposer(
             key: const ValueKey('root-comment-editor'),
             author: widget.currentUser,
+            repository: widget.repository,
             onSubmit: (text) => widget.onAddComment(text),
             onSubmitted: () => setState(() {
               _sort = 'Newest';

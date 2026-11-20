@@ -1337,6 +1337,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
       top: false,
       child: CommunityCommentComposer(
         author: widget.currentUser,
+        repository: widget.repository,
+        currentPostId: widget.post.id,
         focusNode: _mobileReplyFocusNode,
         hintText:
             'Reply to @${widget.post.author.handle.replaceFirst(RegExp(r'^@'), '')}...',

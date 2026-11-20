@@ -23,12 +23,19 @@ class CommunityPostWriter {
     }
     var inserted = false;
     try {
+      final StringBuffer persistedBody = StringBuffer(post.body);
+      if (post.videoUrl != null && post.videoUrl!.trim().isNotEmpty) {
+        persistedBody.write('\n\nVideo: ${post.videoUrl!.trim()}');
+      }
+      if (post.quoted != null) {
+        persistedBody.write(
+          '\n\nQuoted post: /community?post=${Uri.encodeQueryComponent(post.quoted!.id)}',
+        );
+      }
       final row = {
         'id': post.id,
         'author_id': actorId,
-        'body': post.quoted == null
-            ? post.body
-            : '${post.body}\n\nQuoted post: /community?post=${Uri.encodeQueryComponent(post.quoted!.id)}',
+        'body': persistedBody.toString(),
         'title': post.tickers.isEmpty ? 'Post' : post.tickers.first,
         'kind': post.poll != null
             ? 'poll'

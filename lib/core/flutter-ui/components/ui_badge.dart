@@ -126,7 +126,11 @@ class UiBadge extends StatelessWidget {
     final BorderRadius radius = context.radius(theme.radii.pill);
     final bool solid = _variant == UiBadgeVariant.solid;
 
-    final Color fg = solid ? intent.onColor(context) : base;
+    final Color fg = solid
+        ? (base.computeLuminance() > 0.52
+              ? const Color(0xFF0A0A0A)
+              : Colors.white)
+        : base;
     final TextStyle baseStyle = effective == UiSize.xs || effective == UiSize.sm
         ? context.uiText.caption
         : context.uiText.label;

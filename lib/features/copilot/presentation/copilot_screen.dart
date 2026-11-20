@@ -29,6 +29,8 @@ class CopilotScreen extends StatefulWidget {
     this.openRequest,
     this.embedInScaffold = true,
     this.initialPrompt,
+    this.autoSendInitialPrompt = false,
+    this.contextCard,
   });
   final CopilotController? repository;
   final UserRole userRole;
@@ -41,6 +43,8 @@ class CopilotScreen extends StatefulWidget {
   final AppLinkOpenRequest? openRequest;
   final bool embedInScaffold;
   final String? initialPrompt;
+  final bool autoSendInitialPrompt;
+  final Widget? contextCard;
   @override
   State<CopilotScreen> createState() => CopilotScreenState();
 }
@@ -205,13 +209,17 @@ class CopilotScreenState extends State<CopilotScreen> {
     final double bottomPad = context.sp(
       device.isMobile ? theme.spacing.sm : theme.spacing.md,
     );
+    final bool showInnerHeader = widget.embedInScaffold;
     final bool hasVoiceTop =
         _voice.active || _voice.connecting || _voice.error != null;
-    final double headerClearance =
-        topBarPad +
-        context.sz(36) +
-        (device.isTablet ? context.sp(theme.spacing.sm) + context.sz(40) : 0) +
-        context.sp(theme.spacing.sm);
+    final double headerClearance = showInnerHeader
+        ? topBarPad +
+              context.sz(36) +
+              (device.isTablet
+                  ? context.sp(theme.spacing.sm) + context.sz(40)
+                  : 0) +
+              context.sp(theme.spacing.sm)
+        : context.sp(theme.spacing.sm);
 
     final chat = Padding(
       padding: EdgeInsets.only(bottom: bottomPad),
@@ -222,7 +230,12 @@ class CopilotScreenState extends State<CopilotScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (hasVoiceTop) SizedBox(height: headerClearance),
+              if (hasVoiceTop || widget.contextCard != null)
+                SizedBox(height: headerClearance),
+              if (widget.contextCard != null) ...[
+                widget.contextCard!,
+                UiGap.v(theme.spacing.sm),
+              ],
               if (_voice.active || _voice.connecting) ...[
                 CopilotVoicePanel(
                   voice: _voice,
@@ -241,7 +254,9 @@ class CopilotScreenState extends State<CopilotScreen> {
                   key: _chatKey,
                   controller: _controller,
                   voiceActive: _voice.active,
-                  topInset: hasVoiceTop ? 0.0 : headerClearance,
+                  topInset: (hasVoiceTop || widget.contextCard != null)
+                      ? 0.0
+                      : headerClearance,
                   onOpenRef: widget.onOpenRef,
                   onVoice: _voice.active
                       ? _voice.end
@@ -259,6 +274,8 @@ class CopilotScreenState extends State<CopilotScreen> {
                   initialPrompt: _allowInitialPrompt
                       ? widget.initialPrompt
                       : null,
+                  autoSendInitialPrompt:
+                      _allowInitialPrompt && widget.autoSendInitialPrompt,
                 ),
               ),
             ],
@@ -402,7 +419,8 @@ class CopilotScreenState extends State<CopilotScreen> {
                           children: [chat, paddedWorkspace],
                         ),
                 ),
-                Positioned(top: 0, left: 0, right: 0, child: headerOverlay),
+                if (showInnerHeader)
+                  Positioned(top: 0, left: 0, right: 0, child: headerOverlay),
               ],
             ),
           ),

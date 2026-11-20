@@ -436,7 +436,27 @@ class PrivateMessageService {
     for (final id in {...users, user}) {
       recipients[id] = await publicKey(id);
     }
-    final identity = await _identity(user);
+    var identity = await _identity(user);
+    final localPublic = await identity.extractPublicKey();
+    if (!_bytesEqual(localPublic.bytes, recipients[user]!.bytes)) {
+      await clearLocalUnlockCache(userId: user);
+      throw StateError(
+        'Unlock encrypted messaging with your account password or recovery passphrase.',
+      );
+    }
+    // Ensure the signing key derived from identity matches the published
+    // signing_key (handles legacy unclamped vs clamped WebCrypto seeds).
+    final publishedSigning = await signingPublicKey(user);
+    final rawSigning = await cipher.signingPublicKey(identity);
+    if (!_bytesEqual(rawSigning.bytes, publishedSigning.bytes)) {
+      final clamped = await X25519().newKeyPairFromSeed(
+        await identity.extractPrivateKeyBytes(),
+      );
+      final clampedSigning = await cipher.signingPublicKey(clamped);
+      if (_bytesEqual(clampedSigning.bytes, publishedSigning.bytes)) {
+        identity = clamped;
+      }
+    }
     if (owner != user) throw StateError('Account changed. Please try again.');
     return cipher.encrypt(
       value,
@@ -506,24 +526,31 @@ class PrivateMessageService {
           !error.message.contains('Message signature is invalid')) {
         rethrow;
       }
-      // Recover self-encrypted rows written while _identity clamped WebCrypto
-      // seeds during signing against an unclamped published signing key.
-      final clamped = await X25519().newKeyPairFromSeed(
-        await identity.extractPrivateKeyBytes(),
-      );
-      final clampedSigningKey = await cipher.signingPublicKey(clamped);
-      if (_bytesEqual(clampedSigningKey.bytes, senderSigningKey.bytes)) {
-        rethrow;
+      // Recover self-encrypted rows written while _identity used either raw
+      // unclamped WebCrypto seed bytes or clamped seed bytes for Ed25519 signing.
+      final seedBytes = await identity.extractPrivateKeyBytes();
+      final clamped = await X25519().newKeyPairFromSeed(seedBytes);
+      final candidates = <SimplePublicKey>[
+        await cipher.signingPublicKey(identity),
+        await cipher.signingPublicKey(clamped),
+      ];
+      for (final candidate in candidates) {
+        if (_bytesEqual(candidate.bytes, senderSigningKey.bytes)) continue;
+        try {
+          return await cipher.decrypt(
+            value,
+            context: context,
+            recipient: user,
+            sender: sender,
+            identity: identity,
+            senderKey: senderPublicKey,
+            signingKey: candidate,
+          );
+        } on FormatException {
+          continue;
+        }
       }
-      return cipher.decrypt(
-        value,
-        context: context,
-        recipient: user,
-        sender: sender,
-        identity: identity,
-        senderKey: senderPublicKey,
-        signingKey: clampedSigningKey,
-      );
+      rethrow;
     }
   }
 

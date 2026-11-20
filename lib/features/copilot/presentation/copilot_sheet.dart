@@ -11,6 +11,8 @@ class CopilotSheet {
     BuildContext context, {
     required CopilotController repository,
     String? initialPrompt,
+    bool autoSendInitialPrompt = false,
+    Widget? contextCard,
     String? contextTitle,
     String? contextSubtitle,
     IconData? contextIcon,
@@ -46,6 +48,8 @@ class CopilotSheet {
           child: CopilotScreen(
             repository: repository,
             initialPrompt: initialPrompt,
+            autoSendInitialPrompt: autoSendInitialPrompt,
+            contextCard: contextCard,
             onOpenRef: onOpenRef,
             embedInScaffold: false,
           ),

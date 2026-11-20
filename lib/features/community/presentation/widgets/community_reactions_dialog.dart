@@ -62,14 +62,78 @@ class _CommunityReactionsDialogState extends State<CommunityReactionsDialog> {
       future: _request,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return Column(
-            children: [
-              for (var i = 0; i < 4; i++)
+          final theme = context.ui;
+          return SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                // Tab bar skeleton
                 Padding(
-                  padding: EdgeInsets.all(context.sp(context.ui.spacing.sm)),
-                  child: const UiSkeleton(height: 56),
+                  padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+                  child: Row(
+                    children: <Widget>[
+                      UiSkeleton(
+                        width: 54,
+                        height: 28,
+                        borderRadius: context.radius(theme.radii.sm),
+                      ),
+                      UiGap.h(theme.spacing.sm),
+                      UiSkeleton(
+                        width: 46,
+                        height: 28,
+                        borderRadius: context.radius(theme.radii.sm),
+                      ),
+                      UiGap.h(theme.spacing.sm),
+                      UiSkeleton(
+                        width: 46,
+                        height: 28,
+                        borderRadius: context.radius(theme.radii.sm),
+                      ),
+                    ],
+                  ),
                 ),
-            ],
+                const UiDivider(spacing: 0),
+                for (var i = 0; i < 4; i++) ...<Widget>[
+                  if (i > 0) const UiDivider(spacing: 0),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      vertical: context.sp(theme.spacing.sm),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        const UiSkeleton(width: 40, height: 40, circle: true),
+                        UiGap.h(theme.spacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              UiSkeleton(
+                                width: i.isEven ? 132 : 108,
+                                height: 14,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              const SizedBox(height: 6),
+                              UiSkeleton(
+                                width: i.isEven ? 92 : 76,
+                                height: 11,
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                            ],
+                          ),
+                        ),
+                        UiSkeleton(
+                          width: 76,
+                          height: 30,
+                          borderRadius: context.radius(theme.radii.pill),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
           );
         }
         if (snapshot.hasError) {

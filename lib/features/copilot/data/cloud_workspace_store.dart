@@ -33,6 +33,7 @@ class CloudWorkspaceStore {
     'Authorization': _bearer(token),
     'Content-Type': 'application/json',
     'Prefer': 'return=representation',
+    'Cache-Control': 'no-cache',
   };
 
   Uri uri([Map<String, String> params = const {}]) => Uri.parse(

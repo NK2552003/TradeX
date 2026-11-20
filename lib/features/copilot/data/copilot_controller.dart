@@ -354,7 +354,12 @@ class CopilotController extends ChangeNotifier {
   }
 
   Future<String?> ensureThread() {
-    if (activeThreadId != null) return Future.value(activeThreadId);
+    if (activeThreadId != null && activeThread != null) {
+      return Future.value(activeThreadId);
+    }
+    if (activeThreadId != null && activeThread == null) {
+      activeThreadId = null;
+    }
     return _creatingThread ??= _createThread();
   }
 
@@ -369,7 +374,17 @@ class CopilotController extends ChangeNotifier {
         if (pageContextId != null) 'pageId': pageContextId,
       });
       if (created == null || epoch != _epoch || _disposed) return null;
-      activeThreadId = textOf(created, 'id');
+      final createdId = textOf(created, 'id');
+      if (createdId.isEmpty) return null;
+      activeThreadId = createdId;
+      if (activeThread == null) {
+        final threads = records(workspace.json['threads']);
+        threads.insert(0, Map<String, dynamic>.from(created));
+        workspace = CopilotWorkspace.fromJson({
+          ...workspace.json,
+          'threads': threads,
+        });
+      }
       _notify();
       return activeThreadId;
     } finally {
@@ -392,7 +407,7 @@ class CopilotController extends ChangeNotifier {
       return result;
     } catch (failure) {
       if (epoch == _epoch && reportError) {
-        error = '$failure';
+        error = _formatFailure(failure);
         _notify();
       }
       if (!reportError) rethrow;
@@ -428,6 +443,7 @@ class CopilotController extends ChangeNotifier {
       'prompt': prompt,
       'attachments': attachments,
       'mode': mode,
+      'specialistId': specialist?.id ?? specialistId,
       if (focus != 'all') 'focus': focus,
     });
   }
@@ -467,7 +483,7 @@ class CopilotController extends ChangeNotifier {
         _notify();
       }
     } catch (failure) {
-      if (epoch == _epoch) error = '$failure';
+      if (epoch == _epoch) error = _formatFailure(failure);
     } finally {
       if (epoch == _epoch && !_disposed) {
         if (streamingMessageId != null && streamingText.isNotEmpty) {
@@ -504,7 +520,7 @@ class CopilotController extends ChangeNotifier {
     try {
       await api.stop(id);
     } catch (failure) {
-      error = '$failure';
+      error = _formatFailure(failure);
       _notify();
     }
   }

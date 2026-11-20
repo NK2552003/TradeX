@@ -3,8 +3,11 @@ import 'package:alphajournal/core/app-ui/app_ui.dart';
 import 'package:alphajournal/core/config/customer_limitations.dart';
 // ignore: unnecessary_import
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+import '../../data/community_repository.dart';
 import '../../models/community_models.dart';
+import 'community_composer_pickers.dart';
 import 'community_emoji_picker.dart';
+import 'community_quote_card.dart';
 
 /// Independent draft state keeps root comments and replies from replacing each other.
 class CommunityCommentComposer extends StatefulWidget {
@@ -12,6 +15,8 @@ class CommunityCommentComposer extends StatefulWidget {
     super.key,
     required this.author,
     required this.onSubmit,
+    this.repository,
+    this.currentPostId,
     this.replyTo,
     this.onCancel,
     this.onSubmitted,
@@ -21,6 +26,8 @@ class CommunityCommentComposer extends StatefulWidget {
   final FocusNode? focusNode;
   final String? hintText;
   final CommunityAuthor author;
+  final CommunityRepository? repository;
+  final String? currentPostId;
   final CommunityAuthor? replyTo;
   final Future<void> Function(String body) onSubmit;
   final VoidCallback? onCancel;
@@ -36,6 +43,7 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
   late final FocusNode _focus;
   bool _sending = false;
   String? _error;
+  CommunityPost? _linkedPost;
 
   @override
   void initState() {
@@ -62,18 +70,23 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
   }
 
   Future<void> _submit() async {
-    final body = _controller.text.trim();
-    if (_sending || body.isEmpty) {
+    final String rawBody = _controller.text.trim();
+    if (_sending || (rawBody.isEmpty && _linkedPost == null)) {
       return;
     }
+    final String encoded = CommunityCommentLinkCodec.encode(
+      rawBody,
+      _linkedPost,
+    );
     setState(() {
       _sending = true;
       _error = null;
     });
     try {
-      await widget.onSubmit(body);
+      await widget.onSubmit(encoded);
       if (!mounted) return;
       _controller.clear();
+      setState(() => _linkedPost = null);
       widget.onSubmitted?.call();
     } catch (error) {
       if (mounted) {
@@ -106,22 +119,99 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
     _focus.requestFocus();
   }
 
+  Future<void> _pickMention() async {
+    final CommunityRepository? repo = widget.repository;
+    if (repo == null || _sending) return;
+    final CommunityAuthor? trader = await showCommunityTraderTagPicker(
+      context,
+      repository: repo,
+    );
+    if (trader == null || !mounted) return;
+    final selection = _controller.selection;
+    final start = selection.isValid ? selection.start : _controller.text.length;
+    final end = selection.isValid ? selection.end : start;
+    final prefix =
+        start > 0 && !_controller.text.substring(0, start).endsWith(' ')
+        ? ' '
+        : '';
+    final insert = '$prefix${trader.displayHandle} ';
+    _controller.value = TextEditingValue(
+      text: _controller.text.replaceRange(start, end, insert),
+      selection: TextSelection.collapsed(offset: start + insert.length),
+    );
+    _focus.requestFocus();
+  }
+
+  Future<void> _pickLinkedPost() async {
+    final CommunityRepository? repo = widget.repository;
+    if (repo == null || _sending) return;
+    final CommunityPostLinkPickResult? res = await showCommunityPostLinkPicker(
+      context,
+      repository: repo,
+      excludePostId: widget.currentPostId,
+      selectedPostId: _linkedPost?.id,
+      allowUnlink: _linkedPost != null,
+    );
+    if (res == null || !mounted) return;
+    setState(() {
+      _linkedPost = res.unlink ? null : res.post;
+    });
+  }
+
+  Widget _buildLinkedPostPreview(UiTheme theme) {
+    final CommunityPost post = _linkedPost!;
+    return Padding(
+      padding: EdgeInsets.only(top: context.sp(theme.spacing.xs)),
+      child: Stack(
+        children: <Widget>[
+          CommunityQuoteCard(post: post),
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Material(
+              color: theme.colors.surface.withValues(alpha: 0.9),
+              shape: CircleBorder(
+                side: BorderSide(color: theme.colors.border),
+              ),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _sending
+                    ? null
+                    : () => setState(() => _linkedPost = null),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 13,
+                    color: theme.colors.foregroundMuted,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
     final replying = widget.replyTo != null;
+    final bool hasRepo = widget.repository != null;
+    final bool expandedCard = replying || _linkedPost != null;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          crossAxisAlignment: replying
+          crossAxisAlignment: expandedCard
               ? CrossAxisAlignment.start
               : CrossAxisAlignment.center,
           children: [
             Padding(
               padding: EdgeInsets.only(
-                top: replying ? context.sp(theme.spacing.xs) : 0,
+                top: expandedCard ? context.sp(theme.spacing.xs) : 0,
               ),
               child: UiAvatar(
                 name: widget.author.displayName,
@@ -139,7 +229,7 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
                 ),
                 variant: UiCardVariant.outlined,
                 borderRadius: context.radius(
-                  replying ? theme.radii.xl : theme.radii.pill,
+                  expandedCard ? theme.radii.xl : theme.radii.pill,
                 ),
                 padding: EdgeInsets.symmetric(
                   horizontal: context.sp(theme.spacing.sm),
@@ -148,12 +238,39 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
                 child: ValueListenableBuilder<TextEditingValue>(
                   valueListenable: _controller,
                   builder: (context, value, _) {
-                    final canSend = !_sending && value.text.trim().isNotEmpty;
+                    final canSend =
+                        !_sending &&
+                        (value.text.trim().isNotEmpty || _linkedPost != null);
                     final emoji = CommunityEmojiPicker(
                       forComposer: true,
                       enabled: !_sending,
                       onSelected: _insertEmoji,
                     );
+                    final Widget? mentionBtn = hasRepo
+                        ? UiIconButton(
+                            icon: Icons.alternate_email_rounded,
+                            tooltip: 'Tag someone',
+                            size: UiSize.xs,
+                            variant: UiVariant.ghost,
+                            onPressed: _sending ? null : _pickMention,
+                          )
+                        : null;
+                    final Widget? linkPostBtn = hasRepo
+                        ? UiIconButton(
+                            icon: Icons.format_quote_rounded,
+                            tooltip: _linkedPost != null
+                                ? 'Change linked post'
+                                : 'Link a post',
+                            size: UiSize.xs,
+                            variant: _linkedPost != null
+                                ? UiVariant.soft
+                                : UiVariant.ghost,
+                            intent: _linkedPost != null
+                                ? UiIntent.primary
+                                : null,
+                            onPressed: _sending ? null : _pickLinkedPost,
+                          )
+                        : null;
                     final input = UiInput(
                       controller: _controller,
                       focusNode: _focus,
@@ -175,8 +292,10 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
                           : Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                ?mentionBtn,
+                                ?linkPostBtn,
                                 emoji,
-                                if (value.text.trim().isNotEmpty || _sending)
+                                if (canSend || _sending)
                                   UiButton.icon(
                                     icon: Icons.arrow_upward_rounded,
                                     label: 'Comment',
@@ -188,7 +307,17 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
                               ],
                             ),
                     );
-                    if (!replying) return input;
+                    if (!replying) {
+                      if (_linkedPost == null) return input;
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          input,
+                          _buildLinkedPostPreview(theme),
+                        ],
+                      );
+                    }
                     return Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -210,8 +339,11 @@ class _CommunityCommentComposerState extends State<CommunityCommentComposer> {
                           ],
                         ),
                         input,
+                        if (_linkedPost != null) _buildLinkedPostPreview(theme),
                         Row(
                           children: [
+                            ?mentionBtn,
+                            ?linkPostBtn,
                             emoji,
                             const Spacer(),
                             UiButton(

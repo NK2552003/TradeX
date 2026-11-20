@@ -64,20 +64,26 @@ class _UiLazyListState extends State<UiLazyList> {
             controller: widget.controller,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverPadding(
-                padding: widget.padding,
-                sliver: SliverMainAxisGroup(
-                  slivers: [
-                    if (widget.headerBuilder != null)
-                      SliverToBoxAdapter(
-                        child: _constrain(widget.headerBuilder!(context)),
+              SliverSafeArea(
+                top: true,
+                left: false,
+                right: false,
+                bottom: false,
+                sliver: SliverPadding(
+                  padding: widget.padding,
+                  sliver: SliverMainAxisGroup(
+                    slivers: [
+                      if (widget.headerBuilder != null)
+                        SliverToBoxAdapter(
+                          child: _constrain(widget.headerBuilder!(context)),
+                        ),
+                      SliverList.builder(
+                        itemCount: widget.itemCount.clamp(0, _visible),
+                        itemBuilder: (context, i) =>
+                            _constrain(widget.itemBuilder(context, i)),
                       ),
-                    SliverList.builder(
-                      itemCount: widget.itemCount.clamp(0, _visible),
-                      itemBuilder: (context, i) =>
-                          _constrain(widget.itemBuilder(context, i)),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],

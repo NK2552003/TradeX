@@ -18,11 +18,13 @@ import '../../data/community_writing_assistant.dart';
 import 'package:alphajournal/features/community/models/community_models.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_attachment_picker.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_attachment_tile.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_composer_pickers.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_mention_autocomplete.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_post_card.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_quote_card.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_schedule_dialog.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_video_player_card.dart';
 import 'package:alphajournal/features/journal/data/journal_repository.dart';
 import 'package:alphajournal/features/notes/data/notes_repository.dart';
 import 'package:alphajournal/features/strategies/data/strategies_repository.dart';
@@ -117,12 +119,34 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   // ---- Attached record (note, journal, strategy) ---------------------------
   AppWritingPostAttachment? _attachment;
 
+  // ---- Linked / Quoted community post --------------------------------------
+  CommunityPost? _linkedQuotedPost;
+
+  // ---- Attached Video (YouTube, Vimeo, Dailymotion, Twitch, MP4/WebM) ------
+  String? _videoUrl;
+
+  CommunityPost? get _effectiveQuotedPost =>
+      _linkedQuotedPost ?? widget.quotedPost;
+
   // ---- Advanced Composer Additions -----------------------------------------
   CommunitySentiment? _sentiment;
-  String _timeframe = 'Intraday';
-  String _conviction = 'Standard';
+  String? _timeframe;
+  String? _conviction;
   DateTime? _scheduledFor;
   CommunityReplyAudience _replyAudience = CommunityReplyAudience.everyone;
+
+  static const Map<String, String> _timeframeToTag = <String, String>{
+    '15m Scalp': '15mScalp',
+    'Intraday': 'Intraday',
+    'Daily Swing': 'DailySwing',
+    'Weekly Macro': 'WeeklyMacro',
+  };
+
+  static const Map<String, String> _convictionToTag = <String, String>{
+    'Speculative': 'Speculative',
+    'Standard': 'StandardConviction',
+    'High Conviction 🔥': 'HighConviction',
+  };
 
   // ---- Trade setup form ----------------------------------------------------
   String _instrumentType = 'Cash Equity';
@@ -232,9 +256,29 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     _bodyCtrl.text = p.body;
     _body = p.body;
     _tickers.addAll(p.tickers);
-    _tags.addAll(p.tags);
+    for (final String tag in p.tags) {
+      final String? matchedTf = _timeframeToTag.entries
+          .where((e) => e.value.toLowerCase() == tag.toLowerCase())
+          .map((e) => e.key)
+          .firstOrNull;
+      if (matchedTf != null) {
+        _timeframe = matchedTf;
+        continue;
+      }
+      final String? matchedConv = _convictionToTag.entries
+          .where((e) => e.value.toLowerCase() == tag.toLowerCase())
+          .map((e) => e.key)
+          .firstOrNull;
+      if (matchedConv != null) {
+        _conviction = matchedConv;
+        continue;
+      }
+      _tags.add(tag);
+    }
     _imageUrls.addAll(p.effectiveImageUrls);
     _attachment = p.attachment;
+    _linkedQuotedPost = p.quoted;
+    _videoUrl = p.videoUrl;
     _sentiment = p.sentiment;
     _replyAudience = p.replyAudience;
     _scheduledFor = p.scheduledFor;
@@ -907,6 +951,10 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     }
     final Set<String> previewTags = <String>{
       ..._tags.map((t) => t.replaceAll('#', '')),
+      if (_timeframe != null && _timeframeToTag.containsKey(_timeframe))
+        _timeframeToTag[_timeframe!]!,
+      if (_conviction != null && _convictionToTag.containsKey(_conviction))
+        _convictionToTag[_conviction!]!,
     };
     final tagMatches = RegExp(
       r'(?<!\w)#([A-Za-z0-9_]{1,30})\b',
@@ -930,11 +978,12 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       tradeSetup: _buildTradeSetup,
       attachment: _attachment,
       poll: _buildPoll,
-      quoted: widget.quotedPost ?? original?.quoted,
+      quoted: _effectiveQuotedPost,
       sentiment: _sentiment,
       replyAudience: _replyAudience,
       imageUrls: List<String>.unmodifiable(_imageUrls),
       imageUrl: _imageUrls.isNotEmpty ? _imageUrls.first : null,
+      videoUrl: _videoUrl,
       scheduledFor: _scheduledFor,
       likes: original?.likes ?? 0,
       comments: original?.comments ?? 0,
@@ -957,8 +1006,16 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     final bool hasPoll = _activeMode == ComposerMode.poll && _buildPoll != null;
     final bool hasImages = _imageUrls.isNotEmpty;
     final bool hasAttachment = _attachment != null;
+    final bool hasQuotedPost = _effectiveQuotedPost != null;
+    final bool hasVideo = _videoUrl != null && _videoUrl!.trim().isNotEmpty;
 
-    if (body.isEmpty && !hasSetup && !hasPoll && !hasImages && !hasAttachment) {
+    if (body.isEmpty &&
+        !hasSetup &&
+        !hasPoll &&
+        !hasImages &&
+        !hasAttachment &&
+        !hasQuotedPost &&
+        !hasVideo) {
       UiToast.show(
         context,
         title: 'Empty Post',
@@ -1016,6 +1073,10 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
       final Set<String> allTags = <String>{
         ..._tags.map((t) => t.replaceAll('#', '')),
+        if (_timeframe != null && _timeframeToTag.containsKey(_timeframe))
+          _timeframeToTag[_timeframe!]!,
+        if (_conviction != null && _convictionToTag.containsKey(_conviction))
+          _convictionToTag[_conviction!]!,
       };
       final tagMatches = RegExp(
         r'(?<!\w)#([A-Za-z0-9_]{1,30})\b',
@@ -1027,7 +1088,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         }
       }
 
-      if (widget.quotedPost != null && !widget.quotedPost!.isPublic) {
+      if (_effectiveQuotedPost != null && !_effectiveQuotedPost!.isPublic) {
         throw StateError('Publish the original post before quoting it.');
       }
       if (_attachment != null) {
@@ -1123,6 +1184,10 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             clearPoll: _activeMode != ComposerMode.poll && p.poll != null,
             sentiment: _sentiment,
             clearSentiment: _sentiment == null && p.sentiment != null,
+            quoted: _effectiveQuotedPost,
+            clearQuoted: _effectiveQuotedPost == null && p.quoted != null,
+            videoUrl: _videoUrl,
+            clearVideoUrl: _videoUrl == null && p.videoUrl != null,
             replyAudience: _replyAudience,
             imageUrls: imageUrls,
           );
@@ -1151,12 +1216,13 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           tradeSetup: _buildTradeSetup,
           attachment: _attachment,
           poll: _buildPoll,
-          quoted: widget.quotedPost,
+          quoted: _effectiveQuotedPost,
           sentiment: _sentiment,
           replyAudience: _replyAudience,
           scheduledFor: _scheduledFor,
           imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
           imageUrls: imageUrls,
+          videoUrl: _videoUrl,
           author: widget.author,
         );
       } catch (postSaveError) {
@@ -1195,7 +1261,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         _uploadBatchId = const Uuid().v4();
         _chartUrlCtrl.clear();
         _attachment = null;
+        _linkedQuotedPost = null;
+        _videoUrl = null;
         _sentiment = null;
+        _timeframe = null;
+        _conviction = null;
         _scheduledFor = null;
         _activeMode = ComposerMode.post;
         _isPreviewMode = false;
@@ -1776,10 +1846,46 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         // Active Badges Row: Sentiment, Conviction, Tickers, Tags
         _buildActiveBadgesRow(theme, spacingXs),
 
-        // Quoted post preview if quoting
-        if (widget.quotedPost != null) ...<Widget>[
+        // Attached video preview (YouTube, Vimeo, Dailymotion, Twitch, MP4/WebM)
+        if (_videoUrl != null && _videoUrl!.trim().isNotEmpty) ...<Widget>[
           SizedBox(height: spacingSm),
-          CommunityQuoteCard(post: widget.quotedPost!),
+          CommunityVideoPlayerCard(
+            url: _videoUrl!,
+            onRemove: () => setState(() => _videoUrl = null),
+          ),
+        ],
+
+        // Quoted / Linked post preview
+        if (_effectiveQuotedPost != null) ...<Widget>[
+          SizedBox(height: spacingSm),
+          Stack(
+            children: <Widget>[
+              CommunityQuoteCard(post: _effectiveQuotedPost!),
+              if (_linkedQuotedPost != null)
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Material(
+                    color: theme.colors.surface.withValues(alpha: 0.9),
+                    shape: CircleBorder(
+                      side: BorderSide(color: theme.colors.border),
+                    ),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => setState(() => _linkedQuotedPost = null),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 14,
+                          color: theme.colors.foregroundMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
 
         // Mode 1: Structured Trade Setup Form
@@ -1870,7 +1976,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   Widget _buildActiveBadgesRow(UiTheme theme, double spacingXs) {
     final bool hasBadges =
         _sentiment != null ||
-        _conviction != 'Standard' ||
+        _timeframe != null ||
+        _conviction != null ||
         _scheduledFor != null ||
         _tickers.isNotEmpty ||
         _tags.isNotEmpty ||
@@ -1900,13 +2007,23 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
               size: UiSize.xs,
               onRemove: () => setState(() => _sentiment = null),
             ),
-          if (_conviction != 'Standard')
+          if (_timeframe != null)
             UiBadge(
-              label: _conviction,
-              intent: UiIntent.warning,
+              label: _timeframe!,
+              intent: UiIntent.primary,
               variant: UiBadgeVariant.soft,
               size: UiSize.xs,
-              onRemove: () => setState(() => _conviction = 'Standard'),
+              onRemove: () => setState(() => _timeframe = null),
+            ),
+          if (_conviction != null)
+            UiBadge(
+              label: _conviction!,
+              intent: _conviction!.contains('🔥')
+                  ? UiIntent.warning
+                  : UiIntent.primary,
+              variant: UiBadgeVariant.soft,
+              size: UiSize.xs,
+              onRemove: () => setState(() => _conviction = null),
             ),
           if (_scheduledFor != null)
             UiBadge(
@@ -2850,10 +2967,36 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     final int charCount = _body.characters.length;
     final bool hasBody = _body.trim().isNotEmpty;
     final double charRatio = (charCount / 500).clamp(0.0, 1.0);
+    final double gapXs = context.sp(theme.spacing.xs);
+    final double gapSm = context.sp(theme.spacing.sm);
 
-    return Wrap(
-      spacing: context.sp(theme.spacing.xs),
-      runSpacing: context.sp(theme.spacing.xs),
+    final Color biasAccent = _sentiment == CommunitySentiment.bullish
+        ? theme.colors.success
+        : (_sentiment == CommunitySentiment.bearish
+              ? theme.colors.destructive
+              : (_sentiment == CommunitySentiment.neutral
+                    ? theme.colors.info
+                    : theme.colors.foregroundMuted));
+
+    final bool hasTimeframe = _timeframe != null;
+    final bool hasConviction = _conviction != null;
+    final bool isHighConviction = _conviction?.contains('🔥') ?? false;
+    final bool isDirty =
+        hasBody ||
+        _tickers.isNotEmpty ||
+        _tags.isNotEmpty ||
+        _imageUrls.isNotEmpty ||
+        _attachment != null ||
+        _linkedQuotedPost != null ||
+        _videoUrl != null ||
+        _sentiment != null ||
+        _timeframe != null ||
+        _conviction != null ||
+        _scheduledFor != null;
+
+    final Widget leftMetaControls = Wrap(
+      spacing: gapXs,
+      runSpacing: gapXs,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: <Widget>[
         // 1. Market Bias (Bullish, Bearish, Neutral) Selector
@@ -2893,22 +3036,18 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           ],
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.xs),
-              vertical: 4,
+              horizontal: gapXs + 2,
+              vertical: 5,
             ),
             decoration: BoxDecoration(
-              color: _sentiment == CommunitySentiment.bullish
-                  ? theme.colors.success.withValues(alpha: 0.12)
-                  : (_sentiment == CommunitySentiment.bearish
-                        ? theme.colors.destructive.withValues(alpha: 0.12)
-                        : theme.colors.surfaceMuted),
+              color: _sentiment != null
+                  ? biasAccent.withValues(alpha: 0.12)
+                  : theme.colors.surfaceMuted,
               borderRadius: context.radius(theme.radii.pill),
               border: Border.all(
-                color: _sentiment == CommunitySentiment.bullish
-                    ? theme.colors.success.withValues(alpha: 0.3)
-                    : (_sentiment == CommunitySentiment.bearish
-                          ? theme.colors.destructive.withValues(alpha: 0.3)
-                          : theme.colors.border),
+                color: _sentiment != null
+                    ? biasAccent.withValues(alpha: 0.35)
+                    : theme.colors.border,
               ),
             ),
             child: Row(
@@ -2917,11 +3056,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                 Icon(
                   _sentiment?.icon ?? Icons.trending_up_rounded,
                   size: context.sz(13),
-                  color: _sentiment == CommunitySentiment.bullish
-                      ? theme.colors.success
-                      : (_sentiment == CommunitySentiment.bearish
-                            ? theme.colors.destructive
-                            : theme.colors.foregroundMuted),
+                  color: biasAccent,
                 ),
                 if (!isMobile) ...<Widget>[
                   const SizedBox(width: 4),
@@ -2930,11 +3065,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                     style: context.uiText.caption.copyWith(
                       fontSize: context.fs(11),
                       fontWeight: FontWeight.w600,
-                      color: _sentiment == CommunitySentiment.bullish
-                          ? theme.colors.success
-                          : (_sentiment == CommunitySentiment.bearish
-                                ? theme.colors.destructive
-                                : theme.colors.foreground),
+                      color: _sentiment != null
+                          ? biasAccent
+                          : theme.colors.foreground,
                     ),
                   ),
                   Icon(
@@ -2948,32 +3081,39 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           ),
         ),
 
-        SizedBox(width: context.sp(theme.spacing.xs)),
-
         // 2. Timeframe Horizon Selector
         UiDropdownMenu(
           items: <UiMenuItem>[
-            for (final tf in <String>[
-              '15m Scalp',
-              'Intraday',
-              'Daily Swing',
-              'Weekly Macro',
-            ])
+            for (final tf in _timeframeToTag.keys)
               UiMenuItem(
                 label: tf,
+                icon: Icons.schedule_outlined,
                 selected: _timeframe == tf,
                 onTap: () => setState(() => _timeframe = tf),
+              ),
+            if (hasTimeframe)
+              UiMenuItem(
+                label: 'Clear Timeframe',
+                icon: Icons.close_rounded,
+                destructive: true,
+                onTap: () => setState(() => _timeframe = null),
               ),
           ],
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.xs),
-              vertical: 4,
+              horizontal: gapXs + 2,
+              vertical: 5,
             ),
             decoration: BoxDecoration(
-              color: theme.colors.surfaceMuted,
+              color: hasTimeframe
+                  ? theme.colors.primary.withValues(alpha: 0.12)
+                  : theme.colors.surfaceMuted,
               borderRadius: context.radius(theme.radii.pill),
-              border: Border.all(color: theme.colors.border),
+              border: Border.all(
+                color: hasTimeframe
+                    ? theme.colors.primary.withValues(alpha: 0.35)
+                    : theme.colors.border,
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -2981,16 +3121,20 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                 Icon(
                   Icons.schedule_outlined,
                   size: context.sz(13),
-                  color: theme.colors.foregroundMuted,
+                  color: hasTimeframe
+                      ? theme.colors.primary
+                      : theme.colors.foregroundMuted,
                 ),
                 if (!isMobile) ...<Widget>[
                   const SizedBox(width: 4),
                   Text(
-                    _timeframe,
+                    _timeframe ?? 'Timeframe',
                     style: context.uiText.caption.copyWith(
                       fontSize: context.fs(11),
                       fontWeight: FontWeight.w600,
-                      color: theme.colors.foreground,
+                      color: hasTimeframe
+                          ? theme.colors.primary
+                          : theme.colors.foreground,
                     ),
                   ),
                   Icon(
@@ -3003,8 +3147,6 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             ),
           ),
         ),
-
-        SizedBox(width: context.sp(theme.spacing.xs)),
 
         // 3. Conviction Level Selector
         UiDropdownMenu(
@@ -3024,21 +3166,32 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
               selected: _conviction == 'High Conviction 🔥',
               onTap: () => setState(() => _conviction = 'High Conviction 🔥'),
             ),
+            if (hasConviction)
+              UiMenuItem(
+                label: 'Clear Conviction',
+                icon: Icons.close_rounded,
+                destructive: true,
+                onTap: () => setState(() => _conviction = null),
+              ),
           ],
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.xs),
-              vertical: 4,
+              horizontal: gapXs + 2,
+              vertical: 5,
             ),
             decoration: BoxDecoration(
-              color: _conviction.contains('🔥')
+              color: isHighConviction
                   ? theme.colors.warning.withValues(alpha: 0.12)
-                  : theme.colors.surfaceMuted,
+                  : (hasConviction
+                        ? theme.colors.primary.withValues(alpha: 0.12)
+                        : theme.colors.surfaceMuted),
               borderRadius: context.radius(theme.radii.pill),
               border: Border.all(
-                color: _conviction.contains('🔥')
-                    ? theme.colors.warning.withValues(alpha: 0.3)
-                    : theme.colors.border,
+                color: isHighConviction
+                    ? theme.colors.warning.withValues(alpha: 0.35)
+                    : (hasConviction
+                          ? theme.colors.primary.withValues(alpha: 0.35)
+                          : theme.colors.border),
               ),
             ),
             child: Row(
@@ -3047,20 +3200,24 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                 Icon(
                   Icons.local_fire_department_rounded,
                   size: context.sz(13),
-                  color: _conviction.contains('🔥')
+                  color: isHighConviction
                       ? theme.colors.warning
-                      : theme.colors.foregroundMuted,
+                      : (hasConviction
+                            ? theme.colors.primary
+                            : theme.colors.foregroundMuted),
                 ),
                 if (!isMobile) ...<Widget>[
                   const SizedBox(width: 4),
                   Text(
-                    _conviction == 'Standard' ? 'Conviction' : _conviction,
+                    _conviction ?? 'Conviction',
                     style: context.uiText.caption.copyWith(
                       fontSize: context.fs(11),
                       fontWeight: FontWeight.w600,
-                      color: _conviction.contains('🔥')
+                      color: isHighConviction
                           ? theme.colors.warning
-                          : theme.colors.foreground,
+                          : (hasConviction
+                                ? theme.colors.primary
+                                : theme.colors.foreground),
                     ),
                   ),
                   Icon(
@@ -3073,9 +3230,15 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             ),
           ),
         ),
+      ],
+    );
 
-        SizedBox(width: context.sp(theme.spacing.xs)),
-
+    final Widget rightUtilityControls = Wrap(
+      spacing: gapXs,
+      runSpacing: gapXs,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      alignment: WrapAlignment.end,
+      children: <Widget>[
         // 4. Schedule Post Shortcut
         UiIconButton(
           icon: Icons.event_available_outlined,
@@ -3093,36 +3256,78 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           },
         ),
 
+        // 5. Tag someone (@mention) in this post
+        UiIconButton(
+          icon: Icons.alternate_email_rounded,
+          tooltip: 'Tag someone',
+          size: UiSize.sm,
+          variant: UiVariant.ghost,
+          onPressed: _submitting ? null : _showTagTraderPicker,
+        ),
+
+        // 6. Link / Embed another Community Post inside this post
+        UiIconButton(
+          icon: Icons.format_quote_rounded,
+          tooltip: _effectiveQuotedPost != null
+              ? 'Change linked post'
+              : 'Link a post',
+          size: UiSize.sm,
+          variant: _effectiveQuotedPost != null
+              ? UiVariant.soft
+              : UiVariant.ghost,
+          intent: _effectiveQuotedPost != null ? UiIntent.primary : null,
+          onPressed: _submitting ? null : _showLinkPostPicker,
+        ),
+
+        // 7. Attach Video (YouTube, Vimeo, Dailymotion, Twitch, MP4/WebM)
+        UiIconButton(
+          icon: Icons.smart_display_outlined,
+          tooltip: _videoUrl != null ? 'Change video' : 'Attach video',
+          size: UiSize.sm,
+          variant: _videoUrl != null ? UiVariant.soft : UiVariant.ghost,
+          intent: _videoUrl != null ? UiIntent.primary : null,
+          onPressed: _submitting
+              ? null
+              : () async {
+                  final String? url = await showCommunityVideoAttachDialog(
+                    context,
+                    initialUrl: _videoUrl,
+                  );
+                  if (url != null && mounted) {
+                    setState(() => _videoUrl = url.isEmpty ? null : url);
+                  }
+                },
+        ),
+
         // Circular Character Meter
-        if (hasBody) ...<Widget>[
-          UiProgressCircle(
-            size: 18,
-            thickness: 2.2,
-            value: charRatio,
-            showLabel: false,
-            intent: charCount > 500
-                ? UiIntent.danger
-                : (charCount > 400 ? UiIntent.warning : UiIntent.primary),
+        if (hasBody)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              UiProgressCircle(
+                size: 18,
+                thickness: 2.2,
+                value: charRatio,
+                showLabel: false,
+                intent: charCount > 500
+                    ? UiIntent.danger
+                    : (charCount > 400 ? UiIntent.warning : UiIntent.primary),
+              ),
+              SizedBox(width: context.sp(theme.spacing.xxs)),
+              Text(
+                '$charCount/500',
+                style: context.uiText.caption.copyWith(
+                  fontSize: context.fs(11),
+                  color: charCount > 500
+                      ? theme.colors.destructive
+                      : theme.colors.foregroundMuted,
+                ),
+              ),
+            ],
           ),
-          SizedBox(width: context.sp(theme.spacing.xxs)),
-          Text(
-            '$charCount/500',
-            style: context.uiText.caption.copyWith(
-              fontSize: context.fs(11),
-              color: charCount > 500
-                  ? theme.colors.destructive
-                  : theme.colors.foregroundMuted,
-            ),
-          ),
-          SizedBox(width: context.sp(theme.spacing.sm)),
-        ],
 
         // Clear Draft Button if dirty
-        if (hasBody ||
-            _tickers.isNotEmpty ||
-            _tags.isNotEmpty ||
-            _imageUrls.isNotEmpty ||
-            _attachment != null) ...<Widget>[
+        if (isDirty)
           UiIconButton(
             icon: Icons.delete_outline_rounded,
             tooltip: 'Clear Draft',
@@ -3158,16 +3363,32 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                       _uploadBatchId = const Uuid().v4();
                       _attachmentError = null;
                       _attachment = null;
+                      _linkedQuotedPost = null;
+                      _videoUrl = null;
                       _sentiment = null;
-                      _conviction = 'Standard';
+                      _timeframe = null;
+                      _conviction = null;
                       _scheduledFor = null;
                     });
                   },
           ),
-          SizedBox(width: context.sp(theme.spacing.xxs)),
-        ],
+      ],
+    );
 
-        // Post / Publish Button
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(child: leftMetaControls),
+            SizedBox(width: gapSm),
+            rightUtilityControls,
+          ],
+        ),
+        SizedBox(height: gapSm),
+        // Full-width centered Post / Publish Button
         UiButton(
           label: widget.postToEdit != null
               ? 'Save Changes'
@@ -3181,14 +3402,16 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
               : (_scheduledFor != null
                     ? Icons.schedule_send_rounded
                     : Icons.send_rounded),
-          size: UiSize.sm,
+          size: UiSize.md,
           loading: _submitting,
-          expandOnMobile: false,
+          expand: true,
           onPressed:
               _isUploadingChart ||
                   (_body.trim().isEmpty &&
                       _attachment == null &&
                       _imageUrls.isEmpty &&
+                      _effectiveQuotedPost == null &&
+                      _videoUrl == null &&
                       _activeMode != ComposerMode.poll &&
                       _activeMode != ComposerMode.tradeSetup)
               ? null
@@ -3196,6 +3419,237 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         ),
       ],
     );
+  }
+
+  Future<void> _showTagTraderPicker() async {
+    final CommunityAuthor? trader = await showCommunityTraderTagPicker(
+      context,
+      repository: widget.repository,
+    );
+    if (trader == null || !mounted) return;
+    final String mention = '${trader.displayHandle} ';
+    final TextSelection sel = _bodyCtrl.selection;
+    final int start = sel.isValid ? sel.start : _bodyCtrl.text.length;
+    final int end = sel.isValid ? sel.end : start;
+    final String prefix =
+        start > 0 && !_bodyCtrl.text.substring(0, start).endsWith(' ')
+        ? ' '
+        : '';
+    final String insert = '$prefix$mention';
+    _bodyCtrl.value = TextEditingValue(
+      text: _bodyCtrl.text.replaceRange(start, end, insert),
+      selection: TextSelection.collapsed(offset: start + insert.length),
+    );
+  }
+
+  Future<void> _showLinkPostPicker() async {
+    final Map<String, CommunityPost> unique = <String, CommunityPost>{};
+    for (final p in <CommunityPost>[
+      ...widget.repository.forYouPosts,
+      ...widget.repository.followingPosts,
+      ...widget.repository.signalPosts,
+      ...widget.repository.bookmarkedPosts,
+    ]) {
+      if (p.isPublic && p.id != widget.postToEdit?.id) {
+        unique.putIfAbsent(p.id, () => p);
+      }
+    }
+    final List<CommunityPost> candidates = unique.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    final TextEditingController searchCtrl = TextEditingController();
+    final CommunityPost? picked = await UiDialog.show<CommunityPost>(
+      context,
+      maxWidth: 560,
+      child: StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setDialogState) {
+          final UiTheme theme = ctx.ui;
+          final String q = searchCtrl.text.trim().toLowerCase();
+          final List<CommunityPost> filtered = q.isEmpty
+              ? candidates
+              : candidates.where((p) {
+                  return p.body.toLowerCase().contains(q) ||
+                      p.author.displayName.toLowerCase().contains(q) ||
+                      p.author.handle.toLowerCase().contains(q) ||
+                      p.tickers.any((t) => t.toLowerCase().contains(q)) ||
+                      p.tags.any((t) => t.toLowerCase().contains(q));
+                }).toList();
+
+          return UiDialog(
+            title: 'Link a Community Post',
+            description:
+                'Embed a public post inside your post as a live quote card.',
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  TextField(
+                    controller: searchCtrl,
+                    autofocus: true,
+                    onChanged: (_) => setDialogState(() {}),
+                    style: ctx.uiText.body,
+                    decoration: InputDecoration(
+                      hintText: 'Search by author, @handle, ticker, or text…',
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        size: 18,
+                        color: theme.colors.foregroundMuted,
+                      ),
+                      isDense: true,
+                      filled: true,
+                      fillColor: theme.colors.surfaceMuted.withValues(alpha: 0.45),
+                      border: OutlineInputBorder(
+                        borderRadius: ctx.radius(theme.radii.md),
+                        borderSide: BorderSide(color: theme.colors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: ctx.radius(theme.radii.md),
+                        borderSide: BorderSide(color: theme.colors.border),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: ctx.sp(theme.spacing.sm)),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 360),
+                    child: filtered.isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 28),
+                            child: Text(
+                              candidates.isEmpty
+                                  ? 'No public community posts loaded yet.'
+                                  : 'No matching posts found.',
+                              textAlign: TextAlign.center,
+                              style: ctx.uiText.caption.copyWith(
+                                color: theme.colors.foregroundMuted,
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, _) =>
+                                SizedBox(height: ctx.sp(theme.spacing.xs)),
+                            itemBuilder: (_, int i) {
+                              final CommunityPost post = filtered[i];
+                              final bool isSelected =
+                                  _effectiveQuotedPost?.id == post.id;
+                              return InkWell(
+                                borderRadius: ctx.radius(theme.radii.md),
+                                onTap: () => Navigator.of(ctx).pop(post),
+                                child: Container(
+                                  padding: EdgeInsets.all(
+                                    ctx.sp(theme.spacing.sm),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? theme.colors.primary.withValues(
+                                            alpha: 0.1,
+                                          )
+                                        : theme.colors.surfaceMuted.withValues(
+                                            alpha: 0.35,
+                                          ),
+                                    borderRadius: ctx.radius(theme.radii.md),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? theme.colors.primary.withValues(
+                                              alpha: 0.55,
+                                            )
+                                          : theme.colors.border,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Row(
+                                        children: <Widget>[
+                                          UiAvatar(
+                                            name: post.author.displayName,
+                                            imageUrl: post.author.avatarUrl,
+                                            size: UiSize.xs,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              '${post.author.displayName} · ${post.author.displayHandle}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: ctx.uiText.caption.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                                color: theme.colors.foreground,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isSelected)
+                                            Icon(
+                                              Icons.check_circle_rounded,
+                                              size: 16,
+                                              color: theme.colors.primary,
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        post.body,
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: ctx.uiText.caption.copyWith(
+                                          color: theme.colors.foregroundMuted,
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                      if (post.tickers.isNotEmpty) ...<Widget>[
+                                        const SizedBox(height: 6),
+                                        Wrap(
+                                          spacing: 4,
+                                          runSpacing: 4,
+                                          children: <Widget>[
+                                            for (final t in post.tickers.take(4))
+                                              UiBadge(
+                                                label: '\$$t',
+                                                size: UiSize.xs,
+                                                variant: UiBadgeVariant.soft,
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              if (_linkedQuotedPost != null)
+                UiButton(
+                  label: 'Unlink Post',
+                  variant: UiVariant.ghost,
+                  intent: UiIntent.danger,
+                  onPressed: () {
+                    setState(() => _linkedQuotedPost = null);
+                    Navigator.of(ctx).pop();
+                  },
+                ),
+              UiButton(
+                label: 'Cancel',
+                variant: UiVariant.outline,
+                onPressed: () => Navigator.of(ctx).pop(),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    searchCtrl.dispose();
+    if (picked != null && mounted) {
+      setState(() => _linkedQuotedPost = picked);
+    }
   }
 }
 

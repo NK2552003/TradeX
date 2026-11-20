@@ -66,23 +66,28 @@ class UiPage extends StatelessWidget {
       ),
     );
 
+    final EdgeInsets safePad = MediaQuery.paddingOf(context);
+    if (scrollable) {
+      // Apply safe-area insets inside the ScrollView rather than wrapping it
+      // in an outer SafeArea so content starts cleanly below floating headers
+      // at rest and scrolls smoothly behind translucent frosted-glass chrome.
+      return SingleChildScrollView(
+        controller: scrollController,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(
+          pad.left + safePad.left,
+          pad.top + safePad.top,
+          pad.right + safePad.right,
+          pad.bottom + safePad.bottom,
+        ),
+        child: Align(alignment: Alignment.topCenter, child: body),
+      );
+    }
     body = Padding(
       padding: pad,
       child: Align(alignment: Alignment.topCenter, child: body),
     );
-    // No background of its own. A page always sits inside something that has
-    // already painted one — the app shell's content surface, a dialog, a sheet —
-    // and an opaque fill here covered that surface's rounded corners and border
-    // on desktop. Transparent lets whatever hosts the page own the colour.
-    return SafeArea(
-      child: scrollable
-          ? SingleChildScrollView(
-              controller: scrollController,
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: body,
-            )
-          : SizedBox.expand(child: body),
-    );
+    return SafeArea(child: SizedBox.expand(child: body));
   }
 }
 

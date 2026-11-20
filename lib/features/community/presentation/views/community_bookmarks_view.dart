@@ -149,7 +149,7 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
                 SizedBox(height: context.sp(theme.spacing.sm)),
 
                 // Filter tabs
-                UiTabs(
+                CommunityPillTabBar(
                   tabs: [
                     'All (${bookmarked.length})',
                     'Setups',

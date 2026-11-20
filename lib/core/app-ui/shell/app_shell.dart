@@ -440,7 +440,7 @@ class _AppShellState extends State<AppShell> {
       final double dockMargin = _isNativeAndroid ? 8 : 16;
       final double mobileHeaderClearance = widget.hideMobileTopBar
           ? 0.0
-          : (_isNativeAndroid ? 52.0 : 60.0);
+          : (_isNativeAndroid ? 50.0 : 54.0);
       // Keep the real system bottom safe-area inset instead of inflating it
       // with the floating dock height so SafeArea pages never render a blank
       // dead band at the bottom of the screen. Provide top clearance for the
@@ -535,6 +535,9 @@ class _AppShellState extends State<AppShell> {
         },
         lockedDestinationIndices: lockedDestinationIndices,
         lockedCenterIndices: lockedCenterIndices,
+        leftActionIcon: widget.onSearch != null ? Icons.search_rounded : null,
+        leftActionTooltip: widget.searchHint ?? 'Search',
+        onLeftActionPressed: widget.onSearch,
         centerAction: QuietDockCenterAction(
           semanticLabel: _isCommunityRoute ? 'Switch to App' : 'More tools',
           icon: _isCommunityRoute
@@ -1780,7 +1783,7 @@ class AppTopBar extends StatelessWidget {
             ),
           ),
           UiGap.h(theme.spacing.sm),
-        ] else if (onSearch != null)
+        ] else if (onSearch != null && !isMobile)
           UiIconButton(
             icon: Icons.search_rounded,
             tooltip: 'Search',
@@ -1828,38 +1831,46 @@ class AppTopBar extends StatelessWidget {
       ],
     );
 
-    final EdgeInsets headerPadding = EdgeInsets.symmetric(
-      horizontal: context.sp(theme.spacing.sm),
-      vertical: context.sp(
-        compactAndroid ? theme.spacing.xxs : theme.spacing.xs,
-      ),
-    );
-    final BorderRadius headerRadius = context.radius(
-      isMobile ? theme.radii.pill : theme.radii.lg,
-    );
+    final EdgeInsets headerPadding = isMobile
+        ? const EdgeInsets.symmetric(horizontal: 14)
+        : EdgeInsets.symmetric(
+            horizontal: context.sp(theme.spacing.sm),
+            vertical: context.sp(theme.spacing.xs),
+          );
+    final BorderRadius headerRadius = isMobile
+        ? BorderRadius.circular(22)
+        : context.radius(theme.radii.lg);
     final bool isDark = theme.brightness == Brightness.dark;
 
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          context.sp(theme.spacing.sm),
-          context.sp(compactAndroid ? theme.spacing.xxs : theme.spacing.xs),
-          context.sp(theme.spacing.sm),
-          compactAndroid ? 0 : context.sp(theme.spacing.xs),
-        ),
+        padding: isMobile
+            ? EdgeInsets.fromLTRB(
+                12,
+                compactAndroid ? 6 : 8,
+                12,
+                0,
+              )
+            : EdgeInsets.fromLTRB(
+                context.sp(theme.spacing.sm),
+                context.sp(theme.spacing.xs),
+                context.sp(theme.spacing.sm),
+                context.sp(theme.spacing.xs),
+              ),
         child: isMobile
             ? Container(
                 key: const ValueKey<String>('app-header-surface'),
+                height: 44,
                 decoration: BoxDecoration(
                   borderRadius: headerRadius,
                   boxShadow: <BoxShadow>[
                     BoxShadow(
                       color: Colors.black.withValues(
-                        alpha: isDark ? 0.34 : 0.08,
+                        alpha: isDark ? 0.36 : 0.10,
                       ),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
@@ -1870,14 +1881,14 @@ class AppTopBar extends StatelessWidget {
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: theme.colors.surface.withValues(
-                          alpha: isDark ? 0.68 : 0.78,
+                          alpha: isDark ? 0.62 : 0.74,
                         ),
                         borderRadius: headerRadius,
                         border: Border.all(
                           color: theme.colors.borderStrong.withValues(
                             alpha: isDark ? 0.65 : 0.75,
                           ),
-                          width: theme.borders.hairline,
+                          width: 1.2,
                         ),
                       ),
                       child: Padding(

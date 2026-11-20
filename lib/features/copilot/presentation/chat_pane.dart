@@ -36,6 +36,7 @@ class CopilotChatPane extends StatefulWidget {
     super.key,
     required this.controller,
     this.initialPrompt,
+    this.autoSendInitialPrompt = false,
     this.onPage,
     this.onVoice,
     this.onSpeakMessage,
@@ -45,6 +46,7 @@ class CopilotChatPane extends StatefulWidget {
   });
   final CopilotController controller;
   final String? initialPrompt;
+  final bool autoSendInitialPrompt;
   final ValueChanged<WorkspacePage>? onPage;
   final VoidCallback? onVoice;
   final ValueChanged<String>? onSpeakMessage;
@@ -151,7 +153,15 @@ class _CopilotChatPaneState extends State<CopilotChatPane> {
   @override
   void initState() {
     super.initState();
-    _composer.text = widget.initialPrompt ?? '';
+    final String initial = (widget.initialPrompt ?? '').trim();
+    if (widget.autoSendInitialPrompt && initial.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _send(initial);
+      });
+    } else {
+      _composer.text = widget.initialPrompt ?? '';
+    }
   }
 
   @override
