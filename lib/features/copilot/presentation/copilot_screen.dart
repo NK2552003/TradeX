@@ -219,7 +219,7 @@ class CopilotScreenState extends State<CopilotScreen> {
                   ? context.sp(theme.spacing.sm) + context.sz(40)
                   : 0) +
               context.sp(theme.spacing.sm)
-        : context.sp(theme.spacing.sm);
+        : topBarPad + context.sz(34);
 
     final chat = Padding(
       padding: EdgeInsets.only(bottom: bottomPad),
@@ -420,7 +420,49 @@ class CopilotScreenState extends State<CopilotScreen> {
                         ),
                 ),
                 if (showInnerHeader)
-                  Positioned(top: 0, left: 0, right: 0, child: headerOverlay),
+                  Positioned(top: 0, left: 0, right: 0, child: headerOverlay)
+                else
+                  Positioned(
+                    top: topBarPad,
+                    left: 0,
+                    right: 0,
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: Row(
+                        children: <Widget>[
+                          if (_workspaceOpen)
+                            UiIconButton(
+                              icon: Icons.arrow_back,
+                              tooltip: 'Back to conversation',
+                              variant: UiVariant.ghost,
+                              size: UiSize.sm,
+                              onPressed: () => _showWorkspace(false),
+                            ),
+                          const Spacer(),
+                          if (_controller.activeThread?.messages.any(
+                                (m) => m.body.trim().isNotEmpty,
+                              ) ==
+                              true)
+                            UiIconButton(
+                              icon: Icons.ios_share_outlined,
+                              tooltip: 'Copy research thread',
+                              variant: UiVariant.ghost,
+                              size: UiSize.sm,
+                              onPressed: _copyThread,
+                            ),
+                          UiIconButton(
+                            icon: Icons.history_rounded,
+                            tooltip: device.isMobile ? 'Library' : 'Workspace',
+                            variant: _workspaceOpen
+                                ? UiVariant.soft
+                                : UiVariant.ghost,
+                            size: UiSize.sm,
+                            onPressed: () => _showWorkspace(!_workspaceOpen),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
