@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/billing/razorpay_web_checkout.dart';
 import 'package:alphajournal/core/billing/revenuecat_billing.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/env_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import 'package:alphajournal/core/data/app_session.dart';
 import 'package:alphajournal/features/auth/data/repositories/subscription_pricing_repository.dart';
 import 'package:alphajournal/features/auth/models/pricing_models.dart';
@@ -133,11 +137,69 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
   Future<void> _openBusinessCheckout(PricingPlanModel plan) async {
     if (_processingTierId != null) return;
     setState(() => _processingTierId = plan.id);
+    final String cycle = _isAnnual ? 'annual' : 'monthly';
     try {
-      final session = await _billingRepo.startCheckout(
-        plan.id,
-        _isAnnual ? 'annual' : 'monthly',
-      );
+      final session = await _billingRepo.startCheckout(plan.id, cycle);
+      final String keyId = (session.keyId != null && session.keyId!.isNotEmpty)
+          ? session.keyId!
+          : EnvConfig.razorpayKeyId;
+
+      if (RazorpayWebCheckout.isSupported && keyId.isNotEmpty) {
+        final user = SupabaseConfig.client?.auth.currentUser;
+        final modalResult = await RazorpayWebCheckout.open(
+          keyId: keyId,
+          subscriptionId: session.sessionId,
+          planName: plan.name,
+          billingCycle: cycle,
+          userEmail: user?.email,
+        );
+        if (!mounted) return;
+
+        if (modalResult.isSuccess) {
+          final verified = await _billingRepo.verifyCheckout(
+            subscriptionId: modalResult.subscriptionId ?? session.sessionId,
+            paymentId: modalResult.paymentId,
+            signature: modalResult.signature,
+          );
+          if (!mounted) return;
+          await _loadData();
+          if (!mounted) return;
+          widget.onPlanChanged?.call(plan.tier);
+          UiToast.show(
+            context,
+            title: verified ? 'Subscription Active' : 'Payment Received',
+            message: verified
+                ? 'You are now on AlphaJournal ${plan.name}.'
+                : 'Your payment is being confirmed by Razorpay.',
+            intent: UiIntent.success,
+          );
+          closeSettingsSubpage(context);
+          return;
+        }
+
+        if (modalResult.isFailed) {
+          UiToast.show(
+            context,
+            title: 'Payment failed',
+            message:
+                modalResult.errorMessage ??
+                'Payment could not be completed. Returned to AlphaJournal.',
+            intent: UiIntent.danger,
+          );
+          return;
+        }
+
+        if (modalResult.isCancelled) {
+          UiToast.show(
+            context,
+            title: 'Checkout cancelled',
+            message: 'Returned to AlphaJournal without charging your account.',
+            intent: UiIntent.info,
+          );
+          return;
+        }
+      }
+
       if (!await launchUrl(
         Uri.parse(session.url),
         mode: LaunchMode.externalApplication,
@@ -145,23 +207,114 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
         throw StateError('Could not open the secure checkout.');
       }
       if (!mounted) return;
-      UiToast.show(
-        context,
-        title: 'Checkout opened',
-        message: 'Your plan changes only after Razorpay confirms payment.',
-        intent: UiIntent.info,
-      );
+      await _showExternalCheckoutReturnDialog(plan, session.sessionId);
     } catch (error) {
       if (!mounted) return;
       UiToast.show(
         context,
-        title: 'Business checkout unavailable',
+        title: 'Checkout unavailable',
         message: error.toString().replaceFirst('Bad state: ', ''),
         intent: UiIntent.warning,
       );
     } finally {
       if (mounted) setState(() => _processingTierId = null);
     }
+  }
+
+  Future<void> _showExternalCheckoutReturnDialog(
+    PricingPlanModel plan,
+    String subscriptionId,
+  ) async {
+    bool verifying = false;
+    String? statusNote;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext dialogCtx, StateSetter setDialogState) =>
+            UiDialog(
+              title: 'Complete ${plan.name} checkout',
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  UiCallout(
+                    title: 'Finish payment in your browser',
+                    message:
+                        'After completing or cancelling payment in Razorpay, click "Verify & Return" or "Back to Plans" below.',
+                    intent: UiIntent.info,
+                  ),
+                  if (statusNote != null) ...<Widget>[
+                    SizedBox(height: context.sp(context.ui.spacing.sm)),
+                    UiCallout(
+                      title: 'Payment not completed yet',
+                      message: statusNote!,
+                      intent: UiIntent.warning,
+                    ),
+                  ],
+                ],
+              ),
+              actions: <Widget>[
+                UiButton(
+                  label: 'Back to Plans',
+                  variant: UiVariant.outline,
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+                UiButton(
+                  label: 'Verify & Return',
+                  intent: UiIntent.primary,
+                  loading: verifying,
+                  onPressed: verifying
+                      ? null
+                      : () async {
+                          setDialogState(() {
+                            verifying = true;
+                            statusNote = null;
+                          });
+                          try {
+                            final verified = await _billingRepo.verifyCheckout(
+                              subscriptionId: subscriptionId,
+                            );
+                            if (verified) {
+                              if (ctx.mounted) Navigator.of(ctx).pop();
+                              if (!mounted) return;
+                              await _loadData();
+                              if (!mounted) return;
+                              widget.onPlanChanged?.call(plan.tier);
+                              UiToast.show(
+                                context,
+                                title: 'Subscription Active',
+                                message:
+                                    'You are now on AlphaJournal ${plan.name}.',
+                                intent: UiIntent.success,
+                              );
+                              closeSettingsSubpage(context);
+                              return;
+                            }
+                            if (dialogCtx.mounted) {
+                              setDialogState(() {
+                                verifying = false;
+                                statusNote =
+                                    'Razorpay has not reported a completed payment yet. If your payment failed or was cancelled, click "Back to Plans".';
+                              });
+                            }
+                          } catch (err) {
+                            if (dialogCtx.mounted) {
+                              setDialogState(() {
+                                verifying = false;
+                                statusNote = err.toString().replaceFirst(
+                                  'Bad state: ',
+                                  '',
+                                );
+                              });
+                            }
+                          }
+                        },
+                ),
+              ],
+            ),
+      ),
+    );
   }
 
   void _showCheckoutDialog(PricingPlanModel plan) {
@@ -317,10 +470,10 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                     ],
                   ),
                   SizedBox(height: context.sp(context.ui.spacing.md)),
-                  const UiCallout(
-                    title: 'Paid checkout unavailable',
+                  UiCallout(
+                    title: 'Secure Razorpay Checkout',
                     message:
-                        'A secure payment provider is not connected. Paid plan activation is disabled until checkout is available.',
+                        'You will be redirected to Razorpay to authorize your ${_isAnnual ? 'annual' : 'monthly'} subscription via UPI AutoPay, credit/debit card, or NetBanking.',
                     intent: UiIntent.info,
                   ),
                 ],
@@ -346,9 +499,14 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                     : 'Confirm Change',
                 intent: UiIntent.primary,
                 loading: processing,
-                onPressed: payable
+                onPressed: processing
                     ? null
                     : () async {
+                        if (payable) {
+                          if (ctx.mounted) Navigator.of(ctx).pop();
+                          await _openBusinessCheckout(plan);
+                          return;
+                        }
                         setDialogState(() => processing = true);
                         try {
                           await _pricingRepo.selectPlan(
@@ -374,9 +532,9 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                           if (!mounted) return;
                           UiToast.show(
                             context,
-                            title: 'Payment failed',
+                            title: 'Plan update failed',
                             message:
-                                'Could not process card payment. Please try another method.',
+                                'Could not change plan right now. Please try again.',
                             intent: UiIntent.danger,
                           );
                         }
@@ -431,19 +589,51 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.surfaceMuted,
+                      borderRadius: context.radius(theme.radii.pill),
+                      border: Border.all(color: colors.border),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 14,
+                          color: colors.foreground,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'AlphaJournal',
+                          style: context.uiText.caption.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: colors.foreground,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   Text(
-                    'Pricing & Plans',
+                    'One subscription. Access to everything.',
                     textAlign: TextAlign.center,
                     style: context.uiText.display.copyWith(
-                      fontSize: responsive.isMobile ? 26 : 34,
-                      fontWeight: FontWeight.w600,
+                      fontSize: responsive.isMobile ? 24 : 30,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
                     ),
                   ),
                   SizedBox(height: context.sp(theme.spacing.xs)),
                   ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: context.sz(540)),
+                    constraints: BoxConstraints(maxWidth: context.sz(620)),
                     child: Text(
-                      'Upgrade or adjust your billing cycle to scale quantitative journaling, live scanners, and prop desk limits.',
+                      'Manage your AlphaJournal subscription tier and workspace quotas in Indian Rupees (₹) inclusive of 18% GST. Switch between monthly and annual billing anytime.',
                       textAlign: TextAlign.center,
                       style: context.uiText.body.copyWith(
                         color: colors.foregroundMuted,
@@ -480,6 +670,7 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                       _buildCyclePill(
                         context,
                         label: 'Billed annually',
+                        badge: 'Save 20%',
                         isSelected: _isAnnual,
                         onTap: () => _toggleCycle('annual'),
                       ),
@@ -635,6 +826,152 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
     );
   }
 
+  List<({String heading, List<({IconData icon, String label})> items})>
+  _overlaySectionsForTier(AppTier tier) {
+    final CustomerTierQuota q = CustomerTierQuota.forTier(tier);
+    String formatQuota(int value, String singular, String plural) {
+      if (value >= 100000) return 'Unlimited $plural';
+      return '$value ${value == 1 ? singular : plural}';
+    }
+
+    return switch (tier) {
+      AppTier.free => [
+        (
+          heading: 'Workspace & Journaling',
+          items: [
+            (
+              icon: Icons.edit_note_rounded,
+              label: formatQuota(q.maxNotes, 'note', 'notes'),
+            ),
+            (
+              icon: Icons.candlestick_chart_rounded,
+              label: formatQuota(q.maxTrades, 'trade log', 'trade logs'),
+            ),
+            (
+              icon: Icons.track_changes_rounded,
+              label: formatQuota(
+                q.maxLiveStrategies,
+                'live strategy',
+                'live strategies',
+              ),
+            ),
+            (
+              icon: Icons.bookmark_border_rounded,
+              label: formatQuota(q.maxWatchlists, 'watchlist', 'watchlists'),
+            ),
+            (
+              icon: Icons.notifications_none_rounded,
+              label: formatQuota(q.maxAlerts, 'price alert', 'price alerts'),
+            ),
+          ],
+        ),
+        (
+          heading: 'Community & Markets',
+          items: [
+            (
+              icon: Icons.forum_outlined,
+              label:
+                  '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+            ),
+            (
+              icon: Icons.show_chart_rounded,
+              label: 'Market previews & basic calculators',
+            ),
+          ],
+        ),
+      ],
+      AppTier.premium => [
+        (
+          heading: 'Markets & Desk',
+          items: [
+            (
+              icon: Icons.candlestick_chart_rounded,
+              label:
+                  '${formatQuota(q.maxNotes, 'note', 'notes')} & ${formatQuota(q.maxTrades, 'trade', 'trades')}',
+            ),
+            (
+              icon: Icons.track_changes_rounded,
+              label:
+                  '${formatQuota(q.maxLiveStrategies, 'strategy', 'strategies')} & ${formatQuota(q.maxWatchlists, 'watchlist', 'watchlists')}',
+            ),
+            (
+              icon: Icons.insights_rounded,
+              label: 'Full Market Intelligence & screeners',
+            ),
+            (
+              icon: Icons.calculate_outlined,
+              label: 'Advanced risk & position calculators',
+            ),
+            (
+              icon: Icons.mail_outline_rounded,
+              label: 'Direct messages & trader network',
+            ),
+          ],
+        ),
+        (
+          heading: 'AI & Alerts',
+          items: [
+            (
+              icon: Icons.auto_awesome_rounded,
+              label: '${q.maxAiQueriesPerMonth} AI Copilot queries / mo',
+            ),
+            (
+              icon: Icons.notifications_active_outlined,
+              label: formatQuota(q.maxAlerts, 'active alert', 'active alerts'),
+            ),
+            (
+              icon: Icons.forum_outlined,
+              label:
+                  '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+            ),
+          ],
+        ),
+      ],
+      AppTier.enterprise => [
+        (
+          heading: 'Institutional Desk',
+          items: [
+            (
+              icon: Icons.layers_outlined,
+              label:
+                  '${formatQuota(q.maxNotes, 'note', 'notes')} & ${formatQuota(q.maxTrades, 'trade', 'trades')}',
+            ),
+            (
+              icon: Icons.picture_as_pdf_outlined,
+              label: 'CSV & PDF performance exports',
+            ),
+            (
+              icon: Icons.science_outlined,
+              label: 'Advanced strategy backtesting',
+            ),
+            (
+              icon: Icons.query_stats_rounded,
+              label: 'Deep expectancy & drawdown analytics',
+            ),
+          ],
+        ),
+        (
+          heading: 'AI & Priority',
+          items: [
+            (
+              icon: Icons.bolt_rounded,
+              label: '${q.maxAiQueriesPerMonth} AI Copilot queries / mo',
+            ),
+            (
+              icon: Icons.notifications_active_rounded,
+              label: formatQuota(q.maxAlerts, 'active alert', 'active alerts'),
+            ),
+            (
+              icon: Icons.verified_outlined,
+              label:
+                  '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+            ),
+          ],
+        ),
+      ],
+    };
+  }
+
   Widget _buildSingleCard(
     BuildContext context,
     UiTheme theme,
@@ -644,98 +981,122 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
     required bool isMobile,
   }) {
     final bool isCurrent = plan.tier == currentTier;
-    final bool isFeatured = plan.highlighted;
+    final bool isPaidTier = plan.tier != AppTier.free;
+    final bool isCycleSwitch =
+        isCurrent &&
+        isPaidTier &&
+        _subscription != null &&
+        _subscription!.isAnnual != _isAnnual;
+    final bool selected = isCurrent && !isCycleSwitch;
+    final bool isFeatured = plan.highlighted || plan.tier == AppTier.premium;
     final bool isProcessing = _processingTierId == plan.id;
+    final sections = _overlaySectionsForTier(plan.tier);
+    final Color cardBg = colors.surfaceMuted.withValues(alpha: 0.38);
 
-    final IconData tierIcon = switch (plan.tier) {
-      AppTier.free => Icons.bolt_outlined,
-      AppTier.premium => Icons.auto_awesome_rounded,
-      AppTier.enterprise => Icons.apartment_rounded,
+    final String introLine = switch (plan.tier) {
+      AppTier.free => 'Our introductory plan:',
+      AppTier.premium => 'Everything in Free, and:',
+      AppTier.enterprise => 'Everything in Basic, and:',
     };
+
+    final String? badgeText = isCurrent
+        ? 'Current plan'
+        : (isFeatured
+              ? 'Most popular'
+              : (plan.tier == AppTier.enterprise ? 'Full desk' : null));
+
+    final UiIntent badgeIntent = isCurrent
+        ? UiIntent.success
+        : (isFeatured ? UiIntent.primary : UiIntent.neutral);
+
+    final bool useStoreOffer =
+        RevenueCatBilling.isConfigured && plan.tier == AppTier.premium;
+    final bool useRazorpayCheckout =
+        isPaidTier &&
+        plan.isPurchasable &&
+        (_supportsBusinessCheckout || !RevenueCatBilling.isConfigured);
+
+    final String ctaLabel = useStoreOffer
+        ? 'View store offer'
+        : useRazorpayCheckout
+        ? (isProcessing
+              ? 'Starting checkout…'
+              : selected
+              ? 'Current plan'
+              : isCycleSwitch
+              ? 'Switch to ${_isAnnual ? 'Annual' : 'Monthly'}'
+              : 'Get ${plan.name}')
+        : !plan.isPurchasable
+        ? plan.ctaLabel
+        : isProcessing
+        ? 'Processing…'
+        : (selected
+              ? 'Current plan'
+              : (plan.tier == AppTier.free
+                    ? 'Switch to Free'
+                    : 'Get ${plan.name}'));
+
+    final VoidCallback? onCtaTap = selected || isProcessing
+        ? null
+        : useStoreOffer
+        ? _openStoreOffer
+        : useRazorpayCheckout
+        ? () => _openBusinessCheckout(plan)
+        : !plan.isPurchasable
+        ? null
+        : () => _showCheckoutDialog(plan);
+
+    final String billingCaption = plan.monthlyAmount <= 0
+        ? 'Free forever · No credit card required'
+        : (_isAnnual
+              ? '${plan.currencySymbol}${(plan.annualMonthlyAmount * 12).toStringAsFixed(0)} billed annually · Save 20%'
+              : 'Billed monthly · Cancel anytime');
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: isCurrent || isFeatured
+            ? colors.surfaceMuted.withValues(alpha: 0.55)
+            : cardBg,
         borderRadius: context.radius(theme.radii.lg),
         border: Border.all(
           color: isCurrent
-              ? colors.primary
-              : (isFeatured ? colors.primary : colors.border),
-          width: isCurrent || isFeatured ? 1.5 : theme.borders.hairline,
+              ? colors.success.withValues(alpha: 0.5)
+              : (isFeatured
+                    ? colors.primary.withValues(alpha: 0.45)
+                    : colors.border),
+          width: isCurrent || isFeatured ? 1.25 : theme.borders.hairline,
         ),
-        boxShadow: isFeatured
-            ? <BoxShadow>[
-                BoxShadow(
-                  color: colors.primary.withValues(alpha: 0.08),
-                  blurRadius: 18,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
       ),
-      padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          // Header
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Container(
-                padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
-                decoration: BoxDecoration(
-                  color: (isFeatured ? colors.primary : colors.surfaceMuted)
-                      .withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  tierIcon,
-                  size: context.sz(18),
-                  color: isFeatured ? colors.primary : colors.foreground,
+              Expanded(
+                child: Text(
+                  plan.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.heading.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                  ),
                 ),
               ),
-              if (isCurrent)
-                const UiBadge(
-                  label: 'CURRENT PLAN',
-                  icon: Icons.check_circle_outline_rounded,
-                  intent: UiIntent.success,
-                  variant: UiBadgeVariant.soft,
-                  size: UiSize.xs,
-                )
-              else if (plan.badgeLabel != null)
+              if (badgeText != null) ...<Widget>[
+                const SizedBox(width: 8),
                 UiBadge(
-                  label: plan.badgeLabel!,
-                  intent: UiIntent.primary,
+                  label: badgeText,
+                  intent: badgeIntent,
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
+              ],
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-
-          // Title & Subtitle
-          Text(
-            plan.name,
-            style: context.uiText.display.copyWith(
-              fontSize: 20.0,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.xxs)),
-          SizedBox(
-            height: context.sz(34),
-            child: Text(
-              plan.subtitle,
-              style: context.uiText.caption.copyWith(
-                color: colors.foregroundMuted,
-                fontSize: 12.0,
-                height: 1.35,
-              ),
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-
-          // Price
+          const SizedBox(height: 14),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -743,191 +1104,97 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
               Text(
                 plan.priceLabel(isAnnual: _isAnnual),
                 style: context.uiText.display.copyWith(
-                  fontSize: 30.0,
+                  fontSize: 32.0,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
+                  letterSpacing: -0.8,
+                  color: colors.foreground,
                 ),
               ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
+              const SizedBox(width: 4),
               Text(
-                plan.monthlyAmount == 0 ? '' : '/ mo',
+                '/month',
                 style: context.uiText.caption.copyWith(
-                  color: colors.foregroundMuted,
-                  fontSize: 12.5,
+                  color: colors.foregroundSubtle,
+                  fontSize: 12.0,
                 ),
               ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.xxs)),
+          const SizedBox(height: 4),
           Text(
-            plan.periodLabel(isAnnual: _isAnnual),
+            billingCaption,
             style: context.uiText.caption.copyWith(
-              color: colors.foregroundSubtle,
-              fontSize: 11.0,
+              color: _isAnnual && plan.monthlyAmount > 0
+                  ? colors.bullish
+                  : colors.foregroundSubtle,
+              fontWeight: _isAnnual && plan.monthlyAmount > 0
+                  ? FontWeight.w600
+                  : FontWeight.normal,
+              fontSize: 11.5,
             ),
           ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          // Action Button
-          UiButton(
-            label:
-                RevenueCatBilling.isConfigured && plan.tier == AppTier.premium
-                ? 'View store offer'
-                : _supportsBusinessCheckout &&
-                      plan.tier == AppTier.enterprise &&
-                      plan.isPurchasable
-                ? (isProcessing
-                      ? 'Starting checkout…'
-                      : 'Subscribe to Business')
-                : !plan.isPurchasable
-                ? plan.ctaLabel
-                : isProcessing
-                ? 'Processing…'
-                : (isCurrent ? 'Current Plan' : 'Select ${plan.name}'),
-            variant: isCurrent
-                ? UiVariant.ghost
-                : (isFeatured ? UiVariant.primary : UiVariant.outline),
-            intent: isFeatured ? UiIntent.primary : UiIntent.neutral,
-            size: UiSize.md,
-            onPressed: isCurrent || isProcessing
-                ? null
-                : RevenueCatBilling.isConfigured && plan.tier == AppTier.premium
-                ? _openStoreOffer
-                : _supportsBusinessCheckout &&
-                      plan.tier == AppTier.enterprise &&
-                      plan.isPurchasable
-                ? () => _openBusinessCheckout(plan)
-                : !plan.isPurchasable
-                ? null
-                : () => _showCheckoutDialog(plan),
+          const SizedBox(height: 16),
+          _ChangePlanCtaButton(
+            label: ctaLabel,
+            selected: selected,
+            highlighted: isFeatured,
+            onTap: onCtaTap,
           ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          const UiDivider(),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-
-          // Features Checklist
+          const SizedBox(height: 18),
           Text(
-            plan.tier == AppTier.free
-                ? 'Plan includes:'
-                : 'Everything in ${plan.tier == AppTier.premium ? 'Free' : 'Basic'}, plus:',
+            introLine,
             style: context.uiText.caption.copyWith(
-              fontWeight: FontWeight.w600,
-              color: colors.foreground,
               fontSize: 12,
+              color: colors.foregroundMuted,
             ),
           ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-
-          if (!isMobile)
-            Expanded(
-              child: _buildPlanFeatureRows(
-                context,
-                theme,
-                colors,
-                plan,
-                isFeatured: isFeatured,
+          const SizedBox(height: 14),
+          for (int s = 0; s < sections.length; s++) ...<Widget>[
+            if (s > 0) const SizedBox(height: 14),
+            Text(
+              sections[s].heading,
+              style: context.uiText.caption.copyWith(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: colors.foregroundSubtle,
               ),
-            )
-          else
-            _buildPlanFeatureRows(
-              context,
-              theme,
-              colors,
-              plan,
-              isFeatured: isFeatured,
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlanFeatureRows(
-    BuildContext context,
-    UiTheme theme,
-    UiColors colors,
-    PricingPlanModel plan, {
-    required bool isFeatured,
-  }) {
-    final List<String> rows = plan.featuresSummary.isNotEmpty
-        ? plan.featuresSummary
-        : _defaultFeaturesForTier(plan.tier);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        for (final String f in rows) ...<Widget>[
-          Builder(
-            builder: (BuildContext context) {
-              final lower = f.trim().toLowerCase();
-              final bool excluded =
-                  lower.startsWith('no ') || lower.contains('not included');
-              return Padding(
-                padding: EdgeInsets.symmetric(
-                  vertical: context.sp(theme.spacing.xxs),
-                ),
+            const SizedBox(height: 6),
+            Divider(height: 1, thickness: 1, color: colors.border),
+            const SizedBox(height: 10),
+            for (final item in sections[s].items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 9),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Icon(
-                      excluded
-                          ? Icons.lock_outline_rounded
-                          : Icons.check_rounded,
-                      size: context.sz(14),
-                      color: excluded
-                          ? colors.foregroundSubtle
-                          : (isFeatured ? colors.primary : colors.bullish),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Icon(
+                        item.icon,
+                        size: 15,
+                        color: colors.foregroundMuted,
+                      ),
                     ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    const SizedBox(width: 9),
                     Expanded(
                       child: Text(
-                        f,
+                        item.label,
                         style: context.uiText.caption.copyWith(
-                          color: excluded
-                              ? colors.foregroundSubtle
-                              : colors.foregroundMuted,
-                          fontSize: 12.0,
-                          height: 1.35,
+                          fontSize: 12.5,
+                          color: colors.foreground,
+                          height: 1.32,
                         ),
                       ),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
+              ),
+          ],
         ],
-      ],
+      ),
     );
   }
-
-  List<String> _defaultFeaturesForTier(AppTier tier) => switch (tier) {
-    AppTier.free => const <String>[
-      'Up to 3 research notes, 15 logged trades & 1 live playbook',
-      '5 AI Copilot queries/month',
-      '1 watchlist & up to 3 price alerts',
-      'Community feed, public posts (2/day) & replies (10/day)',
-      'Core trading calculators',
-      'Community market previews (top movers, charts & wire)',
-      'No private Messages or full Market Intelligence',
-    ],
-    AppTier.premium => const <String>[
-      'Up to 25 research notes, 100 logged trades & 3 live playbooks',
-      '20 AI Copilot queries/month',
-      '5 watchlists & 25 price alerts',
-      'Full Market Intelligence, live screeners & global coverage',
-      'End-to-end encrypted Private Messages',
-      'All advanced options, forex, margin & tax calculators',
-      '15 Community posts/day & 50 replies/day',
-    ],
-    AppTier.enterprise => const <String>[
-      'Up to 10,000 research notes, 50,000 trades & 250 playbooks',
-      '5,000 AI Copilot queries/month',
-      '100 watchlists & 500 price alerts',
-      'PDF & CSV journal and report exports',
-      'Advanced backtesting, analytics & desk risk controls',
-      '100 Community posts/day & 500 replies/day',
-    ],
-  };
 
   Widget _buildFeatureMatrixSection(
     BuildContext context,
@@ -1164,6 +1431,92 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
         color: isPrimary ? colors.foreground : colors.foregroundMuted,
         fontWeight: isPrimary ? FontWeight.w600 : FontWeight.normal,
         fontSize: 11.5,
+      ),
+    );
+  }
+}
+
+class _ChangePlanCtaButton extends StatefulWidget {
+  const _ChangePlanCtaButton({
+    required this.label,
+    required this.selected,
+    required this.highlighted,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final bool highlighted;
+  final VoidCallback? onTap;
+
+  @override
+  State<_ChangePlanCtaButton> createState() => _ChangePlanCtaButtonState();
+}
+
+class _ChangePlanCtaButtonState extends State<_ChangePlanCtaButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final bool enabled = widget.onTap != null && !widget.selected;
+
+    final Color bgColor = widget.selected
+        ? theme.colors.surfaceMuted
+        : widget.highlighted
+        ? (_hovered && enabled
+              ? Color.lerp(
+                  theme.colors.primary,
+                  const Color(0xFFD6DCE8),
+                  0.22,
+                )!
+              : theme.colors.primary)
+        : (_hovered && enabled
+              ? theme.colors.surfaceHover
+              : theme.colors.surface);
+
+    final Color textColor = widget.selected
+        ? theme.colors.foregroundSubtle
+        : (widget.highlighted
+              ? theme.colors.onPrimary
+              : theme.colors.foreground);
+
+    return MouseRegion(
+      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? widget.onTap : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: context.radius(theme.radii.pill),
+            border: widget.selected || widget.highlighted
+                ? null
+                : Border.all(
+                    color: _hovered && enabled
+                        ? theme.colors.foregroundMuted
+                        : theme.colors.borderStrong,
+                  ),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              widget.label,
+              maxLines: 1,
+              style: context.uiText.body.copyWith(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

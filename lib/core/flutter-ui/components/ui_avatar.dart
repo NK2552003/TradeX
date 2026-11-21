@@ -109,7 +109,7 @@ class UiAvatar extends StatelessWidget {
           : null,
     );
 
-    if (online || verified) {
+    if (online) {
       avatar = Stack(
         clipBehavior: Clip.none,
         children: <Widget>[
@@ -122,21 +122,12 @@ class UiAvatar extends StatelessWidget {
               height: dim * 0.3,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: online
-                    ? theme.colors.bullish
-                    : (verifiedColor ?? theme.colors.primary),
+                color: theme.colors.bullish,
                 border: Border.all(
                   color: theme.colors.surface,
                   width: theme.borders.thick,
                 ),
               ),
-              child: verified && !online
-                  ? Icon(
-                      Icons.check,
-                      size: dim * 0.16,
-                      color: theme.colors.onPrimary,
-                    )
-                  : null,
             ),
           ),
         ],

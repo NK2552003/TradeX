@@ -3,6 +3,7 @@
 .env.*
 .env*.local
 !.env.example
+assets/config/client.env
 *.jks
 *.keystore
 *.p8

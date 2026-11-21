@@ -173,12 +173,14 @@ class CheckoutSession {
     required this.url,
     required this.checkoutUrl,
     this.clientSecret,
+    this.keyId,
   });
 
   final String sessionId;
   final String url;
   final String checkoutUrl;
   final String? clientSecret;
+  final String? keyId;
 }
 
 /// The entity that raised an invoice: who is charging, from where, and under

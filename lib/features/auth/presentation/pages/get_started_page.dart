@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/customer_limitations.dart';
 // ignore: unnecessary_import
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import 'package:alphajournal/features/public_site/data/public_site_repository.dart';
@@ -1353,204 +1354,386 @@ class _GetStartedPageState extends State<GetStartedPage> {
     UiColors colors,
     UiResponsive responsive,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        // Header
-        _buildSectionBadge(
-          context,
-          theme,
-          colors,
-          icon: Icons.payments_outlined,
-          label: 'Simple & Transparent Pricing (INR ₹)',
-        ),
-        SizedBox(height: context.sp(theme.spacing.md)),
-        Text(
-          _page?.text('pricing_title') ?? 'Scale Your Trading Edge',
-          textAlign: TextAlign.center,
-          style: context.uiText.display.copyWith(
-            fontSize: responsive.isMobile ? 24.0 : 32.0,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.6,
-          ),
-        ),
-        SizedBox(height: context.sp(theme.spacing.xs)),
-        ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: context.sz(620)),
-          child: Text(
-            'Compare the limits available today. Paid tiers are previews while verified checkout is being connected.',
-            textAlign: TextAlign.center,
-            style: context.uiText.body.copyWith(
-              color: colors.foregroundMuted,
-              fontSize: 14.0,
-              height: 1.5,
-            ),
-          ),
-        ),
-        SizedBox(height: context.sp(theme.spacing.xl)),
+    final bool compact = responsive.isMobile;
+    final Color cardBorder = colors.border;
 
-        // Cycle Selector
-        Container(
-          decoration: BoxDecoration(
-            color: colors.surfaceMuted.withValues(alpha: 0.5),
-            borderRadius: context.radius(theme.radii.pill),
-            border: Border.all(
-              color: colors.border,
-              width: theme.borders.hairline,
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          // Top pill badge matching overlay
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: colors.surfaceMuted,
+              borderRadius: context.radius(theme.radii.pill),
+              border: Border.all(color: cardBorder),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 14,
+                  color: colors.foreground,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'AlphaJournal',
+                  style: context.uiText.caption.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: colors.foreground,
+                  ),
+                ),
+              ],
             ),
           ),
-          padding: EdgeInsets.all(context.sp(theme.spacing.xxs)),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  if (!_isAnnualPricing) return;
-                  setState(() {
-                    _isAnnualPricing = false;
-                    _pricingFuture = _pricingRepo.getPricingCatalogue(
-                      annual: false,
-                    );
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.sp(theme.spacing.md),
-                    vertical: context.sp(theme.spacing.xs),
-                  ),
-                  decoration: BoxDecoration(
-                    color: !_isAnnualPricing
-                        ? colors.surface
-                        : Colors.transparent,
-                    borderRadius: context.radius(theme.radii.pill),
-                  ),
-                  child: Text(
-                    'Monthly',
-                    style: context.uiText.bodyStrong.copyWith(
-                      fontSize: 13,
+          const SizedBox(height: 10),
+          Text(
+            _page?.text('pricing_title') ??
+                'One subscription. Access to everything.',
+            textAlign: TextAlign.center,
+            style: context.uiText.display.copyWith(
+              fontSize: compact ? 24.0 : 32.0,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.6,
+              color: colors.foreground,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: context.sz(680)),
+            child: Text(
+              'Manage your AlphaJournal subscription tier and workspace quotas in Indian Rupees (₹) inclusive of 18% GST. Switch between monthly and annual billing anytime.',
+              textAlign: TextAlign.center,
+              style: context.uiText.body.copyWith(
+                color: colors.foregroundMuted,
+                fontSize: 14.0,
+                height: 1.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Cycle Selector (Monthly / Billed annually Save 20%)
+          Container(
+            decoration: BoxDecoration(
+              color: colors.surfaceMuted.withValues(alpha: 0.65),
+              borderRadius: context.radius(theme.radii.pill),
+              border: Border.all(
+                color: colors.border,
+                width: theme.borders.hairline,
+              ),
+            ),
+            padding: const EdgeInsets.all(3),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    if (!_isAnnualPricing) return;
+                    setState(() {
+                      _isAnnualPricing = false;
+                      _pricingFuture = _pricingRepo.getPricingCatalogue(
+                        annual: false,
+                      );
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
                       color: !_isAnnualPricing
-                          ? colors.foreground
-                          : colors.foregroundMuted,
+                          ? colors.surface
+                          : Colors.transparent,
+                      borderRadius: context.radius(theme.radii.pill),
+                    ),
+                    child: Text(
+                      'Monthly',
+                      style: context.uiText.bodyStrong.copyWith(
+                        fontSize: 13,
+                        color: !_isAnnualPricing
+                            ? colors.foreground
+                            : colors.foregroundMuted,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  if (_isAnnualPricing) return;
-                  setState(() {
-                    _isAnnualPricing = true;
-                    _pricingFuture = _pricingRepo.getPricingCatalogue(
-                      annual: true,
-                    );
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.sp(theme.spacing.md),
-                    vertical: context.sp(theme.spacing.xs),
-                  ),
-                  decoration: BoxDecoration(
-                    color: _isAnnualPricing
-                        ? colors.surface
-                        : Colors.transparent,
-                    borderRadius: context.radius(theme.radii.pill),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        'Billed annually',
-                        style: context.uiText.bodyStrong.copyWith(
-                          fontSize: 13,
-                          color: _isAnnualPricing
-                              ? colors.foreground
-                              : colors.foregroundMuted,
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    if (_isAnnualPricing) return;
+                    setState(() {
+                      _isAnnualPricing = true;
+                      _pricingFuture = _pricingRepo.getPricingCatalogue(
+                        annual: true,
+                      );
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _isAnnualPricing
+                          ? colors.surface
+                          : Colors.transparent,
+                      borderRadius: context.radius(theme.radii.pill),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          'Billed annually',
+                          style: context.uiText.bodyStrong.copyWith(
+                            fontSize: 13,
+                            color: _isAnnualPricing
+                                ? colors.foreground
+                                : colors.foregroundMuted,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                      const UiBadge(
-                        label: 'Save 20%',
-                        intent: UiIntent.success,
-                        variant: UiBadgeVariant.soft,
-                        size: UiSize.xs,
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        const UiBadge(
+                          label: 'Save 20%',
+                          intent: UiIntent.success,
+                          variant: UiBadgeVariant.soft,
+                          size: UiSize.xs,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          // 3 Overlay-Styled Cards FutureBuilder (Full Width)
+          FutureBuilder<PricingCatalogueResponse>(
+            future: _pricingFuture,
+            builder:
+                (
+                  BuildContext context,
+                  AsyncSnapshot<PricingCatalogueResponse> snapshot,
+                ) {
+                  if (!snapshot.hasData) {
+                    if (snapshot.hasError) {
+                      return UiEmptyState(
+                        title: 'Pricing unavailable',
+                        actionLabel: 'Try again',
+                        onActionPressed: () => setState(
+                          () => _pricingFuture = _pricingRepo
+                              .getPricingCatalogue(annual: _isAnnualPricing),
+                        ),
+                      );
+                    }
+                    return const Center(
+                      child: UiSkeleton(width: 240, height: 180),
+                    );
+                  }
+
+                  final List<PricingPlanModel> plans = snapshot.data!.plans;
+
+                  return UiCardGrid(
+                    equalHeight: true,
+                    intrinsicHeight: true,
+                    tabletColumns: 1,
+                    desktopColumns: 3,
+                    largeColumns: 3,
+                    children: [
+                      for (final plan in plans)
+                        _buildLandingPricingCard(context, theme, colors, plan),
+                    ],
+                  );
+                },
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Prices shown in INR inclusive of 18% GST. Cancel or change your plan anytime from Settings → Billing.',
+            textAlign: TextAlign.center,
+            style: context.uiText.caption.copyWith(
+              fontSize: 12,
+              color: colors.foregroundSubtle,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              UiButton(
+                label: 'See Whole Details & Feature Matrix',
+                leading: const Icon(Icons.table_chart_outlined, size: 16),
+                trailing: const Icon(Icons.arrow_forward_rounded, size: 15),
+                variant: UiVariant.outline,
+                intent: UiIntent.primary,
+                size: UiSize.lg,
+                onPressed: () {
+                  if (widget.onViewFullPricing != null) {
+                    widget.onViewFullPricing!();
+                  } else {
+                    widget.onGetStarted(UserRole.customer);
+                  }
+                },
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  List<({String heading, List<({IconData icon, String label})> items})>
+  _landingSectionsForTier(AppTier tier) {
+    final CustomerTierQuota q = CustomerTierQuota.forTier(tier);
+    String formatQuota(int value, String singular, String plural) {
+      if (value >= 100000) return 'Unlimited $plural';
+      return '$value ${value == 1 ? singular : plural}';
+    }
+
+    return switch (tier) {
+      AppTier.free => [
+        (
+          heading: 'Workspace & Journaling',
+          items: [
+            (
+              icon: Icons.edit_note_rounded,
+              label: formatQuota(q.maxNotes, 'note', 'notes'),
+            ),
+            (
+              icon: Icons.candlestick_chart_rounded,
+              label: formatQuota(q.maxTrades, 'trade log', 'trade logs'),
+            ),
+            (
+              icon: Icons.track_changes_rounded,
+              label: formatQuota(
+                q.maxLiveStrategies,
+                'live strategy',
+                'live strategies',
+              ),
+            ),
+            (
+              icon: Icons.bookmark_border_rounded,
+              label: formatQuota(q.maxWatchlists, 'watchlist', 'watchlists'),
+            ),
+            (
+              icon: Icons.notifications_none_rounded,
+              label: formatQuota(q.maxAlerts, 'price alert', 'price alerts'),
+            ),
+          ],
         ),
-        SizedBox(height: context.sp(theme.spacing.xxl)),
-
-        // 3 Cards FutureBuilder
-        FutureBuilder<PricingCatalogueResponse>(
-          future: _pricingFuture,
-          builder:
-              (
-                BuildContext context,
-                AsyncSnapshot<PricingCatalogueResponse> snapshot,
-              ) {
-                if (!snapshot.hasData) {
-                  if (snapshot.hasError) {
-                    return UiEmptyState(
-                      title: 'Pricing unavailable',
-                      actionLabel: 'Try again',
-                      onActionPressed: () => setState(
-                        () => _pricingFuture = _pricingRepo.getPricingCatalogue(
-                          annual: _isAnnualPricing,
-                        ),
-                      ),
-                    );
-                  }
-                  return const Center(
-                    child: UiSkeleton(width: 240, height: 180),
-                  );
-                }
-
-                final List<PricingPlanModel> plans = snapshot.data!.plans;
-
-                return UiCardGrid(
-                  equalHeight: true,
-                  intrinsicHeight: true,
-                  tabletColumns: 1,
-                  desktopColumns: 3,
-                  largeColumns: 3,
-                  children: [
-                    for (final plan in plans)
-                      _buildLandingPricingCard(context, theme, colors, plan),
-                  ],
-                );
-              },
-        ),
-        SizedBox(height: context.sp(theme.spacing.xl)),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            UiButton(
-              label: 'See Whole Details & Feature Matrix',
-              leading: const Icon(Icons.table_chart_outlined, size: 16),
-              trailing: const Icon(Icons.arrow_forward_rounded, size: 15),
-              variant: UiVariant.outline,
-              intent: UiIntent.primary,
-              size: UiSize.lg,
-              onPressed: () {
-                if (widget.onViewFullPricing != null) {
-                  widget.onViewFullPricing!();
-                } else {
-                  widget.onGetStarted(UserRole.customer);
-                }
-              },
+        (
+          heading: 'Community & Markets',
+          items: [
+            (
+              icon: Icons.forum_outlined,
+              label:
+                  '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+            ),
+            (
+              icon: Icons.show_chart_rounded,
+              label: 'Market previews & basic calculators',
             ),
           ],
         ),
       ],
-    );
+      AppTier.premium => [
+        (
+          heading: 'Markets & Desk',
+          items: [
+            (
+              icon: Icons.candlestick_chart_rounded,
+              label:
+                  '${formatQuota(q.maxNotes, 'note', 'notes')} & ${formatQuota(q.maxTrades, 'trade', 'trades')}',
+            ),
+            (
+              icon: Icons.track_changes_rounded,
+              label:
+                  '${formatQuota(q.maxLiveStrategies, 'strategy', 'strategies')} & ${formatQuota(q.maxWatchlists, 'watchlist', 'watchlists')}',
+            ),
+            (
+              icon: Icons.insights_rounded,
+              label: 'Full Market Intelligence & screeners',
+            ),
+            (
+              icon: Icons.calculate_outlined,
+              label: 'Advanced risk & position calculators',
+            ),
+            (
+              icon: Icons.mail_outline_rounded,
+              label: 'Direct messages & trader network',
+            ),
+          ],
+        ),
+        (
+          heading: 'AI & Alerts',
+          items: [
+            (
+              icon: Icons.auto_awesome_rounded,
+              label: '${q.maxAiQueriesPerMonth} AI Copilot queries / mo',
+            ),
+            (
+              icon: Icons.notifications_active_outlined,
+              label: formatQuota(q.maxAlerts, 'active alert', 'active alerts'),
+            ),
+            (
+              icon: Icons.forum_outlined,
+              label:
+                  '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+            ),
+          ],
+        ),
+      ],
+      AppTier.enterprise => [
+        (
+          heading: 'Institutional Desk',
+          items: [
+            (
+              icon: Icons.layers_outlined,
+              label:
+                  '${formatQuota(q.maxNotes, 'note', 'notes')} & ${formatQuota(q.maxTrades, 'trade', 'trades')}',
+            ),
+            (
+              icon: Icons.picture_as_pdf_outlined,
+              label: 'CSV & PDF performance exports',
+            ),
+            (
+              icon: Icons.science_outlined,
+              label: 'Advanced strategy backtesting',
+            ),
+            (
+              icon: Icons.query_stats_rounded,
+              label: 'Deep expectancy & drawdown analytics',
+            ),
+          ],
+        ),
+        (
+          heading: 'AI & Priority',
+          items: [
+            (
+              icon: Icons.bolt_rounded,
+              label: '${q.maxAiQueriesPerMonth} AI Copilot queries / mo',
+            ),
+            (
+              icon: Icons.notifications_active_rounded,
+              label: formatQuota(q.maxAlerts, 'active alert', 'active alerts'),
+            ),
+            (
+              icon: Icons.verified_outlined,
+              label:
+                  '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+            ),
+          ],
+        ),
+      ],
+    };
   }
 
   Widget _buildLandingPricingCard(
@@ -1559,65 +1742,74 @@ class _GetStartedPageState extends State<GetStartedPage> {
     UiColors colors,
     PricingPlanModel plan,
   ) {
-    final bool isFeatured = plan.highlighted;
+    final bool highlighted =
+        plan.highlighted || plan.tier == AppTier.premium;
+    final sections = _landingSectionsForTier(plan.tier);
+    final Color cardBg = colors.surfaceMuted.withValues(alpha: 0.38);
+
+    final String introLine = switch (plan.tier) {
+      AppTier.free => 'Our introductory plan:',
+      AppTier.premium => 'Everything in Free, and:',
+      AppTier.enterprise => 'Everything in Basic, and:',
+    };
+
+    final String? badgeText = highlighted
+        ? 'Most popular'
+        : (plan.tier == AppTier.enterprise ? 'Full desk' : null);
+
+    final UiIntent badgeIntent = highlighted
+        ? UiIntent.primary
+        : UiIntent.neutral;
+
+    final String ctaLabel = plan.tier == AppTier.free
+        ? 'Start Free'
+        : 'Get ${plan.name}';
+
+    final double annualTotal = plan.annualMonthlyAmount * 12;
+    final String billingCaption = plan.monthlyAmount <= 0
+        ? 'Free forever · No credit card required'
+        : (_isAnnualPricing
+              ? '${plan.currencySymbol}${annualTotal.toStringAsFixed(0)} billed annually · Save 20%'
+              : 'Billed monthly · Cancel anytime');
 
     return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: highlighted
+            ? colors.surfaceMuted.withValues(alpha: 0.55)
+            : cardBg,
         borderRadius: context.radius(theme.radii.lg),
         border: Border.all(
-          color: isFeatured ? colors.primary : colors.border,
-          width: isFeatured ? 1.5 : theme.borders.hairline,
+          color: highlighted
+              ? colors.primary.withValues(alpha: 0.45)
+              : colors.border,
+          width: highlighted ? 1.25 : theme.borders.hairline,
         ),
-        boxShadow: isFeatured
-            ? <BoxShadow>[
-                BoxShadow(
-                  color: colors.primary.withValues(alpha: 0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
       ),
-      padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: context.sp(theme.spacing.sm),
-            runSpacing: context.sp(theme.spacing.xs),
+          Row(
             children: <Widget>[
               Text(
                 plan.name,
-                style: context.uiText.display.copyWith(
-                  fontSize: 20.0,
+                style: context.uiText.heading.copyWith(
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
+                  color: colors.foreground,
                 ),
               ),
-              if (plan.badgeLabel != null)
+              const Spacer(),
+              if (badgeText != null)
                 UiBadge(
-                  label: plan.badgeLabel!,
-                  intent: UiIntent.primary,
-                  variant: UiBadgeVariant.solid,
+                  label: badgeText,
+                  intent: badgeIntent,
+                  variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          SizedBox(
-            height: context.sz(38),
-            child: Text(
-              plan.subtitle,
-              style: context.uiText.caption.copyWith(
-                color: colors.foregroundMuted,
-                fontSize: 13.0,
-                height: 1.4,
-              ),
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
+          const SizedBox(height: 14),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -1625,75 +1817,165 @@ class _GetStartedPageState extends State<GetStartedPage> {
               Text(
                 plan.priceLabel(isAnnual: _isAnnualPricing),
                 style: context.uiText.display.copyWith(
-                  fontSize: 32.0,
+                  fontSize: 32,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
+                  letterSpacing: -0.8,
+                  color: colors.foreground,
                 ),
               ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
+              const SizedBox(width: 4),
               Text(
-                plan.monthlyAmount == 0 ? '' : '/ mo',
+                '/month',
                 style: context.uiText.caption.copyWith(
-                  color: colors.foregroundMuted,
-                  fontSize: 13.0,
+                  fontSize: 12,
+                  color: colors.foregroundSubtle,
                 ),
               ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.xxs)),
+          const SizedBox(height: 4),
           Text(
-            plan.periodLabel(isAnnual: _isAnnualPricing),
+            billingCaption,
             style: context.uiText.caption.copyWith(
-              color: colors.foregroundSubtle,
-              fontSize: 12.0,
+              fontSize: 11.5,
+              color: _isAnnualPricing && plan.monthlyAmount > 0
+                  ? colors.bullish
+                  : colors.foregroundSubtle,
+              fontWeight: _isAnnualPricing && plan.monthlyAmount > 0
+                  ? FontWeight.w600
+                  : FontWeight.normal,
             ),
           ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-          UiButton(
-            label: plan.ctaLabel,
-            variant: isFeatured ? UiVariant.primary : UiVariant.outline,
-            intent: isFeatured ? UiIntent.primary : UiIntent.neutral,
-            size: UiSize.md,
-            onPressed: plan.isPurchasable
-                ? () => widget.onGetStarted(UserRole.customer)
-                : null,
+          const SizedBox(height: 16),
+          _LandingOverlayCtaButton(
+            label: ctaLabel,
+            highlighted: highlighted,
+            onTap: () => widget.onGetStarted(UserRole.customer),
           ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-          const UiDivider(),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              for (final String f in plan.featuresSummary)
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: context.sp(theme.spacing.xxs),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Icon(
-                        Icons.check_rounded,
-                        size: context.sz(14),
-                        color: isFeatured ? colors.primary : colors.bullish,
+          const SizedBox(height: 18),
+          Text(
+            introLine,
+            style: context.uiText.caption.copyWith(
+              fontSize: 12,
+              color: colors.foregroundMuted,
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (int s = 0; s < sections.length; s++) ...<Widget>[
+            if (s > 0) const SizedBox(height: 14),
+            Text(
+              sections[s].heading,
+              style: context.uiText.caption.copyWith(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: colors.foregroundSubtle,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Divider(height: 1, thickness: 1, color: colors.border),
+            const SizedBox(height: 10),
+            for (final item in sections[s].items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 9),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Icon(
+                        item.icon,
+                        size: 15,
+                        color: colors.foregroundMuted,
                       ),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                      Expanded(
-                        child: Text(
-                          f,
-                          style: context.uiText.caption.copyWith(
-                            color: colors.foregroundMuted,
-                            fontSize: 13.0,
-                            height: 1.4,
-                          ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        item.label,
+                        style: context.uiText.caption.copyWith(
+                          fontSize: 12.5,
+                          color: colors.foreground,
+                          height: 1.32,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _LandingOverlayCtaButton extends StatefulWidget {
+  const _LandingOverlayCtaButton({
+    required this.label,
+    required this.highlighted,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool highlighted;
+  final VoidCallback onTap;
+
+  @override
+  State<_LandingOverlayCtaButton> createState() =>
+      _LandingOverlayCtaButtonState();
+}
+
+class _LandingOverlayCtaButtonState extends State<_LandingOverlayCtaButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final Color bgColor = widget.highlighted
+        ? (_hovered
+              ? Color.lerp(
+                  theme.colors.primary,
+                  const Color(0xFFD6DCE8),
+                  0.22,
+                )!
+              : theme.colors.primary)
+        : (_hovered ? theme.colors.surfaceHover : theme.colors.surface);
+
+    final Color textColor = widget.highlighted
+        ? theme.colors.onPrimary
+        : theme.colors.foreground;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: context.radius(theme.radii.pill),
+            border: widget.highlighted
+                ? null
+                : Border.all(
+                    color: _hovered
+                        ? theme.colors.foregroundMuted
+                        : theme.colors.borderStrong,
+                  ),
+          ),
+          child: Text(
+            widget.label,
+            style: context.uiText.body.copyWith(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -58,16 +58,16 @@ class _BillingHistoryPageState extends State<BillingHistoryPage> {
       _failed = false;
     });
     try {
+      final SubscriptionSummary subscription = await _repo.getSubscription();
       final List<Object?> loaded = await Future.wait<Object?>(<Future<Object?>>[
         _repo.getBillingHistory(),
         _profiles.getProfile(),
-        _repo.getSubscription(),
       ]);
       if (!mounted) return;
       setState(() {
+        _subscription = subscription;
         _invoices = loaded[0]! as List<Invoice>;
         _profile = loaded[1]! as UserProfileModel;
-        _subscription = loaded[2]! as SubscriptionSummary;
         _loading = false;
       });
     } catch (_) {

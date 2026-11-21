@@ -80,7 +80,9 @@ class CommunityCommentCard extends StatelessWidget {
                               ? null
                               : () => onAuthorTap!(author),
                           builder: (context, _) => Text(
-                            author.displayHandle,
+                            author.displayName.trim().isNotEmpty
+                                ? author.displayName
+                                : author.displayHandle,
                             style: context.uiText.bodyStrong.copyWith(
                               fontWeight: FontWeight.w700,
                               fontSize: context.fs(13),
@@ -93,6 +95,14 @@ class CommunityCommentCard extends StatelessWidget {
                             Icons.verified_rounded,
                             color: verifiedColor,
                             size: context.sz(14),
+                          ),
+                        if (author.displayName.trim().isNotEmpty)
+                          Text(
+                            author.displayHandle,
+                            style: context.uiText.caption.copyWith(
+                              color: theme.colors.foregroundSubtle,
+                              fontSize: context.fs(12),
+                            ),
                           ),
                         if (author.userRole != UserRole.customer)
                           UiBadge(

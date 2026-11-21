@@ -1222,13 +1222,27 @@ class AppNavUserTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: ctx.uiText.bodyStrong.copyWith(
-                        fontSize: ctx.fs(13.0),
-                      ),
+                    Row(
+                      children: <Widget>[
+                        Flexible(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: ctx.uiText.bodyStrong.copyWith(
+                              fontSize: ctx.fs(13.0),
+                            ),
+                          ),
+                        ),
+                        if (trader.verified) ...<Widget>[
+                          SizedBox(width: ctx.sp(theme.spacing.xxs)),
+                          Icon(
+                            Icons.verified_rounded,
+                            size: ctx.sz(14),
+                            color: trader.verifiedColor,
+                          ),
+                        ],
+                      ],
                     ),
                     if (email.isNotEmpty)
                       Text(

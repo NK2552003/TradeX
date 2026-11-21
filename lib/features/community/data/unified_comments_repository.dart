@@ -64,6 +64,10 @@ class UnifiedCommentsRepositoryImpl implements UnifiedCommentsRepository {
     final user = SupabaseConfig.client?.auth.currentUser;
     final uid = _resolveUserId();
 
+    final subTier =
+        (profile?.subscriptionTier ?? 'free').toLowerCase().trim();
+    final appTier = AppTokens.parseTier(subTier);
+
     return CommunityAuthor(
       id: uid,
       handle:
@@ -78,12 +82,8 @@ class UnifiedCommentsRepositoryImpl implements UnifiedCommentsRepository {
       avatarUrl:
           profile?.avatarUrl ?? (user?.userMetadata?['avatar_url'] as String?),
       verified: profile?.status == ProfileStatus.active,
-      tier: AppTier.values.firstWhere(
-        (t) =>
-            t.name.toLowerCase() ==
-            (profile?.subscriptionTier.toLowerCase() ?? 'free'),
-        orElse: () => AppTier.free,
-      ),
+      subscriptionTier: subTier,
+      tier: appTier,
     );
   }
 
@@ -170,11 +170,7 @@ class UnifiedCommentsRepositoryImpl implements UnifiedCommentsRepository {
           avatarUrl: avatarUrl,
           verified: profile?['verified'] as bool? ?? false,
           subscriptionTier: subTier,
-          tier: switch (subTier) {
-            'enterprise' => AppTier.enterprise,
-            'pro' || 'premium' => AppTier.premium,
-            _ => AppTier.free,
-          },
+          tier: AppTokens.parseTier(subTier),
         );
 
         final likesList = row['unified_comment_likes'] as List<dynamic>? ?? [];

@@ -1671,6 +1671,7 @@ class _AppScaffoldState extends State<AppScaffold> {
         avatarUrl: trader.avatarUrl,
         verified: trader.verified,
         tier: _session.tier.value,
+        subscriptionTier: _session.tier.value.name,
         followers: trader.followers,
         following: trader.following,
         winRate: trader.winRate,

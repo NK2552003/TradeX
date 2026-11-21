@@ -52,22 +52,58 @@ class AppTokens {
 
   // ------------------------------------------------------------------- Tiers
 
+  /// Twitter/X-style verified blue for Basic (`AppTier.premium`) subscribers.
+  static const Color verifiedBasicBlue = Color(0xFF1D9BF0);
+
+  /// Twitter/X-style verified gold/orange for Pro (`AppTier.enterprise`) subscribers.
+  static const Color verifiedProOrange = Color(0xFFF59E0B);
+
+  /// Resolves an [AppTier] from a raw backend string (`'free'`, `'basic'`,
+  /// `'premium'`, `'pro'`, `'enterprise'`).
+  static AppTier parseTier(String? raw, {AppTier fallback = AppTier.free}) {
+    final String clean = (raw ?? '').trim().toLowerCase();
+    return switch (clean) {
+      'enterprise' || 'pro' => AppTier.enterprise,
+      'premium' || 'basic' || 'starter' => AppTier.premium,
+      'free' => AppTier.free,
+      _ => fallback,
+    };
+  }
+
+  /// Whether a user should display a plan-based verified tick.
+  ///
+  /// Free users (`AppTier.free`) never display a tick unless [isSpecialRole]
+  /// is true (e.g. affiliate partner or desk superadmin).
+  static bool hasVerifiedTick(AppTier tier, {bool isSpecialRole = false}) =>
+      isSpecialRole || tier != AppTier.free;
+
+  /// Returns the Twitter/X-style verified tick color for [tier]:
+  /// - Basic (`AppTier.premium`): Blue (`#1D9BF0`)
+  /// - Pro (`AppTier.enterprise`): Orange/Gold (`#F59E0B`)
+  /// - Free (`AppTier.free`): Muted (hidden when [hasVerifiedTick] is used)
+  static Color verifiedTickColor(AppTier tier, {Color? freeFallback}) =>
+      switch (tier) {
+        AppTier.enterprise => verifiedProOrange,
+        AppTier.premium => verifiedBasicBlue,
+        AppTier.free => freeFallback ?? verifiedBasicBlue,
+      };
+
   static Color tierColor(BuildContext context, AppTier tier) {
     final UiColors c = context.uiColors;
     switch (tier) {
       case AppTier.free:
         return c.foregroundMuted;
       case AppTier.premium:
-        return c.warning;
+        return verifiedBasicBlue;
       case AppTier.enterprise:
-        return c.primary;
+        return verifiedProOrange;
     }
   }
 
   static UiIntent tierIntent(AppTier tier) => switch (tier) {
     AppTier.free => UiIntent.neutral,
-    AppTier.premium => UiIntent.warning,
-    AppTier.enterprise => UiIntent.primary,
+    AppTier.premium => UiIntent.info,
+    AppTier.enterprise => UiIntent.warning,
   };
 
   static String tierLabel(AppTier tier) => switch (tier) {
@@ -78,8 +114,8 @@ class AppTokens {
 
   static IconData tierIcon(AppTier tier) => switch (tier) {
     AppTier.free => Icons.person_outline,
-    AppTier.premium => Icons.workspace_premium_outlined,
-    AppTier.enterprise => Icons.apartment_outlined,
+    AppTier.premium => Icons.verified_rounded,
+    AppTier.enterprise => Icons.verified_rounded,
   };
 
   // --------------------------------------------------------------- Sentiment

@@ -320,6 +320,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       } catch (_) {}
     }
 
+    final AppTier activeTier = trader?.tier ?? AppTier.free;
     return CommunityAuthor(
       id: trader?.id ?? '',
       handle: trader?.handle ?? '',
@@ -330,7 +331,8 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       avatarUrl: trader?.avatarUrl,
       bio: trader?.bio,
       verified: trader?.verified ?? false,
-      tier: trader?.tier ?? AppTier.free,
+      tier: activeTier,
+      subscriptionTier: activeTier.name,
       followers: trader?.followers ?? 0,
       following: trader?.following ?? 0,
       winRate: winRate,

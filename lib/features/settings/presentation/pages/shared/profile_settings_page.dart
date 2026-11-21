@@ -229,7 +229,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     _publicJournalsEnabled = profile.publicJournals;
   }
 
-  bool get _verified => _profile?.verified == true;
+  AppTier get _effectiveTier => _profile != null
+      ? AppTokens.parseTier(_profile!.subscriptionTier)
+      : AppTier.free;
+
+  bool get _verified =>
+      widget.userRole != UserRole.customer || _effectiveTier != AppTier.free;
 
   @override
   void dispose() {
@@ -890,8 +895,11 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     final theme = context.ui;
     final colors = theme.colors;
     final Color verifiedColor = switch (widget.userRole) {
-      UserRole.customer => colors.primary,
-      UserRole.affiliate => colors.warning,
+      UserRole.customer => AppTokens.verifiedTickColor(
+        _effectiveTier,
+        freeFallback: colors.foregroundMuted,
+      ),
+      UserRole.affiliate => AppTokens.verifiedProOrange,
       UserRole.userAdmin => colors.destructive,
     };
     final isMobile = context.uiRes.isMobile;

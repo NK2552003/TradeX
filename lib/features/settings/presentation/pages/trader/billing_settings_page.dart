@@ -48,7 +48,7 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
   /// Set while renewal is being stopped or restarted, so the action shows the
   /// wait instead of the whole page dropping back to skeletons.
   bool _updatingRenewal = false;
-  static const bool _verifiedBillingConnected = false;
+  static const bool _verifiedBillingConnected = true;
 
   @override
   void initState() {
@@ -67,11 +67,19 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
     if (!silent) setState(() => _loading = true);
     try {
       final subscription = await _repo.getSubscription();
+      PaymentMethodSummary? paymentMethod;
+      RetentionOffer? offer;
+      try {
+        paymentMethod = await _repo.getPaymentMethod();
+      } catch (_) {}
+      try {
+        offer = await _repo.getRetentionOffer();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _subscription = subscription;
-        _paymentMethod = null;
-        _offer = null;
+        _paymentMethod = paymentMethod;
+        _offer = offer;
         _loading = false;
       });
     } catch (_) {
@@ -84,29 +92,36 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
   /// runs to the end of the period already paid for.
   Future<void> _setRenewal({required bool cancel}) async {
     setState(() => _updatingRenewal = true);
-    final SubscriptionSummary updated = await _repo.setCancelAtPeriodEnd(
-      cancel,
-    );
-    if (!mounted) return;
-    setState(() {
-      _subscription = updated;
-      _updatingRenewal = false;
-    });
-    // Re-read the rest of the billing state: stopping renewal is what makes a
-    // retention offer relevant, or spent.
-    await _loadBillingData(silent: true);
-    if (!mounted) return;
-    // The tier has not changed, but the shell is told anyway so any chrome bound
-    // to the subscription re-reads it rather than holding the pre-cancel copy.
-    widget.onSubscriptionTierChanged?.call(updated.tier);
-    UiToast.show(
-      context,
-      title: cancel ? 'Renewal stopped' : 'Renewal restored',
-      message: cancel
-          ? '${updated.planName} stays active until ${AppTokens.shortDate(updated.currentPeriodEnd)}.'
-          : '${updated.planName} will renew on ${AppTokens.shortDate(updated.currentPeriodEnd)}.',
-      intent: cancel ? UiIntent.warning : UiIntent.success,
-    );
+    try {
+      final SubscriptionSummary updated = await _repo.setCancelAtPeriodEnd(
+        cancel,
+      );
+      if (!mounted) return;
+      setState(() {
+        _subscription = updated;
+        _updatingRenewal = false;
+      });
+      await _loadBillingData(silent: true);
+      if (!mounted) return;
+      widget.onSubscriptionTierChanged?.call(updated.tier);
+      UiToast.show(
+        context,
+        title: cancel ? 'Renewal stopped' : 'Renewal restored',
+        message: cancel
+            ? '${updated.planName} stays active until ${AppTokens.shortDate(updated.currentPeriodEnd)}.'
+            : '${updated.planName} will renew on ${AppTokens.shortDate(updated.currentPeriodEnd)}.',
+        intent: cancel ? UiIntent.warning : UiIntent.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _updatingRenewal = false);
+      UiToast.show(
+        context,
+        title: 'Subscription update unavailable',
+        message: error.toString().replaceFirst('Bad state: ', ''),
+        intent: UiIntent.warning,
+      );
+    }
   }
 
   void _showUpdatePaymentMethodDialog() {
@@ -114,11 +129,11 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
       context,
       child: Builder(
         builder: (ctx) => UiDialog(
-          title: 'Payment method',
+          title: 'Razorpay payment mandate',
           content: const UiCallout(
-            title: 'Card updates are unavailable',
+            title: 'Managed through Razorpay Checkout',
             message:
-                'A secure payment provider has not been connected. No card details have been collected or changed.',
+                'Recurring mandates (UPI AutoPay, cards, and NetBanking) are authorized directly with Razorpay when you subscribe or switch billing cycles.',
             intent: UiIntent.info,
           ),
           actions: [
@@ -209,23 +224,31 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
               intent: UiIntent.danger,
               onPressed: () async {
                 Navigator.of(ctx).pop();
-                await _repo.cancelSubscription(
-                  reason: 'Cancelled from billing settings',
-                );
-                if (!mounted) return;
-                await _loadBillingData(silent: true);
-                if (!mounted) return;
-                final SubscriptionSummary? now = _subscription;
-                // The plan is unchanged — only renewal stopped. Reporting
-                // Free here would gate features the reader has paid for.
-                widget.onSubscriptionTierChanged?.call(now?.tier ?? sub.tier);
-                UiToast.show(
-                  context,
-                  title: 'Renewal stopped',
-                  message:
-                      '${sub.planName} stays active until ${AppTokens.shortDate(now?.currentPeriodEnd ?? sub.currentPeriodEnd)}.',
-                  intent: UiIntent.warning,
-                );
+                try {
+                  await _repo.cancelSubscription(
+                    reason: 'Cancelled from billing settings',
+                  );
+                  if (!mounted) return;
+                  await _loadBillingData(silent: true);
+                  if (!mounted) return;
+                  final SubscriptionSummary? now = _subscription;
+                  widget.onSubscriptionTierChanged?.call(now?.tier ?? sub.tier);
+                  UiToast.show(
+                    context,
+                    title: 'Renewal stopped',
+                    message:
+                        '${sub.planName} stays active until ${AppTokens.shortDate(now?.currentPeriodEnd ?? sub.currentPeriodEnd)}.',
+                    intent: UiIntent.warning,
+                  );
+                } catch (error) {
+                  if (!mounted) return;
+                  UiToast.show(
+                    context,
+                    title: 'Could not stop renewal',
+                    message: error.toString().replaceFirst('Bad state: ', ''),
+                    intent: UiIntent.warning,
+                  );
+                }
               },
             ),
           ],
@@ -527,35 +550,54 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                       : 'Payment method',
                   description: isAdmin
                       ? 'Corporate card and net-30 invoicing for the desk licence.'
-                      : 'The card charged when your plan renews.',
+                      : 'Active Razorpay recurring mandate for your subscription.',
                   children: <Widget>[
                     if (_paymentMethod != null)
                       AppSettingCard(
                         title:
-                            '${_paymentMethod!.brand} ending ${_paymentMethod!.last4}',
-                        description:
-                            'Expires ${_paymentMethod!.expMonth.toString().padLeft(2, '0')}/${_paymentMethod!.expYear}',
-                        icon: Icons.credit_card_rounded,
+                            '${_paymentMethod!.brand} (${_paymentMethod!.last4})',
+                        description: sub.endsAtPeriodEnd
+                            ? 'Renewal stopped · Paid access active until ${AppTokens.shortDate(sub.currentPeriodEnd)}'
+                            : 'Active ${sub.planName} (${sub.isAnnual ? 'Annual' : 'Monthly'}) subscription · Next cycle ${AppTokens.shortDate(sub.currentPeriodEnd)}',
+                        icon: Icons.verified_user_outlined,
                         control: UiButton(
-                          label: 'Update card',
+                          label: 'Manage mandate',
                           variant: UiVariant.outline,
                           size: UiSize.sm,
                           onPressed: _showUpdatePaymentMethodDialog,
                         ),
                       )
                     else
-                      // A free account has never been charged, so there is no
-                      // card to show — only one to add.
                       AppSettingCard(
-                        title: 'No card on file',
+                        title: 'Razorpay Checkout',
                         description:
-                            'Add a card when you move to a paid plan. Nothing is charged before then.',
-                        icon: Icons.credit_card_off_outlined,
+                            'Payments and recurring mandates are handled directly through Razorpay Checkout.',
+                        icon: Icons.account_balance_wallet_outlined,
                         control: UiButton(
-                          label: 'Add card',
+                          label: sub.tier == AppTier.free
+                              ? 'Upgrade plan'
+                              : 'Change plan',
                           variant: UiVariant.outline,
                           size: UiSize.sm,
-                          onPressed: _showUpdatePaymentMethodDialog,
+                          onPressed: () {
+                            openSettingsSubpage(
+                              context,
+                              title: 'Choose a plan',
+                              subtitle:
+                                  'Pick the tier that matches your volume',
+                              icon: Icons.workspace_premium_outlined,
+                              desktopWidthRatio: 0.86,
+                              maxWidth: 1260.0,
+                              minDesktopWidth: 900.0,
+                              page: ChangePlanPage(
+                                repository: _repo,
+                                onPlanChanged: (AppTier tier) async {
+                                  widget.onSubscriptionTierChanged?.call(tier);
+                                  await _loadBillingData(silent: true);
+                                },
+                              ),
+                            );
+                          },
                         ),
                       ),
                   ],

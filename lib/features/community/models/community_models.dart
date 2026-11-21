@@ -18,7 +18,7 @@ class CommunityAuthor {
     this.bio,
     this.tier = AppTier.free,
     this.subscriptionTier = 'free',
-    this.verified = false,
+    bool verified = false,
     this.isFollowing = false,
     this.followers = 0,
     this.following = 0,
@@ -36,7 +36,7 @@ class CommunityAuthor {
     this.website,
     this.avgHoldDuration,
     this.riskMantra,
-  });
+  }) : rawVerified = verified;
 
   final String id;
   final String handle;
@@ -46,7 +46,7 @@ class CommunityAuthor {
   final String? bio;
   final AppTier tier;
   final String subscriptionTier;
-  final bool verified;
+  final bool rawVerified;
   final bool isFollowing;
   final int followers;
   final int following;
@@ -74,6 +74,18 @@ class CommunityAuthor {
   String get cleanHandle => handle.replaceFirst(RegExp(r'^@+'), '').trim();
   String get displayHandle => '@$cleanHandle';
 
+  /// Effective subscription tier resolved from [subscriptionTier] and [tier].
+  AppTier get effectiveTier =>
+      AppTokens.parseTier(subscriptionTier, fallback: tier);
+
+  /// Plan-based verified tick rule (Twitter/X style):
+  /// - Free (`AppTier.free`) customers never display a verified tick.
+  /// - Basic (`AppTier.premium`) customers display a Blue tick.
+  /// - Pro (`AppTier.enterprise`) customers display an Orange/Gold tick.
+  /// - Affiliate partners and Desk Superadmins display their role tick.
+  bool get verified =>
+      userRole != UserRole.customer || effectiveTier != AppTier.free;
+
   CommunityAuthor copyWith({
     bool? isFollowing,
     int? followers,
@@ -92,7 +104,7 @@ class CommunityAuthor {
     bio: bio,
     tier: tier ?? this.tier,
     subscriptionTier: subscriptionTier ?? this.subscriptionTier,
-    verified: verified ?? this.verified,
+    verified: verified ?? rawVerified,
     isFollowing: isFollowing ?? this.isFollowing,
     followers: followers ?? this.followers,
     following: following ?? this.following,
@@ -113,8 +125,11 @@ class CommunityAuthor {
   );
 
   Color verifiedColor(UiTheme theme) => switch (userRole) {
-    UserRole.customer => theme.colors.primary,
-    UserRole.affiliate => theme.colors.warning,
+    UserRole.customer => AppTokens.verifiedTickColor(
+      effectiveTier,
+      freeFallback: theme.colors.foregroundMuted,
+    ),
+    UserRole.affiliate => AppTokens.verifiedProOrange,
     UserRole.userAdmin => theme.colors.destructive,
   };
 

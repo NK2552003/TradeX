@@ -434,7 +434,7 @@ class MessagesRepository extends ChangeNotifier {
               user_id,
               role,
               last_read_at,
-              profiles(id, handle, display_name, avatar_url)
+              profiles(id, handle, display_name, avatar_url, subscription_tier, verified)
             )
           ''')
           .order('last_message_at', ascending: false)
@@ -507,6 +507,9 @@ class MessagesRepository extends ChangeNotifier {
           final prof = pmap['profiles'] as Map<String, dynamic>? ?? {};
           final pId =
               prof['id']?.toString() ?? pmap['user_id']?.toString() ?? '';
+          final subTier =
+              (prof['subscription_tier'] as String?)?.toLowerCase().trim() ??
+              'free';
           final trader = AppTrader(
             id: pId,
             handle: prof['handle'] as String? ?? 'trader',
@@ -515,6 +518,8 @@ class MessagesRepository extends ChangeNotifier {
                 prof['handle'] as String? ??
                 'Trader',
             avatarUrl: prof['avatar_url'] as String?,
+            tier: AppTokens.parseTier(subTier),
+            verified: prof['verified'] as bool? ?? false,
           );
           traders.add(trader);
           if (pId != currentUserId && peer == null) {

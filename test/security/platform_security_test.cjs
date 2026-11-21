@@ -130,6 +130,7 @@ test('Git ignore policy keeps build inputs and excludes local secrets', () => {
 
   assert.match(rootIgnore, /^\.env\.\*$/m);
   assert.match(rootIgnore, /^!\.env\.example$/m);
+  assert.match(rootIgnore, /^assets\/config\/client\.env$/m);
   assert.match(rootIgnore, /^node_modules\/$/m);
   assert.match(rootIgnore, /^supabase\/\.temp\/$/m);
   assert.doesNotMatch(rootIgnore, /^!\.github\/\*\*$/m);

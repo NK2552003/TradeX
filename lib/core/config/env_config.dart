@@ -24,6 +24,7 @@ class EnvConfig {
       'REVENUECAT_ANDROID_API_KEY',
     ),
     'REVENUECAT_IOS_API_KEY': String.fromEnvironment('REVENUECAT_IOS_API_KEY'),
+    'RAZORPAY_KEY_ID': String.fromEnvironment('RAZORPAY_KEY_ID'),
     'RAZORPAY_TEST_KEY_ID': String.fromEnvironment('RAZORPAY_TEST_KEY_ID'),
     'COPILOT_API_URL': String.fromEnvironment('COPILOT_API_URL'),
     'ENVIRONMENT': String.fromEnvironment('ENVIRONMENT'),
@@ -140,6 +141,11 @@ class EnvConfig {
       _get('REVENUECAT_ANDROID_API_KEY');
   static String get revenueCatIosApiKey => _get('REVENUECAT_IOS_API_KEY');
   static String get razorpayTestKeyId => _get('RAZORPAY_TEST_KEY_ID');
+  static String get razorpayKeyId {
+    final liveOrConfigured = _get('RAZORPAY_KEY_ID');
+    if (liveOrConfigured.isNotEmpty) return liveOrConfigured;
+    return razorpayTestKeyId;
+  }
 
   static String get copilotApiUrl => _get('COPILOT_API_URL');
 

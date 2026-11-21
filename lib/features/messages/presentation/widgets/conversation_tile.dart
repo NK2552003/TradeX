@@ -97,7 +97,7 @@ class ConversationTile extends StatelessWidget {
               Icon(
                 Icons.verified_rounded,
                 size: context.sz(13),
-                color: colors.primary,
+                color: thread.peer.verifiedColor,
               ),
             ],
             if (thread.pinned) ...<Widget>[

@@ -653,24 +653,6 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
               ? _liveAvatarUrl
               : widget.author?.avatarUrl);
 
-    final bool effectiveVerified =
-        (!isAdmin) &&
-        ((_liveVerified ??
-                widget.verified ??
-                widget.author?.verified ??
-                (widget.isCurrentUser
-                    ? (ProfileSettingsRepositoryImpl
-                              .instance
-                              .cachedProfile
-                              .verified ||
-                          (SupabaseAuthBackendService
-                                  .instance
-                                  .currentUserProfile
-                                  ?.verified ??
-                              false))
-                    : false)) ==
-            true);
-
     final String? effectiveLocation = widget.location?.trim().isNotEmpty == true
         ? widget.location!.trim()
         : ((_liveLocation?.trim().isNotEmpty == true)
@@ -811,19 +793,13 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
               ? widget.repository!.postsForAuthor(widget.author!.id).length
               : (widget.author?.postsCount ?? 0));
 
-    final Color verifiedColor = switch (effectiveRole) {
-      UserRole.customer => theme.colors.primary,
-      UserRole.affiliate => theme.colors.warning,
-      UserRole.userAdmin => theme.colors.destructive,
-    };
-
     final String rawSubTier = (_liveSubscriptionTier?.trim().isNotEmpty == true)
         ? _liveSubscriptionTier!
         : (widget.subscriptionTier?.trim().isNotEmpty == true
               ? widget.subscriptionTier!
               : (widget.author?.subscriptionTier.trim().isNotEmpty == true
                     ? widget.author!.subscriptionTier
-                    : (widget.isCurrentUser
+                    : (isViewingSelf
                           ? (SupabaseAuthBackendService
                                     .instance
                                     .currentUserProfile
@@ -836,6 +812,24 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 ? widget.author!.tier.name
                                 : 'free'))));
     final String cleanSubTier = rawSubTier.toLowerCase().trim();
+    final AppTier resolvedProfileTier = AppTokens.parseTier(
+      cleanSubTier,
+      fallback: widget.author?.effectiveTier ?? AppTier.free,
+    );
+
+    final bool effectiveVerified =
+        (!isAdmin) &&
+        (effectiveRole != UserRole.customer ||
+            resolvedProfileTier != AppTier.free);
+
+    final Color verifiedColor = switch (effectiveRole) {
+      UserRole.customer => AppTokens.verifiedTickColor(
+        resolvedProfileTier,
+        freeFallback: theme.colors.foregroundMuted,
+      ),
+      UserRole.affiliate => AppTokens.verifiedProOrange,
+      UserRole.userAdmin => theme.colors.destructive,
+    };
 
     final String roleBadgeText = switch (effectiveRole) {
       UserRole.userAdmin => 'DESK SUPERADMIN · ROOT',
