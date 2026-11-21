@@ -81,34 +81,37 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
       padding: EdgeInsets.only(bottom: context.sp(gap)),
       child: UiDeferred(builder: builder, estimatedHeight: height),
     );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (widget.onSearchTap != null) ...[
-          CommunitySearchWidget(
-            value: '',
-            onChanged: (_) {},
-            onTap: widget.onSearchTap,
-            onSubmitted: widget.onSearchSubmitted,
-          ),
-          UiGap.v(gap),
-        ],
-        if (widget.repository.pushNotificationsPromptVisible)
+    return ValueListenableBuilder<AppTier>(
+      valueListenable: AppSession.instance.tier,
+      builder: (BuildContext context, AppTier tier, Widget? _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.onSearchTap != null) ...[
+            CommunitySearchWidget(
+              value: '',
+              onChanged: (_) {},
+              onTap: widget.onSearchTap,
+              onSubmitted: widget.onSearchSubmitted,
+            ),
+            UiGap.v(gap),
+          ],
+          if (widget.repository.pushNotificationsPromptVisible)
+            deferred(
+              (_) => CommunityPushNotificationsCard(
+                onDismiss: widget.repository.dismissPushNotificationsPrompt,
+              ),
+              200,
+            ),
+          if (tier == AppTier.free)
+            deferred((_) => const CommunityPremiumCard(), 200),
           deferred(
-            (_) => CommunityPushNotificationsCard(
-              onDismiss: widget.repository.dismissPushNotificationsPrompt,
+            (_) => MarketMoversPanel(
+              limitedCommunityAccess: !AppEntitlement.marketIntelligence.allows(
+                tier,
+              ),
             ),
-            200,
+            650,
           ),
-        deferred((_) => const CommunityPremiumCard(), 200),
-        deferred(
-          (_) => MarketMoversPanel(
-            limitedCommunityAccess: !AppEntitlement.marketIntelligence.allows(
-              AppSession.instance.tier.value,
-            ),
-          ),
-          650,
-        ),
         if (news.isNotEmpty)
           deferred(
             (_) => CommunityNewsWidget(
@@ -143,6 +146,7 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
         deferred((_) => const CommunityDisclaimerCard(), 200),
         deferred((_) => const CommunityFooterLinks(), 80),
       ],
+      ),
     );
   }
 }

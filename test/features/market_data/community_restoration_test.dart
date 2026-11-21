@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/data/app_session.dart';
 import 'package:alphajournal/features/community/data/community_repository.dart';
 import 'package:alphajournal/features/community/presentation/views/community_explore_view.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_sidebar_widgets.dart';
@@ -82,6 +83,9 @@ void main() {
   testWidgets('desktop sidebar restores all earlier community sections', (
     tester,
   ) async {
+    final previousTier = AppSession.instance.tier.value;
+    AppSession.instance.changeTier(AppTier.free);
+    addTearDown(() => AppSession.instance.changeTier(previousTier));
     final repo = CommunityRepository();
     addTearDown(repo.dispose);
     await tester.pumpWidget(
@@ -123,6 +127,49 @@ void main() {
     expect(find.byType(CommunityPushNotificationsCard), findsOneWidget);
     expect(find.byType(CommunityDisclaimerCard), findsOneWidget);
     expect(find.byType(CommunityFooterLinks), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('desktop sidebar hides upgrade card for paid Basic and Pro plans', (
+    tester,
+  ) async {
+    final previousTier = AppSession.instance.tier.value;
+    AppSession.instance.changeTier(AppTier.premium);
+    addTearDown(() => AppSession.instance.changeTier(previousTier));
+    final repo = CommunityRepository();
+    addTearDown(repo.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: UiTheme.dark().toThemeData(),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SizedBox(
+              width: 340,
+              child: CommunitySidebar(
+                repository: repo,
+                onShowMore: () {},
+                onExplore: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Unlock AlphaJournal Markets'), findsNothing);
+    expect(find.byType(CommunityPremiumCard), findsNothing);
+
+    AppSession.instance.changeTier(AppTier.enterprise);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Unlock AlphaJournal Markets'), findsNothing);
+    expect(find.byType(CommunityPremiumCard), findsNothing);
+
+    AppSession.instance.changeTier(AppTier.free);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Unlock AlphaJournal Markets'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
