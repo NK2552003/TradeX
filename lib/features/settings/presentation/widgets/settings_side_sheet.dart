@@ -146,7 +146,7 @@ Future<T?> showSettingsSideSheet<T>(
                                   vertical: ctx.sp(theme.spacing.md),
                                 ),
                                 decoration: BoxDecoration(
-                                  color: colors.surface,
+                                  color: Colors.transparent,
                                   border: Border(
                                     bottom: BorderSide(
                                       color: colors.border,

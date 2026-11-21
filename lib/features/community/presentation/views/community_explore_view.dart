@@ -712,7 +712,7 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
                                 Icon(
                                   Icons.verified_rounded,
                                   size: context.sz(16),
-                                  color: theme.colors.primary,
+                                  color: a.verifiedColor(theme),
                                 ),
                               ],
                             ],

@@ -660,7 +660,7 @@ class AppTrader {
     this.followers = 0,
     this.following = 0,
     this.winRate,
-    this.verified = false,
+    bool verified = false,
     this.isFollowing = false,
     this.tradingStyle,
     this.location,
@@ -671,7 +671,7 @@ class AppTrader {
     this.riskMantra,
     this.createdAt,
     this.postsCount = 0,
-  });
+  }) : rawVerified = verified;
 
   final String id;
   final String handle;
@@ -682,7 +682,7 @@ class AppTrader {
   final int followers;
   final int following;
   final double? winRate;
-  final bool verified;
+  final bool rawVerified;
   final bool isFollowing;
   final String? tradingStyle;
   final String? location;
@@ -693,6 +693,10 @@ class AppTrader {
   final String? riskMantra;
   final DateTime? createdAt;
   final int postsCount;
+
+  /// Plan-based verified tick: Free accounts have no tick; Basic/Pro have ticks.
+  bool get verified => tier != AppTier.free;
+  Color get verifiedColor => AppTokens.verifiedTickColor(tier);
 
   String get cleanHandle => handle.replaceFirst(RegExp(r'^@+'), '').trim();
   String get displayHandle => '@$cleanHandle';

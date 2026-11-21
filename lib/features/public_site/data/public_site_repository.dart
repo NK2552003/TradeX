@@ -104,12 +104,12 @@ class MockPublicSiteRepository implements PublicSiteRepository {
       'annual_badge': 'Save 20%',
       'billed_annually': 'Billed annually',
       'monthly': 'Monthly',
-      'Recommended': 'MONTHLY SUBSCRIPTIONS DISABLED',
+      'Recommended': 'MOST POPULAR',
       'current': 'Current Plan',
       'selected': 'Selected Plan',
       'select': 'Select',
       'footer':
-          'Free does not call paid Market Intelligence or Messages services. Paid monthly subscriptions are temporarily disabled.',
+          'Free does not call paid Market Intelligence or Messages services. Basic and Pro include monthly and annual Razorpay billing.',
     },
     'plans': [
       {
@@ -158,9 +158,9 @@ class MockPublicSiteRepository implements PublicSiteRepository {
         'annual_monthly_amount': 239.0,
         'currency_symbol': '₹',
         'is_popular': true,
-        'is_purchasable': false,
-        'badge_label': 'MONTHLY SUBSCRIPTIONS DISABLED',
-        'cta_label': 'Monthly subscriptions disabled',
+        'is_purchasable': true,
+        'badge_label': 'MOST POPULAR',
+        'cta_label': 'Subscribe to Basic',
         'limits': {
           'notes': 25,
           'trades': 100,
@@ -181,7 +181,6 @@ class MockPublicSiteRepository implements PublicSiteRepository {
           'Full Market Intelligence & instrument research',
           'Private Messages',
           'All advanced calculators',
-          'Monthly subscriptions disabled for now',
         ],
       },
       {
@@ -194,9 +193,9 @@ class MockPublicSiteRepository implements PublicSiteRepository {
         'annual_monthly_amount': 399.0,
         'currency_symbol': '₹',
         'is_popular': false,
-        'is_purchasable': false,
-        'badge_label': 'MONTHLY SUBSCRIPTIONS DISABLED',
-        'cta_label': 'Monthly subscriptions disabled',
+        'is_purchasable': true,
+        'badge_label': 'FULL ACCESS',
+        'cta_label': 'Subscribe to Pro',
         'limits': {
           'notes': 10000,
           'trades': 50000,
@@ -216,7 +215,6 @@ class MockPublicSiteRepository implements PublicSiteRepository {
           'Up to 100 community posts/day & 500 comments/day',
           'Up to 5,000 AI prompts per month',
           'PDF & CSV exports + advanced analytics',
-          'Monthly subscriptions disabled for now',
         ],
       },
     ],

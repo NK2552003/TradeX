@@ -1,6 +1,7 @@
 import 'package:alphajournal/core/config/customer_data_policy.dart';
 import 'package:flutter/foundation.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/config/env_config.dart';
 import 'package:alphajournal/core/config/supabase_config.dart';
 import 'package:alphajournal/core/config/customer_quota_usage.dart';
 import 'package:alphajournal/core/data/app_session.dart';
@@ -16,6 +17,11 @@ abstract class BillingSettingsRepository {
   /// The catalogue priced for [annual] or monthly billing.
   Future<List<AppPlan>> getAvailablePlans({bool annual = false});
   Future<CheckoutSession> startCheckout(String tierId, String billingCycle);
+  Future<bool> verifyCheckout({
+    required String subscriptionId,
+    String? paymentId,
+    String? signature,
+  });
   Future<PaymentMethodSummary?> getPaymentMethod();
   Future<CheckoutSession> startPaymentMethodUpdate();
   Future<List<Invoice>> getBillingHistory();
@@ -53,9 +59,6 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   AppTier get _tier => _session.tier.value;
 
-  /// Months of history the generated invoice list covers.
-  static const int _historyMonths = 6;
-
   /// Coupons the prototype accepts, with what each takes off. The backend
   /// replaces this with the promotion codes it actually issued.
   static const Map<String, int> _coupons = <String, int>{
@@ -78,26 +81,41 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     DateTime? renewedAt,
     DateTime? expiresAt,
     Map<String, dynamic>? usage,
-  }) => SubscriptionSummary(
-    tier: tier ?? _tier,
-    status: status ?? _status,
-    billingCycle: billingCycle ?? _session.billingCycle,
-    renewedAt: renewedAt ?? _session.renewedAt,
-    expiresAt: expiresAt ?? _session.expiresAt,
-    usage:
-        usage ??
-        (CustomerDataPolicy.allowDemo ? _source.accountUsage(_tier) : {}),
-    monthlyAmount:
-        _pricingCatalogue?.plans
-            .where((plan) => plan.tier == (tier ?? _tier))
-            .firstOrNull
-            ?.monthlyAmount ??
-        0,
-    annualMonthsBilled: _pricingCatalogue?.annualMonthsBilled ?? 12,
-    cancelAtPeriodEnd: _session.cancelAtPeriodEnd,
-    discountCode: _session.discountCode,
-    discountPercent: _session.discountPercent,
-  );
+  }) {
+    final AppTier effectiveTier = tier ?? _tier;
+    final String effectiveCycle = billingCycle ?? _session.billingCycle;
+    final PricingPlanModel? plan = _pricingCatalogue?.plans
+        .where((p) => p.tier == effectiveTier)
+        .firstOrNull;
+    final double fallbackMonthly = switch (effectiveTier) {
+      AppTier.free => 0,
+      AppTier.premium => effectiveCycle == 'annual' ? 239 : 299,
+      AppTier.enterprise => effectiveCycle == 'annual' ? 399 : 499,
+    };
+    final double resolvedMonthly = plan == null
+        ? fallbackMonthly
+        : (effectiveCycle == 'annual'
+              ? plan.annualMonthlyAmount
+              : plan.monthlyAmount);
+
+    return SubscriptionSummary(
+      tier: effectiveTier,
+      status: status ?? _status,
+      billingCycle: effectiveCycle,
+      renewedAt: renewedAt ?? _session.renewedAt,
+      expiresAt: expiresAt ?? _session.expiresAt,
+      usage:
+          usage ??
+          (CustomerDataPolicy.allowDemo
+              ? _source.accountUsage(effectiveTier)
+              : {}),
+      monthlyAmount: resolvedMonthly,
+      annualMonthsBilled: _pricingCatalogue?.annualMonthsBilled ?? 12,
+      cancelAtPeriodEnd: _session.cancelAtPeriodEnd,
+      discountCode: _session.discountCode,
+      discountPercent: _session.discountPercent,
+    );
+  }
 
   @override
   Future<SubscriptionSummary> getSubscription() async {
@@ -110,17 +128,29 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
       final counted = await CustomerQuotaUsage.fetch();
       final data = await client
           .from('subscriptions')
-          .select('user_id, billing_cycle, status, renewed_at, expires_at')
+          .select(
+            'user_id, billing_cycle, status, billing_provider, provider_subscription_id, renewed_at, expires_at',
+          )
           .eq('user_id', targetUserId)
           .maybeSingle();
       final tier = counted.tier;
       final cycle = data?['billing_cycle'] as String? ?? 'monthly';
+      _session.tier.value = tier;
       _session.billingCycle = cycle;
       _session.cancelAtPeriodEnd = data?['status'] == 'canceled';
       final renewed = DateTime.tryParse(data?['renewed_at']?.toString() ?? '');
       final expires = DateTime.tryParse(data?['expires_at']?.toString() ?? '');
-      if (tier != AppTier.free && cycle != 'lifetime' && expires == null) {
-        throw StateError('Your billing period is unavailable. Please retry.');
+      final effectiveRenewed = renewed ?? DateTime.now();
+      final effectiveExpires =
+          expires ??
+          (tier == AppTier.free
+              ? DateTime.fromMillisecondsSinceEpoch(0)
+              : effectiveRenewed.add(
+                  Duration(days: cycle == 'annual' ? 365 : 30),
+                ));
+      if (tier != AppTier.free) {
+        _session.renewedAt = effectiveRenewed;
+        _session.expiresAt = effectiveExpires;
       }
       return _summary(
         tier: tier,
@@ -128,8 +158,10 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
             ? 'canceled'
             : data?['status'] as String? ?? 'active',
         billingCycle: cycle,
-        renewedAt: renewed ?? DateTime.fromMillisecondsSinceEpoch(0),
-        expiresAt: expires ?? DateTime.fromMillisecondsSinceEpoch(0),
+        renewedAt: tier == AppTier.free
+            ? DateTime.fromMillisecondsSinceEpoch(0)
+            : effectiveRenewed,
+        expiresAt: effectiveExpires,
         usage: {
           'journal_trades_used': counted.tradesUsed,
           'journal_trades_limit': counted.tradesLimit,
@@ -178,29 +210,55 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     }).toList();
   }
 
+  static String? normalizePaidTier(String rawTierId) {
+    final normalized = rawTierId.trim().toLowerCase();
+    if ({'tier_pro', 'tier_basic', 'premium', 'basic'}.contains(normalized)) {
+      return 'premium';
+    }
+    if ({
+      'tier_enterprise',
+      'enterprise',
+      'pro',
+      'business',
+    }.contains(normalized)) {
+      return 'enterprise';
+    }
+    return null;
+  }
+
   @override
   Future<CheckoutSession> startCheckout(
     String tierId,
     String billingCycle,
   ) async {
-    if (tierId != 'tier_enterprise' ||
-        (billingCycle != 'monthly' && billingCycle != 'annual')) {
-      throw StateError('Choose a supported Business billing cycle.');
+    final normalizedTier = normalizePaidTier(tierId);
+    final normalizedCycle = billingCycle == 'yearly' ? 'annual' : billingCycle;
+    if (normalizedTier == null ||
+        (normalizedCycle != 'monthly' && normalizedCycle != 'annual')) {
+      throw StateError('Choose a supported plan and billing cycle.');
     }
     final client = SupabaseConfig.client;
     if (client?.auth.currentUser == null) {
-      throw StateError('Sign in to start Business checkout.');
+      throw StateError('Sign in to start subscription checkout.');
     }
     final response = await client!.functions.invoke(
       'create-business-checkout',
-      body: {'billing_cycle': billingCycle},
+      body: {
+        'tier': normalizedTier,
+        'tier_id': tierId,
+        'billing_cycle': normalizedCycle,
+      },
     );
     if (response.status != 200 || response.data is! Map) {
-      throw StateError('Business checkout is not available yet.');
+      final errMsg = response.data is Map
+          ? (response.data as Map)['error']?.toString()
+          : null;
+      throw StateError(errMsg ?? 'Subscription checkout is not available yet.');
     }
     final data = Map<String, dynamic>.from(response.data as Map);
     final id = data['subscription_id'];
     final url = data['checkout_url'];
+    final serverKeyId = data['key_id']?.toString();
     if (id is! String || url is! String) {
       throw StateError('The payment provider returned an invalid checkout.');
     }
@@ -211,15 +269,72 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
           'rzp.io',
           'razorpay.com',
           'www.razorpay.com',
+          'api.razorpay.com',
         }.contains(checkout.host)) {
       throw StateError('The payment provider returned an invalid checkout.');
     }
-    return CheckoutSession(sessionId: id, url: url, checkoutUrl: url);
+    final resolvedKeyId =
+        (serverKeyId != null && serverKeyId.trim().isNotEmpty)
+        ? serverKeyId.trim()
+        : EnvConfig.razorpayKeyId;
+    return CheckoutSession(
+      sessionId: id,
+      url: url,
+      checkoutUrl: url,
+      keyId: resolvedKeyId,
+    );
+  }
+
+  @override
+  Future<bool> verifyCheckout({
+    required String subscriptionId,
+    String? paymentId,
+    String? signature,
+  }) async {
+    final client = SupabaseConfig.client;
+    if (client?.auth.currentUser == null) {
+      throw StateError('Sign in to verify your subscription.');
+    }
+    final response = await client!.functions.invoke(
+      'create-business-checkout',
+      body: {
+        'action': 'verify',
+        'subscription_id': subscriptionId,
+        'razorpay_subscription_id': subscriptionId,
+        'razorpay_payment_id': ?paymentId,
+        'razorpay_signature': ?signature,
+      },
+    );
+    if (response.status != 200 || response.data is! Map) {
+      return false;
+    }
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final verified = data['verified'] == true;
+    if (verified) {
+      final tierStr = data['tier']?.toString();
+      final cycleStr = data['billing_cycle']?.toString() ?? 'monthly';
+      if (tierStr == 'premium') {
+        _session.startPeriod(AppTier.premium, cycleStr);
+      } else if (tierStr == 'enterprise') {
+        _session.startPeriod(AppTier.enterprise, cycleStr);
+      }
+      _session.cancelAtPeriodEnd = false;
+      try {
+        await CustomerQuotaUsage.fetch();
+      } catch (_) {}
+    }
+    return verified;
   }
 
   @override
   Future<SubscriptionSummary> setCancelAtPeriodEnd(bool cancel) async {
-    throw StateError('Manage renewal through the store Customer Center.');
+    if (!cancel) {
+      throw StateError(
+        'To restart a cancelled subscription, start a new checkout from Change Plan.',
+      );
+    }
+    await cancelSubscription(reason: 'Stopped renewal at period end');
+    return getSubscription();
   }
 
   @override
@@ -256,42 +371,61 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   @override
   Future<PaymentMethodSummary?> getPaymentMethod() async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    return CustomerDataPolicy.allowDemo ? _card() : null;
-  }
-
-  /// The card on file, or null when there is none. A free account has never been
-  /// charged, so the pages read this as "add a payment method" rather than
-  /// showing a card the reader never entered.
-  PaymentMethodSummary? _card() {
-    if (_tier == AppTier.free) return null;
-    return const PaymentMethodSummary(
-      brand: 'Visa',
-      last4: '4242',
-      expMonth: 12,
-      expYear: 2028,
-    );
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isNotEmpty) {
+          final subData = await client
+              .from('subscriptions')
+              .select(
+                'tier, status, billing_provider, provider_subscription_id, expires_at',
+              )
+              .eq('user_id', targetUserId)
+              .maybeSingle();
+          final subId =
+              subData?['provider_subscription_id']?.toString().trim() ?? '';
+          if (subId.isEmpty) return null;
+          final provider =
+              subData?['billing_provider']?.toString().trim() ?? 'razorpay';
+          final expires =
+              DateTime.tryParse(subData?['expires_at']?.toString() ?? '') ??
+              _session.expiresAt;
+          return PaymentMethodSummary(
+            brand: provider == 'revenuecat' ? 'App Store' : 'Razorpay',
+            last4: subId,
+            expMonth: expires.month,
+            expYear: expires.year,
+          );
+        }
+      } catch (e) {
+        debugPrint('BillingSettingsRepositoryImpl.getPaymentMethod error: $e');
+      }
+      return null;
+    }
+    return null;
   }
 
   @override
   Future<CheckoutSession> startPaymentMethodUpdate() async {
     throw StateError(
-      'Payment method updates require a verified billing provider.',
+      'Payment mandates are updated through Razorpay Checkout when changing or renewing your plan.',
     );
   }
 
   @override
   Future<List<Invoice>> getBillingHistory() async {
     if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        if (targetUserId.isEmpty) return _invoices();
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+      if (targetUserId.isEmpty) return const <Invoice>[];
 
+      // 1. Read real rows from public.invoices
+      try {
         final res = await client
             .from('invoices')
             .select(
-              'id, user_id, amount, currency, status, issued_at, pdf_url, line_items',
+              'id, user_id, amount, currency, status, issued_at, pdf_url, line_items, provider, provider_subscription_id, provider_payment_id',
             )
             .eq('user_id', targetUserId)
             .order('issued_at', ascending: false)
@@ -299,32 +433,39 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
         if ((res as List).isNotEmpty) {
           final list = <Invoice>[];
-          final card = _card();
           for (final item in res) {
+            final amount = (item['amount'] as num?)?.toDouble() ?? 0.0;
             final rawItems = item['line_items'] as List<dynamic>? ?? [];
             final lineItems = rawItems.map((li) {
-              final map = li as Map<String, dynamic>;
+              final map = Map<String, dynamic>.from(li as Map);
               return InvoiceLineItem(
                 description:
-                    map['description'] as String? ?? 'Subscription Charge',
-                amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+                    map['description']?.toString() ?? 'Subscription Charge',
+                amount: (map['amount'] as num?)?.toDouble() ?? amount,
                 quantity: (map['quantity'] as num?)?.toInt() ?? 1,
               );
             }).toList();
 
+            final paymentId =
+                item['provider_payment_id']?.toString().trim() ?? '';
+            final subId =
+                item['provider_subscription_id']?.toString().trim() ?? '';
+            final String? paymentLabel = paymentId.isNotEmpty
+                ? 'Razorpay ($paymentId)'
+                : (subId.isNotEmpty ? 'Razorpay ($subId)' : null);
+
             list.add(
               Invoice(
-                id: item['id'] as String,
-                amount: (item['amount'] as num?)?.toDouble() ?? 0.0,
-                currency: item['currency'] as String? ?? 'INR',
-                status: item['status'] as String? ?? 'paid',
+                id: item['id']?.toString() ?? '',
+                amount: amount,
+                currency: item['currency']?.toString() ?? 'INR',
+                status: item['status']?.toString() ?? 'paid',
                 issuedAt:
-                    DateTime.tryParse(item['issued_at'] as String? ?? '') ??
+                    DateTime.tryParse(item['issued_at']?.toString() ?? '') ??
                     DateTime.now(),
-                pdfUrl: item['pdf_url'] as String? ?? '',
-                paymentMethodLabel: card == null
-                    ? null
-                    : '${card.brand} •••• ${card.last4}',
+                pdfUrl: item['pdf_url']?.toString() ?? '',
+                taxPercent: _taxPercent,
+                paymentMethodLabel: paymentLabel,
                 lineItems: lineItems,
               ),
             );
@@ -332,10 +473,77 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
           return list;
         }
       } catch (e) {
-        debugPrint('BillingSettingsRepositoryImpl.getBillingHistory error: $e');
+        debugPrint(
+          'BillingSettingsRepositoryImpl.getBillingHistory invoices query error: $e',
+        );
       }
+
+      // 2. Fallback only to real settled rows in public.billing_checkout_intents
+      try {
+        final intents = await client
+            .from('billing_checkout_intents')
+            .select(
+              'id, tier, billing_cycle, razorpay_subscription_id, expected_amount_paise, checkout_url, status, created_at, updated_at',
+            )
+            .eq('user_id', targetUserId)
+            .eq('status', 'active')
+            .order('created_at', ascending: false)
+            .limit(25);
+
+        if ((intents as List).isNotEmpty) {
+          final list = <Invoice>[];
+          for (final row in intents) {
+            final subId =
+                row['razorpay_subscription_id']?.toString().trim() ?? '';
+            if (subId.isEmpty) continue;
+            final paise =
+                (row['expected_amount_paise'] as num?)?.toDouble() ?? 0;
+            final amount = paise / 100.0;
+            final tierStr = row['tier']?.toString() ?? 'premium';
+            final planName = tierStr == 'enterprise'
+                ? 'AlphaJournal Pro'
+                : 'AlphaJournal Basic';
+            final cycleStr = row['billing_cycle']?.toString() ?? 'monthly';
+            final cycleLabel = cycleStr == 'annual' ? 'Annual' : 'Monthly';
+            final issuedAt =
+                DateTime.tryParse(
+                  row['updated_at']?.toString() ??
+                      row['created_at']?.toString() ??
+                      '',
+                ) ??
+                DateTime.now();
+
+            list.add(
+              Invoice(
+                id: 'inv_$subId',
+                amount: amount,
+                currency: 'INR',
+                status: 'paid',
+                issuedAt: issuedAt,
+                pdfUrl: row['checkout_url']?.toString() ?? '',
+                taxPercent: _taxPercent,
+                paymentMethodLabel: 'Razorpay ($subId)',
+                lineItems: <InvoiceLineItem>[
+                  InvoiceLineItem(
+                    description: '$planName ($cycleLabel subscription)',
+                    amount: amount,
+                    quantity: 1,
+                  ),
+                ],
+              ),
+            );
+          }
+          return list;
+        }
+      } catch (e) {
+        debugPrint(
+          'BillingSettingsRepositoryImpl.getBillingHistory intents query error: $e',
+        );
+      }
+
+      return const <Invoice>[];
     }
-    return CustomerDataPolicy.allowDemo ? _invoices() : [];
+    return const <Invoice>[];
   }
 
   @override
@@ -347,78 +555,27 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     throw StateError('Invoice $invoiceId not found');
   }
 
-  /// One row per past billing period at the current plan's price. A free account
-  /// has nothing to show, which is the honest empty state for the history page.
-  List<Invoice> _invoices() {
-    if (_tier == AppTier.free) return const <Invoice>[];
-    final SubscriptionSummary summary = _summary();
-    final double amount = summary.amount;
-    final String planName = AppTokens.tierLabel(_tier);
-    final bool annual = summary.billingCycle == 'annual';
-    final String cycleLabel = annual ? 'Annual' : 'Monthly';
-    final int stride = annual ? 365 : 30;
-    final String? coupon = summary.discountCode;
-    final PaymentMethodSummary? card = _card();
-    return <Invoice>[
-      for (int i = 0; i < _historyMonths; i++)
-        Invoice(
-          id: 'inv_${_invoiceRef(i, stride)}',
-          amount: amount,
-          currency: 'INR',
-          status: 'paid',
-          issuedAt: summary.renewedAt.subtract(Duration(days: i * stride)),
-          pdfUrl:
-              'https://alphajournal.in/invoices/${_invoiceRef(i, stride)}.pdf',
-          issuer: _issuer,
-          taxPercent: _taxPercent,
-          paymentMethodLabel: card == null
-              ? null
-              : '${card.brand} •••• ${card.last4}',
-          lineItems: <InvoiceLineItem>[
-            InvoiceLineItem(
-              description: '$planName ($cycleLabel subscription)',
-              amount: summary.listAmount,
-              quantity: 1,
-            ),
-            if (coupon != null)
-              InvoiceLineItem(
-                description: 'Coupon $coupon (−${summary.discountPercent}%)',
-                amount: amount - summary.listAmount,
-                quantity: 1,
-              ),
-          ],
-        ),
-    ];
-  }
-
-  /// Entity the charges are raised by, and the rate its prices include. A
-  /// backend replaces this with the billing account's own registration; it lives
-  /// here rather than in the receipt layout so the document cannot claim a
-  /// company or a tax rate the charge was not made under.
-  static const InvoiceIssuer _issuer = InvoiceIssuer(
-    name: 'AlphaJournal',
-    addressLines: <String>[
-      '4th Floor, Prestige Trade Tower',
-      '46 Palace Road, Bengaluru 560001',
-      'Karnataka, India',
-    ],
-    supportEmail: 'billing@alphajournal.in',
-    taxId: '29AABCT1332L1ZT',
-    taxLabel: 'GST',
-  );
-
   /// Tax already included in every price the catalogue quotes.
   static const double _taxPercent = 18;
 
-  String _invoiceRef(int index, int stride) {
-    final DateTime issued = _session.renewedAt.subtract(
-      Duration(days: index * stride),
-    );
-    return '${issued.year}_${issued.month.toString().padLeft(2, '0')}';
-  }
-
   @override
   Future<void> cancelSubscription({String? reason}) async {
-    throw StateError('Manage cancellation through the store Customer Center.');
+    final client = SupabaseConfig.client;
+    if (client?.auth.currentUser == null) {
+      throw StateError('Sign in to manage your subscription.');
+    }
+    final response = await client!.functions.invoke(
+      'create-business-checkout',
+      body: {'action': 'cancel', 'reason': ?reason},
+    );
+    if (response.status != 200) {
+      final errMsg = response.data is Map
+          ? (response.data as Map)['error']?.toString()
+          : null;
+      throw StateError(
+        errMsg ?? 'Could not cancel subscription through billing provider.',
+      );
+    }
+    _session.cancelAtPeriodEnd = true;
   }
 }

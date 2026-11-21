@@ -754,10 +754,15 @@ class _AppNotificationsOverlayState extends State<AppNotificationsOverlay> {
       );
     }
 
-    final String handle = item.actor?.handle ?? 'A trader';
+    final actor = item.actor;
+    final String handle = actor?.handle ?? 'A trader';
     final String cleanHandle = handle.startsWith('@')
         ? handle.substring(1)
         : handle;
+    final String actorDisplay =
+        (actor != null && actor.displayName.trim().isNotEmpty)
+        ? actor.displayName.trim()
+        : cleanHandle;
 
     final String actionText = switch (item.type) {
       CommunityNotificationType.like => ' liked your post.',
@@ -781,9 +786,20 @@ class _AppNotificationsOverlayState extends State<AppNotificationsOverlay> {
         ),
         children: [
           TextSpan(
-            text: cleanHandle,
+            text: actorDisplay,
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
+          if (actor != null && actor.verified) ...[
+            const WidgetSpan(child: SizedBox(width: 3)),
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Icon(
+                Icons.verified_rounded,
+                size: context.sz(14),
+                color: actor.verifiedColor(theme),
+              ),
+            ),
+          ],
           TextSpan(text: actionText),
           TextSpan(
             text: '  $relativeTime',

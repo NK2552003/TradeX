@@ -111,7 +111,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/config/client.env
+    - assets/config/
     - assets/legal/
     # Embedded in generated note PDFs — the `pdf` package cannot reach system
     # fonts, so the export bundles its own.

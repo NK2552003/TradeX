@@ -315,12 +315,12 @@ class AppTraderRow extends StatelessWidget {
                       style: context.uiText.bodyStrong,
                     ),
                   ),
-                  if (trader.tier != AppTier.free) ...<Widget>[
-                    SizedBox(width: context.sp(theme.spacing.xs)),
+                  if (trader.verified) ...<Widget>[
+                    SizedBox(width: context.sp(theme.spacing.xxs)),
                     Icon(
-                      AppTokens.tierIcon(trader.tier),
-                      size: context.sz(theme.sizes.iconSm),
-                      color: AppTokens.tierColor(context, trader.tier),
+                      Icons.verified_rounded,
+                      size: context.sz(15),
+                      color: trader.verifiedColor,
                     ),
                   ],
                 ],

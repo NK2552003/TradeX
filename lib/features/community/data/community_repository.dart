@@ -631,7 +631,7 @@ class CommunityRepository extends ChangeNotifier {
             .from('community_comments')
             .select(
               'id, post_id, author_id, parent_id, body, created_at, likes_count, '
-              'profiles!community_comments_author_id_fkey(id, handle, display_name, avatar_url, bio, role, verified)',
+              'profiles!community_comments_author_id_fkey(id, handle, display_name, avatar_url, bio, role, verified, subscription_tier)',
             )
             .inFilter('post_id', pagePostIds)
             .order('created_at', ascending: true)
@@ -704,6 +704,11 @@ class CommunityRepository extends ChangeNotifier {
           if (_blockedUsers.contains(commentAuthorId)) continue;
 
           final profile = row['profiles'] as Map<String, dynamic>?;
+          final commentSubTier =
+              (profile?['subscription_tier'] as String?)
+                  ?.toLowerCase()
+                  .trim() ??
+              'free';
           final commentAuthor = CommunityAuthor(
             id: commentAuthorId,
             handle:
@@ -717,6 +722,8 @@ class CommunityRepository extends ChangeNotifier {
             avatarUrl: _resolveAvatarUrl(profile?['avatar_url'] as String?),
             bio: profile?['bio'] as String?,
             verified: profile?['verified'] as bool? ?? false,
+            subscriptionTier: commentSubTier,
+            tier: AppTokens.parseTier(commentSubTier),
           );
 
           final commentId = row['id']?.toString() ?? '';
@@ -1028,11 +1035,22 @@ class CommunityRepository extends ChangeNotifier {
         (_hasLoadedFollows
             ? _followedAuthorIds.contains(id)
             : author.isFollowing);
+    final currentOverride = _currentAuthorOverride;
+    final bool isCurrentOwner =
+        currentOverride != null &&
+        currentOverride.id.isNotEmpty &&
+        id == currentOverride.id;
+    final AppTier? nextTier = isCurrentOwner ? currentOverride.tier : null;
+    final String? nextSubTier = isCurrentOwner
+        ? currentOverride.subscriptionTier
+        : null;
     if ((nextFollowers == null || nextFollowers == author.followers) &&
         (nextFollowing == null || nextFollowing == author.following) &&
         (postsCountOverride == null ||
             postsCountOverride == author.postsCount) &&
-        nextFollowState == author.isFollowing) {
+        nextFollowState == author.isFollowing &&
+        (nextTier == null || nextTier == author.tier) &&
+        (nextSubTier == null || nextSubTier == author.subscriptionTier)) {
       return author;
     }
     return author.copyWith(
@@ -1040,6 +1058,8 @@ class CommunityRepository extends ChangeNotifier {
       following: nextFollowing,
       postsCount: postsCountOverride,
       isFollowing: nextFollowState,
+      tier: nextTier,
+      subscriptionTier: nextSubTier,
     );
   }
 
@@ -2500,7 +2520,11 @@ class CommunityRepository extends ChangeNotifier {
 
   void updateCurrentAuthor(CommunityAuthor author) {
     final bool idChanged = _currentAuthorOverride?.id != author.id;
+    final bool tierChanged =
+        _currentAuthorOverride?.tier != author.tier ||
+        _currentAuthorOverride?.subscriptionTier != author.subscriptionTier;
     if (idChanged ||
+        tierChanged ||
         _currentAuthorOverride?.handle != author.handle ||
         _currentAuthorOverride?.displayName != author.displayName) {
       _currentAuthorOverride = author;
@@ -2516,6 +2540,8 @@ class CommunityRepository extends ChangeNotifier {
         } else if (_isUuid(author.id)) {
           unawaited(fetchFromSupabase());
         }
+      } else if (tierChanged && author.id.isNotEmpty) {
+        _applyAuthorCountsToCollections(targetAuthorId: author.id);
       }
       Future<void>.microtask(() {
         if (!_disposed) notifyListeners();
@@ -5121,7 +5147,7 @@ class CommunityRepository extends ChangeNotifier {
         try {
           final profRes = await client
               .from('profiles')
-              .select('id, handle, display_name, avatar_url, role')
+              .select('id, handle, display_name, avatar_url, role, verified, subscription_tier')
               .inFilter('id', actorIds.toList());
           for (final raw in profRes as List) {
             final p = raw as Map<String, dynamic>;
@@ -5130,12 +5156,18 @@ class CommunityRepository extends ChangeNotifier {
             final handle = rawHandle.startsWith('@')
                 ? rawHandle.substring(1)
                 : rawHandle;
+            final subTier =
+                (p['subscription_tier'] as String?)?.toLowerCase().trim() ??
+                'free';
             actorMap[id] = CommunityAuthor(
               id: id,
               handle: handle,
               displayName: p['display_name']?.toString() ?? handle,
               avatarUrl: p['avatar_url']?.toString(),
               userRole: _parseUserRole(p['role']?.toString()),
+              verified: p['verified'] as bool? ?? false,
+              subscriptionTier: subTier,
+              tier: AppTokens.parseTier(subTier),
             );
           }
         } catch (_) {}
@@ -5234,11 +5266,16 @@ class CommunityRepository extends ChangeNotifier {
                   final p = await client
                       .from('profiles')
                       .select(
-                        'id, handle, display_name, avatar_url, role, verified',
+                        'id, handle, display_name, avatar_url, role, verified, subscription_tier',
                       )
                       .eq('id', actorId)
                       .maybeSingle();
                   if (p != null) {
+                    final subTier =
+                        (p['subscription_tier'] as String?)
+                            ?.toLowerCase()
+                            .trim() ??
+                        'free';
                     actor = CommunityAuthor(
                       id: p['id']?.toString() ?? '',
                       handle: p['handle']?.toString() ?? 'trader',
@@ -5246,6 +5283,8 @@ class CommunityRepository extends ChangeNotifier {
                       avatarUrl: p['avatar_url']?.toString(),
                       userRole: _parseUserRole(p['role']?.toString()),
                       verified: p['verified'] as bool? ?? false,
+                      subscriptionTier: subTier,
+                      tier: AppTokens.parseTier(subTier),
                     );
                   }
                 } catch (_) {}

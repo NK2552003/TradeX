@@ -320,6 +320,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       } catch (_) {}
     }
 
+    final AppTier activeTier = trader?.tier ?? AppTier.free;
     return CommunityAuthor(
       id: trader?.id ?? '',
       handle: trader?.handle ?? '',
@@ -330,7 +331,8 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       avatarUrl: trader?.avatarUrl,
       bio: trader?.bio,
       verified: trader?.verified ?? false,
-      tier: trader?.tier ?? AppTier.free,
+      tier: activeTier,
+      subscriptionTier: activeTier.name,
       followers: trader?.followers ?? 0,
       following: trader?.following ?? 0,
       winRate: winRate,
@@ -621,6 +623,25 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
 
   void _openAuthorProfile(CommunityAuthor author) {
     final bool isMe = _isMe(author);
+    if (context.uiRes.isDesktop && _activeSubpage == null) {
+      _desktopPanelDepth++;
+      unawaited(
+        CommunityProfileView.showOverlay(
+          context,
+          author: author,
+          repository: _repo,
+          isCurrentUser: isMe,
+          onPostTap: _openPostDetail,
+          onOpenRef: _openLinkedFeature,
+          onDirectMessage: widget.onStartDirectMessage == null
+              ? null
+              : _startDirectMessage,
+        ).whenComplete(() {
+          _desktopPanelDepth--;
+        }),
+      );
+      return;
+    }
     _openSubpage(
       title: author.displayName,
       page: CommunityProfileView(
@@ -806,7 +827,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                     : (context.sz(74) + safeBottom))
               : context.sp(theme.spacing.lg);
           final double floatingRight = isMobile
-              ? (MediaQuery.sizeOf(context).width < 430 ? 10.0 : 12.0)
+              ? AppMobileDockMetrics.of(context).edgeInset
               : context.sp(theme.spacing.lg);
 
           return Stack(

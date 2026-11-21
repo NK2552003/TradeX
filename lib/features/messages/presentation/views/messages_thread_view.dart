@@ -546,7 +546,7 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
                                   Icon(
                                     Icons.verified_rounded,
                                     size: context.sz(14),
-                                    color: colors.primary,
+                                    color: thread.peer.verifiedColor,
                                   ),
                                 ],
                               ],
@@ -1044,7 +1044,7 @@ class _ProfileHeroCard extends StatelessWidget {
                     Icon(
                       Icons.verified_rounded,
                       size: context.sz(18),
-                      color: colors.primary,
+                      color: peer.verifiedColor,
                     ),
                   ],
                 ],

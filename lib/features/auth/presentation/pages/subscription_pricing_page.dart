@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/billing/razorpay_web_checkout.dart';
+import 'package:alphajournal/core/config/env_config.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 // ignore: unnecessary_import
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import 'package:alphajournal/features/auth/data/repositories/subscription_pricing_repository.dart';
 import 'package:alphajournal/features/auth/models/pricing_models.dart';
 import 'package:alphajournal/features/public_site/presentation/public_pricing_content.dart';
+import 'package:alphajournal/features/settings/data/repositories/billing_settings_repository.dart';
 
 class SubscriptionPricingPage extends StatefulWidget {
   const SubscriptionPricingPage({
@@ -35,9 +40,77 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
   Future<void> _select(PricingPlanModel plan) async {
     setState(() => _busy = plan.id);
     try {
+      final cycle = _annual ? 'annual' : 'monthly';
+      if (plan.tier != AppTier.free &&
+          !plan.isCurrent &&
+          SupabaseConfig.isConfigured &&
+          SupabaseConfig.client?.auth.currentUser != null) {
+        final billingRepo = BillingSettingsRepositoryImpl();
+        final session = await billingRepo.startCheckout(plan.id, cycle);
+        final keyId = (session.keyId != null && session.keyId!.isNotEmpty)
+            ? session.keyId!
+            : EnvConfig.razorpayKeyId;
+
+        if (RazorpayWebCheckout.isSupported && keyId.isNotEmpty) {
+          final modalResult = await RazorpayWebCheckout.open(
+            keyId: keyId,
+            subscriptionId: session.sessionId,
+            planName: plan.name,
+            billingCycle: cycle,
+            userEmail: SupabaseConfig.client?.auth.currentUser?.email,
+          );
+          if (!mounted) return;
+          if (modalResult.isSuccess) {
+            await billingRepo.verifyCheckout(
+              subscriptionId: modalResult.subscriptionId ?? session.sessionId,
+              paymentId: modalResult.paymentId,
+              signature: modalResult.signature,
+            );
+            if (!mounted) return;
+            widget.onSelectPlan?.call(plan, _annual);
+            widget.onContinue();
+            return;
+          }
+          if (modalResult.isFailed) {
+            UiToast.show(
+              context,
+              title: 'Payment failed',
+              message:
+                  modalResult.errorMessage ??
+                  'Payment could not be completed. Returned to AlphaJournal.',
+              intent: UiIntent.danger,
+            );
+            return;
+          }
+          if (modalResult.isCancelled) {
+            UiToast.show(
+              context,
+              title: 'Checkout cancelled',
+              message: 'Returned to AlphaJournal without charging your account.',
+              intent: UiIntent.info,
+            );
+            return;
+          }
+        }
+
+        if (!await launchUrl(
+          Uri.parse(session.url),
+          mode: LaunchMode.externalApplication,
+        )) {
+          throw StateError('Could not open Razorpay checkout.');
+        }
+        if (!mounted) return;
+        UiToast.show(
+          context,
+          title: 'Checkout opened',
+          message: 'Your plan updates as soon as Razorpay confirms payment.',
+          intent: UiIntent.info,
+        );
+        return;
+      }
       await _repository.selectPlan(
         tierId: plan.id,
-        billingCycle: _annual ? 'annual' : 'monthly',
+        billingCycle: cycle,
       );
       if (!mounted) return;
       widget.onSelectPlan?.call(plan, _annual);

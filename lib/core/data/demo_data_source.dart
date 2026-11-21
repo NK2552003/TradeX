@@ -1466,7 +1466,7 @@ class DemoDataSource {
       tier: AppTier.premium,
       current: current,
       description:
-          'Expanded workspace with full Market Intelligence, Messages, and advanced calculators (monthly subscriptions disabled for now).',
+          'Expanded workspace with full Market Intelligence, Messages, and advanced calculators.',
       features: const <String>[
         'Up to 25 research notes',
         'Up to 100 logged trades (total)',
@@ -1475,7 +1475,6 @@ class DemoDataSource {
         'Full Market Intelligence & instrument research',
         'Private Messages',
         'All advanced calculators',
-        'Monthly subscriptions disabled for now',
       ],
       highlighted: true,
     ),
@@ -1483,7 +1482,7 @@ class DemoDataSource {
       tier: AppTier.enterprise,
       current: current,
       description:
-          'High-capacity professional workspace with 10,000 notes, 50,000 trades, and 5,000 AI prompts (monthly subscriptions disabled for now).',
+          'High-capacity professional workspace with 10,000 notes, 50,000 trades, and 5,000 AI prompts.',
       features: const <String>[
         'Everything in Basic, including Markets, Messages & calculators',
         'Up to 10,000 research notes',
@@ -1491,7 +1490,6 @@ class DemoDataSource {
         'Up to 250 active playbooks & 100 watchlists',
         'Up to 5,000 AI copilot requests / month',
         'PDF & CSV exports + advanced analytics',
-        'Monthly subscriptions disabled for now',
       ],
     ),
   ];

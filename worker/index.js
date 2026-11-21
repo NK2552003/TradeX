@@ -27,6 +27,7 @@ const FRESH_RUNTIME_PATHS = new Set([
   '/flutter_service_worker.js',
   '/manifest.json',
   '/nav_transition.js',
+  '/razorpay_checkout.js',
   '/version.json',
 ]);
 

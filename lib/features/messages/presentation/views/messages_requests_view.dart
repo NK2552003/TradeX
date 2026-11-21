@@ -309,7 +309,7 @@ class _RequestRow extends StatelessWidget {
                             Icon(
                               Icons.verified_rounded,
                               size: context.sz(14),
-                              color: colors.primary,
+                              color: thread.peer.verifiedColor,
                             ),
                           ],
                         ],

@@ -444,9 +444,9 @@ class _CommunityCopilotLauncherState extends State<CommunityCopilotLauncher> {
   }) {
     final theme = context.ui;
     final bool isDark = theme.brightness == Brightness.dark;
-    final bool narrowMobile =
-        context.uiRes.isMobile && MediaQuery.sizeOf(context).width < 430;
-    final double size = narrowMobile ? 48.0 : 56.0;
+    final AppMobileDockMetrics m = AppMobileDockMetrics.of(context);
+    final double size = context.uiRes.isMobile ? m.height : 56.0;
+    final double iconSize = context.uiRes.isMobile ? m.iconSize : 22.0;
     final BorderRadius radius = BorderRadius.circular(size / 2);
     return Container(
       width: size,
@@ -488,7 +488,7 @@ class _CommunityCopilotLauncherState extends State<CommunityCopilotLauncher> {
                   child: Center(
                     child: Icon(
                       icon,
-                      size: 22,
+                      size: iconSize,
                       color: theme.colors.foreground,
                     ),
                   ),

@@ -272,7 +272,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
         final bool isMobile = widget.forceSingleColumn || availableWidth < 680;
 
         return Scaffold(
-          backgroundColor: theme.colors.background,
+          backgroundColor: Colors.transparent,
           bottomNavigationBar: isMobile
               ? _buildMobileStickyReplyBar(theme)
               : null,

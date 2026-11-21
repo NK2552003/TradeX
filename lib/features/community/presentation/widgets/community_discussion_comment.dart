@@ -155,10 +155,25 @@ class _CommunityDiscussionCommentState
                                         ? null
                                         : () => widget.onAuthorTap!(author),
                                     builder: (context, _) => Text(
-                                      author.displayHandle,
+                                      author.displayName.trim().isNotEmpty
+                                          ? author.displayName
+                                          : author.displayHandle,
                                       style: context.uiText.bodyStrong,
                                     ),
                                   ),
+                                  if (author.verified)
+                                    Icon(
+                                      Icons.verified_rounded,
+                                      color: author.verifiedColor(theme),
+                                      size: context.sz(14),
+                                    ),
+                                  if (author.displayName.trim().isNotEmpty)
+                                    Text(
+                                      author.displayHandle,
+                                      style: context.uiText.caption.copyWith(
+                                        color: theme.colors.foregroundMuted,
+                                      ),
+                                    ),
                                   if (author.id == widget.postAuthorId)
                                     const UiBadge(
                                       label: 'Author',

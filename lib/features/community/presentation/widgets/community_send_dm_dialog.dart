@@ -157,14 +157,41 @@ class _CommunitySendDmDialogState extends State<CommunitySendDmDialog> {
                       ),
                       SizedBox(width: context.sp(theme.spacing.xs)),
                       Expanded(
-                        child: Text(
-                          '${trader.displayName} (@${trader.handle})',
-                          style: context.uiText.caption.copyWith(
-                            fontWeight: isSelected
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: theme.colors.foreground,
-                          ),
+                        child: Row(
+                          children: <Widget>[
+                            Flexible(
+                              child: Text(
+                                trader.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.uiText.caption.copyWith(
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: theme.colors.foreground,
+                                ),
+                              ),
+                            ),
+                            if (trader.verified) ...<Widget>[
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.verified_rounded,
+                                size: context.sz(13),
+                                color: trader.verifiedColor(theme),
+                              ),
+                            ],
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                trader.displayHandle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.uiText.caption.copyWith(
+                                  color: theme.colors.foregroundMuted,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       if (isSelected)

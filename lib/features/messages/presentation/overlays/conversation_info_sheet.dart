@@ -460,7 +460,7 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
               Icon(
                 Icons.verified_rounded,
                 size: context.sz(18),
-                color: colors.primary,
+                color: thread.peer.verifiedColor,
               ),
             ],
             if (thread.isGroup) ...<Widget>[

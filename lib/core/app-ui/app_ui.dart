@@ -61,6 +61,10 @@ export 'blocks/strategy_note_blocks.dart';
 
 // Shell
 export 'shell/app_quiet_dock.dart'
-    show AppDockRevealEdge, AppDockVisibility, AppDockSyncedFab;
+    show
+        AppMobileDockMetrics,
+        AppDockRevealEdge,
+        AppDockVisibility,
+        AppDockSyncedFab;
 export 'shell/app_shell.dart';
 export 'shell/app_workspace.dart';

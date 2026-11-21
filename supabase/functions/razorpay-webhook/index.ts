@@ -107,7 +107,10 @@ async function executeRazorpayWebhook(
   }
   let event: {
     event?: string;
-    payload?: { subscription?: { entity?: { id?: string } } };
+    payload?: {
+      subscription?: { entity?: { id?: string } };
+      payment?: { entity?: { id?: string; amount?: number; currency?: string } };
+    };
   };
   try {
     event = JSON.parse(raw);
@@ -143,6 +146,7 @@ async function executeRazorpayWebhook(
     status?: string;
     current_start?: number | null;
     current_end?: number | null;
+    short_url?: string | null;
   };
   if (
     !provider.plan_id ||
@@ -160,12 +164,19 @@ async function executeRazorpayWebhook(
   if (plan.item?.amount !== intent.expected_amount_paise || plan.item?.currency !== 'INR') {
     return new Response('Amount mismatch', { status: 409 });
   }
+
+  const resolvedIntentTier =
+    String(intent.tier ?? 'enterprise').toLowerCase() === 'premium'
+      ? 'premium'
+      : 'enterprise';
+  const cycle = intent.billing_cycle === 'annual' ? 'annual' : 'monthly';
   const end =
     typeof provider.current_end === 'number' ? new Date(provider.current_end * 1000) : null;
   const paidPeriod = end != null && Number.isFinite(end.getTime()) && end.getTime() > Date.now();
   const active = provider.status === 'active' && paidPeriod;
-  const canceledWithAccess = provider.status === 'cancelled' && paidPeriod;
-  const businessAccess = active || canceledWithAccess;
+  const canceledWithAccess =
+    (provider.status === 'cancelled' || provider.status === 'completed') && paidPeriod;
+  const paidAccess = active || canceledWithAccess;
   const now = new Date().toISOString();
   const intentStatus = active
     ? 'active'
@@ -175,28 +186,34 @@ async function executeRazorpayWebhook(
     ? 'cancelled'
     : provider.status === 'authenticated'
     ? 'authenticated'
+    : provider.status === 'halted'
+    ? 'halted'
+    : provider.status === 'pending'
+    ? 'pending'
     : 'expired';
   const eventId =
     request.headers.get('x-razorpay-event-id') ??
     `${subscriptionId}:${String(event.event ?? 'UNKNOWN')}:${String(provider.status ?? 'unknown')}`;
 
+  const renewedAtIso =
+    typeof provider.current_start === 'number'
+      ? new Date(provider.current_start * 1000).toISOString()
+      : null;
+
   // Atomically lock the account, update the checkout intent, record Razorpay's
   // provider entitlement state, re-evaluate cross-provider precedence (preserving
-  // an active RevenueCat Pro entitlement if Razorpay Business expires), and update
+  // an active higher or alternative entitlement if Razorpay expires), and update
   // subscriptions, profiles, and webhook receipts in a single transaction.
   const { error: reconcileError } = await callReconcileWithRetry(service, {
     p_user_id: intent.user_id,
     p_provider: 'razorpay',
-    p_tier: businessAccess ? 'enterprise' : 'free',
+    p_tier: paidAccess ? resolvedIntentTier : 'free',
     p_status: active ? 'active' : 'canceled',
     p_provider_subscription_id: subscriptionId,
     p_revenuecat_id: null,
-    p_billing_cycle: intent.billing_cycle,
-    p_renewed_at:
-      typeof provider.current_start === 'number'
-        ? new Date(provider.current_start * 1000).toISOString()
-        : null,
-    p_expires_at: businessAccess ? end!.toISOString() : now,
+    p_billing_cycle: cycle,
+    p_renewed_at: renewedAtIso,
+    p_expires_at: paidAccess ? end!.toISOString() : now,
     p_event_id: eventId,
     p_event_type: String(event.event ?? 'UNKNOWN'),
     p_intent_id: intent.id,
@@ -220,11 +237,63 @@ async function executeRazorpayWebhook(
     });
   }
 
+  // Record invoice receipt on activation or charge settlement
+  const eventName = String(event.event ?? '');
+  if (
+    paidAccess &&
+    (eventName === 'subscription.activated' ||
+      eventName === 'subscription.charged' ||
+      Boolean(event.payload?.payment?.entity?.id))
+  ) {
+    try {
+      const paymentId = event.payload?.payment?.entity?.id ?? null;
+      const periodKey =
+        typeof provider.current_start === 'number'
+          ? String(provider.current_start)
+          : new Date().toISOString().slice(0, 10);
+      const invoiceId = paymentId
+        ? `inv_${paymentId}`
+        : `inv_${subscriptionId}_${periodKey}`;
+      const amountInr = Number(intent.expected_amount_paise) / 100;
+      const planLabel = resolvedIntentTier === 'premium' ? 'AlphaJournal Basic' : 'AlphaJournal Pro';
+      const cycleLabel = cycle === 'annual' ? 'Annual' : 'Monthly';
+      await service.from('invoices').upsert(
+        {
+          id: invoiceId,
+          invoice_ref: invoiceId,
+          user_id: intent.user_id,
+          amount: amountInr,
+          currency: 'INR',
+          status: 'paid',
+          issued_at: renewedAtIso ?? now,
+          pdf_url: provider.short_url ?? intent.checkout_url ?? '',
+          provider: 'razorpay',
+          provider_subscription_id: subscriptionId,
+          provider_payment_id: paymentId,
+          billing_cycle: cycle,
+          tier: resolvedIntentTier,
+          line_items: [
+            {
+              description: `${planLabel} (${cycleLabel} subscription, incl. 18% GST)`,
+              amount: amountInr,
+              quantity: 1,
+            },
+          ],
+          updated_at: now,
+        },
+        { onConflict: 'id' },
+      );
+    } catch (invoiceErr) {
+      logger.log('warn', 'razorpay_invoice_record_skipped', describeError(invoiceErr));
+    }
+  }
+
   logger.log('info', 'razorpay_reconcile_succeeded', {
     event_id: eventId,
     event_type: String(event.event ?? 'UNKNOWN'),
     provider_status: String(provider.status ?? 'unknown'),
-    business_access: businessAccess,
+    tier: paidAccess ? resolvedIntentTier : 'free',
+    paid_access: paidAccess,
   });
   return new Response('OK', { status: 200 });
 }

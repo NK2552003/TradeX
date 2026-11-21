@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:alphajournal/core/app-ui/app_ui.dart';
+import 'package:alphajournal/core/billing/razorpay_web_checkout.dart';
 import 'package:alphajournal/core/config/customer_data_policy.dart';
 import 'package:alphajournal/core/config/customer_quota_usage.dart';
+import 'package:alphajournal/core/config/env_config.dart';
 import 'package:alphajournal/core/config/supabase_config.dart';
 import 'package:alphajournal/core/data/app_session.dart';
 import 'package:alphajournal/features/admin_console/data/admin_console_repository.dart';
 import 'package:alphajournal/features/affiliate_program/models/affiliate_workspace.dart';
 import 'package:alphajournal/features/public_site/data/public_site_repository.dart';
+import 'package:alphajournal/features/settings/data/repositories/billing_settings_repository.dart';
 import 'package:alphajournal/features/settings/models/desk_risk_model.dart';
 import 'package:alphajournal/features/settings/presentation/pages/trader/change_plan_page.dart';
 
@@ -26,14 +30,16 @@ class CustomerTierQuota {
     required this.maxAiQueriesPerMonth,
     required this.allowPdfExport,
     required this.allowAdvancedBacktest,
+    int? annualMonthlyPriceInr,
     this.maxAlerts = 3,
     this.maxCommunityPostsPerDay = 2,
     this.maxCommunityCommentsPerDay = 10,
-  });
+  }) : annualMonthlyPriceInr = annualMonthlyPriceInr ?? monthlyPriceInr;
 
   final AppTier tier;
   final String planName;
   final int monthlyPriceInr;
+  final int annualMonthlyPriceInr;
   final int maxNotes;
   final int maxTrades;
   final int maxLiveStrategies;
@@ -44,6 +50,8 @@ class CustomerTierQuota {
   final int maxAlerts;
   final int maxCommunityPostsPerDay;
   final int maxCommunityCommentsPerDay;
+
+  int get annualTotalPriceInr => annualMonthlyPriceInr * 12;
 
   String get priceLabel => monthlyPriceInr == 0
       ? '₹0 / mo'
@@ -92,6 +100,10 @@ class CustomerTierQuota {
         tier: tier,
         planName: plan['name']?.toString() ?? base.planName,
         monthlyPriceInr: (plan['monthly_amount'] as num).round(),
+        annualMonthlyPriceInr:
+            ((plan['annual_monthly_amount'] as num?) ??
+                    (plan['monthly_amount'] as num))
+                .round(),
         maxNotes: requiredLimit('notes'),
         maxTrades: requiredLimit('trades'),
         maxLiveStrategies: requiredLimit('live_playbooks'),
@@ -134,6 +146,7 @@ class CustomerTierQuota {
       tier: AppTier.free,
       planName: 'AlphaJournal Free',
       monthlyPriceInr: 0,
+      annualMonthlyPriceInr: 0,
       maxNotes: 3,
       maxTrades: 15,
       maxLiveStrategies: 1,
@@ -149,6 +162,7 @@ class CustomerTierQuota {
       tier: AppTier.premium,
       planName: 'AlphaJournal Basic',
       monthlyPriceInr: 299,
+      annualMonthlyPriceInr: 239,
       maxNotes: 25,
       maxTrades: 100,
       maxLiveStrategies: 3,
@@ -164,6 +178,7 @@ class CustomerTierQuota {
       tier: AppTier.enterprise,
       planName: 'AlphaJournal Pro',
       monthlyPriceInr: 499,
+      annualMonthlyPriceInr: 399,
       maxNotes: 10000,
       maxTrades: 50000,
       maxLiveStrategies: 250,
@@ -798,7 +813,7 @@ class CustomerLimitations {
 
   /// Displays a sleek full-featured INR subscription comparison overlay showing
   /// only the currently available plans (Free, Basic, Pro) with grouped,
-  /// icon-labeled entitlements and direct upgrade navigation.
+  /// icon-labeled entitlements and direct Razorpay checkout (Monthly & Annual).
   static Future<void> showPlanUpgradeDialog(
     BuildContext context, {
     required String featureTitle,
@@ -807,532 +822,797 @@ class CustomerLimitations {
     final AppSession session = AppSession.instance;
     final NavigatorState rootNavigator = Navigator.of(context);
     bool openChangePlanAfterClose = false;
+    bool isAnnual = session.billingCycle == 'annual';
+    AppTier? processingTier;
 
     await showDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.72),
-      builder: (BuildContext ctx) {
-        final AppTier activeTier = session.tier.value;
-        final UiTheme theme = ctx.ui;
-        final bool compact = MediaQuery.sizeOf(ctx).width < 820;
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext dialogCtx, StateSetter setDialogState) {
+          final AppTier activeTier = session.tier.value;
+          final bool activeIsAnnual = session.billingCycle == 'annual';
+          final UiTheme theme = dialogCtx.ui;
+          final bool compact = MediaQuery.sizeOf(dialogCtx).width < 820;
 
-        final Color modalBg = theme.colors.surface;
-        final Color cardBg = theme.colors.surfaceMuted.withValues(alpha: 0.38);
-        final Color cardBorder = theme.colors.border;
-        final Color dividerColor = theme.colors.border;
+          final Color modalBg = theme.colors.surface;
+          final Color cardBg = theme.colors.surfaceMuted.withValues(alpha: 0.38);
+          final Color cardBorder = theme.colors.border;
+          final Color dividerColor = theme.colors.border;
 
-        String formatQuota(int value, String singular, String plural) {
-          if (value >= 100000) return 'Unlimited $plural';
-          return '$value ${value == 1 ? singular : plural}';
-        }
+          String formatQuota(int value, String singular, String plural) {
+            if (value >= 100000) return 'Unlimited $plural';
+            return '$value ${value == 1 ? singular : plural}';
+          }
 
-        List<({String heading, List<({IconData icon, String label})> items})>
-        sectionsForTier(CustomerTierQuota q) {
-          return switch (q.tier) {
-            AppTier.free => [
-              (
-                heading: 'Workspace & Journaling',
-                items: [
-                  (
-                    icon: Icons.edit_note_rounded,
-                    label: formatQuota(q.maxNotes, 'note', 'notes'),
-                  ),
-                  (
-                    icon: Icons.candlestick_chart_rounded,
-                    label: formatQuota(q.maxTrades, 'trade log', 'trade logs'),
-                  ),
-                  (
-                    icon: Icons.track_changes_rounded,
-                    label: formatQuota(
-                      q.maxLiveStrategies,
-                      'live strategy',
-                      'live strategies',
+          Future<void> handleSelectTier(AppTier tier) async {
+            if (processingTier != null) return;
+            final CustomerTierQuota q = CustomerTierQuota.forTier(tier);
+            final String cycle = isAnnual ? 'annual' : 'monthly';
+
+            // If user is not signed into Supabase (e.g. local/widget test mode),
+            // fall back to opening ChangePlanPage.
+            if (!SupabaseConfig.isConfigured ||
+                SupabaseConfig.client?.auth.currentUser == null) {
+              openChangePlanAfterClose = true;
+              Navigator.of(ctx).pop();
+              return;
+            }
+
+            if (tier == AppTier.free) {
+              setDialogState(() => processingTier = tier);
+              try {
+                await BillingSettingsRepositoryImpl().cancelSubscription(
+                  reason: 'Switched to Free from plan overlay',
+                );
+                if (ctx.mounted) Navigator.of(ctx).pop();
+                if (!context.mounted) return;
+                UiToast.show(
+                  context,
+                  title: 'Renewal stopped',
+                  message:
+                      'Your paid features remain active until the end of your current billing period.',
+                  intent: UiIntent.warning,
+                );
+              } catch (error) {
+                if (dialogCtx.mounted) {
+                  setDialogState(() => processingTier = null);
+                }
+                if (!context.mounted) return;
+                UiToast.show(
+                  context,
+                  title: 'Could not switch to Free',
+                  message: error.toString().replaceFirst('Bad state: ', ''),
+                  intent: UiIntent.warning,
+                );
+              }
+              return;
+            }
+
+            final String tierId = tier == AppTier.premium
+                ? 'tier_pro'
+                : 'tier_enterprise';
+            setDialogState(() => processingTier = tier);
+            try {
+              final billingRepo = BillingSettingsRepositoryImpl();
+              final checkoutSession = await billingRepo.startCheckout(
+                tierId,
+                cycle,
+              );
+              final String keyId =
+                  (checkoutSession.keyId != null &&
+                      checkoutSession.keyId!.isNotEmpty)
+                  ? checkoutSession.keyId!
+                  : EnvConfig.razorpayKeyId;
+
+              if (RazorpayWebCheckout.isSupported && keyId.isNotEmpty) {
+                final modalResult = await RazorpayWebCheckout.open(
+                  keyId: keyId,
+                  subscriptionId: checkoutSession.sessionId,
+                  planName: q.planName,
+                  billingCycle: cycle,
+                  userEmail: SupabaseConfig.client?.auth.currentUser?.email,
+                );
+                if (dialogCtx.mounted) {
+                  setDialogState(() => processingTier = null);
+                }
+                if (modalResult.isSuccess) {
+                  final verified = await billingRepo.verifyCheckout(
+                    subscriptionId:
+                        modalResult.subscriptionId ?? checkoutSession.sessionId,
+                    paymentId: modalResult.paymentId,
+                    signature: modalResult.signature,
+                  );
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                  if (!context.mounted) return;
+                  UiToast.show(
+                    context,
+                    title: verified ? 'Subscription Active' : 'Payment Received',
+                    message: verified
+                        ? 'You are now on ${q.planName} (${isAnnual ? 'Annual' : 'Monthly'}).'
+                        : 'Your payment is being confirmed by Razorpay.',
+                    intent: UiIntent.success,
+                  );
+                  return;
+                }
+                if (modalResult.isFailed) {
+                  if (!context.mounted) return;
+                  UiToast.show(
+                    context,
+                    title: 'Payment failed',
+                    message:
+                        modalResult.errorMessage ??
+                        'Payment could not be completed. Returned to AlphaJournal.',
+                    intent: UiIntent.danger,
+                  );
+                  return;
+                }
+                if (modalResult.isCancelled) {
+                  if (!context.mounted) return;
+                  UiToast.show(
+                    context,
+                    title: 'Checkout cancelled',
+                    message:
+                        'Returned to AlphaJournal without charging your account.',
+                    intent: UiIntent.info,
+                  );
+                  return;
+                }
+              }
+
+              if (!await launchUrl(
+                Uri.parse(checkoutSession.url),
+                mode: LaunchMode.externalApplication,
+              )) {
+                throw StateError('Could not open Razorpay checkout.');
+              }
+              if (dialogCtx.mounted) {
+                setDialogState(() => processingTier = null);
+              }
+              if (ctx.mounted) Navigator.of(ctx).pop();
+              if (!context.mounted) return;
+              UiToast.show(
+                context,
+                title: 'Checkout opened',
+                message:
+                    'Your plan updates as soon as Razorpay confirms payment.',
+                intent: UiIntent.info,
+              );
+            } catch (error) {
+              if (dialogCtx.mounted) {
+                setDialogState(() => processingTier = null);
+              }
+              if (!context.mounted) return;
+              UiToast.show(
+                context,
+                title: 'Checkout unavailable',
+                message: error.toString().replaceFirst('Bad state: ', ''),
+                intent: UiIntent.warning,
+              );
+            }
+          }
+
+          List<({String heading, List<({IconData icon, String label})> items})>
+          sectionsForTier(CustomerTierQuota q) {
+            return switch (q.tier) {
+              AppTier.free => [
+                (
+                  heading: 'Workspace & Journaling',
+                  items: [
+                    (
+                      icon: Icons.edit_note_rounded,
+                      label: formatQuota(q.maxNotes, 'note', 'notes'),
                     ),
-                  ),
-                  (
-                    icon: Icons.bookmark_border_rounded,
-                    label: formatQuota(
-                      q.maxWatchlists,
-                      'watchlist',
-                      'watchlists',
+                    (
+                      icon: Icons.candlestick_chart_rounded,
+                      label: formatQuota(q.maxTrades, 'trade log', 'trade logs'),
                     ),
-                  ),
-                  (
-                    icon: Icons.notifications_none_rounded,
-                    label: formatQuota(q.maxAlerts, 'price alert', 'price alerts'),
-                  ),
-                ],
-              ),
-              (
-                heading: 'Community & Markets',
-                items: [
-                  (
-                    icon: Icons.forum_outlined,
-                    label:
-                        '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
-                  ),
-                  (
-                    icon: Icons.show_chart_rounded,
-                    label: 'Market previews & basic calculators',
-                  ),
-                ],
-              ),
-            ],
-            AppTier.premium => [
-              (
-                heading: 'Markets & Desk',
-                items: [
-                  (
-                    icon: Icons.candlestick_chart_rounded,
-                    label:
-                        '${formatQuota(q.maxNotes, 'note', 'notes')} & ${formatQuota(q.maxTrades, 'trade', 'trades')}',
-                  ),
-                  (
-                    icon: Icons.track_changes_rounded,
-                    label:
-                        '${formatQuota(q.maxLiveStrategies, 'strategy', 'strategies')} & ${formatQuota(q.maxWatchlists, 'watchlist', 'watchlists')}',
-                  ),
-                  (
-                    icon: Icons.insights_rounded,
-                    label: 'Full Market Intelligence & screeners',
-                  ),
-                  (
-                    icon: Icons.calculate_outlined,
-                    label: 'Advanced risk & position calculators',
-                  ),
-                  (
-                    icon: Icons.mail_outline_rounded,
-                    label: 'Direct messages & trader network',
-                  ),
-                ],
-              ),
-              (
-                heading: 'AI & Alerts',
-                items: [
-                  (
-                    icon: Icons.auto_awesome_rounded,
-                    label: '${q.maxAiQueriesPerMonth} AI Copilot queries / mo',
-                  ),
-                  (
-                    icon: Icons.notifications_active_outlined,
-                    label: formatQuota(q.maxAlerts, 'active alert', 'active alerts'),
-                  ),
-                  (
-                    icon: Icons.forum_outlined,
-                    label:
-                        '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
-                  ),
-                ],
-              ),
-            ],
-            AppTier.enterprise => [
-              (
-                heading: 'Institutional Desk',
-                items: [
-                  (
-                    icon: Icons.layers_outlined,
-                    label:
-                        '${formatQuota(q.maxNotes, 'note', 'notes')} & ${formatQuota(q.maxTrades, 'trade', 'trades')}',
-                  ),
-                  (
-                    icon: Icons.picture_as_pdf_outlined,
-                    label: 'CSV & PDF performance exports',
-                  ),
-                  (
-                    icon: Icons.science_outlined,
-                    label: 'Advanced strategy backtesting',
-                  ),
-                  (
-                    icon: Icons.query_stats_rounded,
-                    label: 'Deep expectancy & drawdown analytics',
-                  ),
-                ],
-              ),
-              (
-                heading: 'AI & Priority',
-                items: [
-                  (
-                    icon: Icons.bolt_rounded,
-                    label: '${q.maxAiQueriesPerMonth} AI Copilot queries / mo',
-                  ),
-                  (
-                    icon: Icons.notifications_active_rounded,
-                    label: formatQuota(q.maxAlerts, 'active alert', 'active alerts'),
-                  ),
-                  (
-                    icon: Icons.verified_outlined,
-                    label:
-                        '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
-                  ),
-                ],
-              ),
-            ],
-          };
-        }
-
-        Widget buildTierCard(AppTier tier) {
-          final CustomerTierQuota q = CustomerTierQuota.forTier(tier);
-          final bool selected = tier == activeTier;
-          final bool highlighted = tier == AppTier.premium;
-          final sections = sectionsForTier(q);
-
-          final String introLine = switch (tier) {
-            AppTier.free => 'Our introductory plan:',
-            AppTier.premium => 'Everything in Free, and:',
-            AppTier.enterprise => 'Everything in Basic, and:',
-          };
-
-          final String ctaLabel = selected
-              ? 'Current plan'
-              : (tier == AppTier.free
-                    ? 'Switch to Free'
-                    : 'Get ${q.planName}');
-
-          final String? badgeText = selected
-              ? 'Current plan'
-              : (highlighted
-                    ? 'Most popular'
-                    : (tier == AppTier.enterprise ? 'Full desk' : null));
-
-          final UiIntent badgeIntent = selected
-              ? UiIntent.success
-              : (highlighted ? UiIntent.primary : UiIntent.neutral);
-
-          return Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: selected || highlighted
-                  ? theme.colors.surfaceMuted.withValues(alpha: 0.55)
-                  : cardBg,
-              borderRadius: ctx.radius(theme.radii.lg),
-              border: Border.all(
-                color: selected
-                    ? theme.colors.success.withValues(alpha: 0.5)
-                    : (highlighted
-                          ? theme.colors.primary.withValues(alpha: 0.45)
-                          : cardBorder),
-                width: selected || highlighted ? 1.25 : theme.borders.hairline,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Text(
-                      q.planName,
-                      style: ctx.uiText.heading.copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: theme.colors.foreground,
+                    (
+                      icon: Icons.track_changes_rounded,
+                      label: formatQuota(
+                        q.maxLiveStrategies,
+                        'live strategy',
+                        'live strategies',
                       ),
                     ),
-                    const Spacer(),
-                    if (badgeText != null)
+                    (
+                      icon: Icons.bookmark_border_rounded,
+                      label: formatQuota(
+                        q.maxWatchlists,
+                        'watchlist',
+                        'watchlists',
+                      ),
+                    ),
+                    (
+                      icon: Icons.notifications_none_rounded,
+                      label: formatQuota(
+                        q.maxAlerts,
+                        'price alert',
+                        'price alerts',
+                      ),
+                    ),
+                  ],
+                ),
+                (
+                  heading: 'Community & Markets',
+                  items: [
+                    (
+                      icon: Icons.forum_outlined,
+                      label:
+                          '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+                    ),
+                    (
+                      icon: Icons.show_chart_rounded,
+                      label: 'Market previews & basic calculators',
+                    ),
+                  ],
+                ),
+              ],
+              AppTier.premium => [
+                (
+                  heading: 'Markets & Desk',
+                  items: [
+                    (
+                      icon: Icons.candlestick_chart_rounded,
+                      label:
+                          '${formatQuota(q.maxNotes, 'note', 'notes')} & ${formatQuota(q.maxTrades, 'trade', 'trades')}',
+                    ),
+                    (
+                      icon: Icons.track_changes_rounded,
+                      label:
+                          '${formatQuota(q.maxLiveStrategies, 'strategy', 'strategies')} & ${formatQuota(q.maxWatchlists, 'watchlist', 'watchlists')}',
+                    ),
+                    (
+                      icon: Icons.insights_rounded,
+                      label: 'Full Market Intelligence & screeners',
+                    ),
+                    (
+                      icon: Icons.calculate_outlined,
+                      label: 'Advanced risk & position calculators',
+                    ),
+                    (
+                      icon: Icons.mail_outline_rounded,
+                      label: 'Direct messages & trader network',
+                    ),
+                  ],
+                ),
+                (
+                  heading: 'AI & Alerts',
+                  items: [
+                    (
+                      icon: Icons.auto_awesome_rounded,
+                      label: '${q.maxAiQueriesPerMonth} AI Copilot queries / mo',
+                    ),
+                    (
+                      icon: Icons.notifications_active_outlined,
+                      label: formatQuota(
+                        q.maxAlerts,
+                        'active alert',
+                        'active alerts',
+                      ),
+                    ),
+                    (
+                      icon: Icons.forum_outlined,
+                      label:
+                          '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+                    ),
+                  ],
+                ),
+              ],
+              AppTier.enterprise => [
+                (
+                  heading: 'Institutional Desk',
+                  items: [
+                    (
+                      icon: Icons.layers_outlined,
+                      label:
+                          '${formatQuota(q.maxNotes, 'note', 'notes')} & ${formatQuota(q.maxTrades, 'trade', 'trades')}',
+                    ),
+                    (
+                      icon: Icons.picture_as_pdf_outlined,
+                      label: 'CSV & PDF performance exports',
+                    ),
+                    (
+                      icon: Icons.science_outlined,
+                      label: 'Advanced strategy backtesting',
+                    ),
+                    (
+                      icon: Icons.query_stats_rounded,
+                      label: 'Deep expectancy & drawdown analytics',
+                    ),
+                  ],
+                ),
+                (
+                  heading: 'AI & Priority',
+                  items: [
+                    (
+                      icon: Icons.bolt_rounded,
+                      label: '${q.maxAiQueriesPerMonth} AI Copilot queries / mo',
+                    ),
+                    (
+                      icon: Icons.notifications_active_rounded,
+                      label: formatQuota(
+                        q.maxAlerts,
+                        'active alert',
+                        'active alerts',
+                      ),
+                    ),
+                    (
+                      icon: Icons.verified_outlined,
+                      label:
+                          '${q.maxCommunityPostsPerDay} posts & ${q.maxCommunityCommentsPerDay} replies / day',
+                    ),
+                  ],
+                ),
+              ],
+            };
+          }
+
+          Widget buildCycleTogglePill({
+            required String label,
+            String? badge,
+            required bool selected,
+            required VoidCallback onTap,
+          }) {
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onTap,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: selected ? theme.colors.surface : Colors.transparent,
+                  borderRadius: dialogCtx.radius(theme.radii.pill),
+                  boxShadow: selected
+                      ? <BoxShadow>[
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.14),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      label,
+                      style: dialogCtx.uiText.bodyStrong.copyWith(
+                        fontSize: 12.5,
+                        color: selected
+                            ? theme.colors.foreground
+                            : theme.colors.foregroundMuted,
+                      ),
+                    ),
+                    if (badge != null) ...<Widget>[
+                      const SizedBox(width: 6),
                       UiBadge(
-                        label: badgeText,
-                        intent: badgeIntent,
+                        label: badge,
+                        intent: UiIntent.success,
                         variant: UiBadgeVariant.soft,
                         size: UiSize.xs,
                       ),
+                    ],
                   ],
                 ),
-                const SizedBox(height: 14),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: <Widget>[
-                    Text(
-                      q.monthlyPriceInr == 0
-                          ? '₹0'
-                          : formatInrAmount(q.monthlyPriceInr),
-                      style: ctx.uiText.display.copyWith(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.8,
-                        color: theme.colors.foreground,
+              ),
+            );
+          }
+
+          Widget buildTierCard(AppTier tier) {
+            final CustomerTierQuota q = CustomerTierQuota.forTier(tier);
+            final bool isSameTier = tier == activeTier;
+            final bool isCycleSwitch =
+                isSameTier &&
+                tier != AppTier.free &&
+                activeIsAnnual != isAnnual;
+            final bool selected = isSameTier && !isCycleSwitch;
+            final bool highlighted = tier == AppTier.premium;
+            final bool isProcessing = processingTier == tier;
+            final sections = sectionsForTier(q);
+
+            final int displayMonthlyInr = isAnnual
+                ? q.annualMonthlyPriceInr
+                : q.monthlyPriceInr;
+            final String billingCaption = q.monthlyPriceInr == 0
+                ? 'Free forever · No credit card required'
+                : (isAnnual
+                      ? '${formatInrAmount(q.annualTotalPriceInr)} billed annually · Save 20%'
+                      : 'Billed monthly · Cancel anytime');
+
+            final String introLine = switch (tier) {
+              AppTier.free => 'Our introductory plan:',
+              AppTier.premium => 'Everything in Free, and:',
+              AppTier.enterprise => 'Everything in Basic, and:',
+            };
+
+            final String ctaLabel = isProcessing
+                ? 'Starting checkout…'
+                : selected
+                ? 'Current plan'
+                : isCycleSwitch
+                ? 'Switch to ${isAnnual ? 'Annual' : 'Monthly'}'
+                : (tier == AppTier.free
+                      ? 'Switch to Free'
+                      : 'Get ${q.planName}');
+
+            final String? badgeText = isSameTier
+                ? 'Current plan'
+                : (highlighted
+                      ? 'Most popular'
+                      : (tier == AppTier.enterprise ? 'Full desk' : null));
+
+            final UiIntent badgeIntent = isSameTier
+                ? UiIntent.success
+                : (highlighted ? UiIntent.primary : UiIntent.neutral);
+
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isSameTier || highlighted
+                    ? theme.colors.surfaceMuted.withValues(alpha: 0.55)
+                    : cardBg,
+                borderRadius: dialogCtx.radius(theme.radii.lg),
+                border: Border.all(
+                  color: isSameTier
+                      ? theme.colors.success.withValues(alpha: 0.5)
+                      : (highlighted
+                            ? theme.colors.primary.withValues(alpha: 0.45)
+                            : cardBorder),
+                  width:
+                      isSameTier || highlighted ? 1.25 : theme.borders.hairline,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Text(
+                        q.planName,
+                        style: dialogCtx.uiText.heading.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colors.foreground,
+                        ),
                       ),
+                      const Spacer(),
+                      if (badgeText != null)
+                        UiBadge(
+                          label: badgeText,
+                          intent: badgeIntent,
+                          variant: UiBadgeVariant.soft,
+                          size: UiSize.xs,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: <Widget>[
+                      Text(
+                        displayMonthlyInr == 0
+                            ? '₹0'
+                            : formatInrAmount(displayMonthlyInr),
+                        style: dialogCtx.uiText.display.copyWith(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.8,
+                          color: theme.colors.foreground,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '/month',
+                        style: dialogCtx.uiText.caption.copyWith(
+                          fontSize: 12,
+                          color: theme.colors.foregroundSubtle,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    billingCaption,
+                    style: dialogCtx.uiText.caption.copyWith(
+                      fontSize: 11.5,
+                      color: isAnnual && q.monthlyPriceInr > 0
+                          ? theme.colors.bullish
+                          : theme.colors.foregroundSubtle,
+                      fontWeight: isAnnual && q.monthlyPriceInr > 0
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                     ),
-                    const SizedBox(width: 4),
+                  ),
+                  const SizedBox(height: 16),
+                  _OverlayPlanCtaButton(
+                    label: ctaLabel,
+                    selected: selected,
+                    highlighted: highlighted,
+                    loading: isProcessing,
+                    onTap: selected || processingTier != null
+                        ? null
+                        : () => handleSelectTier(tier),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    introLine,
+                    style: dialogCtx.uiText.caption.copyWith(
+                      fontSize: 12,
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  for (int s = 0; s < sections.length; s++) ...<Widget>[
+                    if (s > 0) const SizedBox(height: 14),
                     Text(
-                      '/month',
-                      style: ctx.uiText.caption.copyWith(
-                        fontSize: 12,
+                      sections[s].heading,
+                      style: dialogCtx.uiText.caption.copyWith(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
                         color: theme.colors.foregroundSubtle,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  height: 42,
-                  child: Material(
-                    color: selected
-                        ? theme.colors.surfaceMuted
-                        : (highlighted
-                              ? theme.colors.primary
-                              : theme.colors.surface),
-                    borderRadius: ctx.radius(theme.radii.pill),
-                    child: InkWell(
-                      onTap: selected
-                          ? null
-                          : () {
-                              openChangePlanAfterClose = true;
-                              Navigator.of(ctx).pop();
-                            },
-                      borderRadius: ctx.radius(theme.radii.pill),
-                      child: Container(
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          borderRadius: ctx.radius(theme.radii.pill),
-                          border: selected || highlighted
-                              ? null
-                              : Border.all(color: theme.colors.borderStrong),
-                        ),
-                        child: Text(
-                          ctaLabel,
-                          style: ctx.uiText.body.copyWith(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: selected
-                                ? theme.colors.foregroundSubtle
-                                : (highlighted
-                                      ? theme.colors.onPrimary
-                                      : theme.colors.foreground),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  introLine,
-                  style: ctx.uiText.caption.copyWith(
-                    fontSize: 12,
-                    color: theme.colors.foregroundMuted,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                for (int s = 0; s < sections.length; s++) ...<Widget>[
-                  if (s > 0) const SizedBox(height: 14),
-                  Text(
-                    sections[s].heading,
-                    style: ctx.uiText.caption.copyWith(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colors.foregroundSubtle,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Divider(height: 1, thickness: 1, color: dividerColor),
-                  const SizedBox(height: 10),
-                  for (final item in sections[s].items)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 9),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Padding(
-                            padding: const EdgeInsets.only(top: 1),
-                            child: Icon(
-                              item.icon,
-                              size: 15,
-                              color: theme.colors.foregroundMuted,
-                            ),
-                          ),
-                          const SizedBox(width: 9),
-                          Expanded(
-                            child: Text(
-                              item.label,
-                              style: ctx.uiText.caption.copyWith(
-                                fontSize: 12.5,
-                                color: theme.colors.foreground,
-                                height: 1.32,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ],
-            ),
-          );
-        }
-
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          insetPadding: EdgeInsets.symmetric(
-            horizontal: compact ? 12 : 24,
-            vertical: compact ? 16 : 24,
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 1000,
-              maxHeight: MediaQuery.sizeOf(ctx).height * 0.9,
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: modalBg,
-                borderRadius: ctx.radius(theme.radii.xl),
-                border: Border.all(color: theme.colors.border),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: theme.colors.overlay.withValues(alpha: 0.4),
-                    blurRadius: 36,
-                    offset: const Offset(0, 16),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  // Top header row
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      compact ? 16 : 24,
-                      compact ? 14 : 18,
-                      compact ? 12 : 16,
-                      compact ? 10 : 14,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Row(
+                    const SizedBox(height: 6),
+                    Divider(height: 1, thickness: 1, color: dividerColor),
+                    const SizedBox(height: 10),
+                    for (final item in sections[s].items)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 9),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colors.surfaceMuted,
-                                borderRadius: ctx.radius(theme.radii.pill),
-                                border: Border.all(color: cardBorder),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
-                                  Icon(
-                                    Icons.auto_awesome_rounded,
-                                    size: 14,
-                                    color: theme.colors.foreground,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'AlphaJournal',
-                                    style: ctx.uiText.caption.copyWith(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: theme.colors.foreground,
-                                    ),
-                                  ),
-                                ],
+                            Padding(
+                              padding: const EdgeInsets.only(top: 1),
+                              child: Icon(
+                                item.icon,
+                                size: 15,
+                                color: theme.colors.foregroundMuted,
                               ),
                             ),
-                            const Spacer(),
-                            IconButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              tooltip: 'Close',
-                              icon: Icon(
-                                Icons.close_rounded,
-                                size: 20,
-                                color: theme.colors.foregroundMuted,
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: Text(
+                                item.label,
+                                style: dialogCtx.uiText.caption.copyWith(
+                                  fontSize: 12.5,
+                                  color: theme.colors.foreground,
+                                  height: 1.32,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'One subscription. Access to everything.',
-                          textAlign: TextAlign.center,
-                          style: ctx.uiText.display.copyWith(
-                            fontSize: compact ? 20 : 26,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5,
-                            color: theme.colors.foreground,
+                      ),
+                  ],
+                ],
+              ),
+            );
+          }
+
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            insetPadding: EdgeInsets.symmetric(
+              horizontal: compact ? 12 : 24,
+              vertical: compact ? 16 : 24,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 1000,
+                maxHeight: MediaQuery.sizeOf(dialogCtx).height * 0.92,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: modalBg,
+                  borderRadius: dialogCtx.radius(theme.radii.xl),
+                  border: Border.all(color: theme.colors.border),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: theme.colors.overlay.withValues(alpha: 0.4),
+                      blurRadius: 36,
+                      offset: const Offset(0, 16),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // Top header row
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        compact ? 16 : 24,
+                        compact ? 14 : 18,
+                        compact ? 12 : 16,
+                        compact ? 10 : 14,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colors.surfaceMuted,
+                                  borderRadius: dialogCtx.radius(
+                                    theme.radii.pill,
+                                  ),
+                                  border: Border.all(color: cardBorder),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Icon(
+                                      Icons.auto_awesome_rounded,
+                                      size: 14,
+                                      color: theme.colors.foreground,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'AlphaJournal',
+                                      style: dialogCtx.uiText.caption.copyWith(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: theme.colors.foreground,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Spacer(),
+                              IconButton(
+                                onPressed: () => Navigator.of(ctx).pop(),
+                                tooltip: 'Close',
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  size: 20,
+                                  color: theme.colors.foregroundMuted,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        if (featureTitle.isNotEmpty || reason.isNotEmpty) ...<Widget>[
                           const SizedBox(height: 6),
                           Text(
-                            reason.isNotEmpty ? reason : featureTitle,
+                            'One subscription. Access to everything.',
                             textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: ctx.uiText.caption.copyWith(
-                              fontSize: 12.5,
-                              color: theme.colors.foregroundMuted,
+                            style: dialogCtx.uiText.display.copyWith(
+                              fontSize: compact ? 20 : 26,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.5,
+                              color: theme.colors.foreground,
+                            ),
+                          ),
+                          if (featureTitle.isNotEmpty ||
+                              reason.isNotEmpty) ...<Widget>[
+                            const SizedBox(height: 6),
+                            Text(
+                              reason.isNotEmpty ? reason : featureTitle,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: dialogCtx.uiText.caption.copyWith(
+                                fontSize: 12.5,
+                                color: theme.colors.foregroundMuted,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          // Monthly / Billed annually pill switcher
+                          Container(
+                            decoration: BoxDecoration(
+                              color: theme.colors.surfaceMuted.withValues(
+                                alpha: 0.65,
+                              ),
+                              borderRadius: dialogCtx.radius(theme.radii.pill),
+                              border: Border.all(
+                                color: cardBorder,
+                                width: theme.borders.hairline,
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(3),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                buildCycleTogglePill(
+                                  label: 'Monthly',
+                                  selected: !isAnnual,
+                                  onTap: () =>
+                                      setDialogState(() => isAnnual = false),
+                                ),
+                                buildCycleTogglePill(
+                                  label: 'Billed annually',
+                                  badge: 'Save 20%',
+                                  selected: isAnnual,
+                                  onTap: () =>
+                                      setDialogState(() => isAnnual = true),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-
-                  // Scrollable cards body
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                        compact ? 14 : 24,
-                        4,
-                        compact ? 14 : 24,
-                        16,
                       ),
-                      child: compact
-                          ? Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: <Widget>[
-                                for (int i = 0; i < AppTier.values.length; i++) ...<Widget>[
-                                  if (i > 0) const SizedBox(height: 12),
-                                  buildTierCard(AppTier.values[i]),
-                                ],
-                              ],
-                            )
-                          : IntrinsicHeight(
-                              child: Row(
+                    ),
+
+                    // Scrollable cards body
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(
+                          compact ? 14 : 24,
+                          4,
+                          compact ? 14 : 24,
+                          16,
+                        ),
+                        child: compact
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: <Widget>[
-                                  for (int i = 0; i < AppTier.values.length; i++) ...<Widget>[
-                                    if (i > 0) const SizedBox(width: 14),
-                                    Expanded(
-                                      child: buildTierCard(AppTier.values[i]),
-                                    ),
+                                  for (
+                                    int i = 0;
+                                    i < AppTier.values.length;
+                                    i++
+                                  ) ...<Widget>[
+                                    if (i > 0) const SizedBox(height: 12),
+                                    buildTierCard(AppTier.values[i]),
                                   ],
                                 ],
+                              )
+                            : IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: <Widget>[
+                                    for (
+                                      int i = 0;
+                                      i < AppTier.values.length;
+                                      i++
+                                    ) ...<Widget>[
+                                      if (i > 0) const SizedBox(width: 14),
+                                      Expanded(
+                                        child: buildTierCard(AppTier.values[i]),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
-                            ),
-                    ),
-                  ),
-
-                  // Subtle footer note
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      compact ? 16 : 24,
-                      0,
-                      compact ? 16 : 24,
-                      14,
-                    ),
-                    child: Text(
-                      'Prices shown in INR. Cancel or change your plan anytime from Settings → Billing.',
-                      textAlign: TextAlign.center,
-                      style: ctx.uiText.caption.copyWith(
-                        fontSize: 11,
-                        color: theme.colors.foregroundSubtle,
                       ),
                     ),
-                  ),
-                ],
+
+                    // Subtle footer note
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        compact ? 16 : 24,
+                        0,
+                        compact ? 16 : 24,
+                        14,
+                      ),
+                      child: Text(
+                        'Prices shown in INR inclusive of 18% GST. Cancel or change your plan anytime from Settings → Billing.',
+                        textAlign: TextAlign.center,
+                        style: dialogCtx.uiText.caption.copyWith(
+                          fontSize: 11,
+                          color: theme.colors.foregroundSubtle,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
 
     if (openChangePlanAfterClose && context.mounted) {
@@ -1340,6 +1620,91 @@ class CustomerLimitations {
         MaterialPageRoute<void>(builder: (_) => const ChangePlanPage()),
       );
     }
+  }
+}
+
+class _OverlayPlanCtaButton extends StatefulWidget {
+  const _OverlayPlanCtaButton({
+    required this.label,
+    required this.selected,
+    required this.highlighted,
+    required this.onTap,
+    this.loading = false,
+  });
+
+  final String label;
+  final bool selected;
+  final bool highlighted;
+  final VoidCallback? onTap;
+  final bool loading;
+
+  @override
+  State<_OverlayPlanCtaButton> createState() => _OverlayPlanCtaButtonState();
+}
+
+class _OverlayPlanCtaButtonState extends State<_OverlayPlanCtaButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final bool enabled = widget.onTap != null && !widget.selected;
+
+    // Highlighted (white button in dark mode) keeps a bright white/off-white
+    // background on hover so dark text (onPrimary) never turns black-on-black.
+    final Color bgColor = widget.selected
+        ? theme.colors.surfaceMuted
+        : widget.highlighted
+        ? (_hovered && enabled
+              ? Color.lerp(
+                  theme.colors.primary,
+                  const Color(0xFFD6DCE8),
+                  0.22,
+                )!
+              : theme.colors.primary)
+        : (_hovered && enabled
+              ? theme.colors.surfaceHover
+              : theme.colors.surface);
+
+    final Color textColor = widget.selected
+        ? theme.colors.foregroundSubtle
+        : (widget.highlighted
+              ? theme.colors.onPrimary
+              : theme.colors.foreground);
+
+    return MouseRegion(
+      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? widget.onTap : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: context.radius(theme.radii.pill),
+            border: widget.selected || widget.highlighted
+                ? null
+                : Border.all(
+                    color: _hovered && enabled
+                        ? theme.colors.foregroundMuted
+                        : theme.colors.borderStrong,
+                  ),
+          ),
+          child: Text(
+            widget.label,
+            style: context.uiText.body.copyWith(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1355,6 +1720,7 @@ class CustomerLimitationsBanner extends StatefulWidget {
     this.alertCount = 0,
     this.communityPostsToday = 0,
     this.communityCommentsToday = 0,
+    this.showFeatureCards = false,
   });
 
   final int noteCount;
@@ -1364,6 +1730,7 @@ class CustomerLimitationsBanner extends StatefulWidget {
   final int alertCount;
   final int communityPostsToday;
   final int communityCommentsToday;
+  final bool showFeatureCards;
 
   @override
   State<CustomerLimitationsBanner> createState() =>
@@ -1554,7 +1921,7 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                                 context,
                                 featureTitle: 'Customer Plan & Limits (INR)',
                                 reason:
-                                    'Manage your AlphaJournal subscription tier and workspace quotas in Indian Rupees (₹). Monthly subscriptions for Basic and Pro are disabled for now.',
+                                    'Manage your AlphaJournal subscription tier and workspace quotas in Indian Rupees (₹). Switch between monthly and annual billing anytime.',
                               ),
                         ),
                     ],
@@ -1712,398 +2079,393 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                         columns: context.uiRes.isMobile ? 2 : 4,
                         density: UiDensity.comfortable,
                       ),
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          context.sp(theme.spacing.md),
-                          context.sp(theme.spacing.sm),
-                          context.sp(theme.spacing.md),
-                          context.sp(theme.spacing.md),
+                    ],
+                  ),
+                ),
+                if (widget.showFeatureCards) ...<Widget>[
+                  SizedBox(height: context.sp(theme.spacing.md)),
+                  Builder(
+                    builder: (BuildContext ctx) {
+                      final bool stacked = ctx.uiRes.isMobile;
+                      final List<
+                        ({IconData icon, String title, String desc})
+                      >
+                      includedItems = [
+                        (
+                          icon: Icons.edit_note_rounded,
+                          title: 'Writing Desk & Journal',
+                          desc:
+                              '${_accountUsage?.notesLimit ?? quota.maxNotes} notes · ${_accountUsage?.tradesLimit ?? quota.maxTrades} trades · ${_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies} live strategy',
                         ),
-                        child: Builder(
-                          builder: (BuildContext ctx) {
-                            final bool stacked = ctx.uiRes.isMobile;
-                            final List<
-                              ({IconData icon, String title, String desc})
-                            >
-                            includedItems = [
-                              (
-                                icon: Icons.edit_note_rounded,
-                                title: 'Writing Desk & Journal',
-                                desc:
-                                    '${_accountUsage?.notesLimit ?? quota.maxNotes} notes · ${_accountUsage?.tradesLimit ?? quota.maxTrades} trades · ${_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies} live strategy',
-                              ),
-                              (
-                                icon: Icons.forum_outlined,
-                                title: 'Community Feed & Posts',
-                                desc:
-                                    '$postsLimit posts & $commentsLimit replies per day',
-                              ),
-                              (
-                                icon: Icons.bookmark_border_rounded,
-                                title: 'Watchlists & Alerts',
-                                desc:
-                                    '$watchlistsLimit ${watchlistsLimit == 1 ? 'watchlist' : 'watchlists'} · $alertsLimit price alerts',
-                              ),
-                              (
-                                icon: Icons.auto_awesome_rounded,
-                                title: 'AI Copilot Workspace',
-                                desc: '$aiLimit AI queries / month',
-                              ),
-                              (
-                                icon: Icons.show_chart_rounded,
-                                title: tier == AppTier.free
-                                    ? 'Market Previews & Calculators'
-                                    : 'Full Market Intelligence',
-                                desc: tier == AppTier.free
-                                    ? 'Live previews & core sizing calculators'
-                                    : 'Screeners, watchlists & advanced calculators',
-                              ),
-                              if (tier != AppTier.free)
-                                (
-                                  icon: Icons.mail_outline_rounded,
-                                  title: 'Private Messages (E2EE)',
-                                  desc: 'Encrypted direct trader conversations',
-                                ),
-                              if (pdfUnlocked)
-                                (
-                                  icon: Icons.picture_as_pdf_outlined,
-                                  title: 'PDF & CSV Exports',
-                                  desc: 'Export full reports & trade logs',
-                                ),
-                              if (backtestUnlocked)
-                                (
-                                  icon: Icons.science_outlined,
-                                  title: 'Advanced Backtesting',
-                                  desc: 'Multi-session playbook simulations',
-                                ),
-                            ];
+                        (
+                          icon: Icons.forum_outlined,
+                          title: 'Community Feed & Posts',
+                          desc:
+                              '$postsLimit posts & $commentsLimit replies per day',
+                        ),
+                        (
+                          icon: Icons.bookmark_border_rounded,
+                          title: 'Watchlists & Alerts',
+                          desc:
+                              '$watchlistsLimit ${watchlistsLimit == 1 ? 'watchlist' : 'watchlists'} · $alertsLimit price alerts',
+                        ),
+                        (
+                          icon: Icons.auto_awesome_rounded,
+                          title: 'AI Copilot Workspace',
+                          desc: '$aiLimit AI queries / month',
+                        ),
+                        (
+                          icon: Icons.show_chart_rounded,
+                          title: tier == AppTier.free
+                              ? 'Market Previews & Calculators'
+                              : 'Full Market Intelligence',
+                          desc: tier == AppTier.free
+                              ? 'Live previews & core sizing calculators'
+                              : 'Screeners, watchlists & advanced calculators',
+                        ),
+                        if (tier != AppTier.free)
+                          (
+                            icon: Icons.mail_outline_rounded,
+                            title: 'Private Messages (E2EE)',
+                            desc: 'Encrypted direct trader conversations',
+                          ),
+                        if (pdfUnlocked)
+                          (
+                            icon: Icons.picture_as_pdf_outlined,
+                            title: 'PDF & CSV Exports',
+                            desc: 'Export full reports & trade logs',
+                          ),
+                        if (backtestUnlocked)
+                          (
+                            icon: Icons.science_outlined,
+                            title: 'Advanced Backtesting',
+                            desc: 'Multi-session playbook simulations',
+                          ),
+                      ];
 
-                            final List<
-                              ({
-                                IconData icon,
-                                String title,
-                                String desc,
-                                String badge,
-                              })
-                            >
-                            upgradeItems = [
-                              if (tier == AppTier.free) ...[
-                                (
-                                  icon: Icons.insights_rounded,
-                                  title: 'Full Market Intelligence',
-                                  desc:
-                                      'Deep screeners, sector flow & full watchlists',
-                                  badge: 'Basic+',
-                                ),
-                                (
-                                  icon: Icons.mail_outline_rounded,
-                                  title: 'Private Messages (E2EE)',
-                                  desc: 'Encrypted 1-on-1 trader messaging',
-                                  badge: 'Basic+',
-                                ),
-                                (
-                                  icon: Icons.calculate_outlined,
-                                  title: 'Advanced Calculators',
-                                  desc:
-                                      'Expectancy, Kelly & multi-leg risk tools',
-                                  badge: 'Basic+',
-                                ),
-                              ],
-                              if (!pdfUnlocked)
-                                (
-                                  icon: Icons.picture_as_pdf_outlined,
-                                  title: 'PDF & CSV Exports',
-                                  desc:
-                                      'Download tax-ready & audit-ready exports',
-                                  badge: 'Pro',
-                                ),
-                              if (!backtestUnlocked)
-                                (
-                                  icon: Icons.science_outlined,
-                                  title: 'Advanced Backtesting',
-                                  desc:
-                                      'Deep historical expectancy & drawdown stats',
-                                  badge: 'Pro',
-                                ),
-                            ];
+                      final List<
+                        ({
+                          IconData icon,
+                          String title,
+                          String desc,
+                          String badge,
+                        })
+                      >
+                      upgradeItems = [
+                        if (tier == AppTier.free) ...[
+                          (
+                            icon: Icons.insights_rounded,
+                            title: 'Full Market Intelligence',
+                            desc:
+                                'Deep screeners, sector flow & full watchlists',
+                            badge: 'Basic+',
+                          ),
+                          (
+                            icon: Icons.mail_outline_rounded,
+                            title: 'Private Messages (E2EE)',
+                            desc: 'Encrypted 1-on-1 trader messaging',
+                            badge: 'Basic+',
+                          ),
+                          (
+                            icon: Icons.calculate_outlined,
+                            title: 'Advanced Calculators',
+                            desc:
+                                'Expectancy, Kelly & multi-leg risk tools',
+                            badge: 'Basic+',
+                          ),
+                        ],
+                        if (!pdfUnlocked)
+                          (
+                            icon: Icons.picture_as_pdf_outlined,
+                            title: 'PDF & CSV Exports',
+                            desc:
+                                'Download tax-ready & audit-ready exports',
+                            badge: 'Pro',
+                          ),
+                        if (!backtestUnlocked)
+                          (
+                            icon: Icons.science_outlined,
+                            title: 'Advanced Backtesting',
+                            desc:
+                                'Deep historical expectancy & drawdown stats',
+                            badge: 'Pro',
+                          ),
+                      ];
 
-                            Widget buildListCard({
-                              required String heading,
-                              required Widget child,
-                              Widget? trailing,
-                            }) {
-                              return Container(
-                                padding: EdgeInsets.all(
-                                  ctx.sp(theme.spacing.sm) + 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: theme.colors.surfaceMuted.withValues(
-                                    alpha: 0.32,
-                                  ),
-                                  borderRadius: ctx.radius(theme.radii.md),
-                                  border: Border.all(
-                                    color: theme.colors.border,
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    Row(
-                                      children: <Widget>[
-                                        Text(
-                                          heading,
-                                          style: ctx.uiText.caption.copyWith(
-                                            fontSize: ctx.fs(10.5),
-                                            letterSpacing: 0.7,
-                                            fontWeight: FontWeight.w700,
-                                            color:
-                                                theme.colors.foregroundSubtle,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        ?trailing,
-                                      ],
-                                    ),
-                                    SizedBox(height: ctx.sp(theme.spacing.xs)),
-                                    const UiDivider(spacing: 0),
-                                    SizedBox(height: ctx.sp(theme.spacing.xs)),
-                                    child,
-                                  ],
-                                ),
-                              );
-                            }
-
-                            final Widget includedCard = buildListCard(
-                              heading:
-                                  'INCLUDED IN ${quota.planName.toUpperCase()}',
-                              trailing: UiBadge(
-                                label: '${includedItems.length} active',
-                                intent: UiIntent.success,
-                                variant: UiBadgeVariant.soft,
-                                size: UiSize.xs,
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
+                      Widget buildListCard({
+                        required String heading,
+                        required Widget child,
+                        Widget? trailing,
+                      }) {
+                        return Container(
+                          padding: EdgeInsets.all(
+                            ctx.sp(theme.spacing.sm) + 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colors.surfaceMuted.withValues(
+                              alpha: 0.32,
+                            ),
+                            borderRadius: ctx.radius(theme.radii.md),
+                            border: Border.all(
+                              color: theme.colors.border,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Row(
                                 children: <Widget>[
-                                  for (int i = 0; i < includedItems.length; i++)
-                                    Padding(
-                                      padding: EdgeInsets.only(
-                                        bottom: i == includedItems.length - 1
-                                            ? 0
-                                            : 9,
+                                  Text(
+                                    heading,
+                                    style: ctx.uiText.caption.copyWith(
+                                      fontSize: ctx.fs(10.5),
+                                      letterSpacing: 0.7,
+                                      fontWeight: FontWeight.w700,
+                                      color:
+                                          theme.colors.foregroundSubtle,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  ?trailing,
+                                ],
+                              ),
+                              SizedBox(height: ctx.sp(theme.spacing.xs)),
+                              const UiDivider(spacing: 0),
+                              SizedBox(height: ctx.sp(theme.spacing.xs)),
+                              child,
+                            ],
+                          ),
+                        );
+                      }
+
+                      final Widget includedCard = buildListCard(
+                        heading:
+                            'INCLUDED IN ${quota.planName.toUpperCase()}',
+                        trailing: UiBadge(
+                          label: '${includedItems.length} active',
+                          intent: UiIntent.success,
+                          variant: UiBadgeVariant.soft,
+                          size: UiSize.xs,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            for (int i = 0; i < includedItems.length; i++)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: i == includedItems.length - 1
+                                      ? 0
+                                      : 9,
+                                ),
+                                child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Container(
+                                      width: 26,
+                                      height: 26,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: theme.colors.success
+                                            .withValues(alpha: 0.12),
+                                        borderRadius: ctx.radius(
+                                          theme.radii.sm,
+                                        ),
                                       ),
-                                      child: Row(
+                                      child: Icon(
+                                        includedItems[i].icon,
+                                        size: 14,
+                                        color: theme.colors.success,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: <Widget>[
-                                          Container(
-                                            width: 26,
-                                            height: 26,
-                                            alignment: Alignment.center,
-                                            decoration: BoxDecoration(
-                                              color: theme.colors.success
-                                                  .withValues(alpha: 0.12),
-                                              borderRadius: ctx.radius(
-                                                theme.radii.sm,
-                                              ),
-                                            ),
-                                            child: Icon(
-                                              includedItems[i].icon,
-                                              size: 14,
-                                              color: theme.colors.success,
-                                            ),
+                                          Text(
+                                            includedItems[i].title,
+                                            style: ctx.uiText.caption
+                                                .copyWith(
+                                                  fontSize: 12.5,
+                                                  fontWeight:
+                                                      FontWeight.w600,
+                                                  color: theme
+                                                      .colors
+                                                      .foreground,
+                                                ),
                                           ),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: <Widget>[
-                                                Text(
-                                                  includedItems[i].title,
-                                                  style: ctx.uiText.caption
-                                                      .copyWith(
-                                                        fontSize: 12.5,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color: theme
-                                                            .colors
-                                                            .foreground,
-                                                      ),
+                                          Text(
+                                            includedItems[i].desc,
+                                            style: ctx.uiText.caption
+                                                .copyWith(
+                                                  fontSize: 11,
+                                                  color: theme
+                                                      .colors
+                                                      .foregroundMuted,
                                                 ),
-                                                Text(
-                                                  includedItems[i].desc,
-                                                  style: ctx.uiText.caption
-                                                      .copyWith(
-                                                        fontSize: 11,
-                                                        color: theme
-                                                            .colors
-                                                            .foregroundMuted,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                ],
-                              ),
-                            );
-
-                            if (upgradeItems.isEmpty) {
-                              return includedCard;
-                            }
-
-                            final Widget upgradeCard = buildListCard(
-                              heading: 'UNLOCK WITH UPGRADE',
-                              trailing: InkWell(
-                                borderRadius: ctx.radius(theme.radii.sm),
-                                onTap: () =>
-                                    CustomerLimitations.showPlanUpgradeDialog(
-                                      ctx,
-                                      featureTitle: 'Upgrade Plan',
-                                      reason:
-                                          'Compare Free, Basic, and Pro features.',
-                                    ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                  child: Text(
-                                    'View plans →',
-                                    style: ctx.uiText.caption.copyWith(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: theme.colors.primary,
-                                    ),
-                                  ),
+                                  ],
                                 ),
                               ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
-                                  for (int i = 0; i < upgradeItems.length; i++)
-                                    Padding(
-                                      padding: EdgeInsets.only(
-                                        bottom: i == upgradeItems.length - 1
-                                            ? 0
-                                            : 9,
+                          ],
+                        ),
+                      );
+
+                      if (upgradeItems.isEmpty) {
+                        return includedCard;
+                      }
+
+                      final Widget upgradeCard = buildListCard(
+                        heading: 'UNLOCK WITH UPGRADE',
+                        trailing: InkWell(
+                          borderRadius: ctx.radius(theme.radii.sm),
+                          onTap: () =>
+                              CustomerLimitations.showPlanUpgradeDialog(
+                                ctx,
+                                featureTitle: 'Upgrade Plan',
+                                reason:
+                                    'Compare Free, Basic, and Pro features.',
+                              ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
+                            child: Text(
+                              'View plans →',
+                              style: ctx.uiText.caption.copyWith(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: theme.colors.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            for (int i = 0; i < upgradeItems.length; i++)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: i == upgradeItems.length - 1
+                                      ? 0
+                                      : 9,
+                                ),
+                                child: InkWell(
+                                  borderRadius: ctx.radius(
+                                    theme.radii.sm,
+                                  ),
+                                  onTap: () =>
+                                      CustomerLimitations.showPlanUpgradeDialog(
+                                        ctx,
+                                        featureTitle:
+                                            upgradeItems[i].title,
+                                        reason: upgradeItems[i].desc,
                                       ),
-                                      child: InkWell(
-                                        borderRadius: ctx.radius(
-                                          theme.radii.sm,
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Container(
+                                        width: 26,
+                                        height: 26,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: theme.colors.surface,
+                                          borderRadius: ctx.radius(
+                                            theme.radii.sm,
+                                          ),
+                                          border: Border.all(
+                                            color: theme.colors.border,
+                                          ),
                                         ),
-                                        onTap: () =>
-                                            CustomerLimitations.showPlanUpgradeDialog(
-                                              ctx,
-                                              featureTitle:
-                                                  upgradeItems[i].title,
-                                              reason: upgradeItems[i].desc,
-                                            ),
-                                        child: Row(
+                                        child: Icon(
+                                          upgradeItems[i].icon,
+                                          size: 14,
+                                          color: theme
+                                              .colors
+                                              .foregroundMuted,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: <Widget>[
-                                            Container(
-                                              width: 26,
-                                              height: 26,
-                                              alignment: Alignment.center,
-                                              decoration: BoxDecoration(
-                                                color: theme.colors.surface,
-                                                borderRadius: ctx.radius(
-                                                  theme.radii.sm,
-                                                ),
-                                                border: Border.all(
-                                                  color: theme.colors.border,
-                                                ),
-                                              ),
-                                              child: Icon(
-                                                upgradeItems[i].icon,
-                                                size: 14,
-                                                color: theme
-                                                    .colors
-                                                    .foregroundMuted,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: <Widget>[
-                                                  Text(
-                                                    upgradeItems[i].title,
-                                                    style: ctx.uiText.caption
-                                                        .copyWith(
-                                                          fontSize: 12.5,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: theme
-                                                              .colors
-                                                              .foreground,
-                                                        ),
+                                            Text(
+                                              upgradeItems[i].title,
+                                              style: ctx.uiText.caption
+                                                  .copyWith(
+                                                    fontSize: 12.5,
+                                                    fontWeight:
+                                                        FontWeight.w600,
+                                                    color: theme
+                                                        .colors
+                                                        .foreground,
                                                   ),
-                                                  Text(
-                                                    upgradeItems[i].desc,
-                                                    style: ctx.uiText.caption
-                                                        .copyWith(
-                                                          fontSize: 11,
-                                                          color: theme
-                                                              .colors
-                                                              .foregroundMuted,
-                                                        ),
-                                                  ),
-                                                ],
-                                              ),
                                             ),
-                                            const SizedBox(width: 8),
-                                            UiBadge(
-                                              label: upgradeItems[i].badge,
-                                              icon: Icons.lock_outline_rounded,
-                                              intent:
-                                                  upgradeItems[i].badge == 'Pro'
-                                                  ? UiIntent.primary
-                                                  : UiIntent.neutral,
-                                              variant: UiBadgeVariant.soft,
-                                              size: UiSize.xs,
+                                            Text(
+                                              upgradeItems[i].desc,
+                                              style: ctx.uiText.caption
+                                                  .copyWith(
+                                                    fontSize: 11,
+                                                    color: theme
+                                                        .colors
+                                                        .foregroundMuted,
+                                                  ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                    ),
-                                ],
+                                      const SizedBox(width: 8),
+                                      UiBadge(
+                                        label: upgradeItems[i].badge,
+                                        icon: Icons.lock_outline_rounded,
+                                        intent:
+                                            upgradeItems[i].badge == 'Pro'
+                                            ? UiIntent.primary
+                                            : UiIntent.neutral,
+                                        variant: UiBadgeVariant.soft,
+                                        size: UiSize.xs,
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            );
-
-                            if (stacked) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: <Widget>[
-                                  includedCard,
-                                  SizedBox(height: ctx.sp(theme.spacing.sm)),
-                                  upgradeCard,
-                                ],
-                              );
-                            }
-                            return IntrinsicHeight(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: <Widget>[
-                                  Expanded(child: includedCard),
-                                  SizedBox(width: ctx.sp(theme.spacing.sm)),
-                                  Expanded(child: upgradeCard),
-                                ],
-                              ),
-                            );
-                          },
+                          ],
                         ),
-                      ),
-                    ],
+                      );
+
+                      if (stacked) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            includedCard,
+                            SizedBox(height: ctx.sp(theme.spacing.sm)),
+                            upgradeCard,
+                          ],
+                        );
+                      }
+                      return IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            Expanded(child: includedCard),
+                            SizedBox(width: ctx.sp(theme.spacing.sm)),
+                            Expanded(child: upgradeCard),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                ),
+                ],
               ],
             );
           },
