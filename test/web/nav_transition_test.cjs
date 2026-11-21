@@ -97,6 +97,9 @@ function createFakeDom({
         child.parentNode = null;
         return child;
       },
+      append(...nodes) {
+        for (const n of nodes) node.appendChild(n);
+      },
       replaceChildren(...nodes) {
         children.length = 0;
         for (const n of nodes) node.appendChild(n);
@@ -737,11 +740,59 @@ test('clicking Community renders full Trader sidebar with expanded Community sub
   );
 });
 
-test('production subdomain navigation keeps a plain cover over Flutter until the destination paints', () => {
+test('resolveSplashBrand maps root domain to AlphaJournal and subdomains to uppercase subdomain text', () => {
+  const { api } = createFakeDom();
+  assert.deepEqual({ ...api.resolveSplashBrand('alphajournal.in') }, {
+    word: 'ALPHAJOURNAL',
+    ariaLabel: 'AlphaJournal',
+    subtitle: 'Intelligent market execution',
+    isSubdomain: false,
+  });
+  assert.deepEqual({ ...api.resolveSplashBrand('www.alphajournal.in') }, {
+    word: 'ALPHAJOURNAL',
+    ariaLabel: 'AlphaJournal',
+    subtitle: 'Intelligent market execution',
+    isSubdomain: false,
+  });
+  assert.deepEqual({ ...api.resolveSplashBrand('localhost') }, {
+    word: 'ALPHAJOURNAL',
+    ariaLabel: 'AlphaJournal',
+    subtitle: 'Intelligent market execution',
+    isSubdomain: false,
+  });
+  assert.deepEqual({ ...api.resolveSplashBrand('app.alphajournal.in') }, {
+    word: 'APP',
+    ariaLabel: 'AlphaJournal App',
+    subtitle: 'AlphaJournal',
+    isSubdomain: true,
+  });
+  assert.deepEqual({ ...api.resolveSplashBrand('community.alphajournal.in') }, {
+    word: 'COMMUNITY',
+    ariaLabel: 'AlphaJournal Community',
+    subtitle: 'AlphaJournal',
+    isSubdomain: true,
+  });
+  assert.deepEqual({ ...api.resolveSplashBrand('affiliate.alphajournal.in') }, {
+    word: 'AFFILIATE',
+    ariaLabel: 'AlphaJournal Affiliate',
+    subtitle: 'AlphaJournal',
+    isSubdomain: true,
+  });
+  assert.deepEqual({ ...api.resolveSplashBrand('admin.alphajournal.in') }, {
+    word: 'ADMIN',
+    ariaLabel: 'AlphaJournal Admin',
+    subtitle: 'AlphaJournal',
+    isSubdomain: true,
+  });
+});
+
+test('production subdomain navigation shows compact subdomain splash until the destination paints', () => {
   const html = fs.readFileSync(path.resolve(__dirname, '../../web/index.html'), 'utf8');
   const navigation = fs.readFileSync(path.resolve(__dirname, '../../lib/core/config/cross_subdomain_storage_web.dart'), 'utf8');
   assert.doesNotMatch(html, /\.mountIncoming\(/);
   assert.doesNotMatch(html, /html\.aj-silent-nav #splash-loader\s*\{[^}]*display:\s*none/);
+  assert.doesNotMatch(html, /html\.aj-silent-nav \.word\s*,?\s*[\r\n\s]*html\.aj-silent-nav \.soon\s*\{[^}]*display:\s*none/);
+  assert.match(html, /html\.aj-silent-nav #splash-loader\s*\{[^}]*--h:/);
   assert.doesNotMatch(navigation, /startOutgoing\(|_showOutgoingNavigationVeil/);
   assert.match(navigation, /web\.window\.location\.assign\(url\)/);
   assert.match(navigation, /ax_silent_nav/);
@@ -754,8 +805,17 @@ test('production subdomain navigation keeps a plain cover over Flutter until the
   const splash = document.createElement('div');
   splash.id = 'splash-loader';
   splash.remove = () => document.body.removeChild(splash);
+  const word = document.createElement('h1');
+  word.id = 'word';
+  word.textContent = 'ALPHAJOURNAL';
+  const soon = document.createElement('p');
+  soon.id = 'soon';
+  soon.textContent = 'Intelligent market execution';
+  splash.appendChild(word);
+  splash.appendChild(soon);
   document.body.appendChild(splash);
   const frames = [];
+  const timers = [];
   const clearedTimers = [];
   const recoveryFlags = new Set(['aj_startup_reload_v1', 'aj_flutter_worker_cleanup_v1']);
   const [, startup] = html.match(/<script>\s*(\(function\(\) \{[\s\S]*?)<\/script>/);
@@ -763,12 +823,21 @@ test('production subdomain navigation keeps a plain cover over Flutter until the
     window,
     document,
     sessionStorage: { removeItem: (name) => recoveryFlags.delete(name) },
-    setTimeout: () => 1,
+    setTimeout: (cb, ms) => {
+      const id = timers.length + 1;
+      timers.push({ id, cb, ms });
+      return id;
+    },
     clearTimeout: (timer) => clearedTimers.push(timer),
     requestAnimationFrame: (callback) => frames.push(callback),
   });
 
+  // Subdomain splash displays COMMUNITY + AlphaJournal instead of ALPHAJOURNAL.
+  assert.equal(word.getAttribute('aria-label'), 'AlphaJournal Community');
+  assert.equal(soon.textContent, 'AlphaJournal');
+  assert.equal(word.children.length, 'COMMUNITY'.length);
   assert.equal(document.getElementById('splash-loader'), splash);
+
   window.alphajournalReady();
   window.alphajournalReady();
   assert.deepEqual(clearedTimers, [1]);
@@ -777,5 +846,9 @@ test('production subdomain navigation keeps a plain cover over Flutter until the
   frames.shift()();
   assert.equal(document.getElementById('splash-loader'), splash);
   frames.shift()();
+  assert.equal(splash.style.opacity, '0');
+  const fadeTimer = timers[timers.length - 1];
+  assert.equal(fadeTimer.ms, 240);
+  fadeTimer.cb();
   assert.equal(document.getElementById('splash-loader'), null);
 });

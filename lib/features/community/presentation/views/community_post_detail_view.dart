@@ -272,13 +272,15 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
         final bool isMobile = widget.forceSingleColumn || availableWidth < 680;
 
         return Scaffold(
-          backgroundColor: Colors.transparent,
-          body: SafeArea(
-            bottom: false,
-            child: isDesktop
-                ? _buildDesktopLayout(theme, author, comments)
-                : _buildStandardLayout(theme, isMobile, author, comments),
-          ),
+          backgroundColor: widget.showHeader
+              ? theme.colors.background
+              : Colors.transparent,
+          body: isDesktop
+              ? SafeArea(
+                  bottom: false,
+                  child: _buildDesktopLayout(theme, author, comments),
+                )
+              : _buildStandardLayout(theme, isMobile, author, comments),
         );
       },
     );
@@ -746,6 +748,14 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     CommunityAuthor author,
     List<CommunityComment> comments,
   ) {
+    final EdgeInsets mediaPadding = MediaQuery.paddingOf(context);
+    final double safeTop = mediaPadding.top;
+    final double safeLeft = mediaPadding.left;
+    final double safeRight = mediaPadding.right;
+    final double safeBottom = mediaPadding.bottom;
+    final double hPad = context.sp(
+      isMobile ? theme.spacing.sm : theme.spacing.md,
+    );
     final double clearance = widget.showHeader
         ? (context.sz(44) +
               context.sp(theme.spacing.sm) +
@@ -756,7 +766,6 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
         : null;
     final bool hasVisibleDockShell =
         dockAncestor != null && dockAncestor.theme.height > 0;
-    final double safeBottom = MediaQuery.paddingOf(context).bottom;
     final bool keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     final double dockHeight = hasVisibleDockShell
         ? dockAncestor.theme.height
@@ -774,10 +783,11 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     return Stack(
       children: <Widget>[
         SingleChildScrollView(
+          key: const ValueKey<String>('community-post-detail-scroll'),
           padding: EdgeInsets.fromLTRB(
-            context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-            clearance,
-            context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            safeLeft + hPad,
+            safeTop + clearance,
+            safeRight + hPad,
             scrollBottomPadding,
           ),
           child: Align(
@@ -860,9 +870,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
         // Standalone views own a header; the app shell supplies it when embedded.
         if (widget.showHeader)
           Positioned(
-            top: context.sp(theme.spacing.xs),
-            left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-            right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            top: safeTop + context.sp(theme.spacing.xs),
+            left: safeLeft + hPad,
+            right: safeRight + hPad,
             child: Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
@@ -897,8 +907,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     ? Duration.zero
                     : Duration(milliseconds: dockHidden ? 220 : 260),
                 curve: dockHidden ? Curves.easeInCubic : Curves.easeOutCubic,
-                left: context.sp(theme.spacing.sm),
-                right: context.sp(theme.spacing.sm),
+                left: safeLeft + context.sp(theme.spacing.sm),
+                right: safeRight + context.sp(theme.spacing.sm),
                 bottom: bottomInset,
                 child: child!,
               );

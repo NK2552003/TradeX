@@ -898,4 +898,109 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'mobile post detail extends scroll viewport behind floating header and paints theme background standalone',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 44, bottom: 34);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPadding);
+      AppDockVisibility.hidden.value = false;
+      addTearDown(() => AppDockVisibility.hidden.value = false);
+
+      final repo = CommunityRepository();
+      final post = CommunityPost(
+        id: 'mobile-top-bleed-post',
+        author: repo.currentAuthor,
+        body: List<String>.filled(
+          16,
+          'Post content that should scroll smoothly behind the floating header.',
+        ).join('\n\n'),
+        createdAt: DateTime(2026, 11, 21),
+      );
+      const navItems = <AppNavItem>[
+        AppNavItem(
+          id: 'community_feed',
+          label: 'Feed',
+          icon: Icons.dynamic_feed_outlined,
+        ),
+        AppNavItem(
+          id: 'community_explore',
+          label: 'Explore',
+          icon: Icons.explore_outlined,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        UiApp(
+          theme: UiTheme.light(),
+          builder: (_) => MaterialApp(
+            home: AppShell(
+              pageTitle: 'Post',
+              onBack: () {},
+              sections: const <AppNavSection>[
+                AppNavSection(title: 'Community', items: navItems),
+              ],
+              mobilePrimaryItems: navItems,
+              selectedId: 'community_feed',
+              onSelect: (_) {},
+              child: CommunityPostDetailView(
+                post: post,
+                repository: repo,
+                currentUser: repo.currentAuthor,
+                showHeader: false,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Finder scrollFinder = find.byKey(
+        const ValueKey<String>('community-post-detail-scroll'),
+      );
+      expect(scrollFinder, findsOneWidget);
+
+      // The scroll viewport extends to y == 0 so content scrolls cleanly behind
+      // the floating frosted-glass AppTopBar instead of clipping at a black band.
+      final Rect scrollRect = tester.getRect(scrollFinder);
+      expect(scrollRect.top, closeTo(0.0, 0.5));
+
+      final SingleChildScrollView scrollWidget = tester
+          .widget<SingleChildScrollView>(scrollFinder);
+      final EdgeInsets scrollPadding = scrollWidget.padding! as EdgeInsets;
+      // Top padding inside the scroll view clears status bar + floating header.
+      expect(scrollPadding.top, greaterThanOrEqualTo(94.0));
+
+      // Standalone (showHeader: true) paints theme.colors.background rather than
+      // Colors.transparent over the root black canvas.
+      final UiTheme lightTheme = UiTheme.light();
+      await tester.pumpWidget(
+        UiApp(
+          theme: lightTheme,
+          builder: (_) => MaterialApp(
+            home: CommunityPostDetailView(
+              post: post,
+              repository: repo,
+              currentUser: repo.currentAuthor,
+              showHeader: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Scaffold standaloneScaffold = tester.widget<Scaffold>(
+        find.descendant(
+          of: find.byType(CommunityPostDetailView),
+          matching: find.byType(Scaffold),
+        ),
+      );
+      expect(standaloneScaffold.backgroundColor, lightTheme.colors.background);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

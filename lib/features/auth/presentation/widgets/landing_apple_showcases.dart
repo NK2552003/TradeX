@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
 import 'package:alphajournal/core/data/demo_data_source.dart';
@@ -15,25 +16,9 @@ import 'package:alphajournal/features/settings/presentation/widgets/settings_sid
 final DemoDataSource _demo = DemoDataSource.instance;
 final List<AppPost> _posts = _demo.posts(limit: 5);
 final List<AppTicker> _tickers = _demo.tickers();
-final List<AppStrategy> _strategies = _demo.strategies().take(3).toList();
 final List<AppNewsItem> _news = _demo.news(limit: 4);
 final List<AppAiInsight> _insights = _demo.insights(limit: 3);
 final List<AppNote> _notes = _demo.notes(limit: 4);
-final List<AppSeriesPoint> _equitySeries = _demo.equitySeries(points: 20);
-final List<UiCandle> _relianceCandles = _demo
-    .candles('RELIANCE', count: 24)
-    .map(
-      (AppCandle c) => UiCandle(
-        time: c.time,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-        volume: c.volume,
-      ),
-    )
-    .toList(growable: false);
-
 AppTicker _tickerBySymbol(String symbol, {int fallbackIndex = 0}) =>
     _tickers.firstWhere(
       (AppTicker t) => t.symbol == symbol,
@@ -58,23 +43,6 @@ final AppTrade _iciciClosedTrade = AppTrade(
   outcome: AppOutcome.win,
 );
 
-final AppTrade _tataMotorsClosedTrade = AppTrade(
-  id: 'landing_trade_tatamotors',
-  ticker: 'TATAMOTORS',
-  side: AppSide.long,
-  entry: 968.20,
-  exit: 1006.60,
-  size: 1000,
-  pnl: 38400,
-  pnlPercent: 3.96,
-  rMultiple: 2.6,
-  openedAt: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-  closedAt: DateTime.now().subtract(const Duration(days: 1)),
-  strategy: 'Liquidity Sweep Breakout',
-  tags: const <String>['auto', 'breakout'],
-  outcome: AppOutcome.win,
-);
-
 final AppTrade _sbinBestTrade = AppTrade(
   id: 'landing_trade_sbin',
   ticker: 'SBIN',
@@ -92,95 +60,7 @@ final AppTrade _sbinBestTrade = AppTrade(
   outcome: AppOutcome.win,
 );
 
-final AppTrade _linkedRelianceTrade = AppTrade(
-  id: 'landing_trade_rel_linked',
-  ticker: 'RELIANCE',
-  side: AppSide.long,
-  entry: 2874.00,
-  exit: 2928.50,
-  size: 500,
-  pnl: 27250,
-  pnlPercent: 1.90,
-  rMultiple: 2.2,
-  openedAt: DateTime.now().subtract(const Duration(days: 2)),
-  closedAt: DateTime.now().subtract(const Duration(days: 1, hours: 18)),
-  strategy: 'VWAP Reclaim',
-  tags: const <String>['energy', 'linked'],
-  outcome: AppOutcome.win,
-);
-
-final AppTrade _mmRiskTrade = AppTrade(
-  id: 'landing_trade_mm',
-  ticker: 'M&M',
-  side: AppSide.long,
-  entry: 2948.00,
-  exit: 3026.40,
-  size: 250,
-  pnl: 19600,
-  pnlPercent: 2.66,
-  rMultiple: 2.1,
-  openedAt: DateTime.now().subtract(const Duration(days: 1, hours: 6)),
-  closedAt: DateTime.now().subtract(const Duration(days: 1, hours: 1)),
-  strategy: 'Auto Sector Breakout',
-  tags: const <String>['auto', 'momentum'],
-  outcome: AppOutcome.win,
-);
-
 // Linked knowledge graph data for Phone 3 (Mobile Knowledge Graph) & Spotlight Slide 1
-const List<UiGraphNode> _mobileGraphNodes = <UiGraphNode>[
-  UiGraphNode(
-    id: 'n_orb',
-    label: 'ORB Note',
-    group: 'Note',
-    intent: UiIntent.primary,
-    weight: 1.35,
-  ),
-  UiGraphNode(
-    id: 's_pullback',
-    label: 'ORB v2.4',
-    group: 'Playbook',
-    intent: UiIntent.info,
-    weight: 1.2,
-  ),
-  UiGraphNode(
-    id: 'j_rel',
-    label: 'RELIANCE +2.2R',
-    group: 'Trade',
-    intent: UiIntent.bullish,
-    weight: 1.15,
-  ),
-  UiGraphNode(
-    id: 't_nifty',
-    label: r'$NIFTY50',
-    group: 'Ticker',
-    intent: UiIntent.warning,
-    weight: 1.1,
-  ),
-  UiGraphNode(
-    id: 'n_vix',
-    label: 'VIX Map',
-    group: 'Note',
-    intent: UiIntent.primary,
-    weight: 1.0,
-  ),
-  UiGraphNode(
-    id: 'j_bnf',
-    label: 'BANKNIFTY +1.9R',
-    group: 'Trade',
-    intent: UiIntent.bullish,
-    weight: 1.05,
-  ),
-];
-
-const List<UiGraphEdge> _mobileGraphEdges = <UiGraphEdge>[
-  UiGraphEdge(from: 'n_orb', to: 's_pullback', label: 'defines'),
-  UiGraphEdge(from: 'n_orb', to: 'j_rel', label: 'logged'),
-  UiGraphEdge(from: 'n_orb', to: 't_nifty', label: 'tracks'),
-  UiGraphEdge(from: 'n_orb', to: 'n_vix', label: 'cites'),
-  UiGraphEdge(from: 's_pullback', to: 'j_bnf', label: 'executed'),
-  UiGraphEdge(from: 'n_vix', to: 't_nifty', label: 'filter'),
-];
-
 const AppLinkBundle _mobileNestedLinkBundle = AppLinkBundle(
   notes: <AppLinkRef>[
     AppLinkRef(
@@ -277,119 +157,12 @@ final AppAiMessage _aiFeatureVerdict = AppAiMessage(
 );
 
 // Unique rendered AI message #3 — Section 4 Phone 2 (Rich Formatted Mobile AI Chat + 3 Source Cards)
-final AppAiMessage _aiMobileRichReply = AppAiMessage(
-  id: 'landing_ai_mobile_rich_3',
-  role: AppAiRole.assistant,
-  mode: 'Deep Research',
-  focus: 'F&O Risk Sizing',
-  sentAt: DateTime.now().subtract(const Duration(minutes: 1)),
-  body: '''
-### BANKNIFTY — 1% Risk Execution Plan
-
-> **Preferred:** Directional pullback long — **+2.56R** expectancy vs short straddle gamma risk ahead of RBI policy.
-
-| Parameter | Value | Guardrail |
-| --- | --- | --- |
-| Max Risk (1%) | ₹5,000 | Hard Cap |
-| Size | 4 Lots (60) | 82 pt SL |
-| Target Zone | +210 pts | +₹12,600 |
-
-- Linked note: **India VIX Regime Filter** (`VIX < 14.5`)
-- Est. brokerage + STT + GST: `₹148`
-''',
-  structuredSources: const <AppAiSource>[
-    AppAiSource(
-      url: 'https://alphajournal.in/calculators',
-      title: 'AlphaJournal F&O Margin Engine',
-      domain: 'alphajournal.in',
-      snippet: 'Lot size 15 · NSE weekly expiry margin validated.',
-    ),
-    AppAiSource(
-      url: 'https://alphajournal.in/notes',
-      title: 'Note: India VIX Regime Filter',
-      domain: 'alphajournal.in',
-      snippet: 'Directional setups outperform straddles by 1.8R below VIX 15.',
-    ),
-    AppAiSource(
-      url: 'https://www.rbi.org.in',
-      title: 'RBI MPC Policy Schedule & Rates',
-      domain: 'rbi.org.in',
-      snippet: 'Repo rate unchanged at 6.50%; neutral liquidity stance.',
-    ),
-  ],
-);
-
 // Unique rendered AI message #4 — Section 6 Center iPhone (Quant Formula + Python Snippet + 3 Source Cards)
-final AppAiMessage _aiQuantSynthesisMessage = AppAiMessage(
-  id: 'landing_ai_quant_synth_4',
-  role: AppAiRole.assistant,
-  mode: 'Quant Lab',
-  focus: 'Kelly Sizing & Signal',
-  sentAt: DateTime.now().subtract(const Duration(minutes: 2)),
-  body: r'''
-### Half-Kelly Capital Allocation
-
-Optimal fraction for your **66% win rate** at **2.4R** payoff:
-
-$$f^* = \frac{p \cdot b - q}{b} = 0.518 \;\Rightarrow\; \tfrac{1}{4}\text{ Kelly} = 1.3\%$$
-
-```python
-# AlphaJournal Opening Range Filter
-def qualify_entry(vwap_dist, rel_vol, vix):
-    return vwap_dist > 0 and rel_vol >= 1.5 and vix < 15.0
-```
-
-> **Desk Action:** Cap single-trade risk at **1.25%** until India VIX closes below `14.0`.
-''',
-  structuredSources: const <AppAiSource>[
-    AppAiSource(
-      url: 'https://www.nseindia.com/market-data',
-      title: 'NSE India VIX & Volatility Term',
-      domain: 'nseindia.com',
-      snippet: 'Front-month IV percentile 28th vs 1Y historical range.',
-    ),
-    AppAiSource(
-      url: 'https://www.sebi.gov.in',
-      title: 'SEBI Peak Margin & F&O Rules',
-      domain: 'sebi.gov.in',
-      snippet: 'Upfront SPAN + exposure margin compliance guidelines.',
-    ),
-    AppAiSource(
-      url: 'https://alphajournal.in/research',
-      title: 'AlphaJournal Quant Expectancy Study',
-      domain: 'alphajournal.in',
-      snippet: 'Quarter-Kelly sizing reduces peak drawdown by 44%.',
-    ),
-  ],
-);
-
-const List<AppAiPrompt> _mobileAiPromptChips = <AppAiPrompt>[
-  AppAiPrompt(
-    label: 'Link to ORB Note',
-    prompt: 'Link this plan to my ORB Note',
-    icon: Icons.hub_outlined,
-  ),
-  AppAiPrompt(
-    label: 'Log draft trade',
-    prompt: 'Create journal draft for BANKNIFTY',
-    icon: Icons.edit_note_rounded,
-  ),
-];
-
 const AppPriceAlert _tcsBreakoutAlert = AppPriceAlert(
   id: 'landing_alert_tcs',
   symbol: 'TCS',
   targetPrice: 3960.0,
   currentPrice: 3902.1,
-  above: true,
-  active: true,
-);
-
-const AppPriceAlert _hdfcMobileAlert = AppPriceAlert(
-  id: 'landing_alert_hdfc_mob',
-  symbol: 'HDFCBANK',
-  targetPrice: 1720.0,
-  currentPrice: 1684.75,
   above: true,
   active: true,
 );
@@ -776,11 +549,16 @@ class _LandingAppleFeatureCarouselState
             separatorBuilder: (_, _) => SizedBox(width: gap),
             itemBuilder: (BuildContext ctx, int idx) {
               final _AppleFeatureCardData card = cards[idx];
-              return _AppleFeatureTallCard(
-                data: card,
-                width: cardWidth,
-                height: cardHeight,
-                onExpand: () => _openDetailModal(context, card),
+              return UiScrollReveal(
+                delay: Duration(milliseconds: idx.clamp(0, 3) * 75),
+                slideOffset: const Offset(0, 0.06),
+                scaleFrom: 0.97,
+                child: _AppleFeatureTallCard(
+                  data: card,
+                  width: cardWidth,
+                  height: cardHeight,
+                  onExpand: () => _openDetailModal(context, card),
+                ),
               );
             },
           ),
@@ -1286,6 +1064,10 @@ enum _HeroVectorGlyphKind {
   volumeBars,
   trendArrow,
   shieldCheck,
+  platformAndroid,
+  platformIos,
+  platformMac,
+  platformWindows,
 }
 
 class _HeroGridPulsePainter extends CustomPainter {
@@ -1858,6 +1640,11 @@ class _HeroGridPulsePainter extends CustomPainter {
           ..lineTo(-0.8, 2.8)
           ..lineTo(3.8, -2.4);
         canvas.drawPath(check, stroke);
+      case _HeroVectorGlyphKind.platformAndroid:
+      case _HeroVectorGlyphKind.platformIos:
+      case _HeroVectorGlyphKind.platformMac:
+      case _HeroVectorGlyphKind.platformWindows:
+        break;
     }
 
     canvas.restore();
@@ -1883,10 +1670,12 @@ class LandingFadedGridAccent extends StatefulWidget {
     super.key,
     this.height = 160,
     this.seed = 0,
+    this.platformIcons = false,
   });
 
   final double height;
   final int seed;
+  final bool platformIcons;
 
   @override
   State<LandingFadedGridAccent> createState() => _LandingFadedGridAccentState();
@@ -1941,6 +1730,7 @@ class _LandingFadedGridAccentState extends State<LandingFadedGridAccent>
                     painter: _AllSidesFadedGridPainter(
                       t: _controller.value,
                       seed: widget.seed,
+                      platformIcons: widget.platformIcons,
                       isDark: isDark,
                       gridColor: colors.border,
                       surfaceColor: colors.surface,
@@ -2079,6 +1869,7 @@ class _AllSidesFadedGridPainter extends CustomPainter {
   const _AllSidesFadedGridPainter({
     required this.t,
     required this.seed,
+    this.platformIcons = false,
     required this.isDark,
     required this.gridColor,
     required this.surfaceColor,
@@ -2090,6 +1881,7 @@ class _AllSidesFadedGridPainter extends CustomPainter {
 
   final double t;
   final int seed;
+  final bool platformIcons;
   final bool isDark;
   final Color gridColor;
   final Color surfaceColor;
@@ -2267,11 +2059,18 @@ class _AllSidesFadedGridPainter extends CustomPainter {
       );
     }
 
-    // 7. 3 scattered crisp vector trading glyphs anchored inside grid cells
+    // 7. Scattered crisp vector glyphs anchored inside grid cells
     final List<
       ({double fx, double fy, _HeroVectorGlyphKind kind, Color accent, double phase})
     >
-    glyphSets = switch (seed % 3) {
+    glyphSets = platformIcons
+        ? <({double fx, double fy, _HeroVectorGlyphKind kind, Color accent, double phase})>[
+            (fx: 0.24, fy: 0.36, kind: _HeroVectorGlyphKind.platformAndroid, accent: bullishColor, phase: 0.0),
+            (fx: 0.44, fy: 0.64, kind: _HeroVectorGlyphKind.platformIos, accent: primaryAccent, phase: 0.25),
+            (fx: 0.64, fy: 0.36, kind: _HeroVectorGlyphKind.platformMac, accent: warningColor, phase: 0.50),
+            (fx: 0.80, fy: 0.62, kind: _HeroVectorGlyphKind.platformWindows, accent: primaryAccent, phase: 0.75),
+          ]
+        : switch (seed % 3) {
       0 => <({double fx, double fy, _HeroVectorGlyphKind kind, Color accent, double phase})>[
         (fx: 0.28, fy: 0.42, kind: _HeroVectorGlyphKind.candlesticks, accent: bullishColor, phase: 0.0),
         (fx: 0.52, fy: 0.62, kind: _HeroVectorGlyphKind.graphNodes, accent: primaryAccent, phase: 0.34),
@@ -2325,6 +2124,7 @@ class _AllSidesFadedGridPainter extends CustomPainter {
   bool shouldRepaint(covariant _AllSidesFadedGridPainter oldDelegate) =>
       oldDelegate.t != t ||
       oldDelegate.seed != seed ||
+      oldDelegate.platformIcons != platformIcons ||
       oldDelegate.isDark != isDark ||
       oldDelegate.gridColor != gridColor;
 }
@@ -2486,6 +2286,55 @@ void _paintVectorGlyphTile(
         ..lineTo(-0.8, 2.8)
         ..lineTo(3.8, -2.4);
       canvas.drawPath(check, stroke);
+    case _HeroVectorGlyphKind.platformAndroid:
+      // Classic Android dome head with antennae and eyes
+      canvas.drawArc(
+        const Rect.fromLTWH(-7.5, -3.5, 15, 14),
+        math.pi,
+        math.pi,
+        false,
+        stroke,
+      );
+      canvas.drawLine(const Offset(-7.5, 3.5), const Offset(7.5, 3.5), stroke);
+      canvas.drawLine(const Offset(-4.2, -3.2), const Offset(-6.4, -7.2), stroke);
+      canvas.drawLine(const Offset(4.2, -3.2), const Offset(6.4, -7.2), stroke);
+      canvas.drawCircle(const Offset(-2.8, 0.6), 1.1, fill);
+      canvas.drawCircle(const Offset(2.8, 0.6), 1.1, fill);
+    case _HeroVectorGlyphKind.platformIos:
+      // Sleek iPhone / iOS silhouette with Dynamic Island & home bar
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-5.5, -9.0, 11.0, 18.0),
+          const Radius.circular(2.6),
+        ),
+        stroke,
+      );
+      canvas.drawLine(const Offset(-2.0, -6.2), const Offset(2.0, -6.2), stroke);
+      canvas.drawLine(const Offset(-2.4, 6.5), const Offset(2.4, 6.5), stroke);
+    case _HeroVectorGlyphKind.platformMac:
+      // MacBook / macOS display lid + thin sculpted base
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-7.5, -6.5, 15.0, 10.5),
+          const Radius.circular(1.8),
+        ),
+        stroke,
+      );
+      canvas.drawLine(const Offset(-10.0, 6.2), const Offset(10.0, 6.2), stroke);
+    case _HeroVectorGlyphKind.platformWindows:
+      // Crisp 4-pane Windows logo
+      const List<Rect> panes = <Rect>[
+        Rect.fromLTWH(-7.2, -7.2, 6.2, 6.2),
+        Rect.fromLTWH(1.0, -7.2, 6.2, 6.2),
+        Rect.fromLTWH(-7.2, 1.0, 6.2, 6.2),
+        Rect.fromLTWH(1.0, 1.0, 6.2, 6.2),
+      ];
+      for (final Rect r in panes) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(r, const Radius.circular(1.0)),
+          fill,
+        );
+      }
   }
 
   canvas.restore();
@@ -2497,6 +2346,75 @@ void _paintVectorGlyphTile(
 //    gaps, linked knowledge graphs, notes-inside-notes backlinks, multiple
 //    posts, rich AI markdown/tables, live tickers, calculators & QuietDock.
 // ===========================================================================
+/// Lightweight pre-rendered WebP device frame for Web, macOS (.dmg), Windows
+/// (.exe), and Linux landing pages.
+///
+/// Declared with `platforms: [web, macos, windows, linux]` in `pubspec.yaml` so
+/// Android/iOS mobile app bundles include zero landing WebP assets while web
+/// and desktop builds load them locally with `cacheWidth` RAM capping.
+class LandingDeviceFrameWebp extends StatelessWidget {
+  const LandingDeviceFrameWebp({
+    super.key,
+    required this.assetId,
+    required this.width,
+    this.height,
+    required this.semanticLabel,
+  });
+
+  final String assetId;
+  final double width;
+  final double? height;
+  final String semanticLabel;
+
+  String assetPathFor(Brightness brightness) {
+    final String suffix = brightness == Brightness.dark ? 'dark' : 'light';
+    return 'assets/landing/${assetId}_$suffix.webp';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final Brightness brightness = theme.brightness;
+    final String path = assetPathFor(brightness);
+    final double dpr = MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.5);
+    final int? cacheWidth = kIsWeb ? null : (width * dpr).round();
+    final double resolvedHeight = height ?? (width / 0.488);
+
+    return RepaintBoundary(
+      child: SizedBox(
+        width: width,
+        height: resolvedHeight,
+        child: Image.asset(
+          path,
+          width: width,
+          height: resolvedHeight,
+          fit: BoxFit.contain,
+          cacheWidth: cacheWidth,
+          gaplessPlayback: true,
+          filterQuality: FilterQuality.medium,
+          semanticLabel: semanticLabel,
+          errorBuilder: (_, _, _) {
+            // Evict any transient decode error so the image cache is never
+            // permanently poisoned across theme switches or hot reloads.
+            AssetImage(path).evict();
+            return Semantics(
+              image: true,
+              label: semanticLabel,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colors.surface,
+                  borderRadius: context.radius(theme.radii.xl),
+                  border: Border.all(color: theme.colors.border),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class LandingAppleIphoneGallery extends StatelessWidget {
   const LandingAppleIphoneGallery({super.key});
 
@@ -2506,408 +2424,111 @@ class LandingAppleIphoneGallery extends StatelessWidget {
     final UiColors colors = theme.colors;
     final UiResponsive res = context.uiRes;
 
-    final List<Widget> phones = <Widget>[
-      // Phone 1: Rich Mobile Community Feed (2 unique posts + trader strip + Community Dock)
-      AppleIphoneSvgFrame(
+    const List<Widget> phones = <Widget>[
+      LandingDeviceFrameWebp(
+        assetId: 'iphone_community',
         width: 244,
-        communityDock: true,
-        dockActiveIndex: 0,
-        screen: _RealMobileInterfaceShell(
-          title: 'Community',
-          trailingIcon: Icons.notifications_none_rounded,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              UiToggleGroup<String>(
-                expand: true,
-                variant: UiToggleGroupVariant.segmented,
-                value: 'for_you',
-                options: const <UiToggleOption<String>>[
-                  UiToggleOption<String>(label: 'For You', value: 'for_you'),
-                  UiToggleOption<String>(label: 'Following', value: 'following'),
-                  UiToggleOption<String>(label: 'Setups', value: 'setups'),
-                ],
-                onChanged: (_) {},
-              ),
-              const SizedBox(height: 10),
-              AppPostCard(post: _posts[1]),
-              const SizedBox(height: 10),
-              AppPostCard(post: _posts[2]),
-            ],
-          ),
-        ),
+        semanticLabel: 'AlphaJournal mobile Community feed preview',
       ),
-
-      // Phone 2: Rich Mobile AI Copilot Chat (User Prompt + Formatted Markdown Table + Citations + Chips + Composer)
-      AppleIphoneSvgFrame(
+      LandingDeviceFrameWebp(
+        assetId: 'iphone_ai_copilot',
         width: 244,
-        dockActiveIndex: 1,
-        rightFabIcon: Icons.auto_awesome_rounded,
-        screen: _RealMobileInterfaceShell(
-          title: 'AI Copilot',
-          statusPill: 'DEEP AI',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Align(
-                alignment: Alignment.centerRight,
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 270),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 9,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceMuted,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: colors.border),
-                  ),
-                  child: Text(
-                    'Compare BANKNIFTY weekly straddle vs breakout at 1% risk.',
-                    style: context.uiText.body.copyWith(fontSize: 12.5),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              AppAiMessageBubble(
-                message: _aiMobileRichReply,
-                minimal: true,
-              ),
-              const SizedBox(height: 10),
-              AppAiPromptChips(
-                prompts: _mobileAiPromptChips,
-                onSelect: (_) {},
-              ),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: colors.borderStrong),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Icon(
-                      Icons.add_circle_outline_rounded,
-                      size: 18,
-                      color: colors.foregroundMuted,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Ask about any NSE setup...',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.uiText.caption.copyWith(
-                          color: colors.foregroundSubtle,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_upward_rounded,
-                      size: 16,
-                      color: colors.foreground,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        semanticLabel: 'AlphaJournal mobile AI Copilot preview',
       ),
-
-      // Phone 3 (CENTER HERO): Connected Knowledge Graph + Notes-inside-Notes + Linked Journal & Tickers!
-      AppleIphoneSvgFrame(
-        width: 260,
-        dockActiveIndex: 0,
-        screen: _RealMobileInterfaceShell(
-          title: 'Linked Notes',
-          statusPill: 'GRAPH',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              UiCard(
-                padding: const EdgeInsets.all(10),
-                title: 'Knowledge Connectivity',
-                trailing: const UiBadge(
-                  label: '6 nodes',
-                  intent: UiIntent.primary,
-                  variant: UiBadgeVariant.soft,
-                  size: UiSize.xs,
-                ),
-                child: const UiGraphCanvas(
-                  nodes: _mobileGraphNodes,
-                  edges: _mobileGraphEdges,
-                  selectedId: 'n_orb',
-                  height: 148,
-                ),
-              ),
-              const SizedBox(height: 10),
-              AppNoteCard(
-                note: _notes[2],
-                density: AppNoteDensity.comfortable,
-              ),
-              const SizedBox(height: 10),
-              AppLinkedRecordsPanel(
-                bundle: _mobileNestedLinkBundle,
-                title: 'Links Inside Note',
-                dense: true,
-                maxVisiblePerKind: 2,
-                showEmptyKinds: false,
-              ),
-              const SizedBox(height: 10),
-              AppLinkedJournalCard(trade: _linkedRelianceTrade),
-            ],
-          ),
-        ),
+      LandingDeviceFrameWebp(
+        assetId: 'iphone_linked_notes',
+        width: 286,
+        semanticLabel:
+            'AlphaJournal mobile Linked Notes and Knowledge Graph preview',
       ),
-
-      // Phone 4: Rich Mobile Markets Terminal (NIFTY50 + Sector Mini Heat + Macro News + HDFC Alert)
-      AppleIphoneSvgFrame(
+      LandingDeviceFrameWebp(
+        assetId: 'iphone_markets',
         width: 244,
-        dockActiveIndex: 2,
-        screen: _RealMobileInterfaceShell(
-          title: 'Markets',
-          statusPill: 'NSE LIVE',
-          statusIntent: UiIntent.bullish,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              UiToggleGroup<String>(
-                expand: true,
-                variant: UiToggleGroupVariant.segmented,
-                value: 'indices',
-                options: const <UiToggleOption<String>>[
-                  UiToggleOption<String>(label: 'Indices', value: 'indices'),
-                  UiToggleOption<String>(label: 'Equities', value: 'equities'),
-                  UiToggleOption<String>(label: 'World', value: 'world'),
-                ],
-                onChanged: (_) {},
-              ),
-              const SizedBox(height: 10),
-              AppTickerCard(
-                ticker: _tickerBySymbol('NIFTY50', fallbackIndex: 4),
-                dense: true,
-              ),
-              const SizedBox(height: 10),
-              const Row(
-                children: <Widget>[
-                  Expanded(
-                    child: AppHeatTile(label: 'SBIN', changePercent: 1.84),
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: AppHeatTile(label: 'RELIANCE', changePercent: 1.42),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              AppNewsCard(item: _news[0]),
-              const SizedBox(height: 10),
-              const AppPriceAlertCard(alert: _hdfcMobileAlert),
-              const SizedBox(height: 10),
-              const UiCard(
-                title: 'Global & Volatility Cues',
-                padding: EdgeInsets.all(12),
-                child: UiKeyValueTable(
-                  showShareBars: false,
-                  valueWidth: 96,
-                  rows: <UiKeyValueRow>[
-                    UiKeyValueRow(
-                      label: 'GIFT NIFTY',
-                      value: '24,512 (+0.48%)',
-                      intent: UiIntent.bullish,
-                    ),
-                    UiKeyValueRow(
-                      label: 'INDIA VIX',
-                      value: '13.42 (-4.1%)',
-                      intent: UiIntent.bullish,
-                    ),
-                    UiKeyValueRow(label: 'USD / INR', value: '₹84.38'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        semanticLabel: 'AlphaJournal mobile Markets preview',
       ),
-
-      // Phone 5: Rich Mobile Journal + Position Sizing Calculator (Profitable Trade + StatStrip + Sizer + Linked Execution)
-      AppleIphoneSvgFrame(
+      LandingDeviceFrameWebp(
+        assetId: 'iphone_journal_risk',
         width: 244,
-        dockActiveIndex: 2,
-        screen: _RealMobileInterfaceShell(
-          title: 'Journal & Risk',
-          statusPill: '+ LOG',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              const UiStatStrip(
-                columns: 2,
-                showSpark: false,
-                stats: <UiStat>[
-                  UiStat(
-                    label: 'Month P&L',
-                    value: '+₹1.48L',
-                    intent: UiIntent.bullish,
-                  ),
-                  UiStat(
-                    label: 'Expectancy',
-                    value: '+2.4R',
-                    intent: UiIntent.primary,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              AppTradeCard(trade: _tataMotorsClosedTrade, dense: true),
-              const SizedBox(height: 10),
-              UiCard(
-                title: 'Position Sizer',
-                subtitle: '1.0% Risk Guardrail',
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    const UiKeyValueTable(
-                      showShareBars: false,
-                      valueWidth: 88,
-                      rows: <UiKeyValueRow>[
-                        UiKeyValueRow(label: 'Capital', value: '₹5,00,000'),
-                        UiKeyValueRow(
-                          label: 'Max Risk',
-                          value: '₹5,000',
-                          intent: UiIntent.warning,
-                        ),
-                        UiKeyValueRow(
-                          label: 'Qty (₹20 SL)',
-                          value: '250 sh',
-                          intent: UiIntent.bullish,
-                          emphasis: true,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    UiRangeMeter(
-                      min: 0,
-                      max: 3,
-                      minLabel: '0%',
-                      maxLabel: '3% Cap',
-                      valueFormatter: (num v) => '${v.toStringAsFixed(1)}%',
-                      zones: const <UiRangeZone>[
-                        UiRangeZone(
-                          start: 0,
-                          end: 1.5,
-                          intent: UiIntent.bullish,
-                        ),
-                        UiRangeZone(
-                          start: 1.5,
-                          end: 2.2,
-                          intent: UiIntent.warning,
-                        ),
-                        UiRangeZone(
-                          start: 2.2,
-                          end: 3.0,
-                          intent: UiIntent.bearish,
-                        ),
-                      ],
-                      markers: const <UiRangeMarker>[
-                        UiRangeMarker(
-                          value: 1.0,
-                          label: 'Risk',
-                          intent: UiIntent.bullish,
-                          strong: true,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              AppLinkedJournalCard(trade: _mmRiskTrade),
-              const SizedBox(height: 10),
-              const UiStatStrip(
-                columns: 2,
-                showSpark: false,
-                stats: <UiStat>[
-                  UiStat(label: 'Est. STT & Fees', value: '₹148'),
-                  UiStat(
-                    label: 'Daily Loss Cap',
-                    value: '₹15,000',
-                    intent: UiIntent.warning,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+        semanticLabel:
+            'AlphaJournal mobile Journal and Risk calculator preview',
       ),
+    ];
+
+    const List<int> staggerMs = <int>[200, 120, 40, 120, 200];
+    final List<Widget> revealedPhones = <Widget>[
+      for (int i = 0; i < phones.length; i++)
+        UiScrollReveal(
+          delay: Duration(milliseconds: staggerMs[i]),
+          slideOffset: const Offset(0, 0.07),
+          scaleFrom: 0.96,
+          child: phones[i],
+        ),
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.xl),
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: context.sz(1400)),
-              child: LayoutBuilder(
-                builder: (BuildContext ctx, BoxConstraints headerConstraints) {
-                  final Widget headingBlock = Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Your entire trading desk.\nConnected in your pocket.',
-                        textAlign: TextAlign.left,
-                        style: context.uiText.display.copyWith(
-                          fontSize: res.isMobile ? 26.0 : 38.0,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -1.0,
-                          height: 1.12,
-                          color: colors.foreground,
-                        ),
-                      ),
-                      SizedBox(height: context.sp(theme.spacing.lg)),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: context.sz(580)),
-                        child: Text(
-                          'Community feeds, rich AI research, linked knowledge graphs with notes-inside-notes, live NSE markets, and risk calculators — anchored by the frosted floating dock.',
+        UiScrollReveal(
+          slideOffset: const Offset(0, 0.04),
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.xl),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: context.sz(1400)),
+                child: LayoutBuilder(
+                  builder: (BuildContext ctx, BoxConstraints headerConstraints) {
+                    final Widget headingBlock = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'Your entire trading desk.\nConnected in your pocket.',
                           textAlign: TextAlign.left,
-                          style: context.uiText.body.copyWith(
-                            color: colors.foregroundMuted,
-                            fontSize: 14.5,
-                            height: 1.55,
+                          style: context.uiText.display.copyWith(
+                            fontSize: res.isMobile ? 26.0 : 38.0,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -1.0,
+                            height: 1.12,
+                            color: colors.foreground,
                           ),
                         ),
-                      ),
-                    ],
-                  );
-
-                  if (headerConstraints.maxWidth < 940) {
-                    return SizedBox(
-                      width: double.infinity,
-                      child: headingBlock,
+                        SizedBox(height: context.sp(theme.spacing.lg)),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: context.sz(580)),
+                          child: Text(
+                            'Community feeds, rich AI research, linked knowledge graphs with notes-inside-notes, live NSE markets, and risk calculators — anchored by the frosted floating dock.',
+                            textAlign: TextAlign.left,
+                            style: context.uiText.body.copyWith(
+                              color: colors.foregroundMuted,
+                              fontSize: 14.5,
+                              height: 1.55,
+                            ),
+                          ),
+                        ),
+                      ],
                     );
-                  }
 
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      Expanded(flex: 6, child: headingBlock),
-                      const SizedBox(width: 28),
-                      const Expanded(
-                        flex: 5,
-                        child: LandingFadedGridAccent(height: 168, seed: 0),
-                      ),
-                    ],
-                  );
-                },
+                    if (headerConstraints.maxWidth < 940) {
+                      return SizedBox(
+                        width: double.infinity,
+                        child: headingBlock,
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        Expanded(flex: 6, child: headingBlock),
+                        const SizedBox(width: 28),
+                        const Expanded(
+                          flex: 5,
+                          child: LandingFadedGridAccent(height: 168, seed: 0),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -2925,9 +2546,9 @@ class LandingAppleIphoneGallery extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
-                for (int i = 0; i < phones.length; i++) ...<Widget>[
+                for (int i = 0; i < revealedPhones.length; i++) ...<Widget>[
                   if (i > 0) SizedBox(width: context.sp(theme.spacing.lg)),
-                  phones[i],
+                  revealedPhones[i],
                 ],
               ],
             ),
@@ -2945,9 +2566,9 @@ class LandingAppleIphoneGallery extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
-                    for (int i = 0; i < phones.length; i++) ...<Widget>[
+                    for (int i = 0; i < revealedPhones.length; i++) ...<Widget>[
                       if (i > 0) SizedBox(width: context.sp(theme.spacing.lg)),
-                      phones[i],
+                      revealedPhones[i],
                     ],
                   ],
                 ),
@@ -2955,82 +2576,6 @@ class LandingAppleIphoneGallery extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// Real floating frosted mobile header shell matching AlphaJournal's mobile UI.
-class _RealMobileInterfaceShell extends StatelessWidget {
-  const _RealMobileInterfaceShell({
-    required this.title,
-    required this.child,
-    this.statusPill,
-    this.statusIntent = UiIntent.primary,
-    this.trailingIcon,
-  });
-
-  final String title;
-  final Widget child;
-  final String? statusPill;
-  final UiIntent statusIntent;
-  final IconData? trailingIcon;
-
-  @override
-  Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-    final UiColors colors = theme.colors;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              color: colors.surface.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: colors.borderStrong.withValues(alpha: 0.7),
-              ),
-            ),
-            child: Row(
-              children: <Widget>[
-                Text(
-                  title,
-                  style: context.uiText.bodyStrong.copyWith(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: colors.foreground,
-                  ),
-                ),
-                const Spacer(),
-                if (statusPill != null)
-                  UiBadge(
-                    label: statusPill!,
-                    intent: statusIntent,
-                    variant: UiBadgeVariant.soft,
-                    size: UiSize.xs,
-                  ),
-                if (trailingIcon != null)
-                  Icon(
-                    trailingIcon,
-                    size: 18,
-                    color: colors.foregroundMuted,
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: IgnorePointer(
-              child: SingleChildScrollView(
-                physics: const NeverScrollableScrollPhysics(),
-                child: child,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -3051,194 +2596,11 @@ class LandingAppleIpadMosaicSection extends StatelessWidget {
     final UiColors colors = theme.colors;
     final UiResponsive res = context.uiRes;
 
-    final List<UiChartPoint> equityPoints = _equitySeries
-        .map(
-          (AppSeriesPoint p) => UiChartPoint(
-            label: p.label,
-            values: <double>[p.value],
-          ),
-        )
-        .toList(growable: false);
-
-    final Widget ipadHero = AppleIpadSvgFrame(
+    final Widget ipadHero = LandingDeviceFrameWebp(
+      assetId: 'ipad_workspace',
       width: res.isMobile ? 330 : 492,
       height: res.isMobile ? 410 : 570,
-      virtualWidth: 680,
-      screen: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
-        child: IgnorePointer(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  const AppLogo(size: 20, markRounded: false),
-                  const Spacer(),
-                  const UiBadge(
-                    label: 'SBIN ₹812.60',
-                    intent: UiIntent.bullish,
-                    variant: UiBadgeVariant.soft,
-                    size: UiSize.xs,
-                  ),
-                  const SizedBox(width: 8),
-                  const UiBadge(
-                    label: 'DESK WORKSPACE',
-                    intent: UiIntent.primary,
-                    variant: UiBadgeVariant.soft,
-                    size: UiSize.xs,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              UiCard(
-                title: 'Cumulative Equity Curve',
-                subtitle: 'Verified multi-segment performance',
-                trailing: const UiBadge(
-                  label: '+₹4,12,840',
-                  intent: UiIntent.bullish,
-                  filled: true,
-                ),
-                child: UiAreaChart(
-                  height: 150,
-                  data: equityPoints,
-                  showLegend: false,
-                  interactive: false,
-                  series: <UiChartSeries>[
-                    UiChartSeries(
-                      name: 'Equity',
-                      color: colors.bullish,
-                      type: UiChartSeriesType.area,
-                      fillOpacity: 0.22,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Expanded(
-                      child: SingleChildScrollView(
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: UiCard(
-                          title: 'RELIANCE · 1D OHLC',
-                          subtitle: 'VWAP ₹2,906 · Vol 1.6×',
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: <Widget>[
-                              UiCandleChart(
-                                candles: _relianceCandles,
-                                height: 184,
-                                interactive: false,
-                                showVolume: false,
-                              ),
-                              const SizedBox(height: 10),
-                              const Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: <Widget>[
-                                  UiBadge(
-                                    label: 'RSI 62.4',
-                                    intent: UiIntent.bullish,
-                                    variant: UiBadgeVariant.soft,
-                                    size: UiSize.xs,
-                                  ),
-                                  UiBadge(
-                                    label: 'EMA 20 Held',
-                                    intent: UiIntent.primary,
-                                    variant: UiBadgeVariant.soft,
-                                    size: UiSize.xs,
-                                  ),
-                                  UiBadge(
-                                    label: 'FVG Filled',
-                                    intent: UiIntent.info,
-                                    variant: UiBadgeVariant.soft,
-                                    size: UiSize.xs,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            AppStrategyPerformanceCard(
-                              strategy: _strategies[2],
-                            ),
-                            const SizedBox(height: 10),
-                            const UiCard(
-                              title: 'Desk Risk Ratios',
-                              padding: EdgeInsets.all(12),
-                              child: UiKeyValueTable(
-                                showShareBars: false,
-                                valueWidth: 88,
-                                rows: <UiKeyValueRow>[
-                                  UiKeyValueRow(
-                                    label: 'Profit Factor',
-                                    value: '2.48',
-                                    intent: UiIntent.bullish,
-                                    emphasis: true,
-                                  ),
-                                  UiKeyValueRow(
-                                    label: 'Sharpe Ratio',
-                                    value: '2.14',
-                                    intent: UiIntent.primary,
-                                  ),
-                                  UiKeyValueRow(
-                                    label: 'Avg Winner',
-                                    value: '+₹24,600',
-                                    intent: UiIntent.bullish,
-                                  ),
-                                  UiKeyValueRow(
-                                    label: 'Max Drawdown',
-                                    value: '-2.8%',
-                                    intent: UiIntent.warning,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              const UiStatStrip(
-                columns: 4,
-                showSpark: false,
-                stats: <UiStat>[
-                  UiStat(label: 'Trades', value: '42'),
-                  UiStat(
-                    label: 'Win Rate',
-                    value: '66.7%',
-                    intent: UiIntent.bullish,
-                  ),
-                  UiStat(
-                    label: 'Profit Factor',
-                    value: '2.48',
-                    intent: UiIntent.primary,
-                  ),
-                  UiStat(
-                    label: 'Rule Breaks',
-                    value: '0',
-                    intent: UiIntent.bullish,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+      semanticLabel: 'AlphaJournal iPad Desk Workspace preview',
     );
 
     final List<Widget> leftTiles = <Widget>[
@@ -3526,7 +2888,12 @@ class LandingAppleIpadMosaicSection extends StatelessWidget {
               children: <Widget>[
                 Expanded(child: _TwoByTwoMosaicGrid(tiles: leftTiles)),
                 SizedBox(width: context.sp(theme.spacing.xl)),
-                ipadHero,
+                UiScrollReveal(
+                  delay: const Duration(milliseconds: 50),
+                  slideOffset: const Offset(0, 0.05),
+                  scaleFrom: 0.96,
+                  child: ipadHero,
+                ),
                 SizedBox(width: context.sp(theme.spacing.xl)),
                 Expanded(child: _TwoByTwoMosaicGrid(tiles: rightTiles)),
               ],
@@ -3545,22 +2912,29 @@ class _TwoByTwoMosaicGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget revealTile(Widget tile, int index) => UiScrollReveal(
+      delay: Duration(milliseconds: 70 + index * 70),
+      slideOffset: const Offset(0, 0.07),
+      scaleFrom: 0.95,
+      child: tile,
+    );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Row(
           children: <Widget>[
-            Expanded(child: tiles[0]),
+            Expanded(child: revealTile(tiles[0], 0)),
             const SizedBox(width: 14),
-            Expanded(child: tiles[1]),
+            Expanded(child: revealTile(tiles[1], 1)),
           ],
         ),
         const SizedBox(height: 14),
         Row(
           children: <Widget>[
-            Expanded(child: tiles[2]),
+            Expanded(child: revealTile(tiles[2], 2)),
             const SizedBox(width: 14),
-            Expanded(child: tiles[3]),
+            Expanded(child: revealTile(tiles[3], 3)),
           ],
         ),
       ],
@@ -3821,24 +3195,10 @@ class LandingAppleCenterPhoneStripSection extends StatelessWidget {
       ),
     ];
 
-    final Widget centerPhone = AppleIphoneSvgFrame(
+    const Widget centerPhone = LandingDeviceFrameWebp(
+      assetId: 'iphone_ai_quant',
       width: 266,
-      dockActiveIndex: 1,
-      rightFabIcon: Icons.auto_awesome_rounded,
-      screen: _RealMobileInterfaceShell(
-        title: 'AI Quant Lab',
-        statusPill: '3 SOURCES',
-        statusIntent: UiIntent.primary,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            AppAiMessageBubble(
-              message: _aiQuantSynthesisMessage,
-              minimal: true,
-            ),
-          ],
-        ),
-      ),
+      semanticLabel: 'AlphaJournal mobile AI Quant Lab preview',
     );
 
     return Column(
@@ -3929,7 +3289,16 @@ class LandingAppleCenterPhoneStripSection extends StatelessWidget {
                                 Expanded(
                                   child: AspectRatio(
                                     aspectRatio: 1.0,
-                                    child: leftStripCards[i],
+                                    child: UiScrollReveal(
+                                      delay: Duration(
+                                        milliseconds:
+                                            80 +
+                                            (leftStripCards.length - 1 - i) * 75,
+                                      ),
+                                      slideOffset: const Offset(0, 0.07),
+                                      scaleFrom: 0.95,
+                                      child: leftStripCards[i],
+                                    ),
                                   ),
                                 ),
                               ],
@@ -3949,7 +3318,12 @@ class LandingAppleCenterPhoneStripSection extends StatelessWidget {
                                 Expanded(
                                   child: AspectRatio(
                                     aspectRatio: 1.0,
-                                    child: rightStripCards[i],
+                                    child: UiScrollReveal(
+                                      delay: Duration(milliseconds: 80 + i * 75),
+                                      slideOffset: const Offset(0, 0.07),
+                                      scaleFrom: 0.95,
+                                      child: rightStripCards[i],
+                                    ),
                                   ),
                                 ),
                               ],
@@ -4273,6 +3647,404 @@ class _EditorialTextLinkState extends State<_EditorialTextLink> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// 5. Available on Every Device — 5-Device Baseline Showcase (WebP Dark/Light)
+// ===========================================================================
+
+class LandingAvailableDevicesSection extends StatelessWidget {
+  const LandingAvailableDevicesSection({
+    super.key,
+    this.onLaunchWeb,
+  });
+
+  /// Invoked when the user clicks the live Web device card or badge.
+  final VoidCallback? onLaunchWeb;
+
+  static const List<
+    ({
+      String id,
+      String assetId,
+      String title,
+      String subtitle,
+      String status,
+      bool isLive,
+      double baseWidth,
+      double baseHeight,
+      String semanticLabel,
+    })
+  >
+  _devices =
+      <
+        ({
+          String id,
+          String assetId,
+          String title,
+          String subtitle,
+          String status,
+          bool isLive,
+          double baseWidth,
+          double baseHeight,
+          String semanticLabel,
+        })
+      >[
+        (
+          id: 'iphone',
+          assetId: 'device_iphone',
+          title: 'iPhone',
+          subtitle: 'iOS 16 and later',
+          status: 'Coming soon',
+          isLive: false,
+          baseWidth: 152,
+          baseHeight: 304,
+          semanticLabel: 'AlphaJournal on iPhone',
+        ),
+        (
+          id: 'android',
+          assetId: 'device_android',
+          title: 'Android',
+          subtitle: 'Android 10 and later',
+          status: 'Coming soon',
+          isLive: false,
+          baseWidth: 152,
+          baseHeight: 304,
+          semanticLabel: 'AlphaJournal on Android',
+        ),
+        (
+          id: 'tablet',
+          assetId: 'device_tablet',
+          title: 'Tablet',
+          subtitle: 'iPad and Android tablets',
+          status: 'Coming soon',
+          isLive: false,
+          baseWidth: 288,
+          baseHeight: 344,
+          semanticLabel: 'AlphaJournal on Tablet',
+        ),
+        (
+          id: 'web',
+          assetId: 'device_web',
+          title: 'Web',
+          subtitle: 'Any modern browser',
+          status: 'Live now',
+          isLive: true,
+          baseWidth: 360,
+          baseHeight: 243,
+          semanticLabel: 'AlphaJournal on the Web — Live now',
+        ),
+        (
+          id: 'mac',
+          assetId: 'device_mac',
+          title: 'Mac',
+          subtitle: 'macOS 13 and later',
+          status: 'Coming soon',
+          isLive: false,
+          baseWidth: 382,
+          baseHeight: 254,
+          semanticLabel: 'AlphaJournal on Mac',
+        ),
+      ];
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final UiResponsive res = context.uiRes;
+    final bool isMobile = res.isMobile;
+
+    return Semantics(
+      container: true,
+      label: 'AlphaJournal available on every device',
+      child: Column(
+        key: const ValueKey<String>('landing-available-devices-section'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // Left-aligned Editorial Header + Right Faded Platform Grid Accent
+          UiScrollReveal(
+            slideOffset: const Offset(0, 0.04),
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.xl),
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: context.sz(1400)),
+                  child: LayoutBuilder(
+                    builder:
+                        (BuildContext ctx, BoxConstraints headerConstraints) {
+                          final Widget headingBlock = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'Journal on the go.\nReview on the big screen.',
+                                textAlign: TextAlign.left,
+                                style: context.uiText.display.copyWith(
+                                  fontSize: isMobile ? 26.0 : 38.0,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -1.0,
+                                  height: 1.12,
+                                  color: colors.foreground,
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.lg)),
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: context.sz(580),
+                                ),
+                                child: Text(
+                                  'Log a trade from your phone, study the week on a tablet, and run deep reviews on web or Mac. Your journal, notes and risk guardrails stay in sync across all of them.',
+                                  textAlign: TextAlign.left,
+                                  style: context.uiText.body.copyWith(
+                                    color: colors.foregroundMuted,
+                                    fontSize: 14.5,
+                                    height: 1.55,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+
+                          if (headerConstraints.maxWidth < 940) {
+                            return SizedBox(
+                              width: double.infinity,
+                              child: headingBlock,
+                            );
+                          }
+
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: <Widget>[
+                              Expanded(flex: 6, child: headingBlock),
+                              const SizedBox(width: 28),
+                              const Expanded(
+                                flex: 5,
+                                child: LandingFadedGridAccent(
+                                  height: 168,
+                                  seed: 2,
+                                  platformIcons: true,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          SizedBox(height: context.sp(isMobile ? theme.spacing.xl : theme.spacing.xxxl)),
+
+          // Responsive 5-Device Baseline Row (fits full width on wide desktop,
+          // smoothly scrolls horizontally on tablet/mobile)
+          LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final double avail = constraints.maxWidth.isFinite
+                  ? constraints.maxWidth
+                  : MediaQuery.sizeOf(context).width;
+              final double hPad = isMobile ? 20.0 : 36.0;
+              final double gap = isMobile ? 22.0 : 28.0;
+              // Natural total width of the 5 devices + 4 gaps = 1334 + 4*28 = 1446
+              final double rawTotal =
+                  _devices.fold<double>(0, (s, d) => s + d.baseWidth) +
+                  gap * (_devices.length - 1);
+              final double usable = (avail - hPad * 2).clamp(320.0, 1480.0);
+              final double scale = avail >= 1020
+                  ? (usable / rawTotal).clamp(0.70, 1.04)
+                  : (isMobile ? 0.78 : 0.86);
+
+              final Widget row = Padding(
+                padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    for (int i = 0; i < _devices.length; i++) ...<Widget>[
+                      if (i > 0) SizedBox(width: gap * scale),
+                      UiScrollReveal(
+                        delay: Duration(milliseconds: 60 * i),
+                        slideOffset: const Offset(0, 0.07),
+                        scaleFrom: 0.96,
+                        child: _AvailableDeviceCell(
+                          key: ValueKey<String>(
+                            'landing-device-${_devices[i].id}',
+                          ),
+                          assetId: _devices[i].assetId,
+                          title: _devices[i].title,
+                          subtitle: _devices[i].subtitle,
+                          status: _devices[i].status,
+                          isLive: _devices[i].isLive,
+                          width: _devices[i].baseWidth * scale,
+                          height: _devices[i].baseHeight * scale,
+                          semanticLabel: _devices[i].semanticLabel,
+                          onTap: _devices[i].isLive ? onLaunchWeb : null,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+
+              if (avail >= 1020) {
+                return Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.center,
+                    child: row,
+                  ),
+                );
+              }
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: row,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AvailableDeviceCell extends StatefulWidget {
+  const _AvailableDeviceCell({
+    super.key,
+    required this.assetId,
+    required this.title,
+    required this.subtitle,
+    required this.status,
+    required this.isLive,
+    required this.width,
+    required this.height,
+    required this.semanticLabel,
+    this.onTap,
+  });
+
+  final String assetId;
+  final String title;
+  final String subtitle;
+  final String status;
+  final bool isLive;
+  final double width;
+  final double height;
+  final String semanticLabel;
+  final VoidCallback? onTap;
+
+  @override
+  State<_AvailableDeviceCell> createState() => _AvailableDeviceCellState();
+}
+
+class _AvailableDeviceCellState extends State<_AvailableDeviceCell> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final bool isDark = theme.brightness == Brightness.dark;
+    final bool reducedMotion = MediaQuery.disableAnimationsOf(context);
+
+    final Widget frame = AnimatedSlide(
+      duration: reducedMotion ? Duration.zero : const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      offset: _hovered && !reducedMotion ? const Offset(0, -0.025) : Offset.zero,
+      child: LandingDeviceFrameWebp(
+        assetId: widget.assetId,
+        width: widget.width,
+        height: widget.height,
+        semanticLabel: widget.semanticLabel,
+      ),
+    );
+
+    final Widget statusPill = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: widget.isLive
+            ? colors.bullish.withValues(alpha: isDark ? 0.20 : 0.14)
+            : colors.surfaceMuted,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: widget.isLive
+              ? colors.bullish.withValues(alpha: 0.45)
+              : colors.border,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (widget.isLive) ...<Widget>[
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: colors.bullish,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 7),
+          ],
+          Text(
+            widget.status,
+            style: context.uiText.caption.copyWith(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: widget.isLive ? colors.bullish : colors.foregroundMuted,
+            ),
+          ),
+          if (widget.isLive && widget.onTap != null) ...<Widget>[
+            const SizedBox(width: 4),
+            Icon(
+              Icons.arrow_forward_rounded,
+              size: 13,
+              color: colors.bullish,
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return MouseRegion(
+      cursor: widget.onTap != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            frame,
+            const SizedBox(height: 28),
+            Text(
+              widget.title,
+              style: context.uiText.heading.copyWith(
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+                color: colors.foreground,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              widget.subtitle,
+              style: context.uiText.caption.copyWith(
+                fontSize: 13.5,
+                color: colors.foregroundMuted,
+              ),
+            ),
+            const SizedBox(height: 10),
+            statusPill,
+          ],
         ),
       ),
     );

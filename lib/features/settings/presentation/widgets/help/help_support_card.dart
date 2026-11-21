@@ -103,34 +103,36 @@ class _HelpSupportCardState extends State<HelpSupportCard> {
               style: context.uiText.bodyStrong,
             ),
             UiGap.v(context.ui.spacing.sm),
-            UiButton(
-              label: 'Email support',
-              variant: UiVariant.outline,
-              expand: true,
-              onPressed: _email,
-            ),
-            UiGap.v(context.ui.spacing.sm),
-            UiButton(
-              label: 'Copy email address',
-              variant: UiVariant.ghost,
-              expand: true,
-              onPressed: () async {
-                try {
-                  await Clipboard.setData(
-                    const ClipboardData(text: HelpSupportCard.email),
-                  );
-                  if (mounted) {
-                    setState(() => _feedback = 'Email address copied.');
-                  }
-                } catch (_) {
-                  if (mounted) {
-                    setState(
-                      () => _feedback =
-                          'Copy unavailable. Select the address above to copy it manually.',
-                    );
-                  }
-                }
-              },
+            Wrap(
+              spacing: context.sp(context.ui.spacing.sm),
+              children: [
+                UiButton(
+                  label: 'Email support',
+                  variant: UiVariant.outline,
+                  onPressed: _email,
+                ),
+                UiButton(
+                  label: 'Copy email address',
+                  variant: UiVariant.ghost,
+                  onPressed: () async {
+                    try {
+                      await Clipboard.setData(
+                        const ClipboardData(text: HelpSupportCard.email),
+                      );
+                      if (mounted) {
+                        setState(() => _feedback = 'Email address copied.');
+                      }
+                    } catch (_) {
+                      if (mounted) {
+                        setState(
+                          () => _feedback =
+                              'Copy unavailable. Select the address above to copy it manually.',
+                        );
+                      }
+                    }
+                  },
+                ),
+              ],
             ),
             if (widget.submitTicket != null) ...[
               UiGap.v(context.ui.spacing.md),
@@ -167,7 +169,6 @@ class _HelpSupportCardState extends State<HelpSupportCard> {
               UiGap.v(context.ui.spacing.sm),
               UiButton(
                 label: 'Send support ticket',
-                expand: true,
                 loading: _sending,
                 onPressed: _sending ? null : _send,
               ),

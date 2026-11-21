@@ -568,24 +568,23 @@ class _FeatureShowcaseSheetState extends State<FeatureShowcaseSheet> {
         ),
         const UiDivider(),
         UiGap.v(theme.spacing.sm),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: context.sp(theme.spacing.sm),
+          runSpacing: context.sp(theme.spacing.xs),
           children: <Widget>[
-            if (item.supportsPageTour && widget.onStartPageTour != null) ...[
+            if (item.supportsPageTour && widget.onStartPageTour != null)
               UiButton(
                 key: ValueKey<String>('feature-tour-${item.id}'),
                 label: 'Interactive Page Tour',
                 icon: Icons.assistant_direction_outlined,
                 variant: UiVariant.outline,
                 size: UiSize.sm,
-                expand: true,
                 onPressed: () {
                   Navigator.of(context).pop();
                   widget.onStartPageTour!(item);
                 },
               ),
-              UiGap.v(theme.spacing.xs),
-            ],
             UiButton(
               key: ValueKey<String>('feature-open-${item.id}'),
               label: canOpen ? 'Open ${item.title}' : 'Admin Role Required',
@@ -595,7 +594,6 @@ class _FeatureShowcaseSheetState extends State<FeatureShowcaseSheet> {
               variant: UiVariant.solid,
               intent: canOpen ? UiIntent.primary : UiIntent.neutral,
               size: UiSize.sm,
-              expand: true,
               disabled: !canOpen,
               onPressed: canOpen
                   ? () {

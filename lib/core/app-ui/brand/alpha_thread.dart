@@ -90,20 +90,35 @@ class _AlphaThreadState extends State<AlphaThread>
   }
 
   void _syncMotion() {
-    _motionEnabled =
+    final bool canAnimate =
         widget.animate &&
         widget.reveal == null &&
-        !MediaQuery.disableAnimationsOf(context) &&
-        ModalRoute.isCurrentOf(context) != false;
-    if (!_motionEnabled) {
+        !MediaQuery.disableAnimationsOf(context);
+    if (!canAnimate) {
+      _motionEnabled = false;
       _motion?.reset();
       return;
     }
+
+    final bool isCurrentRoute = ModalRoute.isCurrentOf(context) != false;
+    if (!isCurrentRoute) {
+      // A modal overlay (such as the cookie preferences dialog) temporarily
+      // covers this route. Never reset an already-started or completed thread
+      // animation, otherwise closing the dialog would replay the entrance.
+      if (_motion != null && _motion!.isAnimating) {
+        _motion!.stop(canceled: false);
+      }
+      return;
+    }
+
+    _motionEnabled = true;
     final motion = _motion ??= AnimationController(
       vsync: this,
       duration: AlphaThread.pullDuration,
     );
-    if (motion.isDismissed) motion.forward();
+    if (!motion.isCompleted && !motion.isAnimating) {
+      motion.forward();
+    }
   }
 
   @override

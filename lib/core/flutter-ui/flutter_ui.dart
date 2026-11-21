@@ -112,3 +112,4 @@ export 'components/ui_typing_indicator.dart';
 
 export 'components/ui_deferred.dart';
 export 'components/ui_lazy_list.dart';
+export 'components/ui_scroll_reveal.dart';

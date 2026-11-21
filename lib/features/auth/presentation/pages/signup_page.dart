@@ -507,43 +507,56 @@ class _SignupPageState extends State<SignupPage> {
                                                     theme.spacing.xs,
                                                   ),
                                                 ),
-                                                Wrap(
+                                                Row(
                                                   key: const ValueKey<String>(
                                                     'signup-has-referral-toggle',
                                                   ),
-                                                  spacing: context.sp(
-                                                    theme.spacing.xs,
-                                                  ),
-                                                  runSpacing: context.sp(
-                                                    theme.spacing.xs,
-                                                  ),
                                                   children: <Widget>[
-                                                    UiButton(
-                                                      label: 'No',
-                                                      size: UiSize.sm,
-                                                      variant: !_hasReferralCode
-                                                          ? UiVariant.soft
-                                                          : UiVariant.outline,
-                                                      intent: !_hasReferralCode
-                                                          ? UiIntent.primary
-                                                          : UiIntent.neutral,
-                                                      onPressed: () => setState(
-                                                        () => _hasReferralCode =
-                                                            false,
+                                                    Expanded(
+                                                      child: UiButton(
+                                                        label: 'No',
+                                                        size: UiSize.sm,
+                                                        expand: true,
+                                                        variant:
+                                                            !_hasReferralCode
+                                                            ? UiVariant.soft
+                                                            : UiVariant.outline,
+                                                        intent:
+                                                            !_hasReferralCode
+                                                            ? UiIntent.primary
+                                                            : UiIntent.neutral,
+                                                        onPressed: () =>
+                                                            setState(
+                                                              () =>
+                                                                  _hasReferralCode =
+                                                                      false,
+                                                            ),
                                                       ),
                                                     ),
-                                                    UiButton(
-                                                      label: 'Yes, I have one',
-                                                      size: UiSize.sm,
-                                                      variant: _hasReferralCode
-                                                          ? UiVariant.soft
-                                                          : UiVariant.outline,
-                                                      intent: _hasReferralCode
-                                                          ? UiIntent.primary
-                                                          : UiIntent.neutral,
-                                                      onPressed: () => setState(
-                                                        () => _hasReferralCode =
-                                                            true,
+                                                    SizedBox(
+                                                      width: context.sp(
+                                                        theme.spacing.xs,
+                                                      ),
+                                                    ),
+                                                    Expanded(
+                                                      child: UiButton(
+                                                        label:
+                                                            'Yes, I have one',
+                                                        size: UiSize.sm,
+                                                        expand: true,
+                                                        variant:
+                                                            _hasReferralCode
+                                                            ? UiVariant.soft
+                                                            : UiVariant.outline,
+                                                        intent: _hasReferralCode
+                                                            ? UiIntent.primary
+                                                            : UiIntent.neutral,
+                                                        onPressed: () =>
+                                                            setState(
+                                                              () =>
+                                                                  _hasReferralCode =
+                                                                      true,
+                                                            ),
                                                       ),
                                                     ),
                                                   ],

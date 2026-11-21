@@ -1879,10 +1879,52 @@
     return theme;
   }
 
+  function resolveSplashBrand(hostname) {
+    var rawHost = String(
+      hostname ||
+        (typeof location !== 'undefined' ? location.hostname : '') ||
+        ''
+    )
+      .trim()
+      .toLowerCase();
+    var sub = '';
+    if (rawHost.endsWith('.alphajournal.in')) {
+      sub = rawHost.slice(0, -'.alphajournal.in'.length);
+      if (sub.indexOf('.') !== -1) {
+        sub = sub.split('.')[0];
+      }
+    }
+    if (!sub || sub === 'www') {
+      return {
+        word: 'ALPHAJOURNAL',
+        ariaLabel: 'AlphaJournal',
+        subtitle: 'Intelligent market execution',
+        isSubdomain: false,
+      };
+    }
+    var clean = sub.replace(/[^a-z0-9-]/g, '').slice(0, 20);
+    if (!clean) {
+      return {
+        word: 'ALPHAJOURNAL',
+        ariaLabel: 'AlphaJournal',
+        subtitle: 'Intelligent market execution',
+        isSubdomain: false,
+      };
+    }
+    var titled = clean.charAt(0).toUpperCase() + clean.slice(1);
+    return {
+      word: clean.toUpperCase(),
+      ariaLabel: 'AlphaJournal ' + titled,
+      subtitle: 'AlphaJournal',
+      isSubdomain: true,
+    };
+  }
+
   var api = {
     THEMES: THEMES,
     DOCKS: DOCKS,
     resolveTheme: resolveTheme,
+    resolveSplashBrand: resolveSplashBrand,
     parseSilentCookie: parseSilentCookie,
     resolveSurface: resolveSurface,
     applyThemeVariables: applyThemeVariables,

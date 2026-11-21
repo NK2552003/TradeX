@@ -148,7 +148,7 @@
       <i class="thread-left"></i><i class="thread-right"></i>
     </div>
     <h1 class="word" id="word" aria-label="AlphaJournal">ALPHAJOURNAL</h1>
-    <p class="soon">Intelligent market execution</p>
+    <p class="soon" id="soon">Intelligent market execution</p>
   </div>
   <style>
     :root {
@@ -179,10 +179,22 @@
       padding: 0;
       overflow: hidden;
     }
-    html.aj-silent-nav .splash-threads,
-    html.aj-silent-nav .word,
+    html.aj-silent-nav #splash-loader {
+      --h: min(14vh, clamp(22px, 4.8vw, 56px));
+      gap: calc(var(--h) * 0.28);
+      transition: opacity 0.24s ease-out;
+    }
+    html.aj-silent-nav .splash-threads {
+      opacity: 0.32;
+    }
     html.aj-silent-nav .soon {
-      display: none !important;
+      font-size: clamp(10px, 1.3vw, 14px);
+      letter-spacing: 0.42em;
+      padding-left: 0.42em;
+    }
+    html.aj-silent-nav .band,
+    html.aj-silent-nav .g {
+      animation-duration: 1200ms;
     }
     #splash-loader {
       position: fixed;
@@ -305,10 +317,34 @@
   </style>
   <script>
     (function() {
-      const TEXT = "ALPHAJOURNAL";
+      const host = String(window.location?.hostname || '').trim().toLowerCase();
+      const brand = window.alphajournalTransition?.resolveSplashBrand
+        ? window.alphajournalTransition.resolveSplashBrand(host)
+        : (function() {
+            const sub = host.endsWith('.alphajournal.in')
+              ? host.slice(0, -'.alphajournal.in'.length).split('.')[0].replace(/[^a-z0-9-]/g, '').slice(0, 20)
+              : '';
+            if (!sub || sub === 'www') {
+              return { word: 'ALPHAJOURNAL', ariaLabel: 'AlphaJournal', subtitle: 'Intelligent market execution' };
+            }
+            return {
+              word: sub.toUpperCase(),
+              ariaLabel: 'AlphaJournal ' + sub.charAt(0).toUpperCase() + sub.slice(1),
+              subtitle: 'AlphaJournal',
+            };
+          })();
+      const TEXT = brand.word;
       const word = document.getElementById("word");
+      const soon = document.getElementById("soon");
+      if (word) {
+        word.textContent = TEXT;
+        word.setAttribute("aria-label", brand.ariaLabel);
+      }
+      if (soon) {
+        soon.textContent = brand.subtitle;
+      }
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-      if (!window.__ajSilentNav && word && !reducedMotion.matches) {
+      if (word && !reducedMotion.matches) {
         const fragment = document.createDocumentFragment();
         const layouts = [[0, .24, .71, 1], [0, .40, .64, 1], [0, .28, .76, 1]];
         for (const [index, character] of [...TEXT].entries()) {
@@ -397,8 +433,15 @@
         if (!splash) return;
         const removeSplash = () => splash.remove();
         if (window.__ajSilentNav) {
-          // Give Flutter's destination frame a paint before revealing it.
-          requestAnimationFrame(() => requestAnimationFrame(removeSplash));
+          // Give Flutter's destination frame a paint before fading out smoothly.
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (reducedMotion.matches) {
+              removeSplash();
+            } else {
+              splash.style.opacity = '0';
+              setTimeout(removeSplash, 240);
+            }
+          }));
         } else {
           splash.style.opacity = '0';
           setTimeout(removeSplash, 450);

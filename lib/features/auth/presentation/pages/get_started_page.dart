@@ -37,6 +37,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _platformKey = GlobalKey();
   final GlobalKey _featuresKey = GlobalKey();
+  final GlobalKey _devicesKey = GlobalKey();
   final GlobalKey _pricingKey = GlobalKey();
   final GlobalKey _faqKey = GlobalKey();
 
@@ -137,6 +138,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         <({String id, GlobalKey key})>[
           (id: 'faq', key: _faqKey),
           (id: 'pricing', key: _pricingKey),
+          (id: 'devices', key: _devicesKey),
           (id: 'features', key: _featuresKey),
           (id: 'platform', key: _platformKey),
         ];
@@ -202,6 +204,10 @@ class _GetStartedPageState extends State<GetStartedPage> {
       case 'features':
         _pinActiveSection('features');
         _scrollToKey(_featuresKey);
+        break;
+      case 'devices':
+        _pinActiveSection('devices');
+        _scrollToKey(_devicesKey);
         break;
       case 'pricing':
         _pinActiveSection('pricing');
@@ -271,12 +277,16 @@ class _GetStartedPageState extends State<GetStartedPage> {
       },
     );
 
-    if (_fallbackThemeMode != null &&
-        AppThemeController.maybeOf(context) == null) {
-      final UiTheme overrideTheme = _fallbackThemeMode == ThemeMode.light
-          ? UiTheme.light()
-          : UiTheme.dark();
-      return UiThemeScope(theme: overrideTheme, child: page);
+    // Keep tree depth stable when no AppThemeController is in scope so
+    // toggling _fallbackThemeMode never unmounts SingleChildScrollView or
+    // resets UiDeferred sections back to skeletons.
+    if (AppThemeController.maybeOf(context) == null) {
+      final UiTheme effectiveTheme = _fallbackThemeMode == null
+          ? UiThemeScope.of(context)
+          : (_fallbackThemeMode == ThemeMode.light
+                ? UiTheme.light()
+                : UiTheme.dark());
+      return UiThemeScope(theme: effectiveTheme, child: page);
     }
     return page;
   }
@@ -336,7 +346,8 @@ class _GetStartedPageState extends State<GetStartedPage> {
                                     key: _platformKey,
                                     child: UiDeferred(
                                       estimatedHeight: 620,
-                                      builder: (_) => RepaintBoundary(
+                                      builder: (_) => UiScrollReveal(
+                                        slideOffset: const Offset(0, 0.04),
                                         child: LandingAppleFeatureCarousel(
                                           onGetStarted: () => widget
                                               .onGetStarted(
@@ -388,7 +399,8 @@ class _GetStartedPageState extends State<GetStartedPage> {
                                   // Apple-style Center iPad Pro SVG + Flanking 2×2 Mosaic
                                   UiDeferred(
                                     estimatedHeight: 660,
-                                    builder: (_) => const RepaintBoundary(
+                                    builder: (_) => const UiScrollReveal(
+                                      slideOffset: Offset(0, 0.04),
                                       child: LandingAppleIpadMosaicSection(),
                                     ),
                                   ),
@@ -405,8 +417,27 @@ class _GetStartedPageState extends State<GetStartedPage> {
                         // Full-bleed Apple-style Center iPhone SVG + Flanking AI Result Strip
                         UiDeferred(
                           estimatedHeight: 640,
-                          builder: (_) => const RepaintBoundary(
+                          builder: (_) => const UiScrollReveal(
+                            slideOffset: Offset(0, 0.04),
                             child: LandingAppleCenterPhoneStripSection(),
+                          ),
+                        ),
+
+                        SizedBox(
+                          height: context.sp(theme.spacing.xxxl) * 2,
+                        ),
+
+                        // Available on Every Device — 5-Device Baseline Showcase
+                        KeyedSubtree(
+                          key: _devicesKey,
+                          child: UiDeferred(
+                            estimatedHeight: 580,
+                            builder: (_) => RepaintBoundary(
+                              child: LandingAvailableDevicesSection(
+                                onLaunchWeb: () =>
+                                    widget.onGetStarted(UserRole.customer),
+                              ),
+                            ),
                           ),
                         ),
 
@@ -431,7 +462,8 @@ class _GetStartedPageState extends State<GetStartedPage> {
                                     key: _pricingKey,
                                     child: UiDeferred(
                                       estimatedHeight: 500,
-                                      builder: (_) => RepaintBoundary(
+                                      builder: (_) => UiScrollReveal(
+                                        slideOffset: const Offset(0, 0.04),
                                         child: _buildPricingSection(
                                           context,
                                           theme,
@@ -451,7 +483,8 @@ class _GetStartedPageState extends State<GetStartedPage> {
                                     key: _faqKey,
                                     child: UiDeferred(
                                       estimatedHeight: 400,
-                                      builder: (_) => RepaintBoundary(
+                                      builder: (_) => UiScrollReveal(
+                                        slideOffset: const Offset(0, 0.04),
                                         child: _buildFaqSection(
                                           context,
                                           theme,
@@ -516,7 +549,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                                 ),
 
                                 // Bottom Bar: Copyright & Legal quick actions (transparent over pulse grid)
-                                const RepaintBoundary(
+                                const UiScrollReveal(
+                                  slideOffset: Offset(0, 0.04),
+                                  scaleFrom: 1.0,
                                   child: AlphaJournalFooter(),
                                 ),
                               ],
@@ -546,7 +581,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     child: Center(
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
-                          maxWidth: context.sz(960),
+                          maxWidth: context.sz(1080),
                         ),
                         child: ValueListenableBuilder<bool>(
                           valueListenable: _isScrolledNotifier,
@@ -755,6 +790,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
               (id: 'home', label: 'home'),
               (id: 'platform', label: 'platform'),
               (id: 'features', label: 'features'),
+              (id: 'devices', label: 'devices'),
               (id: 'pricing', label: 'pricing'),
               (id: 'faq', label: 'faq'),
             ],
@@ -918,53 +954,57 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
                     // Top "New | AI Copilot for NSE and BSE traders" pill
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(5, 5, 14, 5),
-                      decoration: BoxDecoration(
-                        color: colors.surface.withValues(
-                          alpha: isDark ? 0.52 : 0.76,
+                    UiScrollReveal(
+                      slideOffset: const Offset(0, 0.08),
+                      scaleFrom: 1.0,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(5, 5, 14, 5),
+                        decoration: BoxDecoration(
+                          color: colors.surface.withValues(
+                            alpha: isDark ? 0.52 : 0.76,
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: colors.borderStrong.withValues(alpha: 0.65),
+                            width: 1,
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: colors.borderStrong.withValues(alpha: 0.65),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: accent,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              'New',
-                              style: context.uiText.caption.copyWith(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: accent,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                'New',
+                                style: context.uiText.caption.copyWith(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Flexible(
-                            child: Text(
-                              'AI Copilot for NSE and BSE traders',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.uiText.caption.copyWith(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w500,
-                                color: colors.foregroundMuted,
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Text(
+                                'AI Copilot for NSE and BSE traders',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.uiText.caption.copyWith(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: colors.foregroundMuted,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     SizedBox(height: context.sp(theme.spacing.xl)),
@@ -990,7 +1030,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                         runSpacing: 8,
                         children: <Widget>[
                           Text(
-                            'The',
+                            'Your',
                             style: context.uiText.display.copyWith(
                               fontSize: heroFontSize,
                               fontWeight: FontWeight.w300,
@@ -1002,12 +1042,12 @@ class _GetStartedPageState extends State<GetStartedPage> {
                           _HeroSelectionFrame(
                             accent: accent,
                             phrases: const <String>[
-                              'Trading Journal',
-                              'AI Copilot',
+                              'Trading Edge',
+                              'Execution Desk',
+                              'AI Research Lab',
+                              'Playbook System',
+                              'Risk Command',
                               'Market Terminal',
-                              'Playbook Engine',
-                              'Risk Desk',
-                              'Knowledge Graph',
                             ],
                             textStyle: context.uiText.display.copyWith(
                               fontSize: heroFontSize,
@@ -1021,7 +1061,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'for your system',
+                        'engineered to compound.',
                         textAlign: TextAlign.center,
                         style: context.uiText.display.copyWith(
                           fontSize: heroFontSize,
@@ -1035,60 +1075,70 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     SizedBox(height: context.sp(theme.spacing.xxl)),
 
                     // Clean 2-line Subtitle
-                    ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: context.sz(640)),
-                      child: Text(
-                        hasCustomCmsDesc
-                            ? cmsDesc
-                            : 'Free, in your browser. Sync your broker, journal every trade, and\nlet AI show which setups make you money.',
-                        textAlign: TextAlign.center,
-                        style: context.uiText.body.copyWith(
-                          color: colors.foregroundMuted,
-                          fontSize: responsive.isMobile ? 14.5 : 17.0,
-                          height: 1.58,
+                    UiScrollReveal(
+                      delay: const Duration(milliseconds: 110),
+                      slideOffset: const Offset(0, 0.06),
+                      scaleFrom: 1.0,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: context.sz(640)),
+                        child: Text(
+                          hasCustomCmsDesc
+                              ? cmsDesc
+                              : 'Free, in your browser. Sync your broker, journal every trade, and\nlet AI show which setups make you money.',
+                          textAlign: TextAlign.center,
+                          style: context.uiText.body.copyWith(
+                            color: colors.foregroundMuted,
+                            fontSize: responsive.isMobile ? 14.5 : 17.0,
+                            height: 1.58,
+                          ),
                         ),
                       ),
                     ),
                     SizedBox(height: context.sp(theme.spacing.xxxl)),
 
                     // Dual Pill CTAs
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: context.sp(theme.spacing.md),
-                      runSpacing: context.sp(theme.spacing.sm),
-                      children: <Widget>[
-                        UiButton(
-                          label: 'Get started free',
-                          variant: UiVariant.primary,
-                          intent: UiIntent.primary,
-                          size: UiSize.lg,
-                          rounded: true,
-                          style: const UiButtonStyle(
-                            height: 48,
-                            radius: 999,
-                            padding: EdgeInsets.symmetric(horizontal: 26),
-                          ),
-                          onPressed: () =>
-                              widget.onGetStarted(UserRole.customer),
-                        ),
-                        UiButton(
-                          label: 'See how it works',
-                          variant: UiVariant.outline,
-                          intent: UiIntent.neutral,
-                          size: UiSize.lg,
-                          rounded: true,
-                          style: UiButtonStyle(
-                            height: 48,
-                            radius: 999,
-                            background: colors.surface.withValues(
-                              alpha: isDark ? 0.35 : 0.90,
+                    UiScrollReveal(
+                      delay: const Duration(milliseconds: 200),
+                      slideOffset: const Offset(0, 0.06),
+                      scaleFrom: 1.0,
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: context.sp(theme.spacing.md),
+                        runSpacing: context.sp(theme.spacing.sm),
+                        children: <Widget>[
+                          UiButton(
+                            label: 'Get started free',
+                            variant: UiVariant.primary,
+                            intent: UiIntent.primary,
+                            size: UiSize.lg,
+                            rounded: true,
+                            style: const UiButtonStyle(
+                              height: 48,
+                              radius: 999,
+                              padding: EdgeInsets.symmetric(horizontal: 26),
                             ),
-                            borderColor: colors.borderStrong,
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            onPressed: () =>
+                                widget.onGetStarted(UserRole.customer),
                           ),
-                          onPressed: () => _scrollToSection('platform'),
-                        ),
-                      ],
+                          UiButton(
+                            label: 'See how it works',
+                            variant: UiVariant.outline,
+                            intent: UiIntent.neutral,
+                            size: UiSize.lg,
+                            rounded: true,
+                            style: UiButtonStyle(
+                              height: 48,
+                              radius: 999,
+                              background: colors.surface.withValues(
+                                alpha: isDark ? 0.35 : 0.90,
+                              ),
+                              borderColor: colors.borderStrong,
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                            ),
+                            onPressed: () => _scrollToSection('platform'),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -1591,12 +1641,17 @@ class _GetStartedPageState extends State<GetStartedPage> {
                       desktopColumns: 3,
                       largeColumns: 3,
                       children: [
-                        for (final plan in plans)
-                          _buildLandingPricingCard(
-                            context,
-                            theme,
-                            colors,
-                            plan,
+                        for (int i = 0; i < plans.length; i++)
+                          UiScrollReveal(
+                            delay: Duration(milliseconds: 90 * i),
+                            slideOffset: const Offset(0, 0.06),
+                            scaleFrom: 0.97,
+                            child: _buildLandingPricingCard(
+                              context,
+                              theme,
+                              colors,
+                              plans[i],
+                            ),
                           ),
                       ],
                     );
@@ -2888,6 +2943,7 @@ class _HeroSelectionFrameState extends State<_HeroSelectionFrame> {
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOutCubic,
+                clipBehavior: Clip.none,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 4,
@@ -2913,6 +2969,7 @@ class _HeroSelectionFrameState extends State<_HeroSelectionFrame> {
                         displayed,
                         maxLines: 1,
                         softWrap: false,
+                        overflow: TextOverflow.visible,
                         style: widget.textStyle,
                       ),
                       if (!reducedMotion)

@@ -84,12 +84,15 @@ class _AppReleaseVersionCardState extends State<AppReleaseVersionCard> {
                   intent: UiIntent.warning,
                 ),
                 UiGap.v(context.ui.spacing.sm),
-                UiButton(
-                  label: 'Retry',
-                  variant: UiVariant.outline,
-                  expand: true,
-                  onPressed: () =>
-                      setState(() => _identity = _service.currentIdentity()),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: UiButton(
+                    label: 'Retry',
+                    variant: UiVariant.outline,
+                    expandOnMobile: false,
+                    onPressed: () =>
+                        setState(() => _identity = _service.currentIdentity()),
+                  ),
                 ),
               ],
             );
@@ -111,14 +114,17 @@ class _AppReleaseVersionCardState extends State<AppReleaseVersionCard> {
                 ],
               ),
               UiGap.v(context.ui.spacing.md),
-              UiButton(
-                label: 'Check for updates',
-                leadingIcon: Icons.refresh_rounded,
-                variant: UiVariant.outline,
-                loading: _isChecking,
-                loadingLabel: 'Checking…',
-                expand: true,
-                onPressed: _checkForUpdates,
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: UiButton(
+                  label: 'Check for updates',
+                  leadingIcon: Icons.refresh_rounded,
+                  variant: UiVariant.outline,
+                  loading: _isChecking,
+                  loadingLabel: 'Checking…',
+                  expandOnMobile: false,
+                  onPressed: _checkForUpdates,
+                ),
               ),
             ],
           );

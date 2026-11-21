@@ -52,21 +52,21 @@ void main() {
       expect(find.text('Institutional Workspace at Your Fingertips'), findsNothing);
       expect(find.text('Core Features Built for Indian Markets'), findsNothing);
       expect(find.text('solutions'), findsNothing);
-      expect(find.text('Trading Journal'), findsOneWidget);
-      expect(find.text('for your system'), findsOneWidget);
+      expect(find.text('Trading Edge'), findsOneWidget);
+      expect(find.text('engineered to compound.'), findsOneWidget);
       expect(find.text('Get started free'), findsOneWidget);
       expect(find.text('See how it works'), findsOneWidget);
       expect(find.byType(LandingHeroGridBackdrop), findsNWidgets(2));
 
       // Tapping the selection bounding box types the next phrase letter-by-letter
-      await tester.tap(find.text('Trading Journal'));
+      await tester.tap(find.text('Trading Edge'));
       await tester.pump();
-      expect(find.text('Trading Journal'), findsNothing);
-      expect(find.text('AI Copilot'), findsNothing);
+      expect(find.text('Trading Edge'), findsNothing);
+      expect(find.text('Execution Desk'), findsNothing);
       await tester.pump(const Duration(milliseconds: 60));
-      expect(find.text('AI'), findsOneWidget);
-      await tester.pump(const Duration(milliseconds: 600));
-      expect(find.text('AI Copilot'), findsOneWidget);
+      expect(find.text('Ex'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 900));
+      expect(find.text('Execution Desk'), findsOneWidget);
       // Header starts compact at top of hero (Get started hidden) and expands on scroll
       expect(find.text('Sign in'), findsOneWidget);
       expect(find.text('Get started'), findsNothing);
@@ -158,45 +158,93 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('4. LandingAppleIphoneGallery renders 5 iPhone SVG frames + QuietDock + Knowledge Graph', (
-    WidgetTester tester,
-  ) async {
-    _setDesktop(tester);
-    await tester.pumpWidget(_wrap(const LandingAppleIphoneGallery()));
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(find.byType(AppleIphoneSvgFrame), findsNWidgets(5));
-    expect(find.byType(QuietDock), findsNWidgets(5));
-    expect(find.byType(UiGraphCanvas), findsOneWidget);
-    expect(find.byType(AppLinkedRecordsPanel), findsOneWidget);
-    expect(find.byType(AppNoteCard), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    '4. LandingAppleIphoneGallery renders 5 pre-rendered WebP iPhone frames for dark and light themes',
+    (WidgetTester tester) async {
+      _setDesktop(tester);
+      await tester.pumpWidget(_wrap(const LandingAppleIphoneGallery()));
+      await tester.pump();
+      expect(find.byType(LandingDeviceFrameWebp), findsNWidgets(5));
+      expect(find.byType(AppleIphoneSvgFrame), findsNothing);
+      expect(find.byType(QuietDock), findsNothing);
+      final List<LandingDeviceFrameWebp> frames = tester
+          .widgetList<LandingDeviceFrameWebp>(
+            find.byType(LandingDeviceFrameWebp),
+          )
+          .toList();
+      expect(
+        frames.map((f) => f.assetPathFor(Brightness.dark)).toList(),
+        <String>[
+          'assets/landing/iphone_community_dark.webp',
+          'assets/landing/iphone_ai_copilot_dark.webp',
+          'assets/landing/iphone_linked_notes_dark.webp',
+          'assets/landing/iphone_markets_dark.webp',
+          'assets/landing/iphone_journal_risk_dark.webp',
+        ],
+      );
+      expect(
+        frames.map((f) => f.assetPathFor(Brightness.light)).toList(),
+        <String>[
+          'assets/landing/iphone_community_light.webp',
+          'assets/landing/iphone_ai_copilot_light.webp',
+          'assets/landing/iphone_linked_notes_light.webp',
+          'assets/landing/iphone_markets_light.webp',
+          'assets/landing/iphone_journal_risk_light.webp',
+        ],
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('5. LandingAppleIpadMosaicSection renders iPad SVG + mosaic cleanly', (
-    WidgetTester tester,
-  ) async {
-    _setDesktop(tester);
-    await tester.pumpWidget(_wrap(const LandingAppleIpadMosaicSection()));
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(find.byType(AppleIpadSvgFrame), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    '5. LandingAppleIpadMosaicSection renders pre-rendered WebP iPad + mosaic cleanly',
+    (WidgetTester tester) async {
+      _setDesktop(tester);
+      await tester.pumpWidget(_wrap(const LandingAppleIpadMosaicSection()));
+      await tester.pump();
+      expect(find.byType(LandingDeviceFrameWebp), findsOneWidget);
+      expect(find.byType(AppleIpadSvgFrame), findsNothing);
+      final LandingDeviceFrameWebp ipad = tester.widget<LandingDeviceFrameWebp>(
+        find.byType(LandingDeviceFrameWebp),
+      );
+      expect(
+        ipad.assetPathFor(Brightness.dark),
+        'assets/landing/ipad_workspace_dark.webp',
+      );
+      expect(
+        ipad.assetPathFor(Brightness.light),
+        'assets/landing/ipad_workspace_light.webp',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('6. LandingAppleCenterPhoneStripSection renders center iPhone AI Quant Lab + 6 flanking AI format cards cleanly', (
-    WidgetTester tester,
-  ) async {
-    _setDesktop(tester);
-    await tester.pumpWidget(
-      _wrap(const LandingAppleCenterPhoneStripSection(), brightness: Brightness.light),
-    );
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(find.byType(AppleIphoneSvgFrame), findsOneWidget);
-    expect(find.byType(QuietDock), findsOneWidget);
-    expect(find.byType(AppAiMessageBubble), findsOneWidget);
-    expect(find.byType(PerplexityCardBlock), findsNWidgets(4));
-    expect(find.byType(ChartBlock), findsNWidgets(2));
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    '6. LandingAppleCenterPhoneStripSection renders pre-rendered WebP center iPhone + 6 flanking AI format cards cleanly',
+    (WidgetTester tester) async {
+      _setDesktop(tester);
+      await tester.pumpWidget(
+        _wrap(
+          const LandingAppleCenterPhoneStripSection(),
+          brightness: Brightness.light,
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(LandingDeviceFrameWebp), findsOneWidget);
+      expect(find.byType(AppleIphoneSvgFrame), findsNothing);
+      expect(find.byType(QuietDock), findsNothing);
+      final LandingDeviceFrameWebp phone = tester.widget<LandingDeviceFrameWebp>(
+        find.byType(LandingDeviceFrameWebp),
+      );
+      expect(
+        phone.assetPathFor(Brightness.light),
+        'assets/landing/iphone_ai_quant_light.webp',
+      );
+      expect(find.byType(PerplexityCardBlock), findsNWidgets(4));
+      expect(find.byType(ChartBlock), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('7. UiButton link variant (e.g. View all) renders without underline', (
     WidgetTester tester,
@@ -564,4 +612,239 @@ void main() {
     expect(themeController.mode, ThemeMode.dark);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    '15. LandingAvailableDevicesSection renders 5 WebP device frames with Web Live now CTA in dark & light themes',
+    (WidgetTester tester) async {
+      _setDesktop(tester);
+      bool launchedWeb = false;
+      await tester.pumpWidget(
+        _wrap(
+          LandingAvailableDevicesSection(
+            onLaunchWeb: () => launchedWeb = true,
+          ),
+          brightness: Brightness.dark,
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.text('Journal on the go.\nReview on the big screen.'),
+        findsOneWidget,
+      );
+      expect(find.text('AVAILABLE ON EVERY DEVICE'), findsNothing);
+      expect(find.byType(LandingDeviceFrameWebp), findsNWidgets(5));
+      expect(find.text('iPhone'), findsOneWidget);
+      expect(find.text('Android'), findsOneWidget);
+      expect(find.text('Tablet'), findsOneWidget);
+      expect(find.text('Web'), findsOneWidget);
+      expect(find.text('Mac'), findsOneWidget);
+      expect(find.text('Live now'), findsOneWidget);
+      expect(find.text('Coming soon'), findsNWidgets(4));
+
+      final List<String> darkPaths = tester
+          .widgetList<LandingDeviceFrameWebp>(
+            find.byType(LandingDeviceFrameWebp),
+          )
+          .map((LandingDeviceFrameWebp w) => w.assetPathFor(Brightness.dark))
+          .toList();
+      expect(darkPaths, <String>[
+        'assets/landing/device_iphone_dark.webp',
+        'assets/landing/device_android_dark.webp',
+        'assets/landing/device_tablet_dark.webp',
+        'assets/landing/device_web_dark.webp',
+        'assets/landing/device_mac_dark.webp',
+      ]);
+
+      await tester.tap(find.byKey(const ValueKey<String>('landing-device-web')));
+      await tester.pump();
+      expect(launchedWeb, isTrue);
+
+      // Light mode + narrow mobile width renders cleanly without overflow.
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      await tester.pumpWidget(
+        _wrap(
+          const LandingAvailableDevicesSection(),
+          brightness: Brightness.light,
+        ),
+      );
+      await tester.pump();
+      final List<String> lightPaths = tester
+          .widgetList<LandingDeviceFrameWebp>(
+            find.byType(LandingDeviceFrameWebp),
+          )
+          .map((LandingDeviceFrameWebp w) => w.assetPathFor(Brightness.light))
+          .toList();
+      expect(lightPaths, <String>[
+        'assets/landing/device_iphone_light.webp',
+        'assets/landing/device_android_light.webp',
+        'assets/landing/device_tablet_light.webp',
+        'assets/landing/device_web_light.webp',
+        'assets/landing/device_mac_light.webp',
+      ]);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    '16. Landing page UiDeferred sections never stay stuck on skeleton after theme toggle',
+    (WidgetTester tester) async {
+      _setDesktop(tester);
+      final AppThemeController themeController = AppThemeController(
+        ThemeMode.dark,
+      );
+      addTearDown(themeController.dispose);
+
+      await tester.pumpWidget(
+        AppThemeScope(
+          controller: themeController,
+          child: ListenableBuilder(
+            listenable: themeController,
+            builder: (BuildContext context, Widget? _) {
+              final bool isDark = themeController.mode != ThemeMode.light;
+              return UiApp(
+                theme: isDark ? UiTheme.dark() : UiTheme.light(),
+                builder: (_) => MaterialApp(
+                  theme: UiTheme.light().toThemeData(),
+                  darkTheme: UiTheme.dark().toThemeData(),
+                  themeMode: themeController.mode,
+                  home: GetStartedPage(
+                    onGetStarted: (_) {},
+                    onSignIn: () {},
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Toggle Dark -> Light while at top, then jump to Devices section.
+      final Finder themeToggle = find.byType(AppThemeGlyph);
+      expect(themeToggle, findsOneWidget);
+      await tester.tap(themeToggle);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(themeController.mode, ThemeMode.light);
+
+      // Tap 'devices' nav link to scroll to the deferred Devices section.
+      await tester.tap(find.text('devices'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pump();
+
+      expect(find.byType(LandingAvailableDevicesSection), findsOneWidget);
+
+      // Toggle Light -> Dark while scrolled at Devices section: section stays mounted.
+      await tester.tap(themeToggle);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(themeController.mode, ThemeMode.dark);
+      expect(find.byType(LandingAvailableDevicesSection), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    '17. AlphaThread does not replay entrance animation after modal dialog closes',
+    (WidgetTester tester) async {
+      _setDesktop(tester);
+      late BuildContext hostContext;
+      await tester.pumpWidget(
+        UiApp(
+          theme: UiTheme.dark(),
+          builder: (_) => MaterialApp(
+            home: Builder(
+              builder: (BuildContext context) {
+                hostContext = context;
+                return const Scaffold(
+                  body: AlphaThread(animate: true, height: 180),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      // Let the 3600ms entrance animation complete.
+      await tester.pump(const Duration(milliseconds: 3800));
+      expect(tester.binding.hasScheduledFrame, isFalse);
+
+      // Open a modal dialog (like CookiePreferencesDialog) over the page.
+      showDialog<void>(
+        context: hostContext,
+        builder: (_) => const AlertDialog(content: Text('Cookies')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Cookies'), findsOneWidget);
+
+      // Close the modal dialog and verify AlphaThread stays completed (does not
+      // restart a 3.6s animation).
+      Navigator.of(hostContext).pop();
+      await tester.pumpAndSettle();
+      expect(find.text('Cookies'), findsNothing);
+      // One frame later, no ongoing animation should be ticking.
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.binding.hasScheduledFrame, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    '18. UiScrollReveal reveals once on scroll into view and respects reduced motion',
+    (WidgetTester tester) async {
+      _setDesktop(tester);
+      final ScrollController scrollController = ScrollController();
+      addTearDown(scrollController.dispose);
+
+      await tester.pumpWidget(
+        UiApp(
+          theme: UiTheme.dark(),
+          builder: (_) => MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                controller: scrollController,
+                child: const Column(
+                  children: <Widget>[
+                    SizedBox(height: 1400),
+                    UiScrollReveal(
+                      delay: Duration(milliseconds: 40),
+                      child: Text('Below-fold reveal'),
+                    ),
+                    SizedBox(height: 400),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      FadeTransition fade() => tester.widget<FadeTransition>(
+        find.descendant(
+          of: find.byType(UiScrollReveal),
+          matching: find.byType(FadeTransition),
+        ),
+      );
+      // Starts hidden while below the fold.
+      expect(fade().opacity.value, 0.0);
+
+      // Scroll into view -> triggers smooth reveal once after 40ms stagger delay.
+      scrollController.jumpTo(950);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(fade().opacity.value, closeTo(1.0, 0.01));
+
+      // Scrolling away and back never resets it back to 0.
+      scrollController.jumpTo(0);
+      await tester.pump();
+      expect(fade().opacity.value, closeTo(1.0, 0.01));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

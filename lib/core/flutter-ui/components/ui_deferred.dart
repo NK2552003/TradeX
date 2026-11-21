@@ -18,10 +18,11 @@ class UiDeferred extends StatefulWidget {
 
 class _UiDeferredState extends State<UiDeferred> {
   ScrollableState? _scrollable;
+  ScrollPosition? _position;
   bool _loaded = false, _scheduled = false;
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  int _layoutRetries = 0;
+
+  void _syncScrollable() {
     var next = Scrollable.maybeOf(context, axis: Axis.vertical);
     while (next != null &&
         next.widget.physics is NeverScrollableScrollPhysics) {
@@ -29,12 +30,29 @@ class _UiDeferredState extends State<UiDeferred> {
       if (outer == null) break;
       next = outer;
     }
-    if (_scrollable != next) {
-      _scrollable?.position.removeListener(_check);
+    final ScrollPosition? nextPosition = next?.position;
+    if (_scrollable != next || _position != nextPosition) {
+      _position?.removeListener(_check);
       _scrollable = next;
-      _scrollable?.position.addListener(_check);
+      _position = nextPosition;
+      _position?.addListener(_check);
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncScrollable();
     _check();
+  }
+
+  @override
+  void didUpdateWidget(covariant UiDeferred oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_loaded) {
+      _syncScrollable();
+      _check();
+    }
   }
 
   void _check() {
@@ -43,6 +61,7 @@ class _UiDeferredState extends State<UiDeferred> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scheduled = false;
       if (!mounted || _loaded) return;
+      _syncScrollable();
       final section = context.findRenderObject();
       final viewport = _scrollable?.context.findRenderObject();
       if (_scrollable == null) {
@@ -53,18 +72,26 @@ class _UiDeferredState extends State<UiDeferred> {
           viewport is! RenderBox ||
           !section.hasSize ||
           !viewport.hasSize) {
+        if (_layoutRetries < 5) {
+          _layoutRetries++;
+          _check();
+        }
         return;
       }
+      _layoutRetries = 0;
       final sectionRect = section.localToGlobal(Offset.zero) & section.size;
       final viewportRect = (viewport.localToGlobal(Offset.zero) & viewport.size)
           .inflate(widget.preloadExtent);
-      if (sectionRect.overlaps(viewportRect)) setState(() => _loaded = true);
+      if (sectionRect.overlaps(viewportRect)) {
+        _position?.removeListener(_check);
+        setState(() => _loaded = true);
+      }
     });
   }
 
   @override
   void dispose() {
-    _scrollable?.position.removeListener(_check);
+    _position?.removeListener(_check);
     super.dispose();
   }
 

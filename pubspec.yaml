@@ -113,6 +113,12 @@ flutter:
   assets:
     - assets/config/
     - assets/legal/
+    - path: assets/landing/
+      platforms:
+        - web
+        - macos
+        - windows
+        - linux
     # Embedded in generated note PDFs — the `pdf` package cannot reach system
     # fonts, so the export bundles its own.
     - assets/fonts/

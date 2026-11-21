@@ -104,7 +104,6 @@ class _CookiePreferencesDialogState extends State<CookiePreferencesDialog> {
           content: snapshot.hasError
               ? UiButton(
                   label: 'Continue with current choices',
-                  expand: true,
                   onPressed: () => Navigator.of(context).pop(),
                 )
               : UiSkeleton.text(lines: 3),
@@ -163,28 +162,63 @@ class _CookiePreferencesDialogState extends State<CookiePreferencesDialog> {
             ),
           ),
           UiGap.v(theme.spacing.md),
-          Text(
-            managing
-                ? copy['retention'].replaceAll(
-                    '{days}',
-                    ConsentPreferences.lifetime.inDays.toString(),
-                  )
-                : copy['closeNotice'],
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundMuted,
-            ),
-          ),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: UiButton(
-              label: copy['policy'],
-              variant: UiVariant.link,
-              size: UiSize.sm,
-              trailingIcon: Icons.arrow_forward_rounded,
-              style: const UiButtonStyle(padding: EdgeInsets.zero),
-              onPressed: busy
-                  ? null
-                  : () => PublicationReader.open(context, 'cookies'),
+          UiCard(
+            key: const ValueKey<String>('cookie-policy-notice-card'),
+            variant: UiCardVariant.subtle,
+            padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Container(
+                      width: context.sz(28),
+                      height: context.sz(28),
+                      decoration: BoxDecoration(
+                        color: theme.colors.surface,
+                        borderRadius: context.radius(theme.radii.sm),
+                        border: Border.all(
+                          color: theme.colors.border,
+                          width: theme.borders.hairline,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.policy_outlined,
+                        size: context.sz(16),
+                        color: theme.colors.foregroundMuted,
+                      ),
+                    ),
+                    UiGap.h(theme.spacing.sm),
+                    Expanded(
+                      child: Text(
+                        managing
+                            ? copy['retention'].replaceAll(
+                                '{days}',
+                                ConsentPreferences.lifetime.inDays.toString(),
+                              )
+                            : copy['closeNotice'],
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                UiGap.v(theme.spacing.sm),
+                UiButton(
+                  label: copy['policy'],
+                  variant: UiVariant.outline,
+                  size: UiSize.sm,
+                  expand: true,
+                  leadingIcon: Icons.description_outlined,
+                  trailingIcon: Icons.arrow_forward_rounded,
+                  onPressed: busy
+                      ? null
+                      : () => PublicationReader.open(context, 'cookies'),
+                ),
+              ],
             ),
           ),
           if (widget.controller.error case final String error) ...[
@@ -196,7 +230,6 @@ class _CookiePreferencesDialogState extends State<CookiePreferencesDialog> {
             UiButton(
               label: copy['continue'],
               variant: UiVariant.ghost,
-              expand: true,
               onPressed: busy ? null : () => Navigator.of(context).pop(),
             ),
           ],
@@ -331,12 +364,13 @@ class _CookieActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spacing = context.ui.spacing;
+    final mobile = context.uiRes.isMobile;
     final preference = UiButton(
       label: copy[managing ? 'save' : 'manage'],
       variant: managing ? UiVariant.primary : UiVariant.ghost,
       rounded: true,
-      expand: true,
-      alignment: Alignment.center,
+      expand: mobile,
+      alignment: mobile ? Alignment.center : null,
       size: UiSize.lg,
       loading: managing && busy,
       onPressed: busy ? null : onManageOrSave,
@@ -345,22 +379,26 @@ class _CookieActions extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         UiDivider(spacing: spacing.sm),
-        for (final (label, action) in [
-          (copy['reject'], onReject),
-          (copy['accept'], onAccept),
-        ]) ...[
-          UiButton(
-            label: label,
-            rounded: true,
-            expand: true,
-            alignment: Alignment.center,
-            size: UiSize.lg,
-            variant: UiVariant.outline,
-            onPressed: busy ? null : action,
-          ),
-          UiGap.v(spacing.xs),
-        ],
-        preference,
+        Wrap(
+          alignment: mobile ? WrapAlignment.center : WrapAlignment.spaceBetween,
+          spacing: context.sp(spacing.sm),
+          runSpacing: context.sp(spacing.xs),
+          children: [
+            if (!mobile && !managing) preference,
+            for (final (label, action) in [
+              (copy['reject'], onReject),
+              (copy['accept'], onAccept),
+            ])
+              UiButton(
+                label: label,
+                rounded: true,
+                size: UiSize.lg,
+                variant: UiVariant.outline,
+                onPressed: busy ? null : action,
+              ),
+            if (mobile || managing) preference,
+          ],
+        ),
       ],
     );
   }
