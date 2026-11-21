@@ -199,6 +199,7 @@ class AppQuietDockScaffold extends StatefulWidget {
     this.onDestinationSelected,
     this.centerAction,
     this.centerActionActive = false,
+    this.primaryDestinationActive = true,
     this.leftActionIcon,
     this.leftActionTooltip,
     this.onLeftActionPressed,
@@ -222,6 +223,7 @@ class AppQuietDockScaffold extends StatefulWidget {
   final ValueChanged<int>? onDestinationSelected;
   final QuietDockCenterAction? centerAction;
   final bool centerActionActive;
+  final bool primaryDestinationActive;
   final IconData? leftActionIcon;
   final String? leftActionTooltip;
   final VoidCallback? onLeftActionPressed;
@@ -352,7 +354,11 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
       }
     }
 
-    if (index != previous) widget.onDestinationSelected?.call(index);
+    if (index != previous ||
+        widget.centerActionActive ||
+        !widget.primaryDestinationActive) {
+      widget.onDestinationSelected?.call(index);
+    }
   }
 
   void _toggleMenu() {
@@ -411,7 +417,13 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
   }
 
   void _handleDestinationTap(int index) {
-    if (index != _index && widget.onDestinationTap?.call(index) == true) return;
+    final bool isAlreadyActive =
+        index == _index &&
+        !widget.centerActionActive &&
+        widget.primaryDestinationActive;
+    if (!isAlreadyActive && widget.onDestinationTap?.call(index) == true) {
+      return;
+    }
     _select(index);
   }
 

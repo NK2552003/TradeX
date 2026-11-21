@@ -92,7 +92,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   UserProfileModel? _authenticatedProfile;
   AffiliateProfileModel? _authenticatedAffProfile;
   UserRole? _authenticatedRole;
-  String _initialAppDestination = 'workspace';
+  String _initialAppDestination = 'community';
   String? _oauthErrorNotice;
   int _restoreGeneration = 0;
   StreamSubscription<AuthState>? _authSubscription;
@@ -648,7 +648,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     _authenticatedAffProfile = null;
     _authenticatedRole = null;
     _pendingResolvedStage = AuthStage.login;
-    _initialAppDestination = 'workspace';
+    _initialAppDestination = 'community';
     SupabaseAuthBackendService.instance.setCurrentProfile(
       null,
       affiliateProfile: null,

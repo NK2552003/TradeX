@@ -66,6 +66,7 @@ export 'shell/app_quiet_dock.dart'
         AppMobileDockMetrics,
         AppDockRevealEdge,
         AppDockVisibility,
-        AppDockSyncedFab;
+        AppDockSyncedFab,
+        AppQuietDockScaffold;
 export 'shell/app_shell.dart';
 export 'shell/app_workspace.dart';

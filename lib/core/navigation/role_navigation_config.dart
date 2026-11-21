@@ -262,11 +262,6 @@ class RoleNavigationConfig {
     ],
     mobileMoreItems: <AppNavItem>[
       AppNavItem(
-        id: 'calculators',
-        label: 'Calculators',
-        icon: Icons.calculate_outlined,
-      ),
-      AppNavItem(
         id: 'ai_copilot',
         label: 'AI Assistant',
         icon: Icons.auto_awesome_outlined,
@@ -484,11 +479,6 @@ class RoleNavigationConfig {
       _settingsDock,
     ],
     mobileMoreItems: <AppNavItem>[
-      AppNavItem(
-        id: 'marketing',
-        label: 'Media Kit',
-        icon: Icons.campaign_outlined,
-      ),
       AppNavItem(
         id: 'payouts',
         label: 'Payouts',

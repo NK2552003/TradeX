@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:alphajournal/app.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
@@ -221,6 +223,57 @@ void main() {
 
       // Flush pending toast auto-dismiss timers before teardown.
       await tester.pump(const Duration(seconds: 5));
+    },
+  );
+
+  testWidgets(
+    'AppThemeController and AlphaJournalApp default to system theme and track OS brightness changes',
+    (tester) async {
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      expect(AppThemeController().mode, ThemeMode.system);
+
+      // Start with OS in Light mode and no saved user theme preference.
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+      await tester.pumpWidget(const AlphaJournalApp());
+      await tester.pump();
+
+      final MaterialApp lightMaterial = tester.widget<MaterialApp>(
+        find.byType(MaterialApp),
+      );
+      expect(lightMaterial.themeMode, ThemeMode.system);
+      expect(
+        tester.widget<UiThemeScope>(find.byType(UiThemeScope).first).theme.brightness,
+        Brightness.light,
+      );
+      final AnnotatedRegion<SystemUiOverlayStyle> lightOverlay = tester.widget(
+        find.byType(AnnotatedRegion<SystemUiOverlayStyle>).first,
+      );
+      expect(lightOverlay.value.statusBarIconBrightness, Brightness.dark);
+      expect(
+        lightOverlay.value.systemNavigationBarIconBrightness,
+        Brightness.dark,
+      );
+
+      // Flip OS to Dark mode -> app updates automatically without user toggle.
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      await tester.pump();
+
+      expect(
+        tester.widget<UiThemeScope>(find.byType(UiThemeScope).first).theme.brightness,
+        Brightness.dark,
+      );
+      final AnnotatedRegion<SystemUiOverlayStyle> darkOverlay = tester.widget(
+        find.byType(AnnotatedRegion<SystemUiOverlayStyle>).first,
+      );
+      expect(darkOverlay.value.statusBarIconBrightness, Brightness.light);
+      expect(
+        darkOverlay.value.systemNavigationBarIconBrightness,
+        Brightness.light,
+      );
+
+      // Clean unmount to dispose router and controllers cleanly.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
     },
   );
 }

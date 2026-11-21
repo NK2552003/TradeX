@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:quiet_dock/quiet_dock.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart' hide CommunityPostCard;
 import 'package:alphajournal/features/community/data/community_repository.dart';
 import 'package:alphajournal/features/community/models/community_models.dart';
@@ -16,6 +17,7 @@ import 'package:alphajournal/features/community/presentation/widgets/community_a
 import 'package:alphajournal/features/community/presentation/widgets/community_trader_card.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_sidebar_widgets.dart';
 import 'package:alphajournal/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:alphajournal/features/community/presentation/widgets/community_quote_card.dart';
 
 void main() {
   late CommunityRepository repo;
@@ -708,6 +710,192 @@ void main() {
           findsOneWidget,
         );
       }
+    },
+  );
+
+  testWidgets(
+    'mobile post detail reply bar floats above dock when revealed and moves down when dock hides',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      AppDockVisibility.hidden.value = false;
+      addTearDown(() => AppDockVisibility.hidden.value = false);
+
+      final author = CommunityAuthor(
+        id: 'dev-admin',
+        handle: 'dev_admin',
+        displayName: 'Dev Admin',
+        userRole: UserRole.userAdmin,
+      );
+      final longBody = List<String>.filled(
+        40,
+        'Detailed execution note and risk review paragraph for mobile scroll.',
+      ).join('\n\n');
+      final post = CommunityPost(
+        id: 'floating-reply-mobile-post',
+        author: author,
+        body: longBody,
+        createdAt: DateTime(2026, 11, 21),
+      );
+      const navItems = <AppNavItem>[
+        AppNavItem(
+          id: 'community_feed',
+          label: 'Feed',
+          icon: Icons.dynamic_feed_outlined,
+        ),
+        AppNavItem(
+          id: 'community_explore',
+          label: 'Explore',
+          icon: Icons.explore_outlined,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        UiApp(
+          theme: UiTheme.dark(),
+          builder: (_) => MaterialApp(
+            home: AppShell(
+              sections: const <AppNavSection>[
+                AppNavSection(title: 'Community', items: navItems),
+              ],
+              mobilePrimaryItems: navItems,
+              selectedId: 'community_feed',
+              onSelect: (_) {},
+              child: CommunityPostDetailView(
+                post: post,
+                repository: repo,
+                currentUser: repo.currentAuthor,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Finder replyBar = find.byKey(
+        const ValueKey<String>('community-mobile-floating-reply-bar'),
+      );
+      final Finder dock = find.byType(QuietDock);
+      expect(replyBar, findsOneWidget);
+      expect(dock, findsOneWidget);
+
+      // Reply bar is floating inside the Stack, not pinned as Scaffold.bottomNavigationBar.
+      final Scaffold detailScaffold = tester.widget<Scaffold>(
+        find.descendant(
+          of: find.byType(CommunityPostDetailView),
+          matching: find.byType(Scaffold),
+        ),
+      );
+      expect(detailScaffold.bottomNavigationBar, isNull);
+
+      // When dock is revealed, reply bar floats cleanly above the dock.
+      final Rect dockRect = tester.getRect(dock);
+      final Rect revealedReplyRect = tester.getRect(replyBar);
+      expect(revealedReplyRect.bottom, lessThan(dockRect.top));
+
+      // Scroll down to hide the dock -> reply bar smoothly moves down toward the bottom.
+      await tester.drag(
+        find.descendant(
+          of: find.byType(CommunityPostDetailView),
+          matching: find.byType(SingleChildScrollView),
+        ).first,
+        const Offset(0, -320),
+      );
+      await tester.pumpAndSettle();
+      expect(AppDockVisibility.hidden.value, isTrue);
+
+      final Rect hiddenReplyRect = tester.getRect(replyBar);
+      expect(hiddenReplyRect.bottom, greaterThan(revealedReplyRect.bottom + 30));
+
+      // Scroll up to reveal the dock -> reply bar moves back above the dock.
+      await tester.drag(
+        find.descendant(
+          of: find.byType(CommunityPostDetailView),
+          matching: find.byType(SingleChildScrollView),
+        ).first,
+        const Offset(0, 200),
+      );
+      await tester.pumpAndSettle();
+      expect(AppDockVisibility.hidden.value, isFalse);
+
+      final Rect reRevealedReplyRect = tester.getRect(replyBar);
+      expect(reRevealedReplyRect.bottom, lessThan(dockRect.top));
+      expect(
+        reRevealedReplyRect.bottom,
+        closeTo(revealedReplyRect.bottom, 1.0),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'CommunityQuoteCard renders attached sub-post concisely on narrow mobile screens',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final author = CommunityAuthor(
+        id: 'quote-author',
+        handle: 'very_long_quantitative_trader_handle',
+        displayName: 'Quantitative Desk Analyst With Long Name',
+        userRole: UserRole.customer,
+        tier: AppTier.enterprise,
+      );
+      final longMarkdown = List<String>.filled(
+        12,
+        '## Breakout Thesis\n- Entry above **VWAP** with strict risk cap and multi-timeframe confirmation.',
+      ).join('\n\n');
+      final quotedPost = CommunityPost(
+        id: 'quoted-long-post',
+        author: author,
+        body: longMarkdown,
+        createdAt: DateTime(2026, 11, 21),
+        tradeSetup: const CommunityTradeSetup(
+          ticker: 'NIFTY',
+          side: 'Long',
+          entry: '24500',
+          stopLoss: '24380',
+          target: '24800',
+          pnl: '+2.4R',
+          isWin: true,
+        ),
+      );
+
+      var tapped = false;
+      await tester.pumpWidget(
+        UiApp(
+          theme: UiTheme.dark(),
+          builder: (_) => MaterialApp(
+            home: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(12),
+                child: CommunityQuoteCard(
+                  post: quotedPost,
+                  onTap: () => tapped = true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Finder card = find.byKey(
+        const ValueKey<String>('community-quote-card-quoted-long-post'),
+      );
+      expect(card, findsOneWidget);
+      // Concise sub-post stays compact despite a 12-paragraph markdown source post.
+      expect(tester.getSize(card).height, lessThan(130));
+      expect(find.text('NIFTY · Long · +2.4R'), findsOneWidget);
+
+      await tester.tap(card);
+      await tester.pump();
+      expect(tapped, isTrue);
+      expect(tester.takeException(), isNull);
     },
   );
 }

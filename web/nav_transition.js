@@ -286,6 +286,7 @@
     if (mode !== 'light' && mode !== 'dark' && mode !== 'system') {
       mode = '';
     }
+    var effectiveMode = mode || 'system';
     var prefersLight =
       typeof opts.prefersLight === 'boolean'
         ? opts.prefersLight
@@ -295,11 +296,12 @@
     var isLight =
       typeof opts.isLight === 'boolean'
         ? opts.isLight
-        : mode === 'light' || (mode === 'system' && prefersLight);
+        : effectiveMode === 'light' ||
+          (effectiveMode === 'system' && prefersLight);
     var rawDensity = opts.density || readFlag('ax_theme_density', opts);
     var density = String(rawDensity || '').trim().toLowerCase();
     return {
-      mode: mode || 'dark',
+      mode: effectiveMode,
       isLight: isLight,
       compact: density === 'compact',
       palette: isLight ? THEMES.light : THEMES.dark,
@@ -792,8 +794,13 @@
     var rootEl = doc.documentElement;
     var p = theme.palette;
     if (rootEl) {
-      if (theme.isLight) rootEl.classList.add('aj-light');
-      else rootEl.classList.remove('aj-light');
+      if (theme.isLight) {
+        rootEl.classList.add('aj-light');
+        rootEl.classList.remove('aj-dark');
+      } else {
+        rootEl.classList.remove('aj-light');
+        rootEl.classList.add('aj-dark');
+      }
       rootEl.style.colorScheme = theme.isLight ? 'light' : 'dark';
       var vars = {
         '--aj-bg': p.bg,

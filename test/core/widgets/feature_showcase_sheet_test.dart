@@ -227,6 +227,9 @@ void main() {
       await tester.tap(adminPill);
       await tester.pumpAndSettle();
       expect(find.text('Admin Role Required'), findsOneWidget);
+      final Finder openBtn = find.byKey(const ValueKey('feature-open-admin'));
+      expect(tester.widget<UiButton>(openBtn).expand, isTrue);
+      expect(tester.getSize(openBtn).width, greaterThan(340));
       expect(tester.takeException(), isNull);
     },
   );

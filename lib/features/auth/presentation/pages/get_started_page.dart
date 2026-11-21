@@ -1405,12 +1405,20 @@ class _GetStartedPageState extends State<GetStartedPage> {
       ],
     );
 
+    final bool isDarkTheme = theme.brightness == Brightness.dark;
+    final List<BoxShadow> activePillShadow = <BoxShadow>[
+      BoxShadow(
+        color: Colors.black.withValues(alpha: isDarkTheme ? 0.32 : 0.16),
+        blurRadius: 8,
+        offset: const Offset(0, 2),
+      ),
+    ];
     final Widget billingCycleToggle = Container(
       decoration: BoxDecoration(
-        color: colors.surfaceMuted.withValues(alpha: 0.65),
+        color: colors.surfaceMuted,
         borderRadius: context.radius(theme.radii.pill),
         border: Border.all(
-          color: colors.border,
+          color: colors.borderStrong,
           width: theme.borders.hairline,
         ),
       ),
@@ -1418,83 +1426,105 @@ class _GetStartedPageState extends State<GetStartedPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              if (!_isAnnualPricing) return;
-              setState(() {
-                _isAnnualPricing = false;
-                _pricingFuture = _pricingRepo.getPricingCatalogue(
-                  annual: false,
-                );
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              decoration: BoxDecoration(
-                color: !_isAnnualPricing
-                    ? colors.surface
-                    : Colors.transparent,
-                borderRadius: context.radius(theme.radii.pill),
-              ),
-              child: Text(
-                'Monthly',
-                style: context.uiText.bodyStrong.copyWith(
-                  fontSize: 13,
+          Semantics(
+            button: true,
+            selected: !_isAnnualPricing,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                if (!_isAnnualPricing) return;
+                setState(() {
+                  _isAnnualPricing = false;
+                  _pricingFuture = _pricingRepo.getPricingCatalogue(
+                    annual: false,
+                  );
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
                   color: !_isAnnualPricing
-                      ? colors.foreground
-                      : colors.foregroundMuted,
+                      ? colors.primary
+                      : Colors.transparent,
+                  borderRadius: context.radius(theme.radii.pill),
+                  border: !_isAnnualPricing
+                      ? Border.all(
+                          color: colors.primary,
+                          width: theme.borders.hairline,
+                        )
+                      : null,
+                  boxShadow: !_isAnnualPricing ? activePillShadow : null,
+                ),
+                child: Text(
+                  'Monthly',
+                  style: context.uiText.bodyStrong.copyWith(
+                    fontSize: 13,
+                    color: !_isAnnualPricing
+                        ? colors.onPrimary
+                        : colors.foregroundMuted,
+                  ),
                 ),
               ),
             ),
           ),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              if (_isAnnualPricing) return;
-              setState(() {
-                _isAnnualPricing = true;
-                _pricingFuture = _pricingRepo.getPricingCatalogue(
-                  annual: true,
-                );
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              decoration: BoxDecoration(
-                color: _isAnnualPricing
-                    ? colors.surface
-                    : Colors.transparent,
-                borderRadius: context.radius(theme.radii.pill),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(
-                    'Billed annually',
-                    style: context.uiText.bodyStrong.copyWith(
-                      fontSize: 13,
-                      color: _isAnnualPricing
-                          ? colors.foreground
-                          : colors.foregroundMuted,
+          Semantics(
+            button: true,
+            selected: _isAnnualPricing,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                if (_isAnnualPricing) return;
+                setState(() {
+                  _isAnnualPricing = true;
+                  _pricingFuture = _pricingRepo.getPricingCatalogue(
+                    annual: true,
+                  );
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: _isAnnualPricing ? colors.primary : Colors.transparent,
+                  borderRadius: context.radius(theme.radii.pill),
+                  border: _isAnnualPricing
+                      ? Border.all(
+                          color: colors.primary,
+                          width: theme.borders.hairline,
+                        )
+                      : null,
+                  boxShadow: _isAnnualPricing ? activePillShadow : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      'Billed annually',
+                      style: context.uiText.bodyStrong.copyWith(
+                        fontSize: 13,
+                        color: _isAnnualPricing
+                            ? colors.onPrimary
+                            : colors.foregroundMuted,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  const UiBadge(
-                    label: 'Save 20%',
-                    intent: UiIntent.success,
-                    variant: UiBadgeVariant.soft,
-                    size: UiSize.xs,
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    UiBadge(
+                      label: 'Save 20%',
+                      intent: UiIntent.success,
+                      variant: _isAnnualPricing
+                          ? UiBadgeVariant.solid
+                          : UiBadgeVariant.soft,
+                      size: UiSize.xs,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

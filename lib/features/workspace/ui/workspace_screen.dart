@@ -658,12 +658,14 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                 description:
                     'Your notes, trade journal, and playbooks in one connected place.',
               ),
-              SizedBox(height: gutter),
-              CustomerLimitationsBanner(
-                noteCount: _allNotes.length,
-                tradeCount: _entries.length,
-                liveStrategyCount: _livePlaybooks.length,
-              ),
+              if (!context.uiRes.isMobile) ...<Widget>[
+                SizedBox(height: gutter),
+                CustomerLimitationsBanner(
+                  noteCount: _allNotes.length,
+                  tradeCount: _entries.length,
+                  liveStrategyCount: _livePlaybooks.length,
+                ),
+              ],
               SizedBox(height: sectionGap),
 
               // ── Calendar Bar & View Toggler ──────────────────────────

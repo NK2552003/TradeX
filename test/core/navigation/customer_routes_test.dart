@@ -137,7 +137,7 @@ void main() {
         Uri(path: '/'),
         host: 'app.alphajournal.in',
       );
-      expect(appRoute.destination, 'workspace');
+      expect(appRoute.destination, 'community');
       expect(appRoute.stage, AuthStage.login);
       expect(
         CustomerRoute.requiredRoleForSubdomain('app.alphajournal.in'),

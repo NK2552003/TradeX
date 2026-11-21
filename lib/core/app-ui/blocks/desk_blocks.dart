@@ -451,32 +451,48 @@ class AppQuickLinkStrip extends StatelessWidget {
     if (links.isEmpty) return const SizedBox.shrink();
 
     final int cols = context.uiRes.isMobile
-        ? (links.length < 3 ? links.length : 3)
+        ? (links.length < 2 ? links.length : 2)
         : (links.length < 4 ? links.length : 4);
+
+    final List<List<AppQuickLink>> rows = <List<AppQuickLink>>[
+      for (int i = 0; i < links.length; i += cols)
+        links.sublist(
+          i,
+          (i + cols) > links.length ? links.length : (i + cols),
+        ),
+    ];
 
     return UiDataPanel(
       padding: EdgeInsets.zero,
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final double cellWidth = constraints.maxWidth / cols;
-          return Wrap(
-            children: <Widget>[
-              for (int i = 0; i < links.length; i++)
-                SizedBox(
-                  width: cellWidth,
-                  child: _QuickLinkCell(
-                    link: links[i],
-                    // Internal hairlines only: a left rule for any cell that
-                    // isn't starting a row, a top rule for any cell past the
-                    // first row. Overlaps read as a single grid line.
-                    showLeftRule: i % cols != 0,
-                    showTopRule: i >= cols,
-                    color: c,
-                  ),
-                ),
-            ],
-          );
-        },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (int rowIndex = 0; rowIndex < rows.length; rowIndex++)
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  for (
+                    int colIndex = 0;
+                    colIndex < rows[rowIndex].length;
+                    colIndex++
+                  )
+                    Expanded(
+                      child: _QuickLinkCell(
+                        link: rows[rowIndex][colIndex],
+                        // Internal hairlines only: a left rule for any cell that
+                        // isn't starting a row, a top rule for any cell past the
+                        // first row. Overlaps read as a single grid line.
+                        showLeftRule: colIndex != 0,
+                        showTopRule: rowIndex != 0,
+                        color: c,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -511,6 +527,7 @@ class _QuickLinkCell extends StatelessWidget {
         return AnimatedContainer(
           duration: theme.motion.fast,
           curve: theme.motion.curve,
+          constraints: const BoxConstraints(minHeight: 44),
           padding: EdgeInsets.symmetric(
             horizontal: context.sp(theme.spacing.md),
             vertical: context.sp(theme.spacing.sm),

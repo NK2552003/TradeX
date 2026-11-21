@@ -43,11 +43,11 @@ enum AppTextSize {
   }
 }
 
-/// Controller for managing the application theme mode (dark, light, system),
+/// Controller for managing the application theme mode (system, dark, light),
 /// layout spacing density, and global financial chart defaults.
 class AppThemeController extends ChangeNotifier {
   AppThemeController([
-    ThemeMode initialMode = ThemeMode.dark,
+    ThemeMode initialMode = ThemeMode.system,
     String initialDensity = 'Comfortable',
     String initialChartRange = '1D',
     String initialChartStyle = 'Candlestick',

@@ -1246,50 +1246,65 @@ class CustomerLimitations {
             required bool selected,
             required VoidCallback onTap,
           }) {
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onTap,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: selected ? theme.colors.surface : Colors.transparent,
-                  borderRadius: dialogCtx.radius(theme.radii.pill),
-                  boxShadow: selected
-                      ? <BoxShadow>[
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.14),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      label,
-                      style: dialogCtx.uiText.bodyStrong.copyWith(
-                        fontSize: 12.5,
-                        color: selected
-                            ? theme.colors.foreground
-                            : theme.colors.foregroundMuted,
+            final bool isDarkTheme = theme.brightness == Brightness.dark;
+            return Semantics(
+              button: true,
+              selected: selected,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onTap,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected ? theme.colors.primary : Colors.transparent,
+                    borderRadius: dialogCtx.radius(theme.radii.pill),
+                    border: selected
+                        ? Border.all(
+                            color: theme.colors.primary,
+                            width: theme.borders.hairline,
+                          )
+                        : null,
+                    boxShadow: selected
+                        ? <BoxShadow>[
+                            BoxShadow(
+                              color: Colors.black.withValues(
+                                alpha: isDarkTheme ? 0.32 : 0.16,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        label,
+                        style: dialogCtx.uiText.bodyStrong.copyWith(
+                          fontSize: 12.5,
+                          color: selected
+                              ? theme.colors.onPrimary
+                              : theme.colors.foregroundMuted,
+                        ),
                       ),
-                    ),
-                    if (badge != null) ...<Widget>[
-                      const SizedBox(width: 6),
-                      UiBadge(
-                        label: badge,
-                        intent: UiIntent.success,
-                        variant: UiBadgeVariant.soft,
-                        size: UiSize.xs,
-                      ),
+                      if (badge != null) ...<Widget>[
+                        const SizedBox(width: 6),
+                        UiBadge(
+                          label: badge,
+                          intent: UiIntent.success,
+                          variant: selected
+                              ? UiBadgeVariant.solid
+                              : UiBadgeVariant.soft,
+                          size: UiSize.xs,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             );
@@ -1602,12 +1617,10 @@ class CustomerLimitations {
                           // Monthly / Billed annually pill switcher
                           Container(
                             decoration: BoxDecoration(
-                              color: theme.colors.surfaceMuted.withValues(
-                                alpha: 0.65,
-                              ),
+                              color: theme.colors.surfaceMuted,
                               borderRadius: dialogCtx.radius(theme.radii.pill),
                               border: Border.all(
-                                color: cardBorder,
+                                color: theme.colors.borderStrong,
                                 width: theme.borders.hairline,
                               ),
                             ),

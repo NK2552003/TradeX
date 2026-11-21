@@ -367,7 +367,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       AppSettingCard(
                         title: 'Color Theme Mode',
                         description:
-                            'Switches between sleek dark terminal mode and crisp daytime light mode.',
+                            'Follow your device system theme automatically, or choose dark or light mode.',
                         icon: Icons.palette_outlined,
                         control: UiToggleGroup<ThemeMode>(
                           expand: true,

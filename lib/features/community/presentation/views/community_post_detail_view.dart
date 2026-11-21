@@ -273,9 +273,6 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
 
         return Scaffold(
           backgroundColor: Colors.transparent,
-          bottomNavigationBar: isMobile
-              ? _buildMobileStickyReplyBar(theme)
-              : null,
           body: SafeArea(
             bottom: false,
             child: isDesktop
@@ -754,6 +751,25 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
               context.sp(theme.spacing.sm) +
               context.sp(theme.spacing.xs))
         : context.sp(theme.spacing.xs);
+    final AppQuietDockScaffold? dockAncestor = isMobile
+        ? context.findAncestorWidgetOfExactType<AppQuietDockScaffold>()
+        : null;
+    final bool hasVisibleDockShell =
+        dockAncestor != null && dockAncestor.theme.height > 0;
+    final double safeBottom = MediaQuery.paddingOf(context).bottom;
+    final bool keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final double dockHeight = hasVisibleDockShell
+        ? dockAncestor.theme.height
+        : 0.0;
+    final double dockMargin = hasVisibleDockShell
+        ? dockAncestor.theme.margin
+        : 0.0;
+    final double replyGap = context.sp(theme.spacing.sm);
+    final double scrollBottomPadding = isMobile
+        ? safeBottom +
+              (hasVisibleDockShell ? dockMargin + dockHeight + replyGap : 0.0) +
+              context.sz(96)
+        : context.sp(theme.spacing.lg);
 
     return Stack(
       children: <Widget>[
@@ -762,7 +778,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
             context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
             clearance,
             context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-            context.sp(isMobile ? 80 : theme.spacing.lg),
+            scrollBottomPadding,
           ),
           child: Align(
             alignment: Alignment.topCenter,
@@ -852,6 +868,46 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: context.sz(700)),
                 child: _buildFloatingHeader(context, theme, isMobile: isMobile),
+              ),
+            ),
+          ),
+
+        // Mobile floating frosted-glass reply bar that rides above the dock when
+        // revealed and glides down to the bottom edge when the dock hides.
+        if (isMobile)
+          ValueListenableBuilder<bool>(
+            valueListenable: AppDockVisibility.hidden,
+            builder: (BuildContext context, bool dockHidden, Widget? child) {
+              final bool dockRevealed =
+                  hasVisibleDockShell && !dockHidden && !keyboardVisible;
+              final double bottomInset = dockRevealed
+                  ? (safeBottom + dockMargin + dockHeight + replyGap)
+                  : ((keyboardVisible ||
+                            (dockAncestor != null && !hasVisibleDockShell))
+                        ? replyGap
+                        : (safeBottom + replyGap));
+              final bool reducedMotion = MediaQuery.disableAnimationsOf(
+                context,
+              );
+              return AnimatedPositioned(
+                key: const ValueKey<String>(
+                  'community-mobile-floating-reply-bar-pos',
+                ),
+                duration: reducedMotion
+                    ? Duration.zero
+                    : Duration(milliseconds: dockHidden ? 220 : 260),
+                curve: dockHidden ? Curves.easeInCubic : Curves.easeOutCubic,
+                left: context.sp(theme.spacing.sm),
+                right: context.sp(theme.spacing.sm),
+                bottom: bottomInset,
+                child: child!,
+              );
+            },
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: context.sz(700)),
+                child: _buildMobileFloatingReplyBar(theme),
               ),
             ),
           ),
@@ -1328,28 +1384,62 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   }
 
   // ---------------------------------------------------------------------------
-  // Mobile Sticky Bottom Quick Reply Bar
+  // Mobile Floating Frosted-Glass Quick Reply Bar
   // ---------------------------------------------------------------------------
 
-  Widget _buildMobileStickyReplyBar(UiTheme theme) => UiCard(
-    variant: UiCardVariant.surface,
-    radius: theme.radii.none,
-    padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
-    child: SafeArea(
-      top: false,
-      child: CommunityCommentComposer(
-        author: widget.currentUser,
-        repository: widget.repository,
-        currentPostId: widget.post.id,
-        focusNode: _mobileReplyFocusNode,
-        hintText:
-            'Reply to @${widget.post.author.handle.replaceFirst(RegExp(r'^@'), '')}...',
-        onSubmit: (text) => widget.repository.addComment(
-          widget.post.id,
-          text,
-          author: widget.currentUser,
+  Widget _buildMobileFloatingReplyBar(UiTheme theme) {
+    final bool isDark = theme.brightness == Brightness.dark;
+    final BorderRadius radius = context.radius(theme.radii.xl);
+    return RepaintBoundary(
+      key: const ValueKey<String>('community-mobile-floating-reply-bar'),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.36 : 0.12),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: theme.colors.surface.withValues(
+                  alpha: isDark ? 0.78 : 0.88,
+                ),
+                borderRadius: radius,
+                border: Border.all(
+                  color: theme.colors.borderStrong.withValues(
+                    alpha: isDark ? 0.65 : 0.75,
+                  ),
+                  width: 1.2,
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
+                child: CommunityCommentComposer(
+                  author: widget.currentUser,
+                  repository: widget.repository,
+                  currentPostId: widget.post.id,
+                  focusNode: _mobileReplyFocusNode,
+                  hintText:
+                      'Reply to @${widget.post.author.handle.replaceFirst(RegExp(r'^@'), '')}...',
+                  onSubmit: (text) => widget.repository.addComment(
+                    widget.post.id,
+                    text,
+                    author: widget.currentUser,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

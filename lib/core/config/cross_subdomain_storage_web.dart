@@ -279,8 +279,10 @@ void syncWebTheme({
     if (rootEl != null) {
       if (isLight) {
         rootEl.classList.add('aj-light');
+        rootEl.classList.remove('aj-dark');
       } else {
         rootEl.classList.remove('aj-light');
+        rootEl.classList.add('aj-dark');
       }
       if (rootEl.isA<web.HTMLElement>()) {
         final htmlEl = rootEl as web.HTMLElement;

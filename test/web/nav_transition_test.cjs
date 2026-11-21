@@ -249,6 +249,20 @@ test('resolveTheme aligns Light, Dark, and System modes with UiColors hex tokens
     prefersLight: false,
   });
   assert.equal(sysDark.isLight, false);
+
+  const defaultSystemLight = api.resolveTheme({
+    cookieStr: '',
+    prefersLight: true,
+  });
+  assert.equal(defaultSystemLight.mode, 'system');
+  assert.equal(defaultSystemLight.isLight, true);
+
+  const defaultSystemDark = api.resolveTheme({
+    cookieStr: '',
+    prefersLight: false,
+  });
+  assert.equal(defaultSystemDark.mode, 'system');
+  assert.equal(defaultSystemDark.isLight, false);
 });
 
 test('resolveSurface maps subdomain destinations to exact UiSkeleton presets and QuietDock slots', () => {

@@ -104,6 +104,7 @@ class _CookiePreferencesDialogState extends State<CookiePreferencesDialog> {
           content: snapshot.hasError
               ? UiButton(
                   label: 'Continue with current choices',
+                  expand: true,
                   onPressed: () => Navigator.of(context).pop(),
                 )
               : UiSkeleton.text(lines: 3),
@@ -195,6 +196,7 @@ class _CookiePreferencesDialogState extends State<CookiePreferencesDialog> {
             UiButton(
               label: copy['continue'],
               variant: UiVariant.ghost,
+              expand: true,
               onPressed: busy ? null : () => Navigator.of(context).pop(),
             ),
           ],
@@ -329,13 +331,12 @@ class _CookieActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spacing = context.ui.spacing;
-    final mobile = context.uiRes.isMobile;
     final preference = UiButton(
       label: copy[managing ? 'save' : 'manage'],
       variant: managing ? UiVariant.primary : UiVariant.ghost,
       rounded: true,
-      expand: mobile,
-      alignment: mobile ? Alignment.center : null,
+      expand: true,
+      alignment: Alignment.center,
       size: UiSize.lg,
       loading: managing && busy,
       onPressed: busy ? null : onManageOrSave,
@@ -344,26 +345,22 @@ class _CookieActions extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         UiDivider(spacing: spacing.sm),
-        Wrap(
-          alignment: mobile ? WrapAlignment.center : WrapAlignment.spaceBetween,
-          spacing: context.sp(spacing.sm),
-          runSpacing: context.sp(spacing.xs),
-          children: [
-            if (!mobile && !managing) preference,
-            for (final (label, action) in [
-              (copy['reject'], onReject),
-              (copy['accept'], onAccept),
-            ])
-              UiButton(
-                label: label,
-                rounded: true,
-                size: UiSize.lg,
-                variant: UiVariant.outline,
-                onPressed: busy ? null : action,
-              ),
-            if (mobile || managing) preference,
-          ],
-        ),
+        for (final (label, action) in [
+          (copy['reject'], onReject),
+          (copy['accept'], onAccept),
+        ]) ...[
+          UiButton(
+            label: label,
+            rounded: true,
+            expand: true,
+            alignment: Alignment.center,
+            size: UiSize.lg,
+            variant: UiVariant.outline,
+            onPressed: busy ? null : action,
+          ),
+          UiGap.v(spacing.xs),
+        ],
+        preference,
       ],
     );
   }

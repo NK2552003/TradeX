@@ -159,6 +159,14 @@
       box-sizing: border-box;
       color-scheme: dark;
     }
+    @media (prefers-color-scheme: light) {
+      :root:not(.aj-dark) {
+        --bg: #FAFAF9;
+        --fg: #151312;
+        --muted: #6B7FD7;
+        color-scheme: light;
+      }
+    }
     html.aj-light {
       --bg: #FAFAF9;
       --fg: #151312;

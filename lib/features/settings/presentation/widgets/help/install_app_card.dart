@@ -69,34 +69,35 @@ class _InstallAppCardState extends State<InstallAppCard> {
             UiCallout(title: 'Installation', message: _message!),
           ],
           UiGap.v(context.ui.spacing.md),
-          Wrap(
-            spacing: context.sp(context.ui.spacing.sm),
-            runSpacing: context.sp(context.ui.spacing.sm),
-            children: [
-              if (installer.available)
-                UiButton(
-                  label: 'Install app',
-                  loading: _busy,
-                  onPressed: _busy ? null : _install,
-                ),
-              UiButton(
-                label: 'Installation guide',
-                variant: UiVariant.outline,
-                onPressed: () => PublicationReader.open(context, 'install'),
-              ),
-              if (widget.prompt)
-                UiButton(
-                  label: 'Not now',
-                  variant: UiVariant.ghost,
-                  onPressed: _busy
-                      ? null
-                      : () {
-                          installer.dismiss();
-                          Navigator.of(context).pop();
-                        },
-                ),
-            ],
+          if (installer.available) ...[
+            UiButton(
+              label: 'Install app',
+              expand: true,
+              loading: _busy,
+              onPressed: _busy ? null : _install,
+            ),
+            UiGap.v(context.ui.spacing.sm),
+          ],
+          UiButton(
+            label: 'Installation guide',
+            variant: UiVariant.outline,
+            expand: true,
+            onPressed: () => PublicationReader.open(context, 'install'),
           ),
+          if (widget.prompt) ...[
+            UiGap.v(context.ui.spacing.sm),
+            UiButton(
+              label: 'Not now',
+              variant: UiVariant.ghost,
+              expand: true,
+              onPressed: _busy
+                  ? null
+                  : () {
+                      installer.dismiss();
+                      Navigator.of(context).pop();
+                    },
+            ),
+          ],
         ],
       );
       if (widget.prompt) {

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,10 +29,12 @@ import 'package:alphajournal/features/settings/presentation/widgets/help/publica
 class AlphaJournalApp extends StatefulWidget {
   const AlphaJournalApp({
     super.key,
+    this.initialThemeMode,
     this.initialZoom = AppZoom.system,
     this.initialTextSize = AppTextSize.system,
   });
 
+  final ThemeMode? initialThemeMode;
   final AppZoom initialZoom;
   final AppTextSize initialTextSize;
 
@@ -285,7 +288,7 @@ class _AlphaJournalAppState extends State<AlphaJournalApp>
                     CustomerSubdomain.app => switch (_activeRole) {
                       UserRole.userAdmin => 'overview',
                       UserRole.affiliate => 'overview',
-                      _ => route.destination ?? 'workspace',
+                      _ => route.destination ?? 'community',
                     },
                   };
                   target = Uri(path: '/$defaultDest');
@@ -343,7 +346,10 @@ class _AlphaJournalAppState extends State<AlphaJournalApp>
 
   AppThemeController _createThemeController() {
     final savedMode = _readInitialPref('ax_theme_mode');
-    final mode = _parseThemeMode(savedMode) ?? ThemeMode.dark;
+    final mode =
+        _parseThemeMode(savedMode) ??
+        widget.initialThemeMode ??
+        ThemeMode.system;
     final savedDensity = _readInitialPref('ax_theme_density');
     final density = savedDensity == 'Compact' ? 'Compact' : 'Comfortable';
     final savedRange = _readInitialPref('ax_chart_range');
@@ -394,12 +400,35 @@ class _AlphaJournalAppState extends State<AlphaJournalApp>
     };
   }
 
+  SystemUiOverlayStyle _systemUiOverlayStyle(bool isDark) =>
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
+      );
+
+  void _syncSystemUiOverlayStyle([bool? isDark]) {
+    if (kIsWeb) return;
+    try {
+      SystemChrome.setSystemUIOverlayStyle(
+        _systemUiOverlayStyle(isDark ?? _resolveIsDark()),
+      );
+    } catch (_) {}
+  }
+
   void _syncWebThemeDom() {
+    final bool isDark = _resolveIsDark();
     CrossSubdomainState.syncWebTheme(
       mode: _themeController.value.name,
       density: _themeController.density,
-      isLight: !_resolveIsDark(),
+      isLight: !isDark,
     );
+    _syncSystemUiOverlayStyle(isDark);
   }
 
   void _syncThemeToSubdomains({bool saveLocal = true}) {
@@ -579,6 +608,15 @@ class _AlphaJournalAppState extends State<AlphaJournalApp>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _themeController.value == ThemeMode.system) {
+      _syncWebThemeDom();
+      if (mounted) setState(() {});
+    }
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _themeController.removeListener(_syncThemeToSubdomains);
@@ -645,23 +683,26 @@ class _AlphaJournalAppState extends State<AlphaJournalApp>
               themeMode: _themeController.value,
               builder: (context, child) {
                 final media = MediaQuery.of(context);
-                return MediaQuery(
-                  data: media.copyWith(
-                    textScaler: _themeController.textSize.resolve(
-                      media.textScaler,
+                return AnnotatedRegion<SystemUiOverlayStyle>(
+                  value: _systemUiOverlayStyle(isDark),
+                  child: MediaQuery(
+                    data: media.copyWith(
+                      textScaler: _themeController.textSize.resolve(
+                        media.textScaler,
+                      ),
                     ),
-                  ),
-                  child: AppUpdateCoordinator(
-                    navigatorKey: _rootNavigatorKey,
-                    enabled: EnvConfig.appUpdateChecksEnabled,
-                    child: UiToastScope(
-                      child: Material(
-                        type: MaterialType.transparency,
-                        child: DefaultTextStyle.merge(
-                          style: const TextStyle(
-                            decoration: TextDecoration.none,
+                    child: AppUpdateCoordinator(
+                      navigatorKey: _rootNavigatorKey,
+                      enabled: EnvConfig.appUpdateChecksEnabled,
+                      child: UiToastScope(
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: DefaultTextStyle.merge(
+                            style: const TextStyle(
+                              decoration: TextDecoration.none,
+                            ),
+                            child: child ?? const SizedBox.shrink(),
                           ),
-                          child: child ?? const SizedBox.shrink(),
                         ),
                       ),
                     ),

@@ -146,10 +146,19 @@ Future<void> main() async {
       };
 
       PushService.instance.initialize();
+      ThemeMode? initialThemeMode;
       AppZoom initialZoom = AppZoom.system;
       AppTextSize initialTextSize = AppTextSize.system;
       try {
         final preferences = await SharedPreferences.getInstance();
+        initialThemeMode = switch (preferences
+            .getString('ax_theme_mode')
+            ?.trim()) {
+          'light' => ThemeMode.light,
+          'dark' => ThemeMode.dark,
+          'system' => ThemeMode.system,
+          _ => null,
+        };
         initialZoom =
             AppZoom.fromPreference(
               preferences.getString(AppZoom.preferenceKey),
@@ -161,10 +170,11 @@ Future<void> main() async {
             ) ??
             AppTextSize.system;
       } catch (_) {
-        // Keep the default sizing when local preferences are unavailable.
+        // Keep the default sizing and system theme when local preferences are unavailable.
       }
       runApp(
         AlphaJournalApp(
+          initialThemeMode: initialThemeMode,
           initialZoom: initialZoom,
           initialTextSize: initialTextSize,
         ),

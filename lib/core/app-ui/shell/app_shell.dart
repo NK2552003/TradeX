@@ -472,12 +472,14 @@ class _AppShellState extends State<AppShell> {
         _activeDockController.syncIndex(activeIndex);
       }
       AppNavItem? activeMoreItem;
-      for (final AppNavItem item in widget.mobileMoreItems) {
-        if (item.id == widget.selectedId ||
-            (item.subItems?.any((child) => child.id == widget.selectedId) ??
-                false)) {
-          activeMoreItem = item;
-          break;
+      if (selectedIndex < 0) {
+        for (final AppNavItem item in widget.mobileMoreItems) {
+          if (item.id == widget.selectedId ||
+              (item.subItems?.any((child) => child.id == widget.selectedId) ??
+                  false)) {
+            activeMoreItem = item;
+            break;
+          }
         }
       }
       final bool moreRouteSelected = activeMoreItem != null;
@@ -567,6 +569,7 @@ class _AppShellState extends State<AppShell> {
               .toList(),
         ),
         centerActionActive: moreRouteSelected,
+        primaryDestinationActive: selectedIndex >= 0,
         swipeEnabled: false,
         lazy: true,
         keepAlive: false,
@@ -1850,7 +1853,7 @@ class AppTopBar extends StatelessWidget {
         if (themeController != null)
           UiIconButton(
             key: const ValueKey<String>('app-header-theme-toggle'),
-            iconWidget: AppThemeGlyph(isDark: isDark, size: context.sz(18)),
+            iconWidget: AppThemeGlyph(isDark: isDark, matchMaterialIcon: true),
             tooltip: isDark ? 'Switch to light theme' : 'Switch to dark theme',
             size: UiSize.sm,
             onPressed: () => themeController.setMode(

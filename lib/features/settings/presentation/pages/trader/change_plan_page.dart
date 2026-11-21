@@ -982,10 +982,10 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
               Center(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: colors.surfaceMuted.withValues(alpha: 0.5),
+                    color: colors.surfaceMuted,
                     borderRadius: context.radius(theme.radii.pill),
                     border: Border.all(
-                      color: colors.border,
+                      color: colors.borderStrong,
                       width: theme.borders.hairline,
                     ),
                   ),
@@ -1062,49 +1062,66 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
   }) {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
+    final bool isDarkTheme = theme.brightness == Brightness.dark;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.md),
-          vertical: context.sp(theme.spacing.xs),
-        ),
-        decoration: BoxDecoration(
-          color: isSelected ? colors.surface : Colors.transparent,
-          borderRadius: context.radius(theme.radii.pill),
-          boxShadow: isSelected
-              ? <BoxShadow>[
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Text(
-              label,
-              style: context.uiText.bodyStrong.copyWith(
-                fontSize: 13,
-                color: isSelected ? colors.foreground : colors.foregroundMuted,
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(theme.spacing.md),
+            vertical: context.sp(theme.spacing.xs),
+          ),
+          decoration: BoxDecoration(
+            color: isSelected ? colors.primary : Colors.transparent,
+            borderRadius: context.radius(theme.radii.pill),
+            border: isSelected
+                ? Border.all(
+                    color: colors.primary,
+                    width: theme.borders.hairline,
+                  )
+                : null,
+            boxShadow: isSelected
+                ? <BoxShadow>[
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: isDarkTheme ? 0.32 : 0.16,
+                      ),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                label,
+                style: context.uiText.bodyStrong.copyWith(
+                  fontSize: 13,
+                  color: isSelected
+                      ? colors.onPrimary
+                      : colors.foregroundMuted,
+                ),
               ),
-            ),
-            if (badge != null) ...<Widget>[
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              UiBadge(
-                label: badge,
-                intent: UiIntent.success,
-                variant: UiBadgeVariant.soft,
-                size: UiSize.xs,
-              ),
+              if (badge != null) ...<Widget>[
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                UiBadge(
+                  label: badge,
+                  intent: UiIntent.success,
+                  variant: isSelected
+                      ? UiBadgeVariant.solid
+                      : UiBadgeVariant.soft,
+                  size: UiSize.xs,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

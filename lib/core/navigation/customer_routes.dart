@@ -233,7 +233,7 @@ class CustomerRoute {
     if (uri.scheme == 'alphajournal' &&
         uri.host == 'auth' &&
         uri.path == '/callback') {
-      return const CustomerRoute(destination: 'workspace');
+      return const CustomerRoute(destination: 'community');
     }
     if (uri.scheme == AppDeepLink.scheme) {
       final target = AppDeepLink.target(uri);
@@ -279,7 +279,7 @@ class CustomerRoute {
       }
       if (effectiveHost.startsWith('app.')) {
         return const CustomerRoute(
-          destination: 'workspace',
+          destination: 'community',
           stage: AuthStage.login,
         );
       }

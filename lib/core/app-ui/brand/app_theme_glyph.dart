@@ -10,26 +10,36 @@ class AppThemeGlyph extends StatelessWidget {
   const AppThemeGlyph({
     super.key,
     required this.isDark,
-    this.size = 18,
+    this.size,
     this.color,
+    this.matchMaterialIcon = false,
   });
 
   /// When `true` (dark mode active), renders a sun to switch to light mode.
   /// When `false` (light mode active), renders a crescent moon to switch to dark mode.
   final bool isDark;
-  final double size;
+
+  /// Explicit box size. When null, the ambient [IconTheme] size is used so the
+  /// glyph always matches neighbouring Material icons (e.g. header actions).
+  final double? size;
   final Color? color;
+
+  /// Insets the artwork to Material's 20/24 live-area so the glyph carries the
+  /// same optical weight as `Icons.*` glyphs rendered at the same size.
+  final bool matchMaterialIcon;
 
   @override
   Widget build(BuildContext context) {
     final Color effectiveColor =
         color ?? IconTheme.of(context).color ?? const Color(0xFFFFFFFF);
+    final double dimension = size ?? IconTheme.of(context).size ?? 18;
     return SizedBox.square(
-      dimension: size,
+      dimension: dimension,
       child: CustomPaint(
         painter: _AppThemeGlyphPainter(
           isDark: isDark,
           color: effectiveColor,
+          inset: matchMaterialIcon ? dimension * (2 / 24) : 0,
         ),
       ),
     );
@@ -37,13 +47,28 @@ class AppThemeGlyph extends StatelessWidget {
 }
 
 class _AppThemeGlyphPainter extends CustomPainter {
-  const _AppThemeGlyphPainter({required this.isDark, required this.color});
+  const _AppThemeGlyphPainter({
+    required this.isDark,
+    required this.color,
+    this.inset = 0,
+  });
 
   final bool isDark;
   final Color color;
+  final double inset;
 
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(Canvas canvas, Size paintSize) {
+    canvas.save();
+    canvas.translate(inset, inset);
+    _paintGlyph(
+      canvas,
+      Size(paintSize.width - inset * 2, paintSize.height - inset * 2),
+    );
+    canvas.restore();
+  }
+
+  void _paintGlyph(Canvas canvas, Size size) {
     final double side = math.min(size.width, size.height);
     if (side <= 0) return;
 
@@ -112,6 +137,7 @@ class _AppThemeGlyphPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _AppThemeGlyphPainter oldDelegate) {
-    return oldDelegate.isDark != isDark || oldDelegate.color != color;
+    return oldDelegate.isDark != isDark || oldDelegate.color != color ||
+        oldDelegate.inset != inset;
   }
 }

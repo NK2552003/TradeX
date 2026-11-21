@@ -475,10 +475,10 @@ class PublicPricingContent extends StatelessWidget {
         Center(
           child: Container(
             decoration: BoxDecoration(
-              color: colors.surfaceMuted.withValues(alpha: 0.65),
+              color: colors.surfaceMuted,
               borderRadius: context.radius(theme.radii.pill),
               border: Border.all(
-                color: colors.border,
+                color: colors.borderStrong,
                 width: theme.borders.hairline,
               ),
             ),
@@ -487,63 +487,111 @@ class PublicPricingContent extends StatelessWidget {
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: <Widget>[
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => onAnnualChanged(false),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: !annual ? colors.surface : Colors.transparent,
-                      borderRadius: context.radius(theme.radii.pill),
-                    ),
-                    child: Text(
-                      monthlyLabel,
-                      style: context.uiText.bodyStrong.copyWith(
-                        fontSize: 12.5,
-                        color: !annual
-                            ? colors.foreground
-                            : colors.foregroundMuted,
+                Semantics(
+                  button: true,
+                  selected: !annual,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onAnnualChanged(false),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: !annual ? colors.primary : Colors.transparent,
+                        borderRadius: context.radius(theme.radii.pill),
+                        border: !annual
+                            ? Border.all(
+                                color: colors.primary,
+                                width: theme.borders.hairline,
+                              )
+                            : null,
+                        boxShadow: !annual
+                            ? <BoxShadow>[
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                    alpha: theme.brightness == Brightness.dark
+                                        ? 0.32
+                                        : 0.16,
+                                  ),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Text(
+                        monthlyLabel,
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontSize: 12.5,
+                          color: !annual
+                              ? colors.onPrimary
+                              : colors.foregroundMuted,
+                        ),
                       ),
                     ),
                   ),
                 ),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => onAnnualChanged(true),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: annual ? colors.surface : Colors.transparent,
-                      borderRadius: context.radius(theme.radii.pill),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Text(
-                          annualLabel,
-                          style: context.uiText.bodyStrong.copyWith(
-                            fontSize: 12.5,
-                            color: annual
-                                ? colors.foreground
-                                : colors.foregroundMuted,
+                Semantics(
+                  button: true,
+                  selected: annual,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onAnnualChanged(true),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: annual ? colors.primary : Colors.transparent,
+                        borderRadius: context.radius(theme.radii.pill),
+                        border: annual
+                            ? Border.all(
+                                color: colors.primary,
+                                width: theme.borders.hairline,
+                              )
+                            : null,
+                        boxShadow: annual
+                            ? <BoxShadow>[
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                    alpha: theme.brightness == Brightness.dark
+                                        ? 0.32
+                                        : 0.16,
+                                  ),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(
+                            annualLabel,
+                            style: context.uiText.bodyStrong.copyWith(
+                              fontSize: 12.5,
+                              color: annual
+                                  ? colors.onPrimary
+                                  : colors.foregroundMuted,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        const UiBadge(
-                          label: 'Save 20%',
-                          intent: UiIntent.success,
-                          variant: UiBadgeVariant.soft,
-                          size: UiSize.xs,
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+                          UiBadge(
+                            label: 'Save 20%',
+                            intent: UiIntent.success,
+                            variant: annual
+                                ? UiBadgeVariant.solid
+                                : UiBadgeVariant.soft,
+                            size: UiSize.xs,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

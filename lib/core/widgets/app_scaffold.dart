@@ -933,7 +933,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// already on the way.
   void _resetToOverview() {
     _selectedId = _effectiveRole == UserRole.customer
-        ? 'workspace'
+        ? 'community'
         : 'overview';
     _showAffiliateApplication = false;
     _activeSubpageTitle = null;
@@ -976,7 +976,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     }
     final UserRole targetRole = role;
     final String nextDest = targetRole == UserRole.customer
-        ? 'workspace'
+        ? 'community'
         : 'overview';
     _previewRoleOverride = role;
     if (kIsWeb &&
