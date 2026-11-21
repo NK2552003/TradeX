@@ -210,21 +210,13 @@ class _CommunitySearchOverlayState extends State<CommunitySearchOverlay> {
 
   void _openTrader(CommunityAuthor author) {
     _saveHistoryTerm(author.displayHandle);
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => Scaffold(
-          backgroundColor: context.ui.colors.background,
-          appBar: AppBar(
-            backgroundColor: context.ui.colors.surface,
-            title: Text(author.displayName),
-          ),
-          body: CommunityProfileView(
-            author: author,
-            repository: widget.repository,
-            onOpenRef: widget.onOpenRef,
-          ),
-        ),
-      ),
+    CommunityProfileView.showOverlay(
+      context,
+      author: author,
+      repository: widget.repository,
+      isCurrentUser: author.id == widget.repository.currentAuthor.id,
+      onPostTap: _openPost,
+      onOpenRef: widget.onOpenRef,
     );
   }
 

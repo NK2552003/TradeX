@@ -766,7 +766,9 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
 
         // ── Floating Action Button (+) with top stack ──────────────────
         Positioned(
-          right: context.uiRes.isMobile ? 12.0 : gutter,
+          right: context.uiRes.isMobile
+              ? AppMobileDockMetrics.of(context).edgeInset
+              : gutter,
           bottom: context.uiRes.isMobile
               ? MediaQuery.paddingOf(context).bottom +
                     (!kIsWeb && defaultTargetPlatform == TargetPlatform.android
@@ -1391,46 +1393,65 @@ class _WorkspaceFabState extends State<_WorkspaceFab>
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
 
-              // Action button circle — matches the 56x56 size, 28px radius, glass fill & border of the dock
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: isDark ? 0.36 : 0.10,
-                      ),
-                      blurRadius: 18,
-                      spreadRadius: 0,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: BackdropFilter(
-                    filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(28),
-                        color: theme.colors.surface.withValues(
-                          alpha: isDark ? 0.62 : 0.74,
-                        ),
-                        border: Border.all(
-                          color: theme.colors.borderStrong.withValues(
-                            alpha: isDark ? 0.65 : 0.75,
+              // Action button circle — matches dock size, radius, icon & glass
+              Builder(
+                builder: (BuildContext itemCtx) {
+                  final AppMobileDockMetrics m = AppMobileDockMetrics.of(
+                    itemCtx,
+                  );
+                  final double btnSize = itemCtx.uiRes.isMobile
+                      ? m.height
+                      : 56.0;
+                  final BorderRadius btnRadius = BorderRadius.circular(
+                    btnSize / 2,
+                  );
+                  return Container(
+                    width: btnSize,
+                    height: btnSize,
+                    decoration: BoxDecoration(
+                      borderRadius: btnRadius,
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: isDark ? 0.36 : 0.10,
                           ),
-                          width: 1.2,
+                          blurRadius: 18,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: btnRadius,
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: btnRadius,
+                            color: theme.colors.surface.withValues(
+                              alpha: isDark ? 0.62 : 0.74,
+                            ),
+                            border: Border.all(
+                              color: theme.colors.borderStrong.withValues(
+                                alpha: isDark ? 0.65 : 0.75,
+                              ),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Center(
+                            child: Icon(
+                              icon,
+                              size: itemCtx.uiRes.isMobile
+                                  ? m.iconSize
+                                  : itemCtx.sz(22),
+                              color: color,
+                            ),
+                          ),
                         ),
                       ),
-                      child: Center(
-                        child: Icon(icon, size: context.sz(22), color: color),
-                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ],
           ),
@@ -1496,14 +1517,14 @@ class _WorkspaceFabState extends State<_WorkspaceFab>
               SizedBox(height: ctx.sp(theme.spacing.sm)),
             ],
 
-            // Main FAB Button (+) — matches dock height, radius & frosted glass
+            // Main FAB Button (+) — matches dock height, radius, icon & glass
             Builder(
               builder: (BuildContext fabCtx) {
-                final double fabSize =
-                    fabCtx.uiRes.isMobile &&
-                        MediaQuery.sizeOf(fabCtx).width < 430
-                    ? 48.0
-                    : 56.0;
+                final AppMobileDockMetrics m = AppMobileDockMetrics.of(fabCtx);
+                final double fabSize = fabCtx.uiRes.isMobile ? m.height : 56.0;
+                final double fabIconSize = fabCtx.uiRes.isMobile
+                    ? m.iconSize + 2
+                    : ctx.sz(26);
                 final BorderRadius fabRadius = BorderRadius.circular(
                   fabSize / 2,
                 );
@@ -1548,7 +1569,7 @@ class _WorkspaceFabState extends State<_WorkspaceFab>
                           turns: _rotateAnimation,
                           child: Icon(
                             Icons.add_rounded,
-                            size: ctx.sz(26),
+                            size: fabIconSize,
                             color: activeFg,
                           ),
                         ),

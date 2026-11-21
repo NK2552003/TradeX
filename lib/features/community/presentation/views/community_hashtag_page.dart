@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
@@ -42,7 +43,11 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage>
   bool _isFollowingTag = false;
   late List<CommunityPost> _posts;
 
+  static const String _followedTopicsPrefKey = 'community_followed_topics_v1';
   static const List<String> _tabs = <String>['Top Posts', 'Latest', 'Traders'];
+
+  String get _topicKey =>
+      widget.tag.trim().replaceAll(RegExp(r'^[#$]'), '').toLowerCase();
 
   @override
   void initState() {
@@ -54,7 +59,41 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage>
         }
       });
     _loadData();
+    _loadTopicFollowState();
     widget.repository.addListener(_onRepoChanged);
+  }
+
+  Future<void> _loadTopicFollowState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList(_followedTopicsPrefKey) ?? const [];
+      if (mounted) {
+        setState(() => _isFollowingTag = saved.contains(_topicKey));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleTopicFollow(String displayTag) async {
+    final bool next = !_isFollowingTag;
+    setState(() => _isFollowingTag = next);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final List<String> saved = List<String>.of(
+        prefs.getStringList(_followedTopicsPrefKey) ?? const [],
+      );
+      if (next) {
+        if (!saved.contains(_topicKey)) saved.add(_topicKey);
+      } else {
+        saved.remove(_topicKey);
+      }
+      await prefs.setStringList(_followedTopicsPrefKey, saved);
+    } catch (_) {}
+    if (!mounted) return;
+    UiToast.show(
+      context,
+      title: next ? 'Following Topic' : 'Unfollowed',
+      message: next ? 'Following $displayTag updates' : 'Unfollowed $displayTag',
+    );
   }
 
   @override
@@ -197,18 +236,7 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage>
                       intent: UiIntent.primary,
                       size: UiSize.sm,
                       rounded: true,
-                      onPressed: () {
-                        setState(() => _isFollowingTag = !_isFollowingTag);
-                        UiToast.show(
-                          context,
-                          title: _isFollowingTag
-                              ? 'Following Topic'
-                              : 'Unfollowed',
-                          message: _isFollowingTag
-                              ? 'Following $displayTag updates'
-                              : 'Unfollowed $displayTag',
-                        );
-                      },
+                      onPressed: () => _toggleTopicFollow(displayTag),
                     ),
                   ],
                 ),
@@ -284,6 +312,8 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage>
 
   Widget _buildTradersList() {
     final authors = _uniqueTraders;
+    final String myId =
+        (widget.currentUser ?? widget.repository.currentAuthor).id;
     if (authors.isEmpty) {
       return const UiEmptyState(
         icon: Icons.people_outline_rounded,
@@ -295,11 +325,18 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage>
       itemCount: authors.length,
       separatorBuilder: (_, _) => SizedBox(height: context.sp(12)),
       itemBuilder: (ctx, idx) {
-        final author = authors[idx];
+        final rawAuthor = authors[idx];
+        final bool isSelf = rawAuthor.id.isNotEmpty && rawAuthor.id == myId;
+        final bool liveFollowing = widget.repository.isFollowing(rawAuthor.id);
+        final CommunityAuthor author = rawAuthor.copyWith(
+          isFollowing: liveFollowing,
+        );
         return CommunityTraderCard(
           trader: author,
           onTap: () => widget.onAuthorTap?.call(author),
-          onFollow: () => widget.repository.toggleFollow(author.id),
+          onFollow: isSelf
+              ? null
+              : () => widget.repository.toggleFollow(author.id),
         );
       },
     );

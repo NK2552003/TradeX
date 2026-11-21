@@ -1,9 +1,57 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:quiet_dock/quiet_dock.dart';
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
+
+/// Shared responsive geometry for the mobile floating dock and all flanking
+/// floating action buttons (left search/writing desk, right copilot/compose,
+/// right workspace `+`) so height, corner radius, icon size, edge inset, and
+/// non-stretched pill proportions stay 100% unified across every phone width.
+@immutable
+class AppMobileDockMetrics {
+  const AppMobileDockMetrics({
+    required this.height,
+    required this.dockWidth,
+    required this.iconSize,
+    required this.edgeInset,
+  });
+
+  final double height;
+  final double dockWidth;
+  final double iconSize;
+  final double edgeInset;
+
+  double get radius => height / 2;
+
+  static AppMobileDockMetrics of(BuildContext context) {
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final double height = screenWidth < 370
+        ? 46.0
+        : (screenWidth < 430 ? 50.0 : 56.0);
+    final double iconSize = screenWidth < 370
+        ? 19.0
+        : (screenWidth < 430 ? 20.0 : 22.0);
+    final double edgeInset = screenWidth < 430 ? 10.0 : 12.0;
+    const double minSideGap = 8.0;
+    final double available = screenWidth - (edgeInset + height + minSideGap) * 2;
+    // Keep natural compact pill proportions (~4.45× height for 5 slots) so the
+    // dock never stretches awkwardly wide, while still shrinking gracefully if
+    // a viewport is extra narrow.
+    final double idealWidth = height * 4.45;
+    final double dockWidth = math
+        .min(idealWidth, available)
+        .clamp(160.0, idealWidth);
+    return AppMobileDockMetrics(
+      height: height,
+      dockWidth: dockWidth,
+      iconSize: iconSize,
+      edgeInset: edgeInset,
+    );
+  }
+}
 
 /// Shared visibility state for the floating mobile dock so every floating
 /// action button (left search/writing desk, right compose/copilot, right
@@ -439,18 +487,24 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
           if (t.height > 0 &&
               widget.leftActionIcon != null &&
               widget.onLeftActionPressed != null)
-            Positioned(
-              left: MediaQuery.sizeOf(context).width < 430 ? 10 : 12,
-              bottom: MediaQuery.paddingOf(context).bottom + t.margin,
-              child: AppDockSyncedFab(
-                edge: AppDockRevealEdge.left,
-                child: _DockLeftGlassButton(
-                  icon: widget.leftActionIcon!,
-                  tooltip: widget.leftActionTooltip ?? 'Search',
-                  size: t.height,
-                  onPressed: widget.onLeftActionPressed!,
-                ),
-              ),
+            Builder(
+              builder: (BuildContext ctx) {
+                final AppMobileDockMetrics m = AppMobileDockMetrics.of(ctx);
+                return Positioned(
+                  left: m.edgeInset,
+                  bottom: MediaQuery.paddingOf(ctx).bottom + t.margin,
+                  child: AppDockSyncedFab(
+                    edge: AppDockRevealEdge.left,
+                    child: _DockLeftGlassButton(
+                      icon: widget.leftActionIcon!,
+                      tooltip: widget.leftActionTooltip ?? 'Search',
+                      size: m.height,
+                      iconSize: m.iconSize,
+                      onPressed: widget.onLeftActionPressed!,
+                    ),
+                  ),
+                );
+              },
             ),
         ],
       ),
@@ -554,12 +608,14 @@ class _DockLeftGlassButton extends StatelessWidget {
     required this.tooltip,
     required this.onPressed,
     this.size = 56,
+    this.iconSize = 22,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
   final double size;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
@@ -606,7 +662,7 @@ class _DockLeftGlassButton extends StatelessWidget {
                   child: Center(
                     child: Icon(
                       icon,
-                      size: 22,
+                      size: iconSize,
                       color: uiTheme.colors.foreground,
                     ),
                   ),

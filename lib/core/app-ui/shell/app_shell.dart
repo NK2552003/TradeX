@@ -436,16 +436,9 @@ class _AppShellState extends State<AppShell> {
         );
 
     if (r.isMobile) {
-      final double screenWidth = mediaQuery.size.width;
-      final bool narrowMobile = screenWidth < 430;
-      final double dockHeight = narrowMobile ? 48.0 : 56.0;
-      final double sideEdge = narrowMobile ? 10.0 : 12.0;
-      final double dockGap = narrowMobile ? 8.0 : 10.0;
-      final double dockWidth =
-          (screenWidth - (sideEdge + dockHeight + dockGap) * 2).clamp(
-            168.0,
-            280.0,
-          );
+      final AppMobileDockMetrics dockMetrics = AppMobileDockMetrics.of(context);
+      final double dockHeight = dockMetrics.height;
+      final double dockWidth = dockMetrics.dockWidth;
       final double dockMargin = _isNativeAndroid ? 8 : 16;
       final double mobileHeaderClearance = widget.hideMobileTopBar
           ? 0.0
@@ -620,7 +613,7 @@ class _AppShellState extends State<AppShell> {
           width: keyboardVisible ? 0 : dockWidth,
           height: keyboardVisible ? 0 : dockHeight,
           margin: keyboardVisible ? 0 : dockMargin,
-          iconSize: keyboardVisible ? 0 : (narrowMobile ? 20 : 22),
+          iconSize: keyboardVisible ? 0 : dockMetrics.iconSize,
           blur: 18,
           frosted: !keyboardVisible,
           showLabels: false,
