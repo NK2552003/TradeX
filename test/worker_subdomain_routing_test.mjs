@@ -20,6 +20,10 @@ test('Flutter runtime files always revalidate across deployments', async () => {
     runtimeCacheControl('/main.dart.js_12.part.js'),
     'no-cache, max-age=0, must-revalidate',
   );
+  assert.equal(
+    runtimeCacheControl('/assets/fonts/MaterialIcons-Regular.otf'),
+    'no-cache, max-age=0, must-revalidate',
+  );
   assert.equal(runtimeCacheControl('/assets/logo.svg'), null);
 
   for (const pathname of [
@@ -29,6 +33,7 @@ test('Flutter runtime files always revalidate across deployments', async () => {
     '/flutter_service_worker.js',
     '/assets/AssetManifest.bin.json',
     '/assets/FontManifest.json',
+    '/assets/fonts/MaterialIcons-Regular.otf',
     '/assets/assets/config/client.env',
     '/nav_transition.js',
   ]) {

@@ -16,6 +16,7 @@ const STATIC_EXT = /\.[a-zA-Z0-9]{1,8}$/;
 const ASSET_PREFIXES = ['/assets/', '/canvaskit/', '/icons/', '/.well-known/'];
 const NEUTRAL_PREFIXES = ['/auth/', '/r/', '/join/', '/help'];
 const FLUTTER_RUNTIME_PATH = /^\/main\.dart\.js(?:_\d+\.part\.js)?$/;
+const FLUTTER_FONT_PATH = /^\/assets\/fonts\/.+\.(?:otf|ttf|woff2?)$/i;
 const FRESH_RUNTIME_PATHS = new Set([
   '/assets/AssetManifest.bin',
   '/assets/AssetManifest.bin.json',
@@ -115,7 +116,10 @@ export function isAlphajournalHost(hostname) {
 }
 
 export function runtimeCacheControl(pathname) {
-  if (FLUTTER_RUNTIME_PATH.test(pathname)) {
+  if (
+    FLUTTER_RUNTIME_PATH.test(pathname) ||
+    FLUTTER_FONT_PATH.test(pathname)
+  ) {
     return 'no-cache, max-age=0, must-revalidate';
   }
   if (FRESH_RUNTIME_PATHS.has(pathname)) {

@@ -15,6 +15,7 @@ type ReconcileRpcParams = {
   p_event_type?: string | null;
   p_intent_id?: string | null;
   p_intent_status?: string | null;
+  p_replaces_subscription_id?: string | null;
 };
 
 function isTransientDbError(error: { code?: string; message?: string } | null): boolean {
@@ -109,7 +110,8 @@ async function executeRazorpayWebhook(
     event?: string;
     payload?: {
       subscription?: { entity?: { id?: string } };
-      payment?: { entity?: { id?: string; amount?: number; currency?: string } };
+      payment?: { entity?: { id?: string; amount?: number; currency?: string; subscription_id?: string } };
+      refund?: { entity?: { id?: string; payment_id?: string } };
     };
   };
   try {
@@ -117,13 +119,50 @@ async function executeRazorpayWebhook(
   } catch {
     return new Response('Invalid JSON', { status: 400 });
   }
+
+  const service = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const eventName = String(event.event ?? '');
+
+  // Handle refund / chargeback events to reverse affiliate commissions and re-evaluate 50-user Pro milestone
+  if (
+    eventName === 'refund.processed' ||
+    eventName === 'payment.refunded' ||
+    eventName === 'payment.dispute.lost'
+  ) {
+    const refundedPaymentId =
+      event.payload?.refund?.entity?.payment_id ??
+      event.payload?.payment?.entity?.id ??
+      null;
+    const refundedSubId =
+      event.payload?.subscription?.entity?.id ??
+      event.payload?.payment?.entity?.subscription_id ??
+      null;
+    if (refundedPaymentId || refundedSubId) {
+      try {
+        await service.rpc('reverse_affiliate_referral_conversion', {
+          p_provider_subscription_id: refundedSubId,
+          p_provider_payment_id: refundedPaymentId,
+          p_user_id: null,
+        });
+        logger.log('info', 'affiliate_conversion_reversed_on_refund', {
+          event: eventName,
+          payment_id: refundedPaymentId,
+          subscription_id: refundedSubId,
+        });
+      } catch (revErr) {
+        logger.log('warn', 'affiliate_reversal_skipped', describeError(revErr));
+      }
+    }
+    return new Response('OK', { status: 200 });
+  }
+
   const subscriptionId = event.payload?.subscription?.entity?.id;
   if (!subscriptionId?.startsWith('sub_')) {
     return new Response('Ignored', { status: 200 });
   }
-  const service = createClient(supabaseUrl, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
   const { data: intent, error: intentError } = await service
     .from('billing_checkout_intents')
     .select('*')
@@ -144,6 +183,7 @@ async function executeRazorpayWebhook(
     id?: string;
     plan_id?: string;
     status?: string;
+    paid_count?: number;
     current_start?: number | null;
     current_end?: number | null;
     short_url?: string | null;
@@ -218,6 +258,7 @@ async function executeRazorpayWebhook(
     p_event_type: String(event.event ?? 'UNKNOWN'),
     p_intent_id: intent.id,
     p_intent_status: intentStatus,
+    p_replaces_subscription_id: (intent.replaces_subscription_id as string | null) ?? null,
   });
 
   if (reconcileError) {
@@ -237,8 +278,39 @@ async function executeRazorpayWebhook(
     });
   }
 
+  // Idempotently cancel any superseded Razorpay subscription on plan switch activation
+  const replacedSubId = String(intent.replaces_subscription_id ?? '').trim();
+  if (active && replacedSubId.startsWith('sub_') && replacedSubId !== subscriptionId) {
+    try {
+      await fetch(
+        `https://api.razorpay.com/v1/subscriptions/${encodeURIComponent(replacedSubId)}/cancel`,
+        {
+          method: 'POST',
+          headers: { Authorization: authorization, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cancel_at_cycle_end: 0 }),
+        },
+      );
+    } catch (cancelErr) {
+      logger.log('warn', 'webhook_superseded_cancel_failed', describeError(cancelErr));
+    }
+  }
+
   // Record invoice receipt on activation or charge settlement
-  const eventName = String(event.event ?? '');
+  const isFirstCycle =
+    eventName === 'subscription.activated' ||
+    (typeof provider.paid_count === 'number' && provider.paid_count <= 1);
+  const expectedPaise = Number(intent.expected_amount_paise ?? 0);
+  const intentDiscountPaise = Number(intent.discount_amount_paise ?? 0);
+  const paymentAmountPaise = event.payload?.payment?.entity?.amount;
+  const effectivePaidPaise =
+    typeof paymentAmountPaise === 'number' && paymentAmountPaise > 0
+      ? paymentAmountPaise
+      : isFirstCycle
+      ? Math.max(100, expectedPaise - intentDiscountPaise)
+      : expectedPaise;
+  const effectiveDiscountInr =
+    effectivePaidPaise < expectedPaise ? (expectedPaise - effectivePaidPaise) / 100 : 0;
+
   if (
     paidAccess &&
     (eventName === 'subscription.activated' ||
@@ -254,9 +326,23 @@ async function executeRazorpayWebhook(
       const invoiceId = paymentId
         ? `inv_${paymentId}`
         : `inv_${subscriptionId}_${periodKey}`;
-      const amountInr = Number(intent.expected_amount_paise) / 100;
+      const amountInr = effectivePaidPaise / 100;
       const planLabel = resolvedIntentTier === 'premium' ? 'AlphaJournal Basic' : 'AlphaJournal Pro';
       const cycleLabel = cycle === 'annual' ? 'Annual' : 'Monthly';
+      const lineItems: Array<Record<string, unknown>> = [
+        {
+          description: `${planLabel} (${cycleLabel} subscription, incl. 18% GST)`,
+          amount: expectedPaise / 100,
+          quantity: 1,
+        },
+      ];
+      if (effectiveDiscountInr > 0 && intent.referral_code) {
+        lineItems.push({
+          description: `Referral discount (${String(intent.referral_code)} · Month 1 only)`,
+          amount: -effectiveDiscountInr,
+          quantity: 1,
+        });
+      }
       await service.from('invoices').upsert(
         {
           id: invoiceId,
@@ -272,19 +358,32 @@ async function executeRazorpayWebhook(
           provider_payment_id: paymentId,
           billing_cycle: cycle,
           tier: resolvedIntentTier,
-          line_items: [
-            {
-              description: `${planLabel} (${cycleLabel} subscription, incl. 18% GST)`,
-              amount: amountInr,
-              quantity: 1,
-            },
-          ],
+          line_items: lineItems,
           updated_at: now,
         },
         { onConflict: 'id' },
       );
     } catch (invoiceErr) {
       logger.log('warn', 'razorpay_invoice_record_skipped', describeError(invoiceErr));
+    }
+
+    // Idempotently finalize affiliate conversion (₹10 for #1–50, ₹30 for #51+, auto-unlock Pro at 50)
+    if (intent.affiliate_id) {
+      try {
+        await service.rpc('finalize_affiliate_referral_conversion', {
+          p_user_id: intent.user_id,
+          p_affiliate_id: String(intent.affiliate_id),
+          p_referral_code: String(intent.referral_code ?? ''),
+          p_tier: resolvedIntentTier,
+          p_billing_cycle: cycle,
+          p_subscription_amount_inr: effectivePaidPaise / 100,
+          p_discount_amount_inr: effectiveDiscountInr,
+          p_provider_subscription_id: subscriptionId,
+          p_provider_payment_id: event.payload?.payment?.entity?.id ?? null,
+        });
+      } catch (affErr) {
+        logger.log('warn', 'webhook_affiliate_conversion_skipped', describeError(affErr));
+      }
     }
   }
 

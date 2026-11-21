@@ -25,7 +25,7 @@ class AffiliateSettingsModel {
     this.gstin = '',
     this.gstRegistered = false,
     this.tdsRate = 0.05,
-    this.termsVersionAccepted = '2026.1-INR',
+    this.termsVersionAccepted = '2026.2-INR',
     this.tiers = const <AffiliateRecord>[],
     this.terms = const <AffiliateRecord>[],
   });
@@ -65,8 +65,8 @@ class AffiliateSettingsModel {
       currency: 'INR',
       referralCode: 'ALPHAJOURNAL-ALPHA-2026',
       customSlug: 'nitish-trades',
-      commissionRate: 0.25,
-      tierName: 'Tier 3 · Gold Pro Partner',
+      commissionRate: 0.0,
+      tierName: 'Tier 1 · Starter Partner (1–50 Paid Users)',
       payoutMethod: 'upi',
       payoutAccount: 'nitish.alpha@okhdfcbank',
       minimumPayoutThreshold: 1000.0,
@@ -83,7 +83,7 @@ class AffiliateSettingsModel {
       gstin: '27ABCDE1234F1Z5',
       gstRegistered: true,
       tdsRate: 0.05,
-      termsVersionAccepted: '2026.1-INR',
+      termsVersionAccepted: '2026.2-INR',
     );
   }
 

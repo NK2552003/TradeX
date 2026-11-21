@@ -234,6 +234,32 @@ class AffiliateWorkspace {
   int get pendingReferralsCount =>
       referrals.where((r) => r.text('status') == 'pending').length;
 
+  int get paidReferralsCount {
+    final int fromProfile = profile.count('paid_referrals_count');
+    if (fromProfile > 0) return fromProfile;
+    final int active = profile.count('active_referrals');
+    return active > convertedCount ? active : convertedCount;
+  }
+
+  int get freeProThreshold {
+    final int t = profile.count('free_pro_threshold');
+    return t > 0 ? t : 50;
+  }
+
+  bool get complimentaryProUnlocked =>
+      profile.flag('complimentary_pro_unlocked') ||
+      (profile.text('status', 'active') == 'active' &&
+          paidReferralsCount >= freeProThreshold);
+
+  double get currentCommissionInr {
+    final double fromProfile = profile.number('current_commission_inr');
+    if (fromProfile > 0) return fromProfile;
+    return paidReferralsCount >= freeProThreshold ? 30.0 : 10.0;
+  }
+
+  double get progressToFreePro =>
+      (paidReferralsCount / freeProThreshold).clamp(0.0, 1.0);
+
   double get conversionRate =>
       referrals.isEmpty ? 0 : (convertedCount / referrals.length) * 100;
 

@@ -564,11 +564,16 @@ class CommunityFloatingTabShell extends StatelessWidget {
     required this.tabBar,
     required this.body,
     this.banner,
+    this.belowTabBar,
   });
 
   final Widget tabBar;
   final Widget body;
   final Widget? banner;
+
+  /// Optional floating control (e.g. the "New posts" pill) displayed directly
+  /// below [tabBar] over the scrollable [body].
+  final Widget? belowTabBar;
 
   @override
   Widget build(BuildContext context) {
@@ -605,6 +610,10 @@ class CommunityFloatingTabShell extends StatelessWidget {
                 SizedBox(height: context.sp(theme.spacing.xs)),
               ],
               tabBar,
+              if (belowTabBar != null) ...<Widget>[
+                SizedBox(height: context.sp(theme.spacing.xs)),
+                belowTabBar!,
+              ],
             ],
           ),
         ),

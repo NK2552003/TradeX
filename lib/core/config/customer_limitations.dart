@@ -15,6 +15,7 @@ import 'package:alphajournal/features/admin_console/data/admin_console_repositor
 import 'package:alphajournal/features/affiliate_program/models/affiliate_workspace.dart';
 import 'package:alphajournal/features/public_site/data/public_site_repository.dart';
 import 'package:alphajournal/features/settings/data/repositories/billing_settings_repository.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/referral_code_prompt_dialog.dart';
 import 'package:alphajournal/features/settings/models/desk_risk_model.dart';
 import 'package:alphajournal/features/settings/presentation/pages/trader/change_plan_page.dart';
 
@@ -947,9 +948,28 @@ class CustomerLimitations {
               }
 
               final billingRepo = BillingSettingsRepositoryImpl();
+              final double listInr = isAnnual
+                  ? (q.tier == AppTier.enterprise ? 4788.0 : 2868.0)
+                  : (q.tier == AppTier.enterprise ? 499.0 : 299.0);
+              final refChoice = await showReferralCodePromptDialog(
+                dialogCtx,
+                billingRepository: billingRepo,
+                tierId: tierId,
+                planName: q.planName,
+                billingCycle: cycle,
+                listAmountInr: listInr,
+                currentTier: AppSession.instance.tier.value,
+              );
+              if (refChoice == null) {
+                if (dialogCtx.mounted) {
+                  setDialogState(() => processingTier = null);
+                }
+                return;
+              }
               final checkoutSession = await billingRepo.startCheckout(
                 tierId,
                 cycle,
+                referralCode: refChoice.referralCode,
               );
               final String keyId =
                   (checkoutSession.keyId != null &&
@@ -2287,18 +2307,23 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                             children: <Widget>[
                               Row(
                                 children: <Widget>[
-                                  Text(
-                                    heading,
-                                    style: ctx.uiText.caption.copyWith(
-                                      fontSize: ctx.fs(10.5),
-                                      letterSpacing: 0.7,
-                                      fontWeight: FontWeight.w700,
-                                      color:
-                                          theme.colors.foregroundSubtle,
+                                  Expanded(
+                                    child: Text(
+                                      heading,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: ctx.uiText.caption.copyWith(
+                                        fontSize: ctx.fs(10.5),
+                                        letterSpacing: 0.7,
+                                        fontWeight: FontWeight.w700,
+                                        color: theme.colors.foregroundSubtle,
+                                      ),
                                     ),
                                   ),
-                                  const Spacer(),
-                                  ?trailing,
+                                  if (trailing != null) ...<Widget>[
+                                    const SizedBox(width: 8),
+                                    trailing,
+                                  ],
                                 ],
                               ),
                               SizedBox(height: ctx.sp(theme.spacing.xs)),

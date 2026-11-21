@@ -9,7 +9,10 @@ import 'package:alphajournal/core/config/customer_limitations.dart';
 import 'package:alphajournal/core/config/env_config.dart';
 import 'package:alphajournal/core/config/supabase_config.dart';
 import 'package:alphajournal/core/data/app_session.dart';
+import 'package:alphajournal/features/affiliate_program/data/affiliate_attribution.dart';
 import 'package:alphajournal/features/auth/data/repositories/subscription_pricing_repository.dart';
+import 'package:alphajournal/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 import 'package:alphajournal/features/auth/models/pricing_models.dart';
 import 'package:alphajournal/features/settings/data/repositories/billing_settings_repository.dart';
 import 'package:alphajournal/features/settings/models/billing_models.dart';
@@ -18,19 +21,23 @@ import 'package:alphajournal/features/settings/presentation/widgets/settings_sub
 /// Redesigned Claude-styled plan changer for Settings > Billing.
 ///
 /// Features dynamic INR pricing, animated billing cycle toggle, 3 equal-height
-/// tier cards, interactive checkout dialog with coupon redemption, and a
-/// horizontally scrollable feature comparison matrix on mobile.
+/// tier cards, interactive checkout dialog with referral code verification
+/// (Monthly Month-1 discount: Basic ₹239, Pro ₹399), affiliate coupon ban,
+/// subscription upgrade/switch flow, and a horizontally scrollable feature
+/// comparison matrix on mobile.
 class ChangePlanPage extends StatefulWidget {
   const ChangePlanPage({
     super.key,
     this.repository,
     this.pricingRepository,
     this.onPlanChanged,
+    this.isAffiliate = false,
   });
 
   final BillingSettingsRepository? repository;
   final SubscriptionPricingRepository? pricingRepository;
   final ValueChanged<AppTier>? onPlanChanged;
+  final bool isAffiliate;
 
   @override
   State<ChangePlanPage> createState() => _ChangePlanPageState();
@@ -54,6 +61,13 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
   bool _repricing = false;
   bool _isAnnual = true;
   String? _processingTierId;
+  String? _prefilledReferralCode;
+
+  bool get _isAffiliateAccount =>
+      widget.isAffiliate ||
+      (_subscription?.affiliateMilestone?.isAffiliate ?? false) ||
+      SupabaseAuthBackendService.instance.currentUserProfile?.role ==
+          UserRole.affiliate;
 
   @override
   void initState() {
@@ -63,6 +77,24 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
         widget.pricingRepository ?? SubscriptionPricingRepositoryImpl();
     _isAnnual = AppSession.instance.billingCycle == 'annual';
     _loadData();
+    _loadPrefilledReferral();
+  }
+
+  Future<void> _loadPrefilledReferral() async {
+    try {
+      final profileRef = SupabaseAuthBackendService
+          .instance
+          .currentUserProfile
+          ?.referredByCode
+          ?.trim();
+      final attribution = await AffiliateAttribution.load();
+      final attrCode = attribution?['code']?.toString().trim();
+      final resolved = (profileRef != null && profileRef.isNotEmpty)
+          ? profileRef
+          : (attrCode != null && attrCode.isNotEmpty ? attrCode : null);
+      if (!mounted || resolved == null) return;
+      setState(() => _prefilledReferralCode = resolved.toUpperCase());
+    } catch (_) {}
   }
 
   Future<void> _loadData() async {
@@ -209,7 +241,10 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
     );
   }
 
-  Future<void> _openBusinessCheckout(PricingPlanModel plan) async {
+  Future<void> _openBusinessCheckout(
+    PricingPlanModel plan, {
+    String? referralCode,
+  }) async {
     if (_processingTierId != null) return;
     setState(() => _processingTierId = plan.id);
     final String cycle = _isAnnual ? 'annual' : 'monthly';
@@ -222,7 +257,11 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
         return;
       }
 
-      final session = await _billingRepo.startCheckout(plan.id, cycle);
+      final session = await _billingRepo.startCheckout(
+        plan.id,
+        cycle,
+        referralCode: _isAffiliateAccount ? null : referralCode,
+      );
       if (!mounted) return;
       final String keyId = (session.keyId != null && session.keyId!.isNotEmpty)
           ? session.keyId!
@@ -418,17 +457,27 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
   }
 
   void _showCheckoutDialog(PricingPlanModel plan) {
-    int discountPercent = _subscription?.discountPercent ?? 0;
-    String? discountCode = _subscription?.discountCode;
-    final TextEditingController coupon = TextEditingController();
-    String? couponError;
-    bool redeeming = false;
-    bool processing = false;
-
+    final bool isAffiliate = _isAffiliateAccount;
     final AppTier currentTier =
         _subscription?.tier ?? AppSession.instance.tier.value;
     final bool isCurrent = plan.tier == currentTier;
     final bool isUpgrade = plan.tier.index > currentTier.index;
+    final bool isSwitchingPaidPlan =
+        currentTier != AppTier.free && plan.tier != AppTier.free;
+    final bool canAskReferral = !isAffiliate && currentTier == AppTier.free;
+    final String cycle = _isAnnual ? 'annual' : 'monthly';
+
+    final String initialRef = canAskReferral
+        ? (_prefilledReferralCode ?? '')
+        : '';
+    bool hasReferralCode = canAskReferral && initialRef.isNotEmpty;
+    final TextEditingController referralController = TextEditingController(
+      text: initialRef,
+    );
+    ReferralDiscountQuote? quote;
+    String? referralError;
+    bool validating = false;
+    bool processing = false;
 
     showDialog<void>(
       context: context,
@@ -437,14 +486,23 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
           final double baseAmount = _isAnnual
               ? plan.annualMonthlyAmount * 12
               : plan.monthlyAmount;
-          final double due = baseAmount * (1 - discountPercent / 100);
           final bool payable = baseAmount > 0;
+          final double discountInr =
+              (quote != null && quote!.valid && quote!.appliesDiscount)
+              ? quote!.discountInr
+              : 0.0;
+          final double due = (baseAmount - discountInr).clamp(0.0, baseAmount);
+          final String? appliedCode = (quote != null && quote!.valid)
+              ? (quote!.code ?? referralController.text.trim().toUpperCase())
+              : null;
 
           final String title = isCurrent
               ? 'Switch to ${_isAnnual ? 'annual' : 'monthly'} billing'
               : (isUpgrade
                     ? 'Upgrade to ${plan.name}'
-                    : 'Change to ${plan.name}');
+                    : (plan.tier == AppTier.free
+                          ? 'Switch to Free'
+                          : 'Change to ${plan.name}'));
 
           return UiDialog(
             title: title,
@@ -479,14 +537,16 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                             ),
                           ),
                           Text(
-                            plan.priceLabel(isAnnual: _isAnnual),
+                            payable
+                                ? '${plan.currencySymbol}${baseAmount.toStringAsFixed(0)}${_isAnnual ? '/yr' : '/mo'}'
+                                : plan.priceLabel(isAnnual: _isAnnual),
                             style: context.uiText.heading.copyWith(
                               color: context.ui.colors.primary,
                             ),
                           ),
                         ],
                       ),
-                      if (discountPercent > 0) ...<Widget>[
+                      if (payable && appliedCode != null) ...<Widget>[
                         SizedBox(height: context.sp(context.ui.spacing.sm)),
                         const UiDivider(),
                         SizedBox(height: context.sp(context.ui.spacing.sm)),
@@ -494,14 +554,19 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                           children: <Widget>[
                             Expanded(
                               child: Text(
-                                'Coupon $discountCode',
+                                discountInr > 0
+                                    ? 'Referral $appliedCode (Month 1 only)'
+                                    : 'Referral $appliedCode (Partner credited)',
                                 style: context.uiText.caption,
                               ),
                             ),
                             Text(
-                              '-${plan.currencySymbol}${(baseAmount - due).toStringAsFixed(0)}',
+                              discountInr > 0
+                                  ? '-${plan.currencySymbol}${discountInr.toStringAsFixed(0)}'
+                                  : '20% annual rate',
                               style: context.uiText.caption.copyWith(
                                 color: context.ui.colors.bullish,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -511,7 +576,9 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                           children: <Widget>[
                             Expanded(
                               child: Text(
-                                'Total due today',
+                                _isAnnual
+                                    ? 'Total due today'
+                                    : 'Month 1 due today',
                                 style: context.uiText.bodyStrong,
                               ),
                             ),
@@ -521,59 +588,163 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                             ),
                           ],
                         ),
+                        if (!_isAnnual && discountInr > 0) ...<Widget>[
+                          SizedBox(height: context.sp(context.ui.spacing.xxs)),
+                          Text(
+                            'Renews at ${plan.currencySymbol}${baseAmount.toStringAsFixed(0)}/mo from Month 2 onward.',
+                            style: context.uiText.caption.copyWith(
+                              color: context.ui.colors.foregroundMuted,
+                            ),
+                          ),
+                        ],
                       ],
                     ],
                   ),
                 ),
                 if (payable) ...<Widget>[
                   SizedBox(height: context.sp(context.ui.spacing.md)),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: <Widget>[
-                      Expanded(
-                        child: UiField(
-                          label: 'Coupon code',
-                          error: couponError,
-                          child: UiInput(
-                            controller: coupon,
-                            hintText: 'PROMO20',
-                            onChanged: (_) {
-                              if (couponError != null) {
-                                setDialogState(() => couponError = null);
-                              }
-                            },
-                          ),
+                  if (isAffiliate)
+                    const UiCallout(
+                      title: 'Affiliate coupon restriction',
+                      message:
+                          'Affiliate accounts cannot redeem their own or other partners\' referral/coupon codes. Reach 50 verified paid Basic or Pro referrals to unlock complimentary Pro automatically.',
+                      intent: UiIntent.warning,
+                    )
+                  else if (canAskReferral) ...<Widget>[
+                    Text(
+                      'Do you have a referral code?',
+                      style: context.uiText.bodyStrong,
+                    ),
+                    SizedBox(height: context.sp(context.ui.spacing.xs)),
+                    UiToggleGroup<bool>(
+                      key: const ValueKey<String>('checkout-has-referral-toggle'),
+                      size: UiSize.sm,
+                      value: hasReferralCode,
+                      onChanged: (bool value) {
+                        setDialogState(() {
+                          hasReferralCode = value;
+                          if (!value) {
+                            quote = null;
+                            referralError = null;
+                          }
+                        });
+                      },
+                      options: const <UiToggleOption<bool>>[
+                        UiToggleOption<bool>(value: false, label: 'No'),
+                        UiToggleOption<bool>(
+                          value: true,
+                          label: 'Yes, I have a code',
                         ),
+                      ],
+                    ),
+                    if (hasReferralCode) ...<Widget>[
+                      SizedBox(height: context.sp(context.ui.spacing.sm)),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: <Widget>[
+                          Expanded(
+                            child: UiField(
+                              label: 'Referral code',
+                              error: referralError,
+                              helper: _isAnnual
+                                  ? 'Annual plans already include 20% off; your partner will still be credited.'
+                                  : 'Month 1 becomes ₹${plan.tier == AppTier.premium ? '239' : '399'} (1 use per account), then ₹${baseAmount.toStringAsFixed(0)}/mo.',
+                              child: UiInput(
+                                key: const ValueKey<String>(
+                                  'checkout-referral-input',
+                                ),
+                                controller: referralController,
+                                hintText: 'PARTNER26',
+                                onChanged: (_) {
+                                  if (referralError != null || quote != null) {
+                                    setDialogState(() {
+                                      referralError = null;
+                                      quote = null;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: context.sp(context.ui.spacing.sm)),
+                          UiButton(
+                            key: const ValueKey<String>(
+                              'checkout-referral-apply-btn',
+                            ),
+                            label: appliedCode != null ? 'Applied' : 'Apply',
+                            variant: appliedCode != null
+                                ? UiVariant.soft
+                                : UiVariant.outline,
+                            intent: appliedCode != null
+                                ? UiIntent.bullish
+                                : UiIntent.neutral,
+                            loading: validating,
+                            onPressed: validating
+                                ? null
+                                : () async {
+                                    final String raw = referralController.text
+                                        .trim();
+                                    if (raw.isEmpty) {
+                                      setDialogState(
+                                        () => referralError =
+                                            'Enter a referral code.',
+                                      );
+                                      return;
+                                    }
+                                    setDialogState(() {
+                                      validating = true;
+                                      referralError = null;
+                                    });
+                                    final res = await _billingRepo
+                                        .validateReferralCode(
+                                          code: raw,
+                                          tierId: plan.id,
+                                          billingCycle: cycle,
+                                        );
+                                    if (!dialogCtx.mounted) return;
+                                    setDialogState(() {
+                                      validating = false;
+                                      if (!res.valid) {
+                                        quote = null;
+                                        referralError = res.message;
+                                      } else {
+                                        quote = res;
+                                        referralError = null;
+                                      }
+                                    });
+                                  },
+                          ),
+                        ],
                       ),
-                      SizedBox(width: context.sp(context.ui.spacing.sm)),
-                      UiButton(
-                        label: 'Apply',
-                        variant: UiVariant.outline,
-                        loading: redeeming,
-                        onPressed: () async {
-                          final String raw = coupon.text.trim();
-                          if (raw.isEmpty) return;
-                          setDialogState(() => redeeming = true);
-                          final int? pct = await _billingRepo.redeemCoupon(raw);
-                          setDialogState(() {
-                            redeeming = false;
-                            if (pct == null) {
-                              couponError = 'Invalid coupon';
-                            } else {
-                              discountPercent = pct;
-                              discountCode = raw;
-                              couponError = null;
-                            }
-                          });
-                        },
-                      ),
+                      if (quote != null && quote!.valid) ...<Widget>[
+                        SizedBox(height: context.sp(context.ui.spacing.sm)),
+                        UiCallout(
+                          title: quote!.offerConfigured
+                              ? 'Referral code verified'
+                              : 'Referral verified (offer pending Razorpay setup)',
+                          message: quote!.message,
+                          intent: quote!.offerConfigured
+                              ? UiIntent.bullish
+                              : UiIntent.warning,
+                        ),
+                      ],
                     ],
-                  ),
+                  ] else ...<Widget>[
+                    const UiCallout(
+                      title: 'Subscription update',
+                      message:
+                          'Referral discounts apply only to a user\'s first paid subscription. Your previous Razorpay mandate (including UPI AutoPay) will be automatically cancelled as soon as your new plan activates so you are never double-billed.',
+                      intent: UiIntent.info,
+                    ),
+                  ],
                   SizedBox(height: context.sp(context.ui.spacing.md)),
                   UiCallout(
-                    title: 'Secure Razorpay Checkout',
-                    message:
-                        'You will be redirected to Razorpay to authorize your ${_isAnnual ? 'annual' : 'monthly'} subscription via UPI AutoPay, credit/debit card, or NetBanking.',
+                    title: isSwitchingPaidPlan
+                        ? 'Seamless Razorpay Plan Update'
+                        : 'Secure Razorpay Checkout',
+                    message: isSwitchingPaidPlan
+                        ? 'Authorize your new ${plan.name} (${_isAnnual ? 'annual' : 'monthly'}) mandate in Razorpay. Your previous subscription is cancelled immediately upon confirmation.'
+                        : 'You will authorize your ${_isAnnual ? 'annual' : 'monthly'} subscription via UPI AutoPay, credit/debit card, or NetBanking.',
                     intent: UiIntent.info,
                   ),
                 ],
@@ -582,7 +753,7 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                   title: payable ? 'Instant activation' : 'Downgrade to Free',
                   message: payable
                       ? 'Features unlock as soon as payment is confirmed. Indian 18% GST itemized transparently. Cancel anytime.'
-                      : 'Paid features remain accessible until the end of your prepaid period.',
+                      : 'Renewal will stop at the end of your current paid billing cycle. Paid features remain active until then.',
                   intent: payable ? UiIntent.info : UiIntent.warning,
                 ),
               ],
@@ -594,47 +765,73 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                 onPressed: () => Navigator.of(ctx).pop(),
               ),
               UiButton(
+                key: const ValueKey<String>('checkout-confirm-pay-btn'),
                 label: payable
                     ? 'Confirm & Pay ${plan.currencySymbol}${due.toStringAsFixed(0)}'
-                    : 'Confirm Change',
+                    : 'Stop Renewal at Period End',
                 intent: UiIntent.primary,
                 loading: processing,
-                onPressed: processing
+                onPressed: processing || validating
                     ? null
                     : () async {
                         if (payable) {
+                          if (hasReferralCode &&
+                              referralController.text.trim().isNotEmpty &&
+                              appliedCode == null) {
+                            setDialogState(() {
+                              referralError =
+                                  'Tap Apply to verify your referral code, or select No to continue without one.';
+                            });
+                            return;
+                          }
                           if (ctx.mounted) Navigator.of(ctx).pop();
-                          await _openBusinessCheckout(plan);
+                          await _openBusinessCheckout(
+                            plan,
+                            referralCode: hasReferralCode ? appliedCode : null,
+                          );
                           return;
                         }
                         setDialogState(() => processing = true);
                         try {
-                          await _pricingRepo.selectPlan(
-                            tierId: plan.id,
-                            billingCycle: _isAnnual ? 'annual' : 'monthly',
-                          );
+                          if (currentTier != AppTier.free) {
+                            await _billingRepo.cancelSubscription(
+                              reason: 'Switched to Free from Change Plan',
+                            );
+                          } else {
+                            await _pricingRepo.selectPlan(
+                              tierId: plan.id,
+                              billingCycle: cycle,
+                            );
+                          }
                           if (ctx.mounted) Navigator.of(ctx).pop();
                           if (!mounted) return;
-
-                          widget.onPlanChanged?.call(plan.tier);
+                          await _loadData();
+                          if (!mounted) return;
+                          widget.onPlanChanged?.call(
+                            _subscription?.tier ?? plan.tier,
+                          );
 
                           UiToast.show(
                             context,
-                            title: payable ? 'Plan Active' : 'Plan Changed',
-                            message:
-                                'You are now on AlphaJournal ${plan.name}.',
+                            title: currentTier != AppTier.free
+                                ? 'Renewal Stopped'
+                                : 'Plan Changed',
+                            message: currentTier != AppTier.free
+                                ? 'Your paid plan stays active until the end of the current period, then moves to Free.'
+                                : 'You are now on AlphaJournal ${plan.name}.',
                             intent: UiIntent.success,
                           );
                           closeSettingsSubpage(context);
-                        } catch (_) {
+                        } catch (err) {
                           if (!dialogCtx.mounted) return;
                           setDialogState(() => processing = false);
                           if (!mounted) return;
                           UiToast.show(
                             context,
                             title: 'Plan update failed',
-                            message:
-                                'Could not change plan right now. Please try again.',
+                            message: err
+                                .toString()
+                                .replaceFirst('Bad state: ', ''),
                             intent: UiIntent.danger,
                           );
                         }
@@ -644,7 +841,7 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
           );
         },
       ),
-    ).whenComplete(coupon.dispose);
+    ).whenComplete(referralController.dispose);
   }
 
   @override
@@ -1176,7 +1373,7 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
         : useStoreOffer
         ? _openStoreOffer
         : useRazorpayCheckout
-        ? () => _openBusinessCheckout(plan)
+        ? () => _showCheckoutDialog(plan)
         : !plan.isPurchasable
         ? null
         : () => _showCheckoutDialog(plan);

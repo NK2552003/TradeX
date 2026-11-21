@@ -86,6 +86,30 @@ export function resolveRazorpayPlanId(
   );
 }
 
+/**
+ * Resolves the Razorpay Subscription Offer ID for Month-1 referral discounts:
+ * - Basic Monthly: ₹299 -> ₹239 (₹60 flat off, 1 cycle)
+ * - Pro Monthly:   ₹499 -> ₹399 (₹100 flat off, 1 cycle)
+ * - Annual plans:  no extra offer_id (already 20% discounted; referral still attributes partner)
+ */
+export function resolveRazorpayAffiliateOfferId(
+  tier: 'premium' | 'enterprise',
+  cycle: 'monthly' | 'annual',
+  env: { get(key: string): string | undefined } = Deno.env,
+): string | undefined {
+  if (cycle !== 'monthly') return undefined;
+  if (tier === 'premium') {
+    return (
+      env.get('RAZORPAY_AFFILIATE_BASIC_MONTHLY_OFFER_ID') ??
+      env.get('RAZORPAY_AFFILIATE_BASIC_OFFER_ID')
+    );
+  }
+  return (
+    env.get('RAZORPAY_AFFILIATE_PRO_MONTHLY_OFFER_ID') ??
+    env.get('RAZORPAY_AFFILIATE_PRO_OFFER_ID')
+  );
+}
+
 export async function handleCheckoutEntry(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') return corsPreflightResponse(request);
   const logger = createEdgeRequestLogger('create-business-checkout', request);
@@ -152,6 +176,10 @@ export async function handleCheckoutRequest(
     'Content-Type': 'application/json',
   };
 
+  if (body.action === 'validate_referral') {
+    return await handleValidateReferral(user.id, body, service);
+  }
+
   if (body.action === 'cancel') {
     return await handleCancelSubscription(user.id, service, razorpayHeaders, logger);
   }
@@ -209,6 +237,66 @@ export async function handleCheckoutRequest(
     return reply(503, { error: 'Published plan pricing is invalid.' });
   }
 
+  // Detect any active Razorpay subscription being upgraded, downgraded, or switched
+  const { data: existingSub } = await service
+    .from('subscriptions')
+    .select('tier, status, billing_provider, provider_subscription_id, billing_cycle, expires_at')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  const existingSubId = String(existingSub?.provider_subscription_id ?? '').trim();
+  const hasActiveRazorpaySub =
+    existingSub?.billing_provider === 'razorpay' &&
+    existingSubId.startsWith('sub_') &&
+    existingSub.expires_at != null &&
+    new Date(String(existingSub.expires_at)).getTime() > Date.now() &&
+    ['active', 'canceled'].includes(String(existingSub.status ?? ''));
+  const replacesSubscriptionId = hasActiveRazorpaySub ? existingSubId : null;
+
+  // Validate optional referral code strictly server-side (never trusting client discount)
+  const rawReferralCode = String(body.referral_code ?? '').trim();
+  let validatedReferral: Record<string, unknown> | null = null;
+  let razorpayOfferId: string | undefined;
+  let discountPaise = 0;
+  let affiliateRewardInr = 0;
+
+  if (rawReferralCode.length > 0) {
+    const { data: quote, error: quoteErr } = await service.rpc('validate_referral_code', {
+      p_code: rawReferralCode,
+      p_tier: tier,
+      p_billing_cycle: cycle,
+      p_target_user_id: user.id,
+    });
+    if (quoteErr || !quote || typeof quote !== 'object') {
+      logger.log('error', 'referral_validation_rpc_failed', describeError(quoteErr));
+      return reply(500, { error: 'Could not validate referral code right now.' });
+    }
+    const quoteMap = quote as Record<string, unknown>;
+    if (quoteMap.valid !== true) {
+      const code = String(quoteMap.error_code ?? 'invalid_code');
+      const statusCode = code === 'affiliate_coupon_prohibited' ? 403 : 400;
+      return reply(statusCode, {
+        error: String(quoteMap.message ?? 'Referral code cannot be applied.'),
+        error_code: code,
+      });
+    }
+    validatedReferral = quoteMap;
+    discountPaise = Number(quoteMap.discount_paise ?? 0);
+    affiliateRewardInr = Number(quoteMap.affiliate_commission_inr ?? 10);
+    if (discountPaise > 0) {
+      razorpayOfferId = resolveRazorpayAffiliateOfferId(tier, cycle);
+      if (!razorpayOfferId) {
+        return reply(503, {
+          error:
+            'Monthly referral discount offer is not yet configured on Razorpay. Please contact support or continue without a referral code.',
+          error_code: 'razorpay_offer_unconfigured',
+        });
+      }
+    }
+  }
+
+  const payablePaise = Math.max(100, expectedPaise - discountPaise);
+
   const planResponse = await fetch(
     `https://api.razorpay.com/v1/plans/${encodeURIComponent(planId)}`,
     { headers: razorpayHeaders },
@@ -232,22 +320,36 @@ export async function handleCheckoutRequest(
 
   const productSlug =
     tier === 'premium' ? 'alphajournal_basic' : 'alphajournal_pro';
+  const subscriptionPayload: Record<string, unknown> = {
+    plan_id: planId,
+    total_count: cycle === 'annual' ? 10 : 120,
+    quantity: 1,
+    customer_notify: true,
+    notify_info: { notify_email: user.email },
+    notes: {
+      user_id: user.id,
+      tier,
+      billing_cycle: cycle,
+      product: productSlug,
+      ...(validatedReferral
+        ? {
+            referral_code: String(validatedReferral.code ?? ''),
+            affiliate_id: String(validatedReferral.affiliate_id ?? ''),
+          }
+        : {}),
+      ...(replacesSubscriptionId
+        ? { replaces_subscription_id: replacesSubscriptionId }
+        : {}),
+    },
+  };
+  if (razorpayOfferId) {
+    subscriptionPayload.offer_id = razorpayOfferId;
+  }
+
   const created = await fetch('https://api.razorpay.com/v1/subscriptions', {
     method: 'POST',
     headers: razorpayHeaders,
-    body: JSON.stringify({
-      plan_id: planId,
-      total_count: cycle === 'annual' ? 10 : 120,
-      quantity: 1,
-      customer_notify: true,
-      notify_info: { notify_email: user.email },
-      notes: {
-        user_id: user.id,
-        tier,
-        billing_cycle: cycle,
-        product: productSlug,
-      },
-    }),
+    body: JSON.stringify(subscriptionPayload),
   });
   if (!created.ok) {
     return reply(502, { error: 'Payment provider could not start checkout.' });
@@ -267,31 +369,145 @@ export async function handleCheckoutRequest(
     return reply(502, { error: 'Payment provider returned an invalid checkout.' });
   }
 
-  const { error: saveError } = await service.from('billing_checkout_intents').insert({
-    user_id: user.id,
-    tier,
-    billing_cycle: cycle,
-    razorpay_plan_id: planId,
-    razorpay_subscription_id: subscription.id,
-    expected_amount_paise: expectedPaise,
-    checkout_url: checkout.toString(),
-    status: 'created',
-  });
+  const { data: savedIntent, error: saveError } = await service
+    .from('billing_checkout_intents')
+    .insert({
+      user_id: user.id,
+      tier,
+      billing_cycle: cycle,
+      razorpay_plan_id: planId,
+      razorpay_subscription_id: subscription.id,
+      expected_amount_paise: expectedPaise,
+      discount_amount_paise: discountPaise,
+      payable_amount_paise: payablePaise,
+      referral_code: validatedReferral ? String(validatedReferral.code) : null,
+      affiliate_id: validatedReferral ? String(validatedReferral.affiliate_id) : null,
+      razorpay_offer_id: razorpayOfferId ?? null,
+      affiliate_reward_inr: affiliateRewardInr,
+      replaces_subscription_id: replacesSubscriptionId,
+      checkout_url: checkout.toString(),
+      status: 'created',
+    })
+    .select('id')
+    .single();
   if (saveError) {
     logger.log('error', 'checkout_intent_save_failed', describeError(saveError));
     return reply(500, { error: 'Checkout could not be saved.' });
   }
 
-  logger.log('info', 'checkout_created', { tier, billing_cycle: cycle });
+  if (validatedReferral && savedIntent?.id) {
+    const { error: reserveError } = await service.rpc(
+      'reserve_affiliate_referral_redemption',
+      {
+        p_user_id: user.id,
+        p_affiliate_id: String(validatedReferral.affiliate_id),
+        p_referral_code: String(validatedReferral.code),
+        p_checkout_intent_id: savedIntent.id,
+        p_provider_subscription_id: subscription.id,
+        p_tier: tier,
+        p_billing_cycle: cycle,
+        p_discount_inr: discountPaise / 100,
+        p_commission_inr: affiliateRewardInr,
+      },
+    );
+    if (reserveError) {
+      logger.log('error', 'referral_reserve_failed', describeError(reserveError));
+      return reply(409, { error: 'This referral offer is no longer available for your account.' });
+    }
+  }
+
+  logger.log('info', 'checkout_created', {
+    tier,
+    billing_cycle: cycle,
+    has_referral: Boolean(validatedReferral),
+    discount_paise: discountPaise,
+    is_switch: Boolean(replacesSubscriptionId),
+  });
   return reply(200, {
     subscription_id: subscription.id,
     checkout_url: checkout.toString(),
     key_id: keyId,
     tier,
     billing_cycle: cycle,
-    amount_paise: expectedPaise,
+    list_amount_paise: expectedPaise,
+    discount_paise: discountPaise,
+    amount_paise: payablePaise,
     currency: 'INR',
+    referral_code: validatedReferral ? String(validatedReferral.code) : null,
+    replaces_subscription_id: replacesSubscriptionId,
   });
+}
+
+async function handleValidateReferral(
+  userId: string,
+  body: Record<string, unknown>,
+  service: ReturnType<typeof createClient>,
+): Promise<Response> {
+  const tier = normalizePaidTier(body.tier ?? body.tier_id);
+  const cycle = normalizeBillingCycle(body.billing_cycle);
+  if (!tier || !cycle) {
+    return reply(400, {
+      valid: false,
+      error_code: 'invalid_plan',
+      message: 'Choose Basic or Pro with Monthly or Annual billing.',
+    });
+  }
+
+  const code = String(body.referral_code ?? body.code ?? '').trim();
+  const { data: quote, error } = await service.rpc('validate_referral_code', {
+    p_code: code,
+    p_tier: tier,
+    p_billing_cycle: cycle,
+    p_target_user_id: userId,
+  });
+
+  if (error || !quote || typeof quote !== 'object') {
+    return reply(500, {
+      valid: false,
+      error_code: 'validation_failed',
+      message: 'Unable to validate referral code right now.',
+    });
+  }
+
+  const map = quote as Record<string, unknown>;
+  if (map.valid === true && Number(map.discount_paise ?? 0) > 0) {
+    const offerId = resolveRazorpayAffiliateOfferId(tier, cycle);
+    if (!offerId) {
+      return reply(200, {
+        ...map,
+        offer_configured: false,
+      });
+    }
+  }
+
+  return reply(200, { ...map, offer_configured: true });
+}
+
+async function cancelSupersededRazorpaySubscription(
+  oldSubscriptionId: string | null | undefined,
+  newSubscriptionId: string,
+  razorpayHeaders: Record<string, string>,
+  logger: ReturnType<typeof createEdgeRequestLogger>,
+): Promise<void> {
+  const cleanOld = String(oldSubscriptionId ?? '').trim();
+  if (!cleanOld.startsWith('sub_') || cleanOld === newSubscriptionId) return;
+  try {
+    const cancelRes = await fetch(
+      `https://api.razorpay.com/v1/subscriptions/${encodeURIComponent(cleanOld)}/cancel`,
+      {
+        method: 'POST',
+        headers: razorpayHeaders,
+        body: JSON.stringify({ cancel_at_cycle_end: 0 }),
+      },
+    );
+    logger.log('info', 'superseded_subscription_cancel_attempted', {
+      old_subscription_id: cleanOld,
+      new_subscription_id: newSubscriptionId,
+      status: cancelRes.status,
+    });
+  } catch (err) {
+    logger.log('warn', 'superseded_subscription_cancel_failed', describeError(err));
+  }
 }
 
 async function handleVerifySubscription(
@@ -412,6 +628,7 @@ async function handleVerifySubscription(
     p_event_type: 'subscription.client_verified',
     p_intent_id: intent.id,
     p_intent_status: 'active',
+    p_replaces_subscription_id: intent.replaces_subscription_id ?? null,
   });
 
   if (reconcileError) {
@@ -419,20 +636,46 @@ async function handleVerifySubscription(
     return reply(500, { error: 'Could not activate subscription.' });
   }
 
+  // Cancel superseded Razorpay subscription immediately so plan switches never double-bill
+  await cancelSupersededRazorpaySubscription(
+    intent.replaces_subscription_id as string | null | undefined,
+    subscriptionId,
+    razorpayHeaders,
+    logger,
+  );
+
+  const expectedPaise = Number(intent.expected_amount_paise ?? 0);
+  const discountPaise = Number(intent.discount_amount_paise ?? 0);
+  const payableInr = Math.max(1, (expectedPaise - discountPaise) / 100);
+  const discountInr = discountPaise / 100;
+
   try {
     const invoiceId = paymentId
       ? `inv_${paymentId}`
       : `inv_${subscriptionId}_${renewedAtIso.slice(0, 10)}`;
-    const amountInr = Number(intent.expected_amount_paise) / 100;
     const planLabel =
       resolvedIntentTier === 'premium' ? 'AlphaJournal Basic' : 'AlphaJournal Pro';
     const cycleLabel = cycle === 'annual' ? 'Annual' : 'Monthly';
+    const lineItems: Array<Record<string, unknown>> = [
+      {
+        description: `${planLabel} (${cycleLabel} subscription, incl. 18% GST)`,
+        amount: expectedPaise / 100,
+        quantity: 1,
+      },
+    ];
+    if (discountInr > 0 && intent.referral_code) {
+      lineItems.push({
+        description: `Referral discount (${String(intent.referral_code)} · Month 1 only)`,
+        amount: -discountInr,
+        quantity: 1,
+      });
+    }
     await service.from('invoices').upsert(
       {
         id: invoiceId,
         invoice_ref: invoiceId,
         user_id: userId,
-        amount: amountInr,
+        amount: payableInr,
         currency: 'INR',
         status: 'paid',
         issued_at: renewedAtIso,
@@ -442,13 +685,7 @@ async function handleVerifySubscription(
         provider_payment_id: paymentId || null,
         billing_cycle: cycle,
         tier: resolvedIntentTier,
-        line_items: [
-          {
-            description: `${planLabel} (${cycleLabel} subscription, incl. 18% GST)`,
-            amount: amountInr,
-            quantity: 1,
-          },
-        ],
+        line_items: lineItems,
         updated_at: new Date(nowMs).toISOString(),
       },
       { onConflict: 'id' },
@@ -457,10 +694,30 @@ async function handleVerifySubscription(
     logger.log('warn', 'verify_invoice_record_skipped', describeError(invoiceErr));
   }
 
+  // Idempotently finalize affiliate conversion & check 50-user Pro milestone
+  if (intent.affiliate_id) {
+    try {
+      await service.rpc('finalize_affiliate_referral_conversion', {
+        p_user_id: userId,
+        p_affiliate_id: String(intent.affiliate_id),
+        p_referral_code: String(intent.referral_code ?? ''),
+        p_tier: resolvedIntentTier,
+        p_billing_cycle: cycle,
+        p_subscription_amount_inr: payableInr,
+        p_discount_amount_inr: discountInr,
+        p_provider_subscription_id: subscriptionId,
+        p_provider_payment_id: paymentId || null,
+      });
+    } catch (affErr) {
+      logger.log('warn', 'verify_affiliate_conversion_skipped', describeError(affErr));
+    }
+  }
+
   logger.log('info', 'checkout_verified', {
     subscription_id: subscriptionId,
     tier: resolvedIntentTier,
     billing_cycle: cycle,
+    discount_inr: discountInr,
   });
 
   return reply(200, {
@@ -470,6 +727,8 @@ async function handleVerifySubscription(
     tier: resolvedIntentTier,
     billing_cycle: cycle,
     expires_at: expiresAtIso,
+    amount_inr: payableInr,
+    discount_inr: discountInr,
   });
 }
 
@@ -546,6 +805,7 @@ async function handleCancelSubscription(
     p_event_type: 'subscription.cancel_at_cycle_end',
     p_intent_id: null,
     p_intent_status: 'cancelled',
+    p_replaces_subscription_id: null,
   });
 
   if (reconcileError) {

@@ -37,12 +37,23 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
       ? widget.onOpenPartnerHub
       : widget.onUpgradeToAffiliate;
 
-  static const double _proPlanPrice = 2499.0;
-  static const double _revSharePercent = 0.30;
+  static const double _starterPayoutPerUser = 10.0;
+  static const double _milestonePayoutPerUser = 30.0;
+  static const int _milestoneThreshold = 50;
 
-  double get _monthlyEarnings =>
-      _referredTraders * _proPlanPrice * _revSharePercent;
-  double get _annualEarnings => _monthlyEarnings * 12;
+  double get _totalCommission {
+    final int users = _referredTraders.round();
+    final int firstBucket = users > _milestoneThreshold
+        ? _milestoneThreshold
+        : users;
+    final int secondBucket = users > _milestoneThreshold
+        ? users - _milestoneThreshold
+        : 0;
+    return firstBucket * _starterPayoutPerUser +
+        secondBucket * _milestonePayoutPerUser;
+  }
+
+  bool get _unlocksFreePro => _referredTraders.round() >= _milestoneThreshold;
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +126,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                                       ),
                                     ),
                                     const UiBadge(
-                                      label: '30% REVSHARE',
+                                      label: '₹10 → ₹30 / USER',
                                       intent: UiIntent.warning,
                                       size: UiSize.sm,
                                     ),
@@ -174,7 +185,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                               ),
                               SizedBox(width: context.sp(theme.spacing.sm)),
                               const UiBadge(
-                                label: '30% REVSHARE',
+                                label: '₹10 → ₹30 / USER',
                                 intent: UiIntent.warning,
                                 size: UiSize.sm,
                               ),
@@ -262,21 +273,31 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       context,
                       theme,
                       colors,
-                      icon: Icons.all_inclusive_rounded,
-                      title: 'Up to 35% INR RevShare',
+                      icon: Icons.currency_rupee_rounded,
+                      title: '₹10 First 50 · ₹30 After 50',
                       description:
-                          'Earn 15% to 35% in ₹ INR of every Basic (₹299/mo) or Pro (₹499/mo) subscription every month.',
-                      badge: 'INR RECURRING',
+                          'Earn ₹10 INR per verified paid Basic or Pro user for your first 50 conversions, then ₹30 INR per paid user from #51 onward.',
+                      badge: 'TIERED INR',
                     ),
                     _buildBenefitCard(
                       context,
                       theme,
                       colors,
                       icon: Icons.card_membership_rounded,
-                      title: 'Free AlphaJournal Pro Tier',
+                      title: 'Free Pro at 50 Paid Users',
                       description:
-                          'Refer active traders to automatically unlock complimentary AlphaJournal Basic or Pro desk access.',
-                      badge: 'FREE PRO',
+                          'No complimentary Pro on signup. Complimentary AlphaJournal Pro unlocks automatically once 50 distinct referred users pay for Basic or Pro.',
+                      badge: '50+ MILESTONE',
+                    ),
+                    _buildBenefitCard(
+                      context,
+                      theme,
+                      colors,
+                      icon: Icons.local_offer_outlined,
+                      title: 'Month 1 Audience Offer',
+                      description:
+                          'Your audience gets Month 1 at ₹239 (Basic) or ₹399 (Pro) on monthly plans, then regular ₹299/₹499 renewal (1 per user; affiliates cannot use coupons).',
+                      badge: 'MONTH 1 OFFER',
                     ),
                     _buildBenefitCard(
                       context,
@@ -285,18 +306,8 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       icon: Icons.account_balance_wallet_outlined,
                       title: 'NPCI UPI & Bank NEFT (₹)',
                       description:
-                          'Receive INR settlements directly via NPCI UPI VPA, Bank NEFT, IMPS, or RTGS from ₹1,000 minimum threshold.',
+                          'Receive INR settlements directly via NPCI UPI VPA, Bank NEFT, IMPS, or RTGS from ₹1,000 minimum threshold with 5% u/s 194H TDS compliance.',
                       badge: 'INR PAYOUTS',
-                    ),
-                    _buildBenefitCard(
-                      context,
-                      theme,
-                      colors,
-                      icon: Icons.palette_outlined,
-                      title: 'SEBI/ASCI Compliant Kit',
-                      description:
-                          'Get high-res AlphaJournal badges, UTM campaign links, Form 16A TDS statements, and compliant disclosures.',
-                      badge: 'ASSETS',
                     ),
                   ];
 
@@ -387,14 +398,14 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Monthly Recurring Revenue',
+                                  'Estimated Partner Payout (INR)',
                                   style: context.uiText.caption.copyWith(
                                     color: colors.foregroundMuted,
                                   ),
                                 ),
                                 SizedBox(height: context.sp(theme.spacing.xxs)),
                                 Text(
-                                  '₹${_monthlyEarnings.toStringAsFixed(0)} / mo',
+                                  '₹${_totalCommission.toStringAsFixed(0)}',
                                   style: context.uiText.heading.copyWith(
                                     color: colors.warning,
                                     fontSize: 22,
@@ -418,17 +429,21 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Annual Passive Income',
+                                  'Complimentary Pro Perk (50+ Paid)',
                                   style: context.uiText.caption.copyWith(
                                     color: colors.foregroundMuted,
                                   ),
                                 ),
                                 SizedBox(height: context.sp(theme.spacing.xxs)),
                                 Text(
-                                  '₹${_annualEarnings.toStringAsFixed(0)} / yr',
+                                  _unlocksFreePro
+                                      ? 'Unlocked (₹30/user)'
+                                      : '${_milestoneThreshold - _referredTraders.round()} more to unlock',
                                   style: context.uiText.heading.copyWith(
-                                    color: colors.bullish,
-                                    fontSize: 22,
+                                    color: _unlocksFreePro
+                                        ? colors.bullish
+                                        : colors.foreground,
+                                    fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),

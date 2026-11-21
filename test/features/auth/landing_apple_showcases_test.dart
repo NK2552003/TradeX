@@ -382,12 +382,18 @@ void main() {
           tester.getTopLeft(find.text('home')).dx;
 
       // 2. Toggle Dark -> Light via header theme button.
-      expect(find.byIcon(Icons.light_mode_rounded), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((Widget w) => w is AppThemeGlyph && w.isDark),
+        findsOneWidget,
+      );
       await tester.tap(find.byTooltip('Switch to light theme'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(themeController.mode, ThemeMode.light);
-      expect(find.byIcon(Icons.dark_mode_rounded), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((Widget w) => w is AppThemeGlyph && !w.isDark),
+        findsOneWidget,
+      );
 
       // 3. Scroll down into the Platform section and verify gliding pill slides rightwards
       //    while inter-item spacing stays locked (zero horizontal bold-jitter).
@@ -538,13 +544,19 @@ void main() {
       const ValueKey<String>('app-header-theme-toggle'),
     );
     expect(toggleFinder, findsOneWidget);
-    expect(find.byIcon(Icons.light_mode_rounded), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((Widget w) => w is AppThemeGlyph && w.isDark),
+      findsOneWidget,
+    );
 
     await tester.tap(toggleFinder);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
     expect(themeController.mode, ThemeMode.light);
-    expect(find.byIcon(Icons.dark_mode_rounded), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((Widget w) => w is AppThemeGlyph && !w.isDark),
+      findsOneWidget,
+    );
 
     await tester.tap(toggleFinder);
     await tester.pump();

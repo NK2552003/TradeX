@@ -46,10 +46,19 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     with SingleTickerProviderStateMixin {
   late TabController _subTabController;
   late final ScrollController _forYouScrollController = ScrollController();
-  int _newPostsCount = 0;
-  final List<CommunityAuthor> _newPostAuthors = <CommunityAuthor>[];
-  final Set<String> _seenPostIds = <String>{};
-  bool _initializedSeenPosts = false;
+  late final ScrollController _followingScrollController = ScrollController();
+  late final ScrollController _signalsScrollController = ScrollController();
+  late final ScrollController _cryptoScrollController = ScrollController();
+  late final ScrollController _equitiesScrollController = ScrollController();
+
+  static const int _newsTabIndex = 3;
+  static const Set<String> _cryptoTickers = <String>{
+    'BTC',
+    'ETH',
+    'SOL',
+    'DOGE',
+    'USDINR',
+  };
 
   static const List<String> _subTabs = <String>[
     'For you',
@@ -64,26 +73,26 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   void initState() {
     super.initState();
     _subTabController = TabController(length: _subTabs.length, vsync: this);
-    _subTabController.addListener(_routeSubTab);
+    _subTabController.addListener(_onSubTabChanged);
     _forYouScrollController.addListener(_onFeedScroll);
-    final initial = widget.repository.forYouPosts;
-    if (initial.isNotEmpty) {
-      _seenPostIds.addAll(initial.map((p) => p.id));
-      _initializedSeenPosts = true;
-    }
     widget.repository.addListener(_onDataChanged);
+    widget.repository.beginNewPostsPolling();
+  }
+
+  @override
+  void didUpdateWidget(covariant CommunityFeedView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      oldWidget.repository.removeListener(_onDataChanged);
+      oldWidget.repository.endNewPostsPolling();
+      widget.repository.addListener(_onDataChanged);
+      widget.repository.beginNewPostsPolling();
+    }
   }
 
   void _onFeedScroll() {
     if (!_forYouScrollController.hasClients) return;
     final pos = _forYouScrollController.position;
-    if (pos.pixels <= 16 && _newPostsCount > 0) {
-      setState(() {
-        _newPostsCount = 0;
-        _newPostAuthors.clear();
-        _seenPostIds.addAll(widget.repository.forYouPosts.map((p) => p.id));
-      });
-    }
     if (pos.pixels >= pos.maxScrollExtent - 320) {
       unawaited(widget.repository.loadMorePosts());
     }
@@ -109,14 +118,17 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     }
   }
 
-  void _routeSubTab() {
-    if (!mounted || _subTabController.indexIsChanging) return;
-    final route = FeatureLocationScope.maybeOf(context);
-    final selected = route?.selection('community_feed', _routeTabs);
-    if (route != null &&
-        selected != null &&
-        selected != _subTabController.index) {
-      route.select('community_feed', _routeTabs[_subTabController.index]);
+  void _onSubTabChanged() {
+    if (!mounted) return;
+    if (!_subTabController.indexIsChanging) {
+      final route = FeatureLocationScope.maybeOf(context);
+      final selected = route?.selection('community_feed', _routeTabs);
+      if (route != null &&
+          selected != null &&
+          selected != _subTabController.index) {
+        route.select('community_feed', _routeTabs[_subTabController.index]);
+      }
+      setState(() {});
     }
   }
 
@@ -124,52 +136,88 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   void dispose() {
     _forYouScrollController.removeListener(_onFeedScroll);
     _forYouScrollController.dispose();
-    _subTabController.removeListener(_routeSubTab);
+    _followingScrollController.dispose();
+    _signalsScrollController.dispose();
+    _cryptoScrollController.dispose();
+    _equitiesScrollController.dispose();
+    _subTabController.removeListener(_onSubTabChanged);
     _subTabController.dispose();
     widget.repository.removeListener(_onDataChanged);
+    widget.repository.endNewPostsPolling();
     super.dispose();
   }
 
   void _onDataChanged() {
-    final List<CommunityPost> current = widget.repository.forYouPosts;
-    if (!_initializedSeenPosts) {
-      if (current.isNotEmpty) {
-        _seenPostIds.addAll(current.map((p) => p.id));
-        _initializedSeenPosts = true;
-      }
-      if (mounted) setState(() {});
-      return;
-    }
-
-    final List<CommunityPost> arrived = current
-        .where(
-          (p) =>
-              p.isPublic &&
-              !_seenPostIds.contains(p.id) &&
-              p.author.id != widget.currentUser.id,
-        )
-        .toList();
-
-    if (arrived.isNotEmpty) {
-      for (final p in arrived) {
-        _seenPostIds.add(p.id);
-        if (!_newPostAuthors.any((a) => a.id == p.author.id)) {
-          _newPostAuthors.insert(0, p.author);
-        }
-      }
-      if (_newPostAuthors.length > 5) {
-        _newPostAuthors.removeRange(5, _newPostAuthors.length);
-      }
-      _newPostsCount += arrived.length;
-    } else {
-      // Track any newly created local posts by current user as already seen.
-      for (final p in current) {
-        if (p.author.id == widget.currentUser.id) {
-          _seenPostIds.add(p.id);
-        }
-      }
-    }
     if (mounted) setState(() {});
+  }
+
+  ScrollController? _scrollControllerForTab(int index) {
+    return switch (index) {
+      0 => _forYouScrollController,
+      1 => _followingScrollController,
+      2 => _signalsScrollController,
+      4 => _cryptoScrollController,
+      5 => _equitiesScrollController,
+      _ => null,
+    };
+  }
+
+  bool _matchesSubTab(CommunityPost post, int tabIndex) {
+    return switch (tabIndex) {
+      0 => true,
+      1 =>
+        widget.repository.isFollowing(post.author.id) ||
+            widget.repository.followedReactionsForPost(post.id).isNotEmpty ||
+            widget.repository.followedRepostsForPost(post.id).isNotEmpty,
+      2 => post.tradeSetup != null,
+      4 =>
+        post.tickers.any((t) => _cryptoTickers.contains(t.toUpperCase())) ||
+            post.tags.any((tag) => tag.toLowerCase().contains('crypto')),
+      5 => post.tickers.any(
+        (t) => !const {'BTC', 'ETH', 'SOL', 'DOGE'}.contains(t.toUpperCase()),
+      ),
+      _ => false,
+    };
+  }
+
+  void _scrollTabToTop(int tabIndex) {
+    final ScrollController? controller = _scrollControllerForTab(tabIndex);
+    if (controller == null || !controller.hasClients) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      controller.jumpTo(0);
+    } else {
+      unawaited(
+        controller.animateTo(
+          0,
+          duration: const Duration(milliseconds: 360),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    }
+  }
+
+  Future<void> _loadNewPosts() async {
+    try {
+      final List<CommunityPost> loaded = await widget.repository
+          .loadPendingNewPosts();
+      if (!mounted) return;
+      int targetTab = _subTabController.index;
+      if (targetTab != 0 &&
+          loaded.isNotEmpty &&
+          !loaded.any((p) => _matchesSubTab(p, targetTab))) {
+        targetTab = 0;
+        _subTabController.animateTo(0);
+      }
+      _scrollTabToTop(targetTab);
+    } catch (e) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Could not load new posts',
+          message: 'Please try again.',
+        );
+      }
+    }
   }
 
   Future<void> _refresh() async {
@@ -194,6 +242,42 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
+    final int pendingCount = widget.repository.pendingNewPostsCount;
+    final bool isLoadingNewPosts = widget.repository.isLoadingNewPosts;
+    final bool showNewPostsPill =
+        _subTabController.index != _newsTabIndex &&
+        (pendingCount > 0 || isLoadingNewPosts);
+    final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
+
+    final Widget? newPostsControl = showNewPostsPill
+        ? AnimatedSwitcher(
+            duration: reduceMotion ? Duration.zero : theme.motion.fast,
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              if (reduceMotion) return child;
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, -0.25),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              );
+            },
+            child: CommunityNewPostsPill(
+              key: ValueKey<String>(
+                'new-posts-pill-$pendingCount-$isLoadingNewPosts',
+              ),
+              count: pendingCount,
+              authors: widget.repository.pendingNewPostAuthors,
+              isLoading: isLoadingNewPosts,
+              onTap: () => unawaited(_loadNewPosts()),
+            ),
+          )
+        : null;
 
     return CommunityFloatingTabShell(
       banner: widget.repository.refreshError != null
@@ -204,6 +288,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
             )
           : null,
       tabBar: _buildFloatingBar(context, theme, isMobile),
+      belowTabBar: newPostsControl,
       body: TabBarView(
         controller: _subTabController,
         physics: context.uiRes.isDesktop
@@ -515,44 +600,11 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       onRefresh: _refresh,
     );
 
-    final Widget content = Stack(
-      children: <Widget>[
-        feedList,
-        if (_newPostsCount > 0)
-          Positioned(
-            top: effectiveTop + context.sp(theme.spacing.xs),
-            left: 0,
-            right: 0,
-            child: CommunityNewPostsPill(
-              count: _newPostsCount,
-              authors: _newPostAuthors,
-              onTap: () {
-                setState(() {
-                  _newPostsCount = 0;
-                  _newPostAuthors.clear();
-                  _seenPostIds.addAll(
-                    widget.repository.forYouPosts.map((p) => p.id),
-                  );
-                });
-                if (_forYouScrollController.hasClients) {
-                  _forYouScrollController.animateTo(
-                    0,
-                    duration: const Duration(milliseconds: 360),
-                    curve: Curves.easeOutCubic,
-                  );
-                }
-                unawaited(_refresh());
-              },
-            ),
-          ),
-      ],
-    );
-
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: context.sz(700)),
-        child: content,
+        child: feedList,
       ),
     );
   }
@@ -568,6 +620,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: context.sz(700)),
         child: CommunityFeedList(
+          controller: _followingScrollController,
           posts: posts,
           repository: widget.repository,
           currentUser: widget.currentUser,
@@ -612,6 +665,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: context.sz(700)),
         child: CommunityFeedList(
+          controller: _signalsScrollController,
           posts: posts,
           repository: widget.repository,
           currentUser: widget.currentUser,
@@ -750,9 +804,8 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   Widget _buildCryptoTab({double? topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final cryptoTickers = <String>{'BTC', 'ETH', 'SOL', 'DOGE', 'USDINR'};
     final posts = widget.repository.forYouPosts.where((p) {
-      return p.tickers.any((t) => cryptoTickers.contains(t.toUpperCase())) ||
+      return p.tickers.any((t) => _cryptoTickers.contains(t.toUpperCase())) ||
           p.tags.any((tag) => tag.toLowerCase().contains('crypto'));
     }).toList();
     final double effectiveTop = topPadding ?? context.sp(theme.spacing.sm);
@@ -762,6 +815,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: context.sz(700)),
         child: CommunityFeedList(
+          controller: _cryptoScrollController,
           posts: posts,
           repository: widget.repository,
           currentUser: widget.currentUser,
@@ -810,6 +864,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: context.sz(700)),
         child: CommunityFeedList(
+          controller: _equitiesScrollController,
           posts: posts,
           repository: widget.repository,
           currentUser: widget.currentUser,

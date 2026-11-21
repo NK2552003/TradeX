@@ -1119,9 +1119,9 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
         _buildReviewCards(context),
         SizedBox(height: context.sp(theme.spacing.md)),
         const UiCallout(
-          title: 'Review and access policy',
+          title: 'Review, Milestone & Coupon Policy (Rev 2026.2-INR)',
           message:
-              'Submitting does not grant immediate Partner Hub access. An administrator must approve the application first. You can continue using AlphaJournal as a customer/trader while it is pending.',
+              'Submitting does not grant immediate Partner Hub access or complimentary Basic/Pro plans. Affiliates earn ₹10/paid user for their first 50 verified Basic/Pro conversions and ₹30/paid user from #51 onward. Complimentary Pro unlocks automatically only after 50 verified paid Basic/Pro referrals. Affiliate accounts cannot redeem their own or other partners\' referral/coupon codes.',
           intent: UiIntent.warning,
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
@@ -1129,9 +1129,9 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
           value: _termsAccepted,
           asCard: true,
           label:
-              'I confirm these details are accurate and accept the AlphaJournal Affiliate Program terms.',
+              'I confirm these details are accurate and accept the AlphaJournal Affiliate Program Terms (Revision 2026.2-INR).',
           description:
-              'I understand that approval can be refused or suspended for policy violations.',
+              'I accept the ₹10 (first 50) / ₹30 (51+) payout schedule, the 50-paid-user requirement for complimentary Pro, and the strict ban on affiliates using any referral/coupon codes.',
           onChanged: (bool value) => setState(() => _termsAccepted = value),
         ),
       ],

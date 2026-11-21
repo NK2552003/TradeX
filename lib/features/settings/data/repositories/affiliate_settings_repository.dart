@@ -67,7 +67,7 @@ class AffiliateSettingsRepositoryImpl implements AffiliateSettingsRepository {
       gstin: w.gstin,
       gstRegistered: w.gstRegistered,
       tdsRate: w.tdsRate,
-      termsVersionAccepted: p.text('terms_version_accepted', '2026.1-INR'),
+      termsVersionAccepted: p.text('terms_version_accepted', '2026.2-INR'),
       tiers: w.tiers,
       terms: w.terms,
     );

@@ -2604,7 +2604,7 @@ class _HeaderThemeToggleButtonState extends State<_HeaderThemeToggleButton> {
 
     final Color iconColor = _hovered
         ? colors.foreground
-        : colors.foregroundMuted.withValues(alpha: isDark ? 0.92 : 0.90);
+        : colors.foreground.withValues(alpha: isDark ? 0.86 : 0.82);
 
     final Widget button = AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -2639,9 +2639,9 @@ class _HeaderThemeToggleButtonState extends State<_HeaderThemeToggleButton> {
               ),
             );
           },
-          child: Icon(
-            isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+          child: AppThemeGlyph(
             key: ValueKey<bool>(isDark),
+            isDark: isDark,
             size: widget.frostedPill ? 19 : 16,
             color: iconColor,
           ),

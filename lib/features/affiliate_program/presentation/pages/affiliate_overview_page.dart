@@ -28,7 +28,7 @@ class AffiliateOverviewPage extends StatelessWidget {
     return AffiliateWorkspaceView(
       title: 'Partner Hub (INR ₹)',
       subtitle:
-          'Track referral links, recurring INR (₹) commissions, tier milestones, and NPCI UPI / Bank NEFT payouts.',
+          'Earn ₹10/paid user for your first 50 Basic/Pro referrals, ₹30/paid user from #51+, and unlock complimentary Pro at 50 verified paid referrals.',
       repository: repository,
       onNavigate: onNavigate,
       actions: (ctx, w, _) => [
@@ -61,12 +61,13 @@ class AffiliateOverviewPage extends StatelessWidget {
       ],
       builder: (context, w, reload) {
         final p = w.profile;
-        final rate = (p.number('commission_rate') * 100).round();
+        final int payoutPerUser = w.currentCommissionInr.round();
         final AffiliateRecord? currentTier = w.currentTierRecord;
-        final AffiliateRecord? nextTier = w.nextTierRecord;
         final String tierTitle =
             currentTier?.text('display_name') ??
-            p.text('tier', 'standard').toUpperCase();
+            (w.complimentaryProUnlocked
+                ? 'Tier 2 · 50+ Milestone Partner'
+                : 'Tier 1 · Starter Partner');
 
         final linkCard = UiCard(
           child: Column(
@@ -78,8 +79,16 @@ class AffiliateOverviewPage extends StatelessWidget {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   UiBadge(
-                    label: '$tierTitle · $rate% INR REV-SHARE',
+                    label: '$tierTitle · ₹$payoutPerUser / PAID USER',
                     intent: UiIntent.warning,
+                  ),
+                  UiBadge(
+                    label: w.complimentaryProUnlocked
+                        ? 'FREE PRO UNLOCKED (50+)'
+                        : 'FREE PRO: ${w.paidReferralsCount}/${w.freeProThreshold} PAID',
+                    intent: w.complimentaryProUnlocked
+                        ? UiIntent.bullish
+                        : UiIntent.info,
                   ),
                   UiBadge(
                     label: p.text('status', 'active').toUpperCase(),
@@ -172,14 +181,13 @@ class AffiliateOverviewPage extends StatelessWidget {
                 label:
                     'Paid INR conversions (${w.convertedCount} of ${w.referrals.length})',
               ),
-              if (nextTier != null) ...[
-                UiGap.v(context.ui.spacing.sm),
-                UiProgressBar(
-                  value: w.progressToNextTier,
-                  label:
-                      'Progress to ${nextTier.text('display_name')} (${p.count('active_referrals')} / ${nextTier.count('min_active_referrals')} active referrals)',
-                ),
-              ],
+              UiGap.v(context.ui.spacing.sm),
+              UiProgressBar(
+                value: w.progressToFreePro,
+                label: w.complimentaryProUnlocked
+                    ? '50+ Paid Milestone Reached (${w.paidReferralsCount}/${w.freeProThreshold}) · Earning ₹30/user & Free Pro unlocked'
+                    : 'Progress to ₹30/user & Complimentary Pro (${w.paidReferralsCount} / ${w.freeProThreshold} verified paid Basic/Pro users)',
+              ),
             ],
           ),
         );
@@ -217,7 +225,7 @@ class AffiliateOverviewPage extends StatelessWidget {
                   label: 'Lifetime Earnings (INR)',
                   value: w.money(p.number('total_earnings')),
                   caption:
-                      '$rate% recurring share · ${w.payouts.length} settlements',
+                      '₹$payoutPerUser / paid user · ${w.payouts.length} settlements',
                   icon: Icons.currency_rupee_rounded,
                   intent: UiIntent.primary,
                 ),
@@ -280,12 +288,12 @@ class AffiliateOverviewPage extends StatelessWidget {
                           UiCard(
                             variant:
                                 tier.text('tier_code') ==
-                                    p.text('tier', 'standard')
+                                    p.text('tier', 'starter')
                                 ? UiCardVariant.accent
                                 : UiCardVariant.subtle,
                             accentColor:
                                 tier.text('tier_code') ==
-                                    p.text('tier', 'standard')
+                                    p.text('tier', 'starter')
                                 ? context.ui.colors.primary
                                 : null,
                             child: Column(
@@ -302,7 +310,7 @@ class AffiliateOverviewPage extends StatelessWidget {
                                       ),
                                     ),
                                     if (tier.text('tier_code') ==
-                                        p.text('tier', 'standard'))
+                                        p.text('tier', 'starter'))
                                       const UiBadge(
                                         label: 'CURRENT',
                                         intent: UiIntent.bullish,
@@ -312,13 +320,17 @@ class AffiliateOverviewPage extends StatelessWidget {
                                 ),
                                 UiGap.v(context.ui.spacing.xs),
                                 Text(
-                                  '${(tier.number('commission_rate') * 100).round()}% INR Share',
+                                  tier.number('payout_per_user_inr') > 0
+                                      ? '₹${tier.number('payout_per_user_inr').round()} / paid user'
+                                      : '${(tier.number('commission_rate') * 100).round()}% INR Share',
                                   style: context.uiText.title.copyWith(
                                     color: context.ui.colors.primary,
                                   ),
                                 ),
                                 Text(
-                                  'Requires ${tier.count('min_active_referrals')}+ active referrals · ${tier.text('settlement_cycle')}',
+                                  tier.count('min_active_referrals') >= 50
+                                      ? 'Unlocks at 50+ paid Basic/Pro users · Free Pro included'
+                                      : 'First 50 paid Basic/Pro users · ${tier.text('settlement_cycle')}',
                                   style: context.uiText.caption,
                                 ),
                                 UiGap.v(context.ui.spacing.xs),

@@ -16,6 +16,7 @@ export 'models/app_models_extra.dart';
 export '../sharing/app_post_attachment.dart';
 export 'brand/alpha_thread.dart';
 export 'brand/app_logo.dart';
+export 'brand/app_theme_glyph.dart';
 export 'brand/google_logo.dart';
 
 // Cards

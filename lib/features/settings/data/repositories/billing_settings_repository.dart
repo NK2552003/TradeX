@@ -16,7 +16,17 @@ abstract class BillingSettingsRepository {
 
   /// The catalogue priced for [annual] or monthly billing.
   Future<List<AppPlan>> getAvailablePlans({bool annual = false});
-  Future<CheckoutSession> startCheckout(String tierId, String billingCycle);
+  Future<CheckoutSession> startCheckout(
+    String tierId,
+    String billingCycle, {
+    String? referralCode,
+  });
+  Future<ReferralDiscountQuote> validateReferralCode({
+    required String code,
+    required String tierId,
+    required String billingCycle,
+  });
+  Future<AffiliateMilestoneStatus> getAffiliateMilestoneStatus();
   Future<bool> verifyCheckout({
     required String subscriptionId,
     String? paymentId,
@@ -59,13 +69,6 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   AppTier get _tier => _session.tier.value;
 
-  /// Coupons the prototype accepts, with what each takes off. The backend
-  /// replaces this with the promotion codes it actually issued.
-  static const Map<String, int> _coupons = <String, int>{
-    'ALPHAJOURNAL20': 20,
-    'DESK50': 50,
-  };
-
   /// Free accounts are not on a billing cycle at all, so the status has to be
   /// derived rather than stored — otherwise cancelling and then downgrading
   /// leaves the page claiming a canceled paid plan.
@@ -81,6 +84,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     DateTime? renewedAt,
     DateTime? expiresAt,
     Map<String, dynamic>? usage,
+    AffiliateMilestoneStatus? affiliateMilestone,
   }) {
     final AppTier effectiveTier = tier ?? _tier;
     final String effectiveCycle = billingCycle ?? _session.billingCycle;
@@ -115,6 +119,78 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
           effectiveTier != AppTier.free && _session.cancelAtPeriodEnd,
       discountCode: _session.discountCode,
       discountPercent: _session.discountPercent,
+      affiliateMilestone: affiliateMilestone,
+    );
+  }
+
+  @override
+  Future<AffiliateMilestoneStatus> getAffiliateMilestoneStatus() async {
+    if (SupabaseConfig.isConfigured) {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+      if (targetUserId.isEmpty) {
+        return const AffiliateMilestoneStatus(
+          isAffiliate: false,
+          paidReferralsCount: 0,
+        );
+      }
+      try {
+        final affRow = await client
+            .from('affiliate_profiles')
+            .select(
+              'id, status, paid_referrals_count, active_referrals, complimentary_pro_unlocked',
+            )
+            .eq('id', targetUserId)
+            .maybeSingle();
+        if (affRow != null) {
+          final int paidCount =
+              (affRow['paid_referrals_count'] as num?)?.toInt() ??
+              (affRow['active_referrals'] as num?)?.toInt() ??
+              0;
+          final bool active = affRow['status']?.toString() == 'active';
+          final bool unlocked =
+              active &&
+              (affRow['complimentary_pro_unlocked'] == true || paidCount >= 50);
+          return AffiliateMilestoneStatus(
+            isAffiliate: true,
+            paidReferralsCount: paidCount,
+            threshold: 50,
+            complimentaryProUnlocked: unlocked,
+            currentCommissionInr: paidCount >= 50 ? 30.0 : 10.0,
+          );
+        }
+        final appRow = await client
+            .from('affiliate_applications')
+            .select('status')
+            .eq('user_id', targetUserId)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+        final String appStatus = appRow?['status']?.toString() ?? '';
+        if (const {
+          'pending',
+          'pending_review',
+          'approved',
+          'active',
+          'suspended',
+        }.contains(appStatus)) {
+          return const AffiliateMilestoneStatus(
+            isAffiliate: true,
+            paidReferralsCount: 0,
+            threshold: 50,
+            complimentaryProUnlocked: false,
+            currentCommissionInr: 10.0,
+          );
+        }
+      } catch (e) {
+        debugPrint(
+          'BillingSettingsRepositoryImpl.getAffiliateMilestoneStatus error: $e',
+        );
+      }
+    }
+    return const AffiliateMilestoneStatus(
+      isAffiliate: false,
+      paidReferralsCount: 0,
     );
   }
 
@@ -154,6 +230,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
         _session.renewedAt = effectiveRenewed;
         _session.expiresAt = effectiveExpires;
       }
+      final affiliateMilestone = await getAffiliateMilestoneStatus();
       return _summary(
         tier: tier,
         status: tier == AppTier.free
@@ -164,6 +241,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
             ? DateTime.fromMillisecondsSinceEpoch(0)
             : effectiveRenewed,
         expiresAt: effectiveExpires,
+        affiliateMilestone: affiliateMilestone,
         usage: {
           'journal_trades_used': counted.tradesUsed,
           'journal_trades_limit': counted.tradesLimit,
@@ -229,10 +307,85 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   }
 
   @override
+  Future<ReferralDiscountQuote> validateReferralCode({
+    required String code,
+    required String tierId,
+    required String billingCycle,
+  }) async {
+    final cleanCode = code.trim().toUpperCase();
+    final normalizedTier = normalizePaidTier(tierId);
+    final normalizedCycle = billingCycle == 'yearly' ? 'annual' : billingCycle;
+    if (cleanCode.isEmpty) {
+      return const ReferralDiscountQuote(
+        valid: false,
+        errorCode: 'invalid_code',
+        message: 'Enter a referral code to apply.',
+      );
+    }
+    if (normalizedTier == null ||
+        (normalizedCycle != 'monthly' && normalizedCycle != 'annual')) {
+      return const ReferralDiscountQuote(
+        valid: false,
+        errorCode: 'invalid_plan',
+        message: 'Choose Basic or Pro with Monthly or Annual billing.',
+      );
+    }
+    final client = SupabaseConfig.client;
+    if (client?.auth.currentUser != null) {
+      try {
+        final response = await client!.functions.invoke(
+          'create-business-checkout',
+          body: <String, Object?>{
+            'action': 'validate_referral',
+            'referral_code': cleanCode,
+            'tier': normalizedTier,
+            'tier_id': tierId,
+            'billing_cycle': normalizedCycle,
+          },
+        );
+        if (response.data is Map) {
+          return ReferralDiscountQuote.fromJson(
+            Map<String, dynamic>.from(response.data as Map),
+          );
+        }
+      } catch (_) {
+        // Fall through to direct RPC validation when Edge Function is unavailable
+      }
+      try {
+        final rpcData = await client!.rpc(
+          'validate_referral_code',
+          params: <String, Object?>{
+            'p_code': cleanCode,
+            'p_tier': normalizedTier,
+            'p_billing_cycle': normalizedCycle,
+          },
+        );
+        if (rpcData is Map) {
+          return ReferralDiscountQuote.fromJson(
+            Map<String, dynamic>.from(rpcData),
+          );
+        }
+      } catch (e) {
+        return ReferralDiscountQuote(
+          valid: false,
+          errorCode: 'validation_failed',
+          message: e.toString().replaceFirst('Bad state: ', ''),
+        );
+      }
+    }
+    return const ReferralDiscountQuote(
+      valid: false,
+      errorCode: 'auth_required',
+      message: 'Sign in to validate a referral code.',
+    );
+  }
+
+  @override
   Future<CheckoutSession> startCheckout(
     String tierId,
-    String billingCycle,
-  ) async {
+    String billingCycle, {
+    String? referralCode,
+  }) async {
     final normalizedTier = normalizePaidTier(tierId);
     final normalizedCycle = billingCycle == 'yearly' ? 'annual' : billingCycle;
     if (normalizedTier == null ||
@@ -243,12 +396,14 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     if (client?.auth.currentUser == null) {
       throw StateError('Sign in to start subscription checkout.');
     }
+    final cleanRef = referralCode?.trim();
     final response = await client!.functions.invoke(
       'create-business-checkout',
-      body: {
+      body: <String, Object?>{
         'tier': normalizedTier,
         'tier_id': tierId,
         'billing_cycle': normalizedCycle,
+        if (cleanRef != null && cleanRef.isNotEmpty) 'referral_code': cleanRef,
       },
     );
     if (response.status != 200 || response.data is! Map) {
@@ -284,6 +439,10 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
       url: url,
       checkoutUrl: url,
       keyId: resolvedKeyId,
+      amountPaise: (data['amount_paise'] as num?)?.toInt(),
+      discountPaise: (data['discount_paise'] as num?)?.toInt() ?? 0,
+      referralCode: data['referral_code']?.toString(),
+      replacesSubscriptionId: data['replaces_subscription_id']?.toString(),
     );
   }
 
@@ -341,34 +500,15 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   @override
   Future<int?> redeemCoupon(String code) async {
-    await Future<void>.delayed(const Duration(milliseconds: 520));
-    if (!CustomerDataPolicy.allowDemo) return null;
-    final int? percent = _coupons[code.trim().toUpperCase()];
-    if (percent == null) return null;
-    _session.discountCode = code.trim().toUpperCase();
-    _session.discountPercent = percent;
-    return percent;
+    // Live production discounts are exclusively server-validated via
+    // validateReferralCode and Razorpay Subscription Offers.
+    return null;
   }
-
-  /// Code held back for an account that starts cancelling. It is one of
-  /// [_coupons], so the saving the retention dialog quotes is the saving
-  /// [redeemCoupon] goes on to apply.
-  static const String _retentionCode = 'DESK50';
-  static const int _retentionCycles = 3;
 
   @override
   Future<RetentionOffer?> getRetentionOffer() async {
-    await Future<void>.delayed(const Duration(milliseconds: 180));
-    // A free plan has no renewal to discount, and an account already holding a
-    // coupon is not offered a second one.
-    if (_tier == AppTier.free || _session.discountPercent > 0) return null;
-    final int? percent = _coupons[_retentionCode];
-    if (percent == null) return null;
-    return RetentionOffer(
-      code: _retentionCode,
-      discountPercent: percent,
-      cycles: _retentionCycles,
-    );
+    // Retention offers are disabled until backed by server-verified Razorpay offers.
+    return null;
   }
 
   @override

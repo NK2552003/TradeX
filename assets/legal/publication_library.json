@@ -57,27 +57,27 @@
   {
     "id": "terms",
     "group": "Terms and safety",
-    "updated": "2026-11-09",
+    "updated": "2026-11-21",
     "status": "Policy",
-    "intro": "These terms govern access to Alphajournal and its free and paid features. Read them together with the Privacy Policy, applicable purchase terms and any feature-specific agreement.",
+    "intro": "These terms govern access to AlphaJournal and its free and paid features (Revision 2026.2-INR). Read them together with the Privacy Policy, Affiliate Program Agreement, applicable purchase terms and any feature-specific agreement.",
     "title": "Terms of Service",
     "source": "02_Terms_of_Service.docx",
     "sections": [
       {
         "title": "Eligibility and agreement",
-        "body": "You must be at least 18 and legally able to enter a binding agreement. Provide accurate account information and use only accounts and information you are authorised to use. If you act for an organisation, you confirm you have authority to do so. Creating an account or continuing to use the service after valid notice of these terms constitutes agreement to them, subject to applicable law. Effective date: 9 November 2026."
+        "body": "You must be at least 18 and legally able to enter a binding agreement. Provide accurate account information and use only accounts and information you are authorised to use. If you act for an organisation, you confirm you have authority to do so. Creating an account or continuing to use the service after valid notice of these terms constitutes agreement to them, subject to applicable law. Effective date: 21 November 2026 (Revision 2026.2-INR)."
       },
       {
         "title": "Purpose of the service",
-        "body": "Alphajournal provides tools for self-directed journaling, research, analysis and community participation. Features depend on your plan, role, platform and available integrations. The presence of a preview or roadmap item does not promise production availability. Alphajournal is not a bank, custodian or brokerage and does not take custody of your trading funds. It does not provide individual investment, legal or tax advice."
+        "body": "AlphaJournal provides tools for self-directed journaling, research, analysis and community participation. Features depend on your plan, role, platform and available integrations. The presence of a preview or roadmap item does not promise production availability. AlphaJournal is not a bank, custodian or brokerage and does not take custody of your trading funds. It does not provide individual investment, legal or tax advice."
       },
       {
         "title": "Accounts and access",
         "body": "Keep account credentials secure and notify us of suspected misuse. Do not share another person’s credentials, impersonate others or evade restrictions. We may apply proportionate security checks, restrict suspicious activity or suspend access for serious misuse or a legal obligation. Where appropriate and legally permitted, we will explain a restriction and provide a route to question it."
       },
       {
-        "title": "Plans payments and cancellation",
-        "body": "The offer and checkout identify the actual price, currency, tax treatment, billing period, renewal conditions and included features. Paid access depends on a confirmed purchase or valid entitlement. A locally selected plan is not proof of payment. Store purchases are managed through the relevant store; other purchases through the provider shown on the receipt. Follow the Subscription Cancellation and Refund Policy. Deleting the app or account does not itself cancel a store subscription."
+        "title": "Plans payments referrals and cancellation",
+        "body": "Published INR plans (inclusive of 18% GST) are Basic (₹299/mo or ₹2,868/yr) and Pro (₹499/mo or ₹4,788/yr). Paid access depends on a confirmed server-verified purchase or qualifying milestone entitlement. Eligible first-time non-affiliate subscribers who enter an active affiliate referral code on a Monthly plan receive a first-month discount only (Basic Month 1: ₹239 then ₹299/mo; Pro Month 1: ₹399 then ₹499/mo); Annual plans already include the 20% discounted rate and attribute the partner without additional discount stacking. Referral codes are limited to one redemption per user lifetime, require an active partner within the offer validity window, and cannot be redeemed by affiliate accounts. Upgrading or switching billing cycles via Razorpay creates a new mandate and automatically cancels the superseded subscription upon activation so you are not double-billed. Follow the Subscription Cancellation and Refund Policy. Deleting the app or account does not itself cancel a store subscription."
       },
       {
         "title": "Free access and advertising",
@@ -389,39 +389,39 @@
   {
     "id": "affiliate-agreement",
     "group": "Affiliate programme",
-    "updated": "2026-11-09",
+    "updated": "2026-11-21",
     "status": "Policy",
-    "intro": "These terms apply to approved Alphajournal partners and the referral activities covered by the current programme terms accepted in their workspace.",
+    "intro": "These terms (Revision 2026.2-INR) apply to approved AlphaJournal partners and govern tiered per-user commissions, subscriber Monthly Month-1 referral discounts, the 50-paid-user Pro milestone, and strict affiliate coupon prohibitions.",
     "title": "Affiliate Program Agreement",
     "source": "10_Affiliate_Program_Agreement.docx",
     "sections": [
       {
-        "title": "Joining the programme",
-        "body": "An application does not itself create an approved partnership. You must provide accurate information, meet eligibility checks and accept the programme terms made available to you. Approval and account access can be limited by jurisdiction or operational requirements. Effective date: 9 November 2026."
+        "title": "Joining the programme and no automatic free tier",
+        "body": "An application does not itself create an approved partnership, and approval does not grant complimentary Basic or Pro access. Affiliates start on the Free tier (or may purchase Basic or Pro at standard pricing without using any referral/coupon code). Complimentary AlphaJournal Pro unlocks automatically only after 50 distinct referred users complete verified Basic or Pro payments, and is automatically revoked if refunds, chargebacks, or policy reversals drop verified paid referrals below 50 or if the partner is suspended. Effective date: 21 November 2026 (Revision 2026.2-INR)."
       },
       {
         "title": "Independent relationship",
-        "body": "You act independently and are not an employee, agent, investment adviser or authorised representative of Alphajournal. You cannot bind us, promise product capabilities or offer unapproved commercial terms. You are responsible for your promotional channels, required permissions and applicable obligations."
+        "body": "You act independently and are not an employee, agent, investment adviser or authorised representative of AlphaJournal. You cannot bind us, promise product capabilities or offer unapproved commercial terms. You are responsible for your promotional channels, required permissions and applicable obligations."
       },
       {
-        "title": "Referral links and privacy",
-        "body": "Use your assigned code and authorised campaign links. Automatic tracking depends on the user’s affiliate choice, attribution window, device and supported flow. A user may instead deliberately enter an eligible code during signup. Rejection, expiry, clearing storage or changing devices can prevent attribution. Do not bypass choices through fingerprinting, hidden redirects or cookie stuffing."
+        "title": "Referral links, offer validity and single-use limit",
+        "body": "Use your assigned code and authorised campaign links. A user may apply an active partner's referral code during signup or at first paid checkout. Each user account may redeem at most one referral offer in its lifetime, valid only on their first paid Basic or Pro subscription while the issuing partner is active and within any configured offer validity window. Plan switches, upgrades, downgrades, and renewals do not generate duplicate discounts or duplicate commissions. Do not bypass user consent through fingerprinting, hidden redirects or cookie stuffing."
       },
       {
-        "title": "Qualifying activity and rates",
-        "body": "Only transactions that qualify under the accepted programme schedule earn commission. The rate, qualifying revenue, attribution rule, exclusions, hold period and payout conditions shown in that schedule govern the calculation. We do not promise a universal rate or that every click, signup or purchase earns a commission. Keep a copy of the terms you accept."
+        "title": "Qualifying commissions and subscriber monthly discounts",
+        "body": "Under Revision 2026.2-INR, approved affiliates earn ₹10 INR per verified distinct paying user for their first 50 Basic or Pro conversions (users #1–50), and ₹30 INR per verified distinct paying user starting from their 51st Basic or Pro conversion onward (users #51+). For referred subscribers, the referral discount applies exclusively to Month 1 of Monthly plans: Basic Monthly is ₹239 for Month 1 (₹60 off ₹299) and renews at ₹299/mo from Month 2; Pro Monthly is ₹399 for Month 1 (₹100 off ₹499) and renews at ₹499/mo from Month 2. Annual plans already include the 20% discounted rate (₹239/mo Basic = ₹2,868/yr; ₹399/mo Pro = ₹4,788/yr) and attribute the partner without stacking additional discount."
       },
       {
         "title": "Honest promotion",
-        "body": "Clearly disclose that a qualifying referral may earn you commission. Use current approved product claims and brand assets. Do not promise investment returns, misrepresent regulatory approval or advertise planned integrations as live. Follow the Marketing Guidelines and the rules of each channel you use."
+        "body": "Clearly disclose that a qualifying referral may earn you commission in line with SEBI and ASCI guidelines. Use current approved product claims and brand assets. Do not promise investment returns, misrepresent regulatory approval, or advertise annual discounts as stacked referral discounts."
       },
       {
-        "title": "Prohibited conduct",
-        "body": "Self-referral, false accounts, payment fraud, forced redirects, attribution manipulation, spam and misleading offers are prohibited. Do not purchase brand-keyword ads or use our marks in a domain or account identity without authorisation. Do not generate invalid AdSense traffic through the affiliate programme."
+        "title": "Strict prohibition on affiliate coupon use and misconduct",
+        "body": "Approved, active, pending, and suspended affiliate accounts are strictly prohibited from redeeming their own referral code, any other affiliate's referral code, or promotional referral coupons. Self-referral, circular referrals between affiliates, false accounts, payment fraud, forced redirects, attribution manipulation, spam, brand-keyword ads, and misleading coupon pages are strictly prohibited and result in immediate commission forfeiture and suspension."
       },
       {
-        "title": "Adjustments and payout",
-        "body": "Refunds, chargebacks, duplicate transactions, invalid referrals and other disqualifying events can reverse or reduce commission under the accepted schedule. Estimated and pending amounts are not guaranteed settled earnings. Payout requires completed eligibility, tax and destination checks and the applicable threshold. See the Commission Payout and Tax Policy."
+        "title": "Adjustments, clawbacks and payout",
+        "body": "Refunds, chargebacks, duplicate transactions, invalid referrals and disqualifying events reverse the associated commission and decrement the verified paid referral count (which may also revoke complimentary Pro if verified conversions fall below 50). Minimum INR withdrawal threshold is ₹1,000 via NPCI UPI, Bank NEFT, IMPS, or RTGS subject to PAN/KYC checks and 5% statutory TDS u/s 194H where applicable. See the Commission Payout and Tax Policy."
       },
       {
         "title": "Review suspension and termination",
@@ -429,30 +429,30 @@
       },
       {
         "title": "Changes and contact",
-        "body": "A material rate or programme change must be communicated through the applicable acceptance or notice process. New terms do not convert an unqualified historical event into a promised payment. Contact h82292245@gmail.com for programme questions. Mandatory legal rights remain unaffected."
+        "body": "A material rate or programme change is published with an updated revision identifier (current revision: 2026.2-INR). New terms do not convert an unqualified historical event into a promised payment. Contact h82292245@gmail.com for programme questions. Mandatory legal rights remain unaffected."
       }
     ]
   },
   {
     "id": "affiliate-marketing",
     "group": "Affiliate programme",
-    "updated": "2026-11-09",
+    "updated": "2026-11-21",
     "status": "Policy",
-    "intro": "These guidelines help affiliates describe Alphajournal accurately and disclose commercial relationships clearly.",
+    "intro": "These guidelines (Revision 2026.2-INR) help affiliates describe AlphaJournal pricing, Monthly Month-1 referral offers, and commercial relationships accurately.",
     "title": "Affiliate Marketing and Brand Guidelines",
     "source": "11_Affiliate_Marketing_and_Brand_Guidelines.docx",
     "sections": [
       {
         "title": "Identify the relationship",
-        "body": "Place a clear affiliate or sponsored disclosure near the recommendation and link. Tell the audience that you may receive commission for a qualifying referral. Do not rely on a distant profile statement or hidden hashtag to explain a material commercial connection. Effective date: 9 November 2026."
+        "body": "Place a clear affiliate or sponsored disclosure near the recommendation and link. Tell the audience that you may receive commission for a qualifying referral. Do not rely on a distant profile statement or hidden hashtag to explain a material commercial connection. Effective date: 21 November 2026 (Revision 2026.2-INR)."
       },
       {
-        "title": "Use accurate claims",
-        "body": "Describe only features, pricing and availability that are currently offered to the relevant audience. Distinguish a preview or planned service from a live capability. Do not make guarantees about returns, execution, market-data latency, uptime, regulatory approval or refunds without an authorised and accurate basis."
+        "title": "Use accurate pricing and offer claims",
+        "body": "State current published INR plans and Month-1 referral offers accurately: Basic Monthly is ₹239 for Month 1 with a referral code then ₹299/mo from Month 2; Pro Monthly is ₹399 for Month 1 with a referral code then ₹499/mo from Month 2; Annual plans are ₹2,868/yr (Basic) and ₹4,788/yr (Pro) with no additional stacked coupon discount. Clearly state that referral offers are limited to one per new subscriber account. Never promise investment returns, guaranteed profits, or unregistered advisory tips."
       },
       {
         "title": "Use of brand assets",
-        "body": "Use authorised names and assets without implying that you are Alphajournal or an official support channel. Do not create confusing domains, account names, app listings or modified logos. Stop using assets when authorisation ends. Request permission before making a material adaptation or a new use of our brand."
+        "body": "Use authorised AlphaJournal names and assets without implying that you are AlphaJournal or an official support channel. Do not create confusing domains, account names, app listings or modified logos. Stop using assets when authorisation ends. Request permission before making a material adaptation or a new use of our brand."
       },
       {
         "title": "Channels and recipient choices",
@@ -460,46 +460,46 @@
       },
       {
         "title": "Financial and sponsored content",
-        "body": "Do not turn a software referral into an unqualified investment recommendation. Do not display fabricated trading outcomes or imply that users will recover subscription costs through profits. Explain risks and disclose sponsorship. Google AdSense and affiliate promotion are separate programmes; neither implies Google endorsement of Alphajournal."
+        "body": "Do not turn a software referral into an unqualified investment recommendation. Do not display fabricated trading outcomes or imply that users will recover subscription costs through profits. Explain risks and disclose sponsorship. Google AdSense and affiliate promotion are separate programmes; neither implies Google endorsement of AlphaJournal."
       },
       {
         "title": "Monitoring and corrections",
-        "body": "Keep the claims and offers in your active campaigns current. Correct inaccurate material promptly when notified. Report impersonation, copied promotions or suspicious attribution to h82292245@gmail.com with a link and description. We may require removal of misleading uses of the brand under the programme terms."
+        "body": "Keep the claims and offers in your active campaigns current with Revision 2026.2-INR. Correct inaccurate material promptly when notified. Report impersonation, copied promotions or suspicious attribution to h82292245@gmail.com with a link and description. We may require removal of misleading uses of the brand under the programme terms."
       }
     ]
   },
   {
     "id": "affiliate-payouts",
     "group": "Affiliate programme",
-    "updated": "2026-11-09",
+    "updated": "2026-11-21",
     "status": "Policy",
-    "intro": "This policy explains how to interpret affiliate balances, request payment and resolve payout or tax questions under your accepted programme schedule.",
+    "intro": "This policy (Revision 2026.2-INR) explains the ₹10/₹30 tiered per-user INR commission ledger, 50-paid-user Pro milestone, payout requests, refund clawbacks, and Section 194H TDS.",
     "title": "Affiliate Commission Payout and Tax Policy",
     "source": "12_Affiliate_Commission_Payout_and_Tax_Policy.docx",
     "sections": [
       {
-        "title": "Commission states",
-        "body": "A tracked event may be pending, qualified, approved, reversed or paid. An estimate is not a settled entitlement. The accepted schedule determines the rate, eligible revenue, exclusions and qualification conditions. Refunds, chargebacks and invalid referrals can adjust an amount. Effective date: 9 November 2026."
+        "title": "Commission schedule and states",
+        "body": "Verified paid Basic or Pro conversions earn ₹10 INR per distinct user for conversions #1–50 and ₹30 INR per distinct user starting at conversion #51 onward. Each distinct referred user qualifies at most once; renewals, upgrades, and cycle switches do not create duplicate payouts. A tracked event may be pending, converted, reversed or paid. Refunds, chargebacks and invalid referrals automatically reverse commission and reduce verified conversion counts (which also re-evaluates the 50-user complimentary Pro milestone). Effective date: 21 November 2026 (Revision 2026.2-INR)."
       },
       {
         "title": "Statements and evidence",
-        "body": "Review the relevant transaction or referral reference, gross commission, adjustments, deductions and net amount. Retain statements and payment confirmations for your records. An internal status label is not independent proof that a bank transfer settled. Report discrepancies with the affected references rather than sending full payment credentials."
+        "body": "Review the relevant transaction or referral reference, conversion slot (#1–50 vs #51+), gross INR commission, 5% u/s 194H TDS deduction, and net balance. Retain statements and payment confirmations for your records. An internal status label is not independent proof that a bank transfer settled. Report discrepancies with the affected references rather than sending full payment credentials."
       },
       {
         "title": "Payout eligibility",
-        "body": "Payment may require approval, completed identity and tax information, a supported destination and the threshold or timing specified in your accepted schedule. Provide accurate information through the designated workflow. Do not submit another person’s bank or tax details without authority. Available payment rails can vary by region and account status."
+        "body": "Payment requires an active approved affiliate profile, verified Indian PAN and UPI/Bank IFSC destination, and a minimum withdrawable balance of ₹1,000 INR. Do not submit another person’s bank or tax details without authority. Supported rails include NPCI UPI, Bank NEFT, IMPS, and RTGS."
       },
       {
         "title": "Tax treatment",
-        "body": "You are responsible for your own tax reporting and professional advice. Alphajournal will apply deductions and issue or make available supporting records where required by the law applicable to the payment and recipient. No universal withholding rate is promised here; rates and treatment can depend on law, thresholds, residency and documentation. An in-app estimate is not a statutory tax certificate."
+        "body": "You are responsible for your own tax reporting and professional advice. AlphaJournal applies 5% statutory TDS under Section 194H of the Income Tax Act, 1961 where applicable and supports verified GSTIN invoicing for GST-registered partners. An in-app estimate is not a statutory Form 16A certificate."
       },
       {
         "title": "Requests settlement and failures",
-        "body": "Follow the payout request and review steps shown in the workspace. A request is not a guarantee of immediate transfer. Bank or provider processing, verification and operational reviews can affect completion. If a transfer fails, provide corrected details through the supported secure route and refer to the original request so the ledger can be reconciled."
+        "body": "Follow the payout request and review steps shown in the Partner Hub. Only one pending or processing payout may be open at a time. If a transfer fails, funds are restored to your unpaid INR balance so you can update destination details and retry."
       },
       {
         "title": "Disputes and fraud review",
-        "body": "Email h82292245@gmail.com with the statement or payout reference and a concise explanation. We may hold an affected amount while investigating suspected fraud, duplicate credit, a refund or a legal obligation. Where permitted, we will explain the decision and correction. We do not silently treat every disputed amount as forfeited."
+        "body": "Email h82292245@gmail.com with the statement or payout reference and a concise explanation. We may hold an affected amount while investigating suspected self-referral, affiliate coupon misuse, duplicate credit, a refund or a legal obligation."
       },
       {
         "title": "Advertising revenue and termination",
@@ -964,7 +964,7 @@
   {
     "id": "release-notes",
     "group": "Getting started",
-    "updated": "2026-11-19",
+    "updated": "2026-11-21",
     "status": "Guide",
     "intro": "AlphaJournal 1.0.0 build 1 establishes the application capability baseline, entitlement boundaries, release versioning, installation flow, and automatic update checks. These notes describe repository readiness and do not by themselves announce a production deployment.",
     "title": "Help Centre Release Notes",
@@ -992,7 +992,7 @@
       },
       {
         "title": "Subscriptions, affiliate, and administration",
-        "body": "Free, Basic, and Pro entitlements are applied before navigation and before paid network work starts. Billing management, purchase restoration, quota displays, referral applications and attribution, affiliate campaign/payout workspaces, and the server-verified Admin console are included in the operational surface. Paid monthly checkout remains disabled until production provider products, signing, webhooks, and store review are complete."
+        "body": "Free, Basic (₹299/mo or ₹2,868/yr), and Pro (₹499/mo or ₹4,788/yr) entitlements are enforced at route, presentation, repository, and database boundaries. Razorpay checkout supports Monthly and Annual subscriptions, referral code prompts (Month 1 Basic ₹239 / Pro ₹399 on monthly plans, 1 redemption per user lifetime), safe subscription plan/cycle switching without double-billing, and server-verified affiliate conversion tracking (₹10/user for first 50 paid Basic/Pro users, ₹30/user from #51 onward, strict affiliate coupon ban, and automatic complimentary Pro unlock only at 50 verified paid referrals under Revision 2026.2-INR)."
       },
       {
         "title": "Installation and deep links",

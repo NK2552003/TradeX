@@ -7,6 +7,7 @@ import 'package:quiet_dock/quiet_dock.dart';
 import '../../flutter-ui/flutter_ui.dart';
 import '../../../features/calculators/ui/calculators_screen.dart';
 import '../brand/app_logo.dart';
+import '../brand/app_theme_glyph.dart';
 import '../models/app_models.dart';
 import '../motion/app_motion.dart';
 import '../motion/page_transition.dart';
@@ -1849,7 +1850,7 @@ class AppTopBar extends StatelessWidget {
         if (themeController != null)
           UiIconButton(
             key: const ValueKey<String>('app-header-theme-toggle'),
-            icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            iconWidget: AppThemeGlyph(isDark: isDark, size: context.sz(18)),
             tooltip: isDark ? 'Switch to light theme' : 'Switch to dark theme',
             size: UiSize.sm,
             onPressed: () => themeController.setMode(

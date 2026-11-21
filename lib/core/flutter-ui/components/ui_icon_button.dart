@@ -7,7 +7,8 @@ import 'ui_common.dart';
 class UiIconButton extends StatelessWidget {
   const UiIconButton({
     super.key,
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     this.onPressed,
     this.variant = UiVariant.ghost,
     this.intent,
@@ -15,9 +16,10 @@ class UiIconButton extends StatelessWidget {
     this.tooltip,
     this.badgeCount,
     this.rounded = false,
-  });
+  }) : assert(icon != null || iconWidget != null);
 
-  final IconData icon;
+  final IconData? icon;
+  final Widget? iconWidget;
   final VoidCallback? onPressed;
   final UiVariant variant;
   final UiIntent? intent;
@@ -109,7 +111,12 @@ class UiIconButton extends StatelessWidget {
                 : null,
           ),
           foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
-          child: Icon(icon, size: size.icon(ctx), color: fg),
+          child: iconWidget != null
+              ? IconTheme(
+                  data: IconThemeData(size: size.icon(ctx), color: fg),
+                  child: iconWidget!,
+                )
+              : Icon(icon!, size: size.icon(ctx), color: fg),
         );
       },
     );

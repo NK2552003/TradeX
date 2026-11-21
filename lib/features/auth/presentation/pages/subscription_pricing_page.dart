@@ -7,12 +7,14 @@ import 'package:alphajournal/core/billing/revenuecat_billing.dart';
 import 'package:alphajournal/core/config/app_constants.dart';
 import 'package:alphajournal/core/config/env_config.dart';
 import 'package:alphajournal/core/config/supabase_config.dart';
+import 'package:alphajournal/core/data/app_session.dart';
 // ignore: unnecessary_import
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import 'package:alphajournal/features/auth/data/repositories/subscription_pricing_repository.dart';
 import 'package:alphajournal/features/auth/models/pricing_models.dart';
 import 'package:alphajournal/features/public_site/presentation/public_pricing_content.dart';
 import 'package:alphajournal/features/settings/data/repositories/billing_settings_repository.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/referral_code_prompt_dialog.dart';
 
 class SubscriptionPricingPage extends StatefulWidget {
   const SubscriptionPricingPage({
@@ -114,7 +116,24 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
         }
 
         final billingRepo = BillingSettingsRepositoryImpl();
-        final session = await billingRepo.startCheckout(plan.id, cycle);
+        final double listInr = _annual
+            ? plan.annualMonthlyAmount * 12
+            : plan.monthlyAmount;
+        final refChoice = await showReferralCodePromptDialog(
+          context,
+          billingRepository: billingRepo,
+          tierId: plan.id,
+          planName: plan.name,
+          billingCycle: cycle,
+          listAmountInr: listInr,
+          currentTier: AppSession.instance.tier.value,
+        );
+        if (refChoice == null || !mounted) return;
+        final session = await billingRepo.startCheckout(
+          plan.id,
+          cycle,
+          referralCode: refChoice.referralCode,
+        );
         if (!mounted) return;
         final keyId = (session.keyId != null && session.keyId!.isNotEmpty)
             ? session.keyId!

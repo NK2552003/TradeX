@@ -79,7 +79,7 @@ class _AffiliateReferralsPageState extends State<AffiliateReferralsPage> {
               UiKeyValueRow(
                 label: 'Subscribed Plan (INR)',
                 value: Text(
-                  '${r.text('plan_tier', 'pro').toUpperCase()} (${w.money(r.number('subscription_amount_inr') > 0 ? r.number('subscription_amount_inr') : 2499)}/mo)',
+                  '${r.text('plan_tier', 'basic').toUpperCase()} (${w.money(r.number('subscription_amount_inr') > 0 ? r.number('subscription_amount_inr') : 299)})',
                 ),
               ),
               UiKeyValueRow(
@@ -128,7 +128,7 @@ class _AffiliateReferralsPageState extends State<AffiliateReferralsPage> {
     return AffiliateWorkspaceView(
       title: 'Referrals & INR Attribution',
       subtitle:
-          'Monitor attributed signups, qualifying Pro/Enterprise INR subscriptions, and net commissions after 5% TDS.',
+          'Monitor attributed signups, qualifying Basic/Pro INR subscriptions (₹10 for #1–50 · ₹30 for #51+), and net commissions after 5% TDS.',
       repository: widget.repository,
       onNavigate: widget.onNavigate,
       actions: (ctx, w, _) {

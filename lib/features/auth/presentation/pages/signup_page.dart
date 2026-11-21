@@ -46,6 +46,7 @@ class _SignupPageState extends State<SignupPage> {
 
   bool _isLoading = false;
   bool _isSignupOpen = true;
+  bool _hasReferralCode = false;
   String? _errorText;
 
   @override
@@ -57,6 +58,21 @@ class _SignupPageState extends State<SignupPage> {
         : widget.initialRole;
     _repository = widget.authRepository ?? SupabaseAuthBackendService.instance;
     _checkSignupCapacity();
+    _loadSavedReferralCode();
+  }
+
+  Future<void> _loadSavedReferralCode() async {
+    try {
+      final attribution = await AffiliateAttribution.load();
+      final code = attribution?['code']?.toString().trim() ?? '';
+      if (!mounted || code.isEmpty) return;
+      setState(() {
+        _referralCodeController.text = code.toUpperCase();
+        if (_selectedRole == UserRole.customer) {
+          _hasReferralCode = true;
+        }
+      });
+    } catch (_) {}
   }
 
   Future<void> _checkSignupCapacity() async {
@@ -118,15 +134,21 @@ class _SignupPageState extends State<SignupPage> {
       _isLoading = true;
     });
 
-    final attribution = await AffiliateAttribution.load();
+    final attribution = _selectedRole == UserRole.customer
+        ? await AffiliateAttribution.load()
+        : null;
+    final String? effectiveReferralCode = _selectedRole == UserRole.customer &&
+            _hasReferralCode
+        ? (_referralCodeController.text.trim().isNotEmpty
+              ? _referralCodeController.text.trim().toUpperCase()
+              : attribution?['code'] as String?)
+        : null;
     final result = await _repository.signUp(
       role: _selectedRole,
       handle: handlerId,
       email: email,
       password: password,
-      referralCode: _referralCodeController.text.trim().isNotEmpty
-          ? _referralCodeController.text.trim()
-          : attribution?['code'] as String?,
+      referralCode: effectiveReferralCode,
     );
 
     if (!mounted) return;
@@ -470,29 +492,99 @@ class _SignupPageState extends State<SignupPage> {
                                                 ),
                                               ),
 
-                                              // Role Specific Optional/Required Inputs
+                                              // Referral code prompt for Customers; prohibited for Affiliates
                                               if (_selectedRole ==
-                                                  UserRole.affiliate) ...[
-                                                UiField(
-                                                  label:
-                                                      'Partner Referral Code (Optional)',
-                                                  // No figure here: nothing in the
-                                                  // app pays a signing bonus, so
-                                                  // quoting one would promise money
-                                                  // the payouts ledger never shows.
-                                                  helper:
-                                                      'Credits your signup to the partner who referred you',
-                                                  child: UiInput(
-                                                    value:
-                                                        _referralCodeController
-                                                            .text,
-                                                    hintText:
-                                                        'REF-ALPHAJOURNAL-2026',
-                                                    onChanged: (v) =>
-                                                        _referralCodeController
-                                                                .text =
-                                                            v,
+                                                  UserRole.customer) ...[
+                                                Text(
+                                                  'Do you have a referral code?',
+                                                  style: context
+                                                      .uiText
+                                                      .bodyStrong
+                                                      .copyWith(fontSize: 13),
+                                                ),
+                                                SizedBox(
+                                                  height: context.sp(
+                                                    theme.spacing.xs,
                                                   ),
+                                                ),
+                                                Wrap(
+                                                  key: const ValueKey<String>(
+                                                    'signup-has-referral-toggle',
+                                                  ),
+                                                  spacing: context.sp(
+                                                    theme.spacing.xs,
+                                                  ),
+                                                  runSpacing: context.sp(
+                                                    theme.spacing.xs,
+                                                  ),
+                                                  children: <Widget>[
+                                                    UiButton(
+                                                      label: 'No',
+                                                      size: UiSize.sm,
+                                                      variant: !_hasReferralCode
+                                                          ? UiVariant.soft
+                                                          : UiVariant.outline,
+                                                      intent: !_hasReferralCode
+                                                          ? UiIntent.primary
+                                                          : UiIntent.neutral,
+                                                      onPressed: () => setState(
+                                                        () => _hasReferralCode =
+                                                            false,
+                                                      ),
+                                                    ),
+                                                    UiButton(
+                                                      label: 'Yes, I have one',
+                                                      size: UiSize.sm,
+                                                      variant: _hasReferralCode
+                                                          ? UiVariant.soft
+                                                          : UiVariant.outline,
+                                                      intent: _hasReferralCode
+                                                          ? UiIntent.primary
+                                                          : UiIntent.neutral,
+                                                      onPressed: () => setState(
+                                                        () => _hasReferralCode =
+                                                            true,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                if (_hasReferralCode) ...[
+                                                  SizedBox(
+                                                    height: context.sp(
+                                                      theme.spacing.sm,
+                                                    ),
+                                                  ),
+                                                  UiField(
+                                                    label:
+                                                        'Referral Code (Optional)',
+                                                    helper:
+                                                        'Get Month 1 at ₹239 (Basic) or ₹399 (Pro) on monthly plans, then regular ₹299/₹499 renewal · 1 per account.',
+                                                    child: UiInput(
+                                                      key:
+                                                          const ValueKey<
+                                                            String
+                                                          >(
+                                                            'signup-referral-input',
+                                                          ),
+                                                      controller:
+                                                          _referralCodeController,
+                                                      hintText: 'PARTNER26',
+                                                    ),
+                                                  ),
+                                                ],
+                                                SizedBox(
+                                                  height: context.sp(
+                                                    theme.spacing.md,
+                                                  ),
+                                                ),
+                                              ] else if (_selectedRole ==
+                                                  UserRole.affiliate) ...[
+                                                const UiCallout(
+                                                  title:
+                                                      'Affiliate Program Terms (Rev 2026.2-INR)',
+                                                  message:
+                                                      'Affiliate accounts cannot redeem their own or other partners\' referral/coupon codes. Complimentary Pro unlocks only after 50 referred users pay for Basic or Pro.',
+                                                  intent: UiIntent.info,
                                                 ),
                                                 SizedBox(
                                                   height: context.sp(

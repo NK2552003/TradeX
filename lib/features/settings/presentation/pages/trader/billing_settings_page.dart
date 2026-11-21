@@ -353,12 +353,18 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
     }
 
     final SubscriptionSummary sub = loaded;
-    final bool isAffiliate = widget.userRole == UserRole.affiliate;
+    final AffiliateMilestoneStatus? milestone = sub.affiliateMilestone;
+    final bool isAffiliate =
+        widget.userRole == UserRole.affiliate ||
+        (milestone?.isAffiliate ?? false);
     final bool isAdmin = widget.userRole == UserRole.userAdmin;
+    final bool hasComplimentaryPro =
+        milestone?.complimentaryProUnlocked == true;
 
-    // Affiliates are on a complimentary partner tier and admins are on a
-    // negotiated contract; neither buys a plan from this page.
-    final bool selfServe = !isAffiliate && !isAdmin;
+    // Affiliates do NOT receive complimentary Basic/Pro until 50 distinct
+    // referred users purchase Basic or Pro. Below 50 paid referrals they use
+    // standard self-serve billing (without coupon eligibility).
+    final bool selfServe = !isAdmin && !hasComplimentaryPro;
 
     final Widget? planAction = selfServe
         ? UiButton(
@@ -376,6 +382,7 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                 minDesktopWidth: 900.0,
                 page: ChangePlanPage(
                   repository: _repo,
+                  isAffiliate: isAffiliate,
                   onPlanChanged: (AppTier tier) async {
                     widget.onSubscriptionTierChanged?.call(tier);
                     await _loadBillingData(silent: true);
@@ -454,22 +461,22 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                                 runSpacing: context.sp(theme.spacing.xxs),
                                 children: <Widget>[
                                   Text(
-                                    isAffiliate
-                                        ? 'Affiliate partner plan'
+                                    hasComplimentaryPro
+                                        ? 'Pro plan · 50+ Partner Milestone'
                                         : (isAdmin
                                               ? '${sub.planName} desk plan · ${sub.maxSeats} seats'
                                               : '${sub.planName} plan'),
                                     style: context.uiText.heading,
                                   ),
                                   UiBadge(
-                                    label: isAffiliate
-                                        ? 'PARTNER'
+                                    label: hasComplimentaryPro
+                                        ? 'PARTNER PRO'
                                         : (sub.tier != AppTier.free &&
                                                   sub.endsAtPeriodEnd
                                               ? 'ENDING'
                                               : 'ACTIVE'),
-                                    intent: isAffiliate
-                                        ? UiIntent.warning
+                                    intent: hasComplimentaryPro
+                                        ? UiIntent.bullish
                                         : (sub.tier != AppTier.free &&
                                                   sub.endsAtPeriodEnd
                                               ? UiIntent.warning
@@ -480,8 +487,8 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                               ),
                               SizedBox(height: context.sp(theme.spacing.xxs)),
                               Text(
-                                isAffiliate
-                                    ? 'Complimentary creator tier with every paid tool unlocked.'
+                                hasComplimentaryPro
+                                    ? 'Complimentary AlphaJournal Pro unlocked via ${milestone?.paidReferralsCount ?? 50} verified paid Basic/Pro referrals.'
                                     : (isAdmin
                                           ? '${sub.seatsUsed} of ${sub.maxSeats} trader seats in use · ${_planSubtitle(sub)}'
                                           : _planSubtitle(sub)),
@@ -527,19 +534,54 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                   ],
                 ),
               ),
-              if (!isAffiliate) ...<Widget>[
+              if (isAffiliate) ...<Widget>[
                 SizedBox(height: context.sp(theme.spacing.lg)),
-                CustomerLimitationsBanner(
-                  noteCount: sub.notesUsed,
-                  tradeCount: sub.tradesLoggedThisMonth,
-                  liveStrategyCount: sub.livePlaybooksUsed,
-                  watchlistCount: sub.watchlistsUsed,
-                  alertCount: sub.alertsUsed,
-                  communityPostsToday: sub.communityPostsToday,
-                  communityCommentsToday: sub.communityCommentsToday,
-                  showFeatureCards: true,
+                UiCard(
+                  key: const ValueKey<String>('affiliate-milestone-card'),
+                  title: hasComplimentaryPro
+                      ? 'Complimentary Pro Milestone Unlocked'
+                      : 'Partner Milestone · Free Pro at 50 Paid Users',
+                  trailing: UiBadge(
+                    label:
+                        '${milestone?.paidReferralsCount ?? 0} / ${milestone?.threshold ?? 50} PAID',
+                    intent: hasComplimentaryPro
+                        ? UiIntent.bullish
+                        : UiIntent.warning,
+                    size: UiSize.xs,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      UiProgressBar(
+                        value: milestone?.progress ?? 0.0,
+                        label: hasComplimentaryPro
+                            ? 'Unlocked! Earning ₹30/user on every verified paid Basic or Pro referral.'
+                            : '${milestone?.remainingForFreePro ?? 50} more verified paid Basic or Pro referrals needed to unlock complimentary Pro & ₹30/user commission.',
+                      ),
+                      SizedBox(height: context.sp(theme.spacing.sm)),
+                      Text(
+                        hasComplimentaryPro
+                            ? 'Complimentary AlphaJournal Pro stays active while at least 50 verified non-refunded Basic or Pro referrals remain active. Affiliate accounts cannot redeem referral or coupon codes.'
+                            : 'No complimentary Basic or Pro plan is granted before 50 verified paid referrals. You can stay on Free or subscribe at standard rates (affiliate accounts cannot redeem own or other partners\' coupons).',
+                        style: context.uiText.caption.copyWith(
+                          color: colors.foregroundMuted,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
+              SizedBox(height: context.sp(theme.spacing.lg)),
+              CustomerLimitationsBanner(
+                noteCount: sub.notesUsed,
+                tradeCount: sub.tradesLoggedThisMonth,
+                liveStrategyCount: sub.livePlaybooksUsed,
+                watchlistCount: sub.watchlistsUsed,
+                alertCount: sub.alertsUsed,
+                communityPostsToday: sub.communityPostsToday,
+                communityCommentsToday: sub.communityCommentsToday,
+                showFeatureCards: true,
+              ),
               SizedBox(height: context.sp(theme.spacing.lg)),
 
               if (!_verifiedBillingConnected)
@@ -600,7 +642,7 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                   },
                 ),
               ],
-              if (_verifiedBillingConnected && !isAffiliate) ...<Widget>[
+              if (_verifiedBillingConnected && !hasComplimentaryPro) ...<Widget>[
                 AppSettingsSectionBlock(
                   title: isAdmin
                       ? 'Payment method & invoicing terms'
@@ -648,6 +690,7 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                               minDesktopWidth: 900.0,
                               page: ChangePlanPage(
                                 repository: _repo,
+                                isAffiliate: isAffiliate,
                                 onPlanChanged: (AppTier tier) async {
                                   widget.onSubscriptionTierChanged?.call(tier);
                                   await _loadBillingData(silent: true);

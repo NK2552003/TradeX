@@ -15,6 +15,7 @@ class SubscriptionSummary {
     this.cancelAtPeriodEnd = false,
     this.discountCode,
     this.discountPercent = 0,
+    this.affiliateMilestone,
   });
 
   final AppTier tier;
@@ -44,6 +45,9 @@ class SubscriptionSummary {
   /// Coupon currently applied to the subscription, if any.
   final String? discountCode;
   final int discountPercent;
+
+  /// Affiliate 50-paid-referral Pro milestone status when the account is an affiliate.
+  final AffiliateMilestoneStatus? affiliateMilestone;
 
   String get planName => AppTokens.tierLabel(tier);
 
@@ -116,6 +120,7 @@ class SubscriptionSummary {
     bool? cancelAtPeriodEnd,
     String? discountCode,
     int? discountPercent,
+    AffiliateMilestoneStatus? affiliateMilestone,
   }) => SubscriptionSummary(
     tier: tier ?? this.tier,
     status: status ?? this.status,
@@ -128,6 +133,7 @@ class SubscriptionSummary {
     cancelAtPeriodEnd: cancelAtPeriodEnd ?? this.cancelAtPeriodEnd,
     discountCode: discountCode ?? this.discountCode,
     discountPercent: discountPercent ?? this.discountPercent,
+    affiliateMilestone: affiliateMilestone ?? this.affiliateMilestone,
   );
 }
 
@@ -174,6 +180,10 @@ class CheckoutSession {
     required this.checkoutUrl,
     this.clientSecret,
     this.keyId,
+    this.amountPaise,
+    this.discountPaise = 0,
+    this.referralCode,
+    this.replacesSubscriptionId,
   });
 
   final String sessionId;
@@ -181,6 +191,94 @@ class CheckoutSession {
   final String checkoutUrl;
   final String? clientSecret;
   final String? keyId;
+  final int? amountPaise;
+  final int discountPaise;
+  final String? referralCode;
+  final String? replacesSubscriptionId;
+}
+
+/// Server-validated affiliate referral quote for a target paid plan and cycle.
+///
+/// Subscriber discounts apply to Monthly plans only (Month 1 only):
+/// - Basic Monthly: ₹299 -> ₹239 (-₹60), then ₹299/mo from Month 2
+/// - Pro Monthly:   ₹499 -> ₹399 (-₹100), then ₹499/mo from Month 2
+/// - Annual plans:  already include 20% discount; referral attributes partner.
+@immutable
+class ReferralDiscountQuote {
+  const ReferralDiscountQuote({
+    required this.valid,
+    required this.message,
+    this.code,
+    this.listAmountInr = 0,
+    this.discountInr = 0,
+    this.payableAmountInr = 0,
+    this.renewalAmountInr = 0,
+    this.appliesDiscount = false,
+    this.errorCode,
+    this.isAffiliateBlocked = false,
+    this.validUntil,
+    this.offerConfigured = true,
+  });
+
+  final bool valid;
+  final String message;
+  final String? code;
+  final double listAmountInr;
+  final double discountInr;
+  final double payableAmountInr;
+  final double renewalAmountInr;
+  final bool appliesDiscount;
+  final String? errorCode;
+  final bool isAffiliateBlocked;
+  final DateTime? validUntil;
+  final bool offerConfigured;
+
+  factory ReferralDiscountQuote.fromJson(Map<String, dynamic> json) {
+    return ReferralDiscountQuote(
+      valid: json['valid'] == true,
+      message:
+          json['message']?.toString() ??
+          json['error']?.toString() ??
+          'Unable to validate referral code.',
+      code: json['code']?.toString(),
+      listAmountInr: (json['list_amount_inr'] as num?)?.toDouble() ?? 0,
+      discountInr: (json['discount_inr'] as num?)?.toDouble() ?? 0,
+      payableAmountInr: (json['payable_amount_inr'] as num?)?.toDouble() ?? 0,
+      renewalAmountInr: (json['renewal_amount_inr'] as num?)?.toDouble() ?? 0,
+      appliesDiscount: json['applies_discount'] == true,
+      errorCode: json['error_code']?.toString(),
+      isAffiliateBlocked:
+          json['is_affiliate_blocked'] == true ||
+          json['error_code']?.toString() == 'affiliate_coupon_prohibited',
+      validUntil: json['valid_until'] == null
+          ? null
+          : DateTime.tryParse(json['valid_until'].toString()),
+      offerConfigured: json['offer_configured'] != false,
+    );
+  }
+}
+
+/// Server-backed progress toward the 50-paid-referral complimentary Pro milestone.
+@immutable
+class AffiliateMilestoneStatus {
+  const AffiliateMilestoneStatus({
+    required this.isAffiliate,
+    required this.paidReferralsCount,
+    this.threshold = 50,
+    this.complimentaryProUnlocked = false,
+    this.currentCommissionInr = 10,
+  });
+
+  final bool isAffiliate;
+  final int paidReferralsCount;
+  final int threshold;
+  final bool complimentaryProUnlocked;
+  final double currentCommissionInr;
+
+  int get remainingForFreePro =>
+      (threshold - paidReferralsCount).clamp(0, threshold);
+  double get progress =>
+      threshold <= 0 ? 1.0 : (paidReferralsCount / threshold).clamp(0.0, 1.0);
 }
 
 /// The entity that raised an invoice: who is charging, from where, and under

@@ -33,6 +33,19 @@ class _FakeBillingSettingsRepository implements BillingSettingsRepository {
   }
 
   @override
+  Future<PaymentMethodSummary?> getPaymentMethod() async => null;
+
+  @override
+  Future<RetentionOffer?> getRetentionOffer() async => null;
+
+  @override
+  Future<AffiliateMilestoneStatus> getAffiliateMilestoneStatus() async =>
+      const AffiliateMilestoneStatus(
+        isAffiliate: false,
+        paidReferralsCount: 0,
+      );
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -117,6 +130,7 @@ void main() {
         tester.view.devicePixelRatio = 1.0;
         addTearDown(() => tester.view.resetPhysicalSize());
 
+        AppSession.instance.tier.value = AppTier.free;
         final repo = _FakeBillingSettingsRepository();
 
         await tester.pumpWidget(
@@ -144,14 +158,14 @@ void main() {
         expect(find.text('COMMENTS / DAY'), findsOneWidget);
 
         // Verify feature cards are displayed on settings_billing and sit outside UiDataPanel
-        expect(find.text('INCLUDED IN FREE'), findsOneWidget);
+        expect(find.text('INCLUDED IN ALPHAJOURNAL FREE'), findsOneWidget);
         expect(find.text('UNLOCK WITH UPGRADE'), findsOneWidget);
         expect(find.textContaining('PDF & CSV Exports'), findsOneWidget);
         expect(find.textContaining('Advanced Backtest'), findsOneWidget);
 
         final Rect panelRect = tester.getRect(find.byType(UiDataPanel));
         final Rect includedHeaderRect = tester.getRect(
-          find.text('INCLUDED IN FREE'),
+          find.text('INCLUDED IN ALPHAJOURNAL FREE'),
         );
         expect(includedHeaderRect.top, greaterThanOrEqualTo(panelRect.bottom));
       },

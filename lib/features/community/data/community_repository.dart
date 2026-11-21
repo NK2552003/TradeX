@@ -55,17 +55,30 @@ class CommunityRepository extends ChangeNotifier {
   }) => _fetchReactions(targetId, comment: comment);
   static const int _postsPageSize = 30;
   static const Duration _realtimeDebounce = Duration(seconds: 5);
+  static const Duration _newPostsPollInterval = Duration(seconds: 15);
+  static const Duration _newPostPublishGraceWindow = Duration(minutes: 5);
 
   bool _initialized = false;
   bool _subscribedToRealtime = false;
+  bool _visibilityListenerAttached = false;
+  bool _hasCompletedInitialFeedFetch = false;
   bool _isLoading = false;
   bool _isLoadingMore = false;
+  bool _isLoadingNewPosts = false;
+  bool _checkingForNewPosts = false;
   bool _hasLoadedFollows = false;
   String _followLoadedForUserId = '';
   bool _pendingFollowRefresh = false;
   final Set<String> _pendingFollowWrites = <String>{};
   final Set<String> _loadedAuthorPostIds = <String>{};
   final Map<String, Future<void>> _authorPostLoads = <String, Future<void>>{};
+  final Set<String> _locallyCreatedPostIds = <String>{};
+  final List<String> _pendingNewPostIds = <String>[];
+  final Map<String, CommunityAuthor> _pendingNewPostAuthorsById =
+      <String, CommunityAuthor>{};
+  DateTime? _feedWatermarkCreatedAt;
+  int _newPostsWatchers = 0;
+  Timer? _newPostsPollTimer;
   bool _hasMorePosts = true;
   int _loadedPostRows = 0;
   RealtimeChannel? _realtimeChannel;
@@ -73,10 +86,34 @@ class CommunityRepository extends ChangeNotifier {
   bool _pendingRealtimeRefresh = false;
   DateTime? _suppressRealtimeUntil;
 
+  /// Enables periodic polling timer even when Supabase is not configured (tests).
+  @visibleForTesting
+  bool enablePollingWithoutSupabase = false;
+
+  /// Overrideable poll interval for deterministic widget/unit tests.
+  @visibleForTesting
+  Duration newPostsPollIntervalOverride = _newPostsPollInterval;
+
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
+  bool get isLoadingNewPosts => _isLoadingNewPosts;
   bool get hasLoadedFollows => _hasLoadedFollows;
   bool get hasMorePosts => _hasMorePosts;
+  int get pendingNewPostsCount => _pendingNewPostIds.length;
+  List<String> get pendingNewPostIds =>
+      List<String>.unmodifiable(_pendingNewPostIds);
+  List<CommunityAuthor> get pendingNewPostAuthors {
+    final Set<String> seen = <String>{};
+    final List<CommunityAuthor> authors = <CommunityAuthor>[];
+    for (final String postId in _pendingNewPostIds) {
+      final CommunityAuthor? author = _pendingNewPostAuthorsById[postId];
+      if (author != null && seen.add(author.id)) {
+        authors.add(author);
+        if (authors.length >= 5) break;
+      }
+    }
+    return List<CommunityAuthor>.unmodifiable(authors);
+  }
   RealtimeChannel? get realtimeChannel => _realtimeChannel;
 
   /// Suppresses self-triggered realtime refetches briefly after local mutations.
@@ -150,11 +187,464 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
+  void _ensureVisibilityListener() {
+    if (_visibilityListenerAttached || _disposed) return;
+    _visibilityListenerAttached = true;
+    AppVisibility.instance.addListener(_onVisibilityChanged);
+  }
+
   void _onVisibilityChanged(bool isVisible) {
     if (_disposed || !isVisible) return;
     if (_pendingRealtimeRefresh) {
       _pendingRealtimeRefresh = false;
       _scheduleRealtimeRefresh();
+    }
+    if (_newPostsWatchers > 0 &&
+        (SupabaseConfig.isConfigured || enablePollingWithoutSupabase)) {
+      unawaited(checkForNewPosts());
+    }
+  }
+
+  /// Registers an active feed watcher so new posts are periodically checked
+  /// while the feed is visible (in addition to Supabase Realtime push events).
+  void beginNewPostsPolling() {
+    if (_disposed) return;
+    _newPostsWatchers++;
+    _ensureVisibilityListener();
+    if (_newPostsWatchers == 1) {
+      _startNewPostsPollTimer();
+      if ((SupabaseConfig.isConfigured || enablePollingWithoutSupabase) &&
+          _hasCompletedInitialFeedFetch &&
+          AppVisibility.instance.isVisible) {
+        unawaited(checkForNewPosts());
+      }
+    }
+  }
+
+  /// Unregisters an active feed watcher and stops the poll timer when none remain.
+  void endNewPostsPolling() {
+    if (_newPostsWatchers <= 0) return;
+    _newPostsWatchers--;
+    if (_newPostsWatchers == 0) {
+      _newPostsPollTimer?.cancel();
+      _newPostsPollTimer = null;
+    }
+  }
+
+  void _startNewPostsPollTimer() {
+    if (_disposed || _newPostsWatchers <= 0) return;
+    if (!SupabaseConfig.isConfigured && !enablePollingWithoutSupabase) return;
+    _newPostsPollTimer?.cancel();
+    _newPostsPollTimer = Timer.periodic(newPostsPollIntervalOverride, (_) {
+      if (_disposed || _newPostsWatchers <= 0) {
+        _newPostsPollTimer?.cancel();
+        _newPostsPollTimer = null;
+        return;
+      }
+      if (!AppVisibility.instance.isVisible ||
+          _isLoading ||
+          _isLoadingNewPosts) {
+        return;
+      }
+      unawaited(checkForNewPosts());
+    });
+  }
+
+  DateTime? _computeNewestPostCreatedAt(List<CommunityPost> posts) {
+    DateTime? newest;
+    for (final CommunityPost p in posts) {
+      final utc = p.createdAt.toUtc();
+      if (newest == null || utc.isAfter(newest)) {
+        newest = utc;
+      }
+    }
+    return newest;
+  }
+
+  CommunityAuthor? _findCachedAuthor(String authorId) {
+    if (authorId.isEmpty) return null;
+    for (final CommunityAuthor a in _suggestedTraders) {
+      if (a.id == authorId) return a;
+    }
+    for (final CommunityPost p in _forYouPosts) {
+      if (p.author.id == authorId) return p.author;
+    }
+    return null;
+  }
+
+  bool _queuePendingNewPost(String postId, {CommunityAuthor? author}) {
+    if (postId.isEmpty ||
+        _locallyCreatedPostIds.contains(postId) ||
+        _forYouPosts.any((p) => p.id == postId)) {
+      return false;
+    }
+    bool changed = false;
+    if (!_pendingNewPostIds.contains(postId)) {
+      _pendingNewPostIds.insert(0, postId);
+      changed = true;
+    }
+    if (author != null) {
+      final existing = _pendingNewPostAuthorsById[postId];
+      if (existing == null || existing.avatarUrl != author.avatarUrl) {
+        _pendingNewPostAuthorsById[postId] = author;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  bool _removePendingNewPost(String postId) {
+    if (postId.isEmpty) return false;
+    final removedId = _pendingNewPostIds.remove(postId);
+    final removedAuthor = _pendingNewPostAuthorsById.remove(postId) != null;
+    return removedId || removedAuthor;
+  }
+
+  void _rebuildDerivedFeedCollections() {
+    _followingPosts = _forYouPosts
+        .where(
+          (p) =>
+              _followedAuthorIds.contains(p.author.id) ||
+              followedReactionsForPost(p.id).isNotEmpty ||
+              followedRepostsForPost(p.id).isNotEmpty,
+        )
+        .toList();
+    _signalPosts = _forYouPosts.where((p) => p.tradeSetup != null).toList();
+  }
+
+  /// Processes a Supabase Realtime event on `public.community_posts` without
+  /// triggering a disruptive full-feed reload.
+  @visibleForTesting
+  void handleRealtimePostChange({
+    required PostgresChangeEvent eventType,
+    required Map<String, dynamic> newRecord,
+    Map<String, dynamic> oldRecord = const <String, dynamic>{},
+  }) {
+    if (_disposed) return;
+
+    final String postId =
+        (newRecord['id'] ?? oldRecord['id'])?.toString().trim() ?? '';
+    if (postId.isEmpty) return;
+
+    if (eventType == PostgresChangeEvent.delete) {
+      bool changed = _removePendingNewPost(postId);
+      final beforeLen = _forYouPosts.length;
+      _forYouPosts = _forYouPosts.where((p) => p.id != postId).toList();
+      if (_forYouPosts.length != beforeLen) {
+        _rebuildDerivedFeedCollections();
+        _rebuildBookmarks();
+        changed = true;
+      }
+      if (changed && !_disposed) notifyListeners();
+      return;
+    }
+
+    final String authorId = newRecord['author_id']?.toString().trim() ?? '';
+    final String targetUserId = _resolveUserId();
+    final bool isPublic = newRecord['is_public'] == true;
+    final String moderationStatus =
+        newRecord['moderation_status']?.toString().toLowerCase().trim() ??
+        'approved';
+    final bool isVisibleToViewer =
+        (isPublic && moderationStatus != 'rejected') ||
+        (authorId.isNotEmpty && authorId == targetUserId);
+
+    if (!isVisibleToViewer || _blockedUsers.contains(authorId)) {
+      bool changed = _removePendingNewPost(postId);
+      if (authorId != targetUserId) {
+        final beforeLen = _forYouPosts.length;
+        _forYouPosts = _forYouPosts.where((p) => p.id != postId).toList();
+        if (_forYouPosts.length != beforeLen) {
+          _rebuildDerivedFeedCollections();
+          _rebuildBookmarks();
+          changed = true;
+        }
+      }
+      if (changed && !_disposed) notifyListeners();
+      return;
+    }
+
+    // If this post is already rendered in the feed, update counters/flags in place
+    // so the user's scroll position and pending-new-posts pill stay undisturbed.
+    final int existingIndex = _forYouPosts.indexWhere((p) => p.id == postId);
+    if (existingIndex >= 0) {
+      final CommunityPost current = _forYouPosts[existingIndex];
+      final int nextLikes =
+          (newRecord['likes_count'] as num?)?.toInt() ?? current.likes;
+      final int nextComments =
+          (newRecord['comments_count'] as num?)?.toInt() ?? current.comments;
+      final int nextReposts =
+          (newRecord['reposts_count'] as num?)?.toInt() ?? current.reposts;
+      final int nextViews =
+          (newRecord['views_count'] as num?)?.toInt() ?? current.views;
+      final bool nextPinned =
+          newRecord['is_pinned'] as bool? ?? current.isPinned;
+      final bool nextPublic =
+          newRecord['is_public'] as bool? ?? current.isPublic;
+      final String nextModStatus =
+          newRecord['moderation_status']?.toString() ??
+          current.moderationStatus;
+
+      if (nextLikes != current.likes ||
+          nextComments != current.comments ||
+          nextReposts != current.reposts ||
+          nextViews != current.views ||
+          nextPinned != current.isPinned ||
+          nextPublic != current.isPublic ||
+          nextModStatus != current.moderationStatus) {
+        final updated = current.copyWith(
+          likes: nextLikes,
+          comments: nextComments,
+          reposts: nextReposts,
+          views: nextViews,
+          isPinned: nextPinned,
+          isPublic: nextPublic,
+          moderationStatus: nextModStatus,
+        );
+        _forYouPosts = List<CommunityPost>.of(_forYouPosts)
+          ..[existingIndex] = updated;
+        _rebuildDerivedFeedCollections();
+        if (!_disposed) notifyListeners();
+      }
+      return;
+    }
+
+    // Never flag posts created locally in this session tab or still unpublished.
+    if (!isPublic ||
+        moderationStatus == 'rejected' ||
+        _locallyCreatedPostIds.contains(postId)) {
+      return;
+    }
+
+    // If this is an UPDATE on a post that was ALREADY public before (e.g. a like
+    // or view counter increment on an older unpaginated post), ignore it.
+    if (eventType == PostgresChangeEvent.update &&
+        oldRecord.containsKey('is_public') &&
+        oldRecord['is_public'] == true) {
+      return;
+    }
+
+    // Guard against counter-update noise on older posts when oldRecord is empty.
+    final DateTime? createdAt = DateTime.tryParse(
+      newRecord['created_at']?.toString() ?? '',
+    )?.toUtc();
+    final DateTime? watermark =
+        _feedWatermarkCreatedAt ?? _computeNewestPostCreatedAt(_forYouPosts);
+    if (watermark != null &&
+        createdAt != null &&
+        createdAt.isBefore(watermark.subtract(_newPostPublishGraceWindow))) {
+      return;
+    }
+
+    final CommunityAuthor? cachedAuthor = _findCachedAuthor(authorId);
+    final bool queued = _queuePendingNewPost(postId, author: cachedAuthor);
+    if (queued && !_disposed) {
+      notifyListeners();
+      if (cachedAuthor == null && SupabaseConfig.isConfigured) {
+        unawaited(checkForNewPosts());
+      }
+    }
+  }
+
+  /// Lightweight, bounded check for newly published public posts that have not
+  /// yet been fetched into the local feed. Does not replace or refresh the feed.
+  Future<int> checkForNewPosts() async {
+    if (_disposed ||
+        _checkingForNewPosts ||
+        _isLoading ||
+        _isLoadingNewPosts ||
+        !SupabaseConfig.isConfigured ||
+        !_hasCompletedInitialFeedFetch) {
+      return 0;
+    }
+    _checkingForNewPosts = true;
+    try {
+      final client = SupabaseConfig.client!;
+      final DateTime? watermark =
+          _feedWatermarkCreatedAt ?? _computeNewestPostCreatedAt(_forYouPosts);
+
+      final dynamic query = client
+          .from('community_posts')
+          .select(
+            'id, author_id, created_at, '
+            'profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, role, verified, subscription_tier)',
+          )
+          .eq('is_public', true)
+          .eq('moderation_status', 'approved');
+
+      final dynamic scoped = watermark != null
+          ? query.gte(
+              'created_at',
+              watermark
+                  .subtract(_newPostPublishGraceWindow)
+                  .toUtc()
+                  .toIso8601String(),
+            )
+          : query;
+
+      final dynamic res = await scoped
+          .order('created_at', ascending: false)
+          .limit(_postsPageSize);
+
+      if (_disposed) return 0;
+
+      final List<Map<String, dynamic>> rows = (res as List)
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+      final Set<String> existingIds = _forYouPosts.map((p) => p.id).toSet();
+      final List<({String id, CommunityAuthor author})> discovered =
+          <({String id, CommunityAuthor author})>[];
+
+      for (final Map<String, dynamic> row in rows) {
+        final String id = row['id']?.toString().trim() ?? '';
+        final String authorId = row['author_id']?.toString().trim() ?? '';
+        if (id.isEmpty ||
+            existingIds.contains(id) ||
+            _locallyCreatedPostIds.contains(id) ||
+            _blockedUsers.contains(authorId)) {
+          continue;
+        }
+        final CommunityAuthor author = mapProfileToCommunityAuthor(
+          authorId: authorId,
+          authorProfile: row['profiles'] as Map<String, dynamic>?,
+          isFollowing: _followedAuthorIds.contains(authorId),
+        );
+        discovered.add((id: id, author: author));
+      }
+
+      bool changed = false;
+      int newlyAdded = 0;
+      // Iterate oldest-to-newest so inserting at index 0 keeps newest first.
+      for (final item in discovered.reversed) {
+        final bool wasAlreadyPending = _pendingNewPostIds.contains(item.id);
+        if (_queuePendingNewPost(item.id, author: item.author)) {
+          changed = true;
+          if (!wasAlreadyPending) newlyAdded++;
+        }
+      }
+
+      if (changed && !_disposed) {
+        notifyListeners();
+      }
+      return newlyAdded;
+    } catch (e) {
+      debugPrint('[CommunityRepository] checkForNewPosts error: $e');
+      return 0;
+    } finally {
+      _checkingForNewPosts = false;
+    }
+  }
+
+  /// Fetches ONLY the remaining pending new posts and prepends them to the feed
+  /// without refreshing the whole page or resetting already-loaded posts.
+  Future<List<CommunityPost>> loadPendingNewPosts() async {
+    if (_disposed || _isLoadingNewPosts) return const <CommunityPost>[];
+
+    if (_pendingNewPostIds.isEmpty) {
+      await checkForNewPosts();
+      if (_disposed || _pendingNewPostIds.isEmpty) {
+        return const <CommunityPost>[];
+      }
+    }
+
+    if (!SupabaseConfig.isConfigured) {
+      _pendingNewPostIds.clear();
+      _pendingNewPostAuthorsById.clear();
+      if (!_disposed) notifyListeners();
+      return const <CommunityPost>[];
+    }
+
+    _isLoadingNewPosts = true;
+    notifyListeners();
+
+    final List<String> idsToFetch = List<String>.from(_pendingNewPostIds);
+    try {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+      final List<CommunityPost> fetchedPosts = <CommunityPost>[];
+      final Map<String, List<CommunityComment>> fetchedComments =
+          <String, List<CommunityComment>>{};
+
+      for (int start = 0; start < idsToFetch.length; start += _postsPageSize) {
+        final List<String> chunk = idsToFetch.sublist(
+          start,
+          math.min(start + _postsPageSize, idsToFetch.length),
+        );
+        final page = await _fetchPostsPage(
+          client: client,
+          targetUserId: targetUserId,
+          offset: 0,
+          limit: chunk.length,
+          postIds: chunk,
+        );
+        if (_disposed) return const <CommunityPost>[];
+        fetchedPosts.addAll(page.posts);
+        fetchedComments.addAll(page.comments);
+      }
+
+      final Set<String> existingIds = _forYouPosts.map((p) => p.id).toSet();
+      final List<CommunityPost> newPosts = fetchedPosts
+          .where((p) => !existingIds.contains(p.id))
+          .toList();
+
+      if (newPosts.isNotEmpty) {
+        final Set<String> uncachedAuthorIds = newPosts
+            .map((p) => p.author.id)
+            .where(
+              (id) => _isUuid(id) && !_authorFollowersCount.containsKey(id),
+            )
+            .toSet();
+        if (uncachedAuthorIds.isNotEmpty) {
+          final extraCounts = await _fetchAuthorFollowCounts(
+            client,
+            uncachedAuthorIds,
+          );
+          if (_disposed) return const <CommunityPost>[];
+          if (extraCounts.succeeded) {
+            _authorFollowersCount.addAll(extraCounts.followers);
+            _authorFollowingCount.addAll(extraCounts.following);
+          }
+        }
+
+        _forYouPosts = <CommunityPost>[...newPosts, ..._forYouPosts]
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        _loadedPostRows += newPosts.length;
+        final newest = _computeNewestPostCreatedAt(_forYouPosts);
+        if (newest != null &&
+            (_feedWatermarkCreatedAt == null ||
+                newest.isAfter(_feedWatermarkCreatedAt!))) {
+          _feedWatermarkCreatedAt = newest;
+        }
+        _applyAuthorCountsToCollections();
+        await _fetchNetworkActivity(newPosts);
+        if (_disposed) return const <CommunityPost>[];
+        _rebuildDerivedFeedCollections();
+        _rebuildBookmarks();
+      }
+
+      if (fetchedComments.isNotEmpty) {
+        _commentsByPost = <String, List<CommunityComment>>{
+          ..._commentsByPost,
+          ...fetchedComments,
+        };
+      }
+
+      // Clear only the IDs we attempted to fetch so any post that arrived while
+      // this request was in flight remains queued on the pill.
+      final Set<String> handled = idsToFetch.toSet();
+      _pendingNewPostIds.removeWhere(handled.contains);
+      for (final String id in handled) {
+        _pendingNewPostAuthorsById.remove(id);
+      }
+
+      return newPosts;
+    } catch (e) {
+      debugPrint('[CommunityRepository] loadPendingNewPosts error: $e');
+      rethrow;
+    } finally {
+      _isLoadingNewPosts = false;
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -182,7 +672,7 @@ class CommunityRepository extends ChangeNotifier {
   void _initRealtime() {
     if (_subscribedToRealtime || !SupabaseConfig.isConfigured) return;
     _subscribedToRealtime = true;
-    AppVisibility.instance.addListener(_onVisibilityChanged);
+    _ensureVisibilityListener();
 
     try {
       final client = SupabaseConfig.client!;
@@ -193,37 +683,30 @@ class CommunityRepository extends ChangeNotifier {
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'community_posts',
-                callback: (_) => _scheduleRealtimeRefresh(),
-              )
-              .onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'community_comments',
-                callback: (_) => _scheduleRealtimeRefresh(),
-              )
-              .onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'community_post_attachments',
-                callback: (_) => _scheduleRealtimeRefresh(),
-              )
-              .onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'community_likes',
-                callback: (_) => _scheduleRealtimeRefresh(),
-              )
-              .onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'community_reposts',
-                callback: (_) => _scheduleRealtimeRefresh(),
+                callback: (PostgresChangePayload payload) {
+                  handleRealtimePostChange(
+                    eventType: payload.eventType,
+                    newRecord: payload.newRecord,
+                    oldRecord: payload.oldRecord,
+                  );
+                },
               )
               .onPostgresChanges(
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'community_follows',
-                callback: (_) => _scheduleRealtimeRefresh(),
+                callback: (PostgresChangePayload payload) {
+                  final uid = _resolveUserId();
+                  if (uid.isEmpty) return;
+                  final rec = payload.newRecord.isNotEmpty
+                      ? payload.newRecord
+                      : payload.oldRecord;
+                  final follower = rec['follower_id']?.toString() ?? '';
+                  final following = rec['following_id']?.toString() ?? '';
+                  if (follower == uid || following == uid) {
+                    _scheduleRealtimeRefresh();
+                  }
+                },
               )
             ..subscribe();
     } catch (e) {
@@ -257,20 +740,25 @@ class CommunityRepository extends ChangeNotifier {
     List<String>? postIds,
   }) async {
     final scopedAuthorId = authorId?.trim() ?? '';
+    final bool hasValidUserId = _isUuid(targetUserId);
     final dynamic res;
     if (postIds != null && postIds.isNotEmpty) {
-      res = await client
+      final base = client
           .from('community_posts')
           .select(_postSelectColumns)
-          .inFilter('id', postIds)
-          .or('is_public.eq.true,author_id.eq.$targetUserId')
+          .inFilter('id', postIds);
+      final filtered = hasValidUserId
+          ? base.or('is_public.eq.true,author_id.eq.$targetUserId')
+          : base.eq('is_public', true);
+      res = await filtered
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
     } else if (scopedAuthorId.isEmpty) {
-      res = await client
-          .from('community_posts')
-          .select(_postSelectColumns)
-          .or('is_public.eq.true,author_id.eq.$targetUserId')
+      final base = client.from('community_posts').select(_postSelectColumns);
+      final filtered = hasValidUserId
+          ? base.or('is_public.eq.true,author_id.eq.$targetUserId')
+          : base.eq('is_public', true);
+      res = await filtered
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
     } else if (scopedAuthorId == targetUserId) {
@@ -1325,6 +1813,11 @@ class CommunityRepository extends ChangeNotifier {
       if (_disposed) return;
 
       _forYouPosts = page.posts;
+      _hasCompletedInitialFeedFetch = true;
+      _feedWatermarkCreatedAt =
+          _computeNewestPostCreatedAt(page.posts) ?? DateTime.now().toUtc();
+      _pendingNewPostIds.clear();
+      _pendingNewPostAuthorsById.clear();
       _followingPosts = page.posts
           .where(
             (p) =>
@@ -1911,8 +2404,14 @@ class CommunityRepository extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _newPostsWatchers = 0;
+    _newPostsPollTimer?.cancel();
+    _newPostsPollTimer = null;
     _realtimeDebounceTimer?.cancel();
-    AppVisibility.instance.removeListener(_onVisibilityChanged);
+    if (_visibilityListenerAttached) {
+      _visibilityListenerAttached = false;
+      AppVisibility.instance.removeListener(_onVisibilityChanged);
+    }
     final realtime = _realtimeChannel;
     final notifications = _notificationsChannel;
     _realtimeChannel = null;
@@ -3674,6 +4173,7 @@ class CommunityRepository extends ChangeNotifier {
       moderationStatus: 'approved',
       views: 1,
     );
+    _locallyCreatedPostIds.add(newId);
     _forYouPosts = <CommunityPost>[post, ..._forYouPosts];
     _followingPosts = <CommunityPost>[post, ..._followingPosts];
     if (tradeSetup != null) {
@@ -3688,6 +4188,7 @@ class CommunityRepository extends ChangeNotifier {
           SupabaseConfig.client!.auth.currentUser?.id ?? '',
         ).create(post);
       } catch (e) {
+        _locallyCreatedPostIds.remove(newId);
         _forYouPosts = _forYouPosts.where((item) => item.id != newId).toList();
         _followingPosts = _followingPosts
             .where((item) => item.id != newId)

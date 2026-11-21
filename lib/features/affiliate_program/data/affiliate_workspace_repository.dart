@@ -87,7 +87,9 @@ class AffiliateWorkspaceRepository {
               .from('affiliate_profiles')
               .select(
                 'id, total_earnings, unpaid_balance, paid_earnings, tier, '
-                'commission_rate, payout_method, payout_details',
+                'commission_rate, payout_method, payout_details, '
+                'paid_referrals_count, complimentary_pro_unlocked, '
+                'terms_version_accepted, status',
               )
               .eq('id', userId)
               .maybeSingle()
@@ -121,9 +123,23 @@ class AffiliateWorkspaceRepository {
               (affProfRes?['unpaid_balance'] as num?)?.toDouble() ?? 0.0;
           final double paid =
               (affProfRes?['paid_earnings'] as num?)?.toDouble() ?? 0.0;
-          final String tier = affProfRes?['tier']?.toString() ?? 'gold';
+          final int paidReferralsCount =
+              (affProfRes?['paid_referrals_count'] as num?)?.toInt() ??
+              ((referralsRes as List?)
+                      ?.where(
+                        (dynamic r) => r is Map && r['status'] == 'converted',
+                      )
+                      .length ??
+                  0);
+          final bool complimentaryProUnlocked =
+              affProfRes?['complimentary_pro_unlocked'] == true ||
+              (affProfRes?['status']?.toString() == 'active' &&
+                  paidReferralsCount >= 50);
+          final String tier = paidReferralsCount >= 50
+              ? 'milestone'
+              : 'starter';
           final double commissionRate =
-              (affProfRes?['commission_rate'] as num?)?.toDouble() ?? 0.25;
+              (affProfRes?['commission_rate'] as num?)?.toDouble() ?? 0.0;
 
           final Map<String, Object?> liveProfile = <String, Object?>{
             'id': userId,
@@ -132,16 +148,17 @@ class AffiliateWorkspaceRepository {
             'display_name': displayName,
             'tier': tier,
             'commission_rate': commissionRate,
+            'current_commission_inr': paidReferralsCount >= 50 ? 30.0 : 10.0,
+            'paid_referrals_count': paidReferralsCount,
+            'free_pro_threshold': 50,
+            'complimentary_pro_unlocked': complimentaryProUnlocked,
+            'terms_version_accepted':
+                affProfRes?['terms_version_accepted']?.toString() ??
+                '2026.2-INR',
             'tds_rate': 0.05,
             'currency': 'INR',
             'total_referrals': (referralsRes as List?)?.length ?? 0,
-            'active_referrals':
-                (referralsRes as List?)
-                    ?.where(
-                      (dynamic r) => r is Map && r['status'] == 'converted',
-                    )
-                    .length ??
-                0,
+            'active_referrals': paidReferralsCount,
             'total_earnings': earnings,
             'unpaid_balance': unpaid,
             'paid_earnings': paid,
@@ -154,7 +171,7 @@ class AffiliateWorkspaceRepository {
                 },
             'minimum_payout_threshold': 1000.0,
             'auto_payout_enabled': true,
-            'status': 'active',
+            'status': affProfRes?['status']?.toString() ?? 'active',
           };
 
           final List<Map<String, Object?>> liveReferrals =
@@ -227,12 +244,12 @@ class AffiliateWorkspaceRepository {
       'id': 'ast-2',
       'title': 'Direct Creator Referral Link',
       'category': 'link_custom',
-      'headline': 'Exclusive 20% Discount Link',
+      'headline': 'Month 1 Offer: Basic ₹239 · Pro ₹399 (Monthly Plans)',
       'body':
-          'Get instant access to AlphaJournal Pro analytics and AI Copilot.',
-      'call_to_action': 'Claim Partner Access',
+          'New subscribers get Month 1 at ₹239 (Basic) or ₹399 (Pro) on monthly plans, then regular ₹299/₹499 renewal (1 use per user).',
+      'call_to_action': 'Claim Month 1 Partner Offer',
       'landing_path': '/r/$slug',
-      'tags': ['Link', 'CustomSlug', 'FastOnboarding'],
+      'tags': ['Link', 'CustomSlug', 'Month1Offer'],
       'published': true,
     },
   ];
@@ -598,141 +615,122 @@ class AffiliateWorkspaceRepository {
 
   static List<Map<String, Object?>> _defaultTiers() => [
     {
-      'tier_code': 'standard',
-      'display_name': 'Tier 1 · Standard Partner',
-      'commission_rate': 0.15,
+      'tier_code': 'starter',
+      'display_name': 'Tier 1 · Starter Partner (1–50 Paid Users)',
+      'commission_rate': 0.0,
+      'payout_per_user_inr': 10,
       'min_active_referrals': 0,
       'min_monthly_volume_inr': 0,
       'min_payout_threshold_inr': 1000,
       'tds_rate': 0.05,
-      'settlement_cycle': 'Weekly NEFT / UPI (Min ₹1,000)',
+      'settlement_cycle': 'UPI / Bank NEFT (Min ₹1,000)',
       'perks': [
-        '15% recurring INR revenue share on Pro & Enterprise plans',
-        'Custom referral slug & UTM campaign link builder',
-        'Direct NPCI UPI & Bank NEFT/IMPS settlements in INR (₹)',
-        ' Creator media kit with SEBI/ASCI compliant disclosures',
+        '₹10 INR payout per verified paid Basic (₹299/mo) or Pro (₹499/mo) user for your first 50 paid conversions',
+        'Referred monthly subscribers get Month 1 at ₹239 (Basic) or ₹399 (Pro), then regular ₹299/₹499 renewal (1 per user)',
+        'Custom referral slug, UTM campaign tracking, and SEBI/ASCI compliant kit',
+        'No complimentary Basic/Pro tier before reaching 50 verified paid referrals',
       ],
       'sort_order': 1,
     },
     {
-      'tier_code': 'silver',
-      'display_name': 'Tier 2 · Silver Growth Partner',
-      'commission_rate': 0.20,
-      'min_active_referrals': 10,
-      'min_monthly_volume_inr': 25000,
+      'tier_code': 'milestone',
+      'display_name': 'Tier 2 · 50+ Milestone Partner (51+ Paid Users)',
+      'commission_rate': 0.0,
+      'payout_per_user_inr': 30,
+      'min_active_referrals': 50,
+      'min_monthly_volume_inr': 0,
       'min_payout_threshold_inr': 1000,
       'tds_rate': 0.05,
-      'settlement_cycle': 'Bi-weekly IMPS / UPI (Min ₹1,000)',
+      'settlement_cycle': 'Priority UPI / IMPS / NEFT (Min ₹1,000)',
       'perks': [
-        '20% recurring INR revenue share on all referred traders',
-        'Complimentary AlphaJournal Pro workspace (₹2,499/mo value)',
-        'Verified Partner badge on Community posts & strategies',
-        'Co-branded referral landing page with creator avatar',
+        '₹30 INR payout per verified paid Basic or Pro user starting from your 51st paid referral onward',
+        'Complimentary AlphaJournal Pro unlocked automatically once 50 distinct referred users pay for Basic or Pro',
+        'Referred monthly subscribers continue receiving Month 1 at ₹239 (Basic) or ₹399 (Pro)',
+        'Quarterly Form 16A TDS statement and priority partner support',
       ],
       'sort_order': 2,
-    },
-    {
-      'tier_code': 'gold',
-      'display_name': 'Tier 3 · Gold Pro Partner',
-      'commission_rate': 0.25,
-      'min_active_referrals': 25,
-      'min_monthly_volume_inr': 75000,
-      'min_payout_threshold_inr': 1000,
-      'tds_rate': 0.05,
-      'settlement_cycle': 'T+2 Priority IMPS / UPI (Min ₹1,000)',
-      'perks': [
-        '25% recurring INR revenue share on Pro & Enterprise plans',
-        'Exclusive 20% audience discount code on first renewal',
-        'Dedicated partner manager & custom Hindi/English creatives',
-        'Automated quarterly Form 16A TDS & GST invoice ledger',
-      ],
-      'sort_order': 3,
-    },
-    {
-      'tier_code': 'platinum',
-      'display_name': 'Tier 4 · Institutional Desk Partner',
-      'commission_rate': 0.35,
-      'min_active_referrals': 50,
-      'min_monthly_volume_inr': 200000,
-      'min_payout_threshold_inr': 1000,
-      'tds_rate': 0.05,
-      'settlement_cycle': 'Instant UPI / RTGS Desk Settlement',
-      'perks': [
-        '35% lifetime INR revenue share across retail & desk seats',
-        'Complimentary Business Desk seat (₹999/mo value)',
-        'Co-hosted live trading bootcamps & INR sponsorship grants',
-        'Custom webhook attribution & sub-affiliate rev-share splits',
-      ],
-      'sort_order': 4,
     },
   ];
 
   static List<Map<String, Object?>> _defaultTerms() => [
     {
       'id': 'term-1',
-      'clause_code': 'INR-SETTLEMENT-01',
-      'version': '2026.1-INR',
-      'title': '100% INR (₹) Settlement & Minimum Threshold',
+      'clause_code': 'PAYOUT-SCHEDULE-01',
+      'version': '2026.2-INR',
+      'title': 'Tiered Per-User INR Commission (₹10 First 50 · ₹30 After 50)',
       'category': 'payouts_tax',
       'summary':
-          'All commissions, bonuses, and settlements are denominated and paid exclusively in Indian Rupees (₹ INR).',
+          'Earn ₹10 per verified paid Basic/Pro user for your first 50 conversions and ₹30 per paid user from conversion #51 onward.',
       'body':
-          'Commissions are calculated as a percentage of net qualifying subscription revenue collected in INR (excluding 18% GST). Minimum withdrawal threshold is ₹1,000 INR (configurable upward by the partner). Supported payout rails are NPCI UPI (VPA), Bank NEFT, IMPS, and RTGS to verified Indian bank accounts with a valid 11-character IFSC.',
+          'Under Revision 2026.2-INR, approved AlphaJournal affiliates earn ₹10 INR per verified distinct paying subscriber for their first 50 paid Basic or Pro conversions (users #1–50). Starting from the 51st verified paid Basic or Pro subscriber onward (users #51+), affiliate commission increases to ₹30 INR per verified paid conversion. Payouts are settled exclusively in INR (₹) via NPCI UPI (VPA), Bank NEFT, IMPS, or RTGS with a ₹1,000 minimum withdrawal threshold.',
       'mandatory': true,
       'sort_order': 1,
     },
     {
       'id': 'term-2',
-      'clause_code': 'TDS-GST-02',
-      'version': '2026.1-INR',
-      'title': 'Indian Tax Deduction at Source (TDS u/s 194H) & GST Compliance',
-      'category': 'payouts_tax',
+      'clause_code': 'SUBSCRIBER-OFFER-02',
+      'version': '2026.2-INR',
+      'title':
+          'Monthly Month-1 Subscriber Discount, Validity & One-User-at-a-Time Limit',
+      'category': 'attribution',
       'summary':
-          '5% statutory TDS applies under Section 194H of the Income Tax Act; GST-registered partners may submit GSTIN.',
+          'Referred users get Month 1 at ₹239 (Basic) or ₹399 (Pro) on monthly plans, renewing at ₹299/₹499 from Month 2; strictly 1 code per user lifetime.',
       'body':
-          'In accordance with Section 194H of the Indian Income Tax Act, 1961, AlphaJournal deducts 5% TDS on gross affiliate commission payouts where applicable and issues quarterly Form 16A certificates against your verified 10-character PAN. Partners with a valid 15-character GSTIN may enable GST invoicing in Affiliate Settings.',
+          'A valid, active affiliate referral code discounts only the first month of a new subscriber\'s Monthly subscription: Basic Monthly is ₹239 for Month 1 (₹60 off ₹299) and renews at ₹299/mo from Month 2; Pro Monthly is ₹399 for Month 1 (₹100 off ₹499) and renews at ₹499/mo from Month 2. Annual plans (Basic ₹2,868/yr, Pro ₹4,788/yr) already include the 20% discounted rate and credit the referring affiliate without stacking extra discount. Each user account may redeem at most one referral code in its lifetime on their first paid checkout only; codes require an active partner within the offer validity window.',
       'mandatory': true,
       'sort_order': 2,
     },
     {
       'id': 'term-3',
-      'clause_code': 'ATTRIBUTION-COOKIE-03',
-      'version': '2026.1-INR',
-      'title':
-          '30-Day First-Party Referral Attribution & Qualifying Conversions',
-      'category': 'attribution',
+      'clause_code': 'AFFILIATE-COUPON-BAN-03',
+      'version': '2026.2-INR',
+      'title': 'Strict Prohibition on Affiliate Coupon Use & Self-Referrals',
+      'category': 'conduct',
       'summary':
-          '30-day attribution window on /r/:slug links with UTM campaign tracking and billing webhook qualification.',
+          'Affiliates are strictly prohibited from redeeming their own or any other affiliate\'s referral or coupon codes.',
       'body':
-          'When a prospective trader visits your referral link (/r/:code?utm_campaign=:slug), attribution is persisted for 30 days. Signups create a pending referral record; commissions are credited to your unpaid INR balance once the referred subscriber completes a verified paid subscription (Pro ₹2,499/mo or Business ₹999/mo) and clears the 7-day refund guard.',
+          'Approved, active, pending, or suspended affiliate accounts are prohibited from applying their own referral code, another affiliate\'s referral code, or any promotional referral coupon to their own subscription checkout. Self-referrals, circular referrals between partner accounts, paid brand-keyword bidding on "AlphaJournal", and coupon spoofing are enforced technically and contractually and will result in commission forfeiture and permanent suspension.',
       'mandatory': true,
       'sort_order': 3,
     },
     {
       'id': 'term-4',
-      'clause_code': 'SEBI-ASCI-COMPLIANCE-04',
-      'version': '2026.1-INR',
-      'title': 'SEBI & ASCI Finfluencer Disclosure Mandate',
-      'category': 'compliance_sebi',
+      'clause_code': 'FREE-PRO-MILESTONE-04',
+      'version': '2026.2-INR',
+      'title': '50 Paid Basic/Pro Referrals Required for Complimentary Pro',
+      'category': 'attribution',
       'summary':
-          'Mandatory affiliate disclosure and prohibition on guaranteed return claims or unregistered investment advice.',
+          'No complimentary Basic or Pro tier is provided upon approval; free Pro unlocks automatically only at 50 verified paid Basic/Pro referrals.',
       'body':
-          'Partners must clearly disclose that their link is a commercial referral link in accordance with ASCI Guidelines for Influencer Advertising in Digital Media and SEBI circulars. Partners must never promise guaranteed trading profits, assured returns, or represent AlphaJournal software tools as SEBI-registered portfolio management or advisory tips.',
+          'Approval into the AlphaJournal Affiliate Program does not include complimentary Basic or Pro access. Affiliates start on the Free tier (or may purchase Basic or Pro at standard pricing without using any referral/coupon code). Complimentary AlphaJournal Pro unlocks automatically once 50 distinct referred users complete verified Basic or Pro payments. If refunds, chargebacks, or fraud reversals reduce verified paid conversions below 50, or if the affiliate account is suspended, complimentary Pro access is automatically revoked.',
       'mandatory': true,
       'sort_order': 4,
     },
     {
       'id': 'term-5',
-      'clause_code': 'ANTI-ABUSE-05',
-      'version': '2026.1-INR',
-      'title': 'Prohibition of Self-Referrals, Brand Bidding & Coupon Spoofing',
-      'category': 'conduct',
+      'clause_code': 'TDS-CLAWBACK-05',
+      'version': '2026.2-INR',
+      'title': 'Section 194H TDS, GST Compliance & Refund Clawbacks',
+      'category': 'payouts_tax',
       'summary':
-          'Self-referrals, paid search bidding on AlphaJournal brand keywords, and misleading coupon pages are strictly prohibited.',
+          '5% statutory TDS u/s 194H applies where required; refunded or disputed subscriptions reverse commissions and milestone counts.',
       'body':
-          'Accounts found referring their own trading seats, running Google/Meta paid ads targeting "AlphaJournal" brand terms without written authorization, or injecting unauthorized tracking scripts will have pending commissions forfeited and partner access suspended by the Institutional Desk Administrator.',
+          'In accordance with Section 194H of the Indian Income Tax Act, 1961, AlphaJournal deducts 5% statutory TDS where applicable and issues quarterly Form 16A records against verified PAN details. GST-registered partners may provide a valid 15-character GSTIN. Subscription plan upgrades, downgrades, or renewals by an already-converted user do not generate duplicate commissions. Refunds, payment disputes, or chargebacks automatically reverse the associated commission and decrement the verified paid referral count.',
       'mandatory': true,
       'sort_order': 5,
+    },
+    {
+      'id': 'term-6',
+      'clause_code': 'SEBI-ASCI-COMPLIANCE-06',
+      'version': '2026.2-INR',
+      'title': 'SEBI & ASCI Finfluencer Disclosure Mandate',
+      'category': 'compliance_sebi',
+      'summary':
+          'Mandatory commercial referral disclosure and prohibition on guaranteed return claims or unregistered investment advice.',
+      'body':
+          'Partners must clearly disclose that their link or code is a commercial referral in accordance with ASCI Guidelines for Influencer Advertising in Digital Media and applicable SEBI circulars. Partners must never promise guaranteed trading profits, assured returns, or represent AlphaJournal software tools as SEBI-registered portfolio management or advisory tips.',
+      'mandatory': true,
+      'sort_order': 6,
     },
   ];
 
@@ -741,14 +739,18 @@ class AffiliateWorkspaceRepository {
       'id': 'demo-affiliate',
       'affiliate_code': 'PARTNER26',
       'custom_slug': 'nitish-trades',
-      'tier': 'gold',
-      'commission_rate': 0.25,
+      'tier': 'starter',
+      'commission_rate': 0.0,
+      'current_commission_inr': 10.0,
+      'paid_referrals_count': 11,
+      'free_pro_threshold': 50,
+      'complimentary_pro_unlocked': false,
       'tds_rate': 0.05,
       'gst_registered': true,
       'gstin': '27ABCDE1234F1Z5',
       'pan_number': 'ABCDE1234F',
-      'terms_version_accepted': '2026.1-INR',
-      'terms_accepted_at': '2026-01-15T09:00:00Z',
+      'terms_version_accepted': '2026.2-INR',
+      'terms_accepted_at': '2026-11-21T09:00:00Z',
       'currency': 'INR',
       'total_referrals': 18,
       'active_referrals': 11,
