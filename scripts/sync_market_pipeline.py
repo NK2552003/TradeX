@@ -584,16 +584,25 @@ def sync_news(db, workers, report):
     cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     articles = [a for a in articles if cutoff <= a['published_at'] <= future]
-    # Include recent existing articles to repair previously missing images.
-    existing = db.select('news_articles', select='title,summary,link,publisher,thumbnail_url,content_type,published_at',
-                         published_at=f'gte.{cutoff}', order='id') if db else []
     fresh_count = len(articles)
-    # Remove the old pipeline's unrelated generic Unsplash placeholders.
+    # Only repair recent stored articles that are missing a thumbnail/summary or
+    # still carry an old placeholder image, and cap repairs per run so sync_news
+    # does not re-scrape and re-upsert 12,000+ shard-synced articles concurrently.
+    existing = db.select(
+        'news_articles',
+        select='title,summary,link,publisher,thumbnail_url,content_type,published_at',
+        published_at=f'gte.{cutoff}',
+        order='published_at.desc,id.desc',
+    ) if db else []
     legacy_images = {a['thumbnail_url'] for a in existing if legacy_image(a.get('thumbnail_url'))}
+    repair_candidates = []
     for article in existing:
         if legacy_image(article.get('thumbnail_url')):
-            article['thumbnail_url'] = None
-    articles = merge_articles(existing + articles)
+            article = {**article, 'thumbnail_url': None}
+            repair_candidates.append(article)
+        elif not article.get('thumbnail_url') or not article.get('summary'):
+            repair_candidates.append(article)
+    articles = merge_articles(repair_candidates[:100] + articles)
     with ThreadPoolExecutor(max_workers=workers) as pool:
         articles = list(pool.map(enrich_article, articles))
     report['news'] = {'fresh_articles': fresh_count, 'articles': len(articles),
@@ -605,12 +614,17 @@ def sync_news(db, workers, report):
     if not db or not articles:
         return
     db.upsert('news_articles', [{k: v for k, v in a.items() if not k.startswith('_')} for a in articles], 'link')
-    db_articles = db.select('news_articles', select='id,link', published_at=f'gte.{cutoff}', order='id')
-    ids = {a['link']: a['id'] for a in db_articles}
+    article_links = [a['link'] for a in articles if a.get('link')]
+    db_articles = []
+    for start in range(0, len(article_links), 50):
+        links_in = ','.join(json.dumps(k) for k in article_links[start:start + 50])
+        db_articles.extend(db.select('news_articles', select='id,link', link=f'in.({links_in})', order='id'))
+    ids = {a['link']: a['id'] for a in db_articles if a.get('id') and a.get('link')}
     valid = {t['ticker'] for t in db.select('tickers', select='ticker', order='ticker')}
     links = {(ids[a['link']], symbol) for a in articles if a['link'] in ids
              for symbol in a.get('_related_tickers', []) if symbol in valid}
-    db.upsert('news_article_tickers', [{'article_id': aid, 'ticker': symbol} for aid, symbol in sorted(links)], 'article_id,ticker')
+    if links:
+        db.upsert('news_article_tickers', [{'article_id': aid, 'ticker': symbol} for aid, symbol in sorted(links)], 'article_id,ticker')
     # Clear only explicitly identified legacy placeholders, after enrichment.
     for image in legacy_images:
         db.call('PATCH', 'news_articles', params={'thumbnail_url': f'eq.{image}'}, body={'thumbnail_url': None})

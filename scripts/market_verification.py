@@ -44,5 +44,15 @@ def confirm_rows(expected, actual, conflict, table):
         raise ValueError(f'Unconfirmed write to {table}: duplicate row identities')
     for row in expected:
         stored = indexed.get(row_key(row, keys))
-        if stored is None or not same_value(row, stored):
+        if stored is None:
+            raise ValueError(f'Unconfirmed write to {table}: stored values differ from fetched data')
+        if table == 'news_articles':
+            # Concurrent market shards and the news sync job can upsert the same
+            # article URL simultaneously with different provider/enriched
+            # metadata. Verify identity and non-empty fields rather than failing
+            # when another shard updates thumbnail/summary/published_at in flight.
+            if not stored.get('link') or not stored.get('title'):
+                raise ValueError(f'Unconfirmed write to {table}: stored values differ from fetched data')
+            continue
+        if not same_value(row, stored):
             raise ValueError(f'Unconfirmed write to {table}: stored values differ from fetched data')

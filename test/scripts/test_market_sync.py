@@ -304,6 +304,62 @@ class NewsTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 news._public_url('https://example.test/story')
 
+    def test_sync_news_skips_complete_existing_articles_and_handles_concurrent_shard_updates(self):
+        db = MagicMock()
+        now = datetime.now(timezone.utc).isoformat()
+        complete_existing = {
+            'title': 'Complete article',
+            'summary': 'Existing summary',
+            'link': 'https://example.test/complete',
+            'publisher': 'Publisher',
+            'thumbnail_url': 'https://example.test/complete.jpg',
+            'content_type': 'STORY',
+            'published_at': now,
+        }
+        incomplete_existing = {
+            'title': 'Needs image',
+            'summary': 'Existing summary',
+            'link': 'https://example.test/incomplete',
+            'publisher': 'Publisher',
+            'thumbnail_url': None,
+            'content_type': 'STORY',
+            'published_at': now,
+        }
+        fresh_article = {
+            'title': 'Fresh headline',
+            'summary': 'Fresh summary',
+            'link': 'https://example.test/fresh',
+            'publisher': 'Publisher',
+            'thumbnail_url': 'https://example.test/fresh.jpg',
+            'content_type': 'STORY',
+            'published_at': now,
+            '_related_tickers': ['AAPL'],
+        }
+        db.select.side_effect = [
+            [complete_existing, incomplete_existing],
+            [{'id': 1, 'link': 'https://example.test/incomplete'}, {'id': 2, 'link': 'https://example.test/fresh'}],
+            [{'ticker': 'AAPL'}],
+        ]
+        report = {'errors': [], 'warnings': []}
+        with patch.object(pipeline, 'fetch_news', return_value=[fresh_article]), \
+             patch.object(pipeline, 'enrich_article', side_effect=lambda a: a):
+            pipeline.sync_news(db, 1, report)
+
+        upserted_articles = db.upsert.call_args_list[0].args[1]
+        upserted_links = {a['link'] for a in upserted_articles}
+        self.assertEqual(upserted_links, {'https://example.test/incomplete', 'https://example.test/fresh'})
+        self.assertNotIn('https://example.test/complete', upserted_links)
+
+        # Simulate a concurrent shard updating thumbnail_url / published_at on news_articles
+        # between POST and read-back verification.
+        from market_verification import confirm_rows
+        confirm_rows(
+            [{'link': 'https://example.test/fresh', 'title': 'Fresh headline', 'thumbnail_url': 'https://example.test/large.jpg'}],
+            [{'id': 2, 'link': 'https://example.test/fresh', 'title': 'Fresh headline', 'thumbnail_url': 'https://example.test/small.jpg'}],
+            'link',
+            'news_articles',
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

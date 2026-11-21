@@ -8,6 +8,7 @@ renders: news, options, dividends_and_splits, recommendations, holders.
 from datetime import date, datetime, timezone
 import json
 import math
+from market_news import plain_text, published_iso, web_url
 
 MAX_NEWS = 15
 MAX_EXPIRATIONS = 4
@@ -44,19 +45,24 @@ def news_items(raw, limit=MAX_NEWS):
     items = []
     for item in (raw or [])[:limit]:
         content = item.get('content', item) or {}
-        link = ((content.get('canonicalUrl') or {}).get('url') or (content.get('clickThroughUrl') or {}).get('url')
-                or item.get('link'))
-        title = content.get('title') or item.get('title')
+        link = web_url((content.get('canonicalUrl') or {}).get('url')
+                       or (content.get('clickThroughUrl') or {}).get('url')
+                       or item.get('link'))
+        title = plain_text(content.get('title') or item.get('title'))
         if not title or not link:
             continue
         thumbs = ((content.get('thumbnail') or {}).get('resolutions') or [])
-        published = content.get('pubDate') or item.get('providerPublishTime')
-        if isinstance(published, (int, float)):
-            published = datetime.fromtimestamp(published, timezone.utc).isoformat()
+        images = sorted(thumbs, key=lambda r: (
+            r.get('tag') == 'original', (r.get('width') or 0) * (r.get('height') or 0)), reverse=True)
+        image = next((web_url(r.get('url')) for r in images if web_url(r.get('url'))), None)
+        image = image or web_url((content.get('thumbnail') or {}).get('originalUrl'))
+        published = published_iso(content.get('pubDate') or item.get('providerPublishTime'))
         items.append({
-            'title': title, 'summary': content.get('summary') or item.get('summary'), 'link': link,
-            'publisher': (content.get('provider') or {}).get('displayName') or item.get('publisher'),
-            'thumbnail_url': (thumbs[0].get('url') if thumbs else None) or (content.get('thumbnail') or {}).get('originalUrl'),
+            'title': title,
+            'summary': plain_text(content.get('summary') or item.get('summary')) or None,
+            'link': link,
+            'publisher': plain_text((content.get('provider') or {}).get('displayName') or item.get('publisher')) or None,
+            'thumbnail_url': image,
             'published_at': published,
         })
     return items
