@@ -182,11 +182,11 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     _soundwaveController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
-    )..repeat(reverse: true);
+    );
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
+    );
 
     _initializeFallbackParticipants();
     AppVisibility.instance.addListener(_onVisibilityChanged);
@@ -214,6 +214,22 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
 
     // Visibility-aware polling sync timer with exponential backoff
     _scheduleSync();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _soundwaveController.stop();
+      _pulseController.stop();
+    } else {
+      if (!_soundwaveController.isAnimating) {
+        _soundwaveController.repeat(reverse: true);
+      }
+      if (!_pulseController.isAnimating) {
+        _pulseController.repeat(reverse: true);
+      }
+    }
   }
 
   void _onVisibilityChanged(bool isVisible) {
@@ -1920,44 +1936,46 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                       alignment: Alignment.bottomRight,
                       children: <Widget>[
                         // Speaking glow ring with pulse
-                        AnimatedBuilder(
-                          animation: _pulseController,
-                          builder: (BuildContext c, Widget? child) {
-                            return Container(
-                              padding: EdgeInsets.all(
-                                context.sp(theme.spacing.xxs),
-                              ),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isSpeaking
-                                      ? theme.colors.success.withValues(
-                                          alpha:
-                                              0.5 +
-                                              (_pulseController.value * 0.5),
-                                        )
-                                      : Colors.transparent,
-                                  width: isSpeaking ? 3.0 : 1.0,
+                        RepaintBoundary(
+                          child: AnimatedBuilder(
+                            animation: _pulseController,
+                            builder: (BuildContext c, Widget? child) {
+                              return Container(
+                                padding: EdgeInsets.all(
+                                  context.sp(theme.spacing.xxs),
                                 ),
-                                boxShadow: isSpeaking
-                                    ? <BoxShadow>[
-                                        BoxShadow(
-                                          color: theme.colors.success
-                                              .withValues(
-                                                alpha:
-                                                    0.3 *
-                                                    _pulseController.value,
-                                              ),
-                                          blurRadius: 10,
-                                          spreadRadius: 2,
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: child,
-                            );
-                          },
-                          child: UiAvatar(name: name, size: UiSize.lg),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isSpeaking
+                                        ? theme.colors.success.withValues(
+                                            alpha:
+                                                0.5 +
+                                                (_pulseController.value * 0.5),
+                                          )
+                                        : Colors.transparent,
+                                    width: isSpeaking ? 3.0 : 1.0,
+                                  ),
+                                  boxShadow: isSpeaking
+                                      ? <BoxShadow>[
+                                          BoxShadow(
+                                            color: theme.colors.success
+                                                .withValues(
+                                                  alpha:
+                                                      0.3 *
+                                                      _pulseController.value,
+                                                ),
+                                            blurRadius: 10,
+                                            spreadRadius: 2,
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: child,
+                              );
+                            },
+                            child: UiAvatar(name: name, size: UiSize.lg),
+                          ),
                         ),
                         // Mic status badge
                         Container(
@@ -3139,21 +3157,23 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
 
   Widget _buildSoundwave(BuildContext context) {
     final UiTheme theme = context.ui;
-    return AnimatedBuilder(
-      animation: _soundwaveController,
-      builder: (BuildContext ctx, Widget? child) {
-        final double v = _soundwaveController.value;
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            _waveBar(4 + (v * 8), theme.colors.success),
-            const SizedBox(width: 1.5),
-            _waveBar(10 - (v * 6), theme.colors.success),
-            const SizedBox(width: 1.5),
-            _waveBar(6 + (v * 7), theme.colors.success),
-          ],
-        );
-      },
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _soundwaveController,
+        builder: (BuildContext ctx, Widget? child) {
+          final double v = _soundwaveController.value;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _waveBar(4 + (v * 8), theme.colors.success),
+              const SizedBox(width: 1.5),
+              _waveBar(10 - (v * 6), theme.colors.success),
+              const SizedBox(width: 1.5),
+              _waveBar(6 + (v * 7), theme.colors.success),
+            ],
+          );
+        },
+      ),
     );
   }
 

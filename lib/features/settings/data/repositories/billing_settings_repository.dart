@@ -111,7 +111,8 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
               : {}),
       monthlyAmount: resolvedMonthly,
       annualMonthsBilled: _pricingCatalogue?.annualMonthsBilled ?? 12,
-      cancelAtPeriodEnd: _session.cancelAtPeriodEnd,
+      cancelAtPeriodEnd:
+          effectiveTier != AppTier.free && _session.cancelAtPeriodEnd,
       discountCode: _session.discountCode,
       discountPercent: _session.discountPercent,
     );
@@ -137,7 +138,8 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
       final cycle = data?['billing_cycle'] as String? ?? 'monthly';
       _session.tier.value = tier;
       _session.billingCycle = cycle;
-      _session.cancelAtPeriodEnd = data?['status'] == 'canceled';
+      _session.cancelAtPeriodEnd =
+          tier != AppTier.free && data?['status'] == 'canceled';
       final renewed = DateTime.tryParse(data?['renewed_at']?.toString() ?? '');
       final expires = DateTime.tryParse(data?['expires_at']?.toString() ?? '');
       final effectiveRenewed = renewed ?? DateTime.now();

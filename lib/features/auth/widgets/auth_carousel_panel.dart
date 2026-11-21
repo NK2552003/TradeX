@@ -14,9 +14,10 @@ class AuthCarouselPanel extends StatefulWidget {
 
 class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
   final PageController _pageController = PageController(viewportFraction: 0.88);
-  int _currentFeatureIndex = 0;
+  final ValueNotifier<int> _currentFeatureIndex = ValueNotifier<int>(0);
   bool _carouselForward = true;
   Timer? _carouselTimer;
+  bool _disableAnimations = false;
 
   /// The sign-in preview renders the same records the signed-in app renders, so
   /// the shop window cannot advertise a post, strategy or headline that does not
@@ -60,16 +61,32 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
   @override
   void initState() {
     super.initState();
-    _startCarouselTimer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool reducedMotion = MediaQuery.disableAnimationsOf(context);
+    if (reducedMotion != _disableAnimations || _carouselTimer == null) {
+      _disableAnimations = reducedMotion;
+      if (reducedMotion) {
+        _carouselTimer?.cancel();
+        _carouselTimer = null;
+      } else if (_carouselTimer == null) {
+        _startCarouselTimer();
+      }
+    }
   }
 
   void _startCarouselTimer() {
+    _carouselTimer?.cancel();
     _carouselTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (!mounted) return;
+      if (!mounted || _disableAnimations) return;
       if (_pageController.hasClients &&
           _pageController.position.hasContentDimensions) {
+        final int current = _currentFeatureIndex.value;
         if (_carouselForward) {
-          if (_currentFeatureIndex < _features.length - 1) {
+          if (current < _features.length - 1) {
             _pageController.nextPage(
               duration: const Duration(milliseconds: 600),
               curve: Curves.easeInOut,
@@ -82,7 +99,7 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
             );
           }
         } else {
-          if (_currentFeatureIndex > 0) {
+          if (current > 0) {
             _pageController.previousPage(
               duration: const Duration(milliseconds: 600),
               curve: Curves.easeInOut,
@@ -101,38 +118,46 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
 
   @override
   void dispose() {
-    _pageController.dispose();
     _carouselTimer?.cancel();
+    _pageController.dispose();
+    _currentFeatureIndex.dispose();
     super.dispose();
+  }
+
+  Widget _buildCarouselCard(BuildContext context, int index) {
+    final theme = context.ui;
+    switch (index % 4) {
+      case 0:
+        return AppPostCard(post: _post);
+      case 1:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int i = 0; i < _strategies.length; i++) ...[
+              if (i > 0) SizedBox(height: context.sp(theme.spacing.lg)),
+              AppStrategyPerformanceCard(strategy: _strategies[i]),
+            ],
+          ],
+        );
+      case 2:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int i = 0; i < _news.length; i++) ...[
+              if (i > 0) SizedBox(height: context.sp(theme.spacing.lg)),
+              AppNewsCard(item: _news[i]),
+            ],
+          ],
+        );
+      default:
+        return AppAiInsightCard(insight: _insight);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
-
-    final List<Widget> carouselCards = [
-      AppPostCard(post: _post),
-      Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (int i = 0; i < _strategies.length; i++) ...[
-            if (i > 0) SizedBox(height: context.sp(theme.spacing.lg)),
-            AppStrategyPerformanceCard(strategy: _strategies[i]),
-          ],
-        ],
-      ),
-      Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (int i = 0; i < _news.length; i++) ...[
-            if (i > 0) SizedBox(height: context.sp(theme.spacing.lg)),
-            AppNewsCard(item: _news[i]),
-          ],
-        ],
-      ),
-      AppAiInsightCard(insight: _insight),
-    ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -141,25 +166,26 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
         final Widget carousel = PageView.builder(
           controller: _pageController,
           onPageChanged: (idx) {
-            setState(() {
-              _currentFeatureIndex = idx;
-            });
+            _currentFeatureIndex.value = idx;
           },
           itemCount: _features.length,
           itemBuilder: (context, idx) {
-            final card = carouselCards[idx % carouselCards.length];
-
-            return Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: context.sp(theme.spacing.sm),
-              ),
-              child: Center(
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.center,
-                    child: SizedBox(width: 440, child: card),
+            return RepaintBoundary(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.sm),
+                ),
+                child: Center(
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: SizedBox(
+                        width: 440,
+                        child: _buildCarouselCard(context, idx),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -167,54 +193,64 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
           },
         );
 
-        final Widget textAndDots = Padding(
-          padding: EdgeInsets.fromLTRB(
-            context.sp(theme.spacing.xl),
-            context.sp(theme.spacing.sm),
-            context.sp(theme.spacing.xl),
-            context.sp(theme.spacing.xl),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Dynamic Feature Title & Description
-              Text(
-                _features[_currentFeatureIndex]['title']!,
-                style: context.uiText.heading,
-                textAlign: TextAlign.left,
-              ),
-              SizedBox(height: context.sp(theme.spacing.xs)),
-              Text(
-                _features[_currentFeatureIndex]['desc']!,
-                style: context.uiText.body.copyWith(
-                  color: colors.foregroundMuted,
-                  height: 1.5,
+        final Widget textAndDots = RepaintBoundary(
+          child: ValueListenableBuilder<int>(
+            valueListenable: _currentFeatureIndex,
+            builder: (context, activeIndex, _) {
+              final int safeIndex = activeIndex.clamp(0, _features.length - 1);
+              return Padding(
+                padding: EdgeInsets.fromLTRB(
+                  context.sp(theme.spacing.xl),
+                  context.sp(theme.spacing.sm),
+                  context.sp(theme.spacing.xl),
+                  context.sp(theme.spacing.xl),
                 ),
-                textAlign: TextAlign.left,
-              ),
-              SizedBox(height: context.sp(theme.spacing.lg)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Dynamic Feature Title & Description
+                    Text(
+                      _features[safeIndex]['title']!,
+                      style: context.uiText.heading,
+                      textAlign: TextAlign.left,
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.xs)),
+                    Text(
+                      _features[safeIndex]['desc']!,
+                      style: context.uiText.body.copyWith(
+                        color: colors.foregroundMuted,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.left,
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.lg)),
 
-              // Carousel Indicator Dots
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_features.length, (index) {
-                  final isActive = index == _currentFeatureIndex;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    margin: EdgeInsets.only(
-                      right: context.sp(theme.spacing.sm),
+                    // Carousel Indicator Dots
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(_features.length, (index) {
+                        final isActive = index == safeIndex;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: EdgeInsets.only(
+                            right: context.sp(theme.spacing.sm),
+                          ),
+                          height: 8,
+                          width: isActive ? 24 : 8,
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? colors.primary
+                                : colors.borderStrong,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        );
+                      }),
                     ),
-                    height: 8,
-                    width: isActive ? 24 : 8,
-                    decoration: BoxDecoration(
-                      color: isActive ? colors.primary : colors.borderStrong,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  );
-                }),
-              ),
-            ],
+                  ],
+                ),
+              );
+            },
           ),
         );
 

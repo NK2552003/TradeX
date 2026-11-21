@@ -55,12 +55,15 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
         ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
+    final double pagePad = context.sp(
+      responsive.isMobile ? theme.spacing.sm : theme.spacing.lg,
+    );
     return SingleChildScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: EdgeInsets.fromLTRB(
-        context.sp(responsive.isMobile ? theme.spacing.sm : theme.spacing.lg),
-        context.sp(responsive.isMobile ? theme.spacing.sm : theme.spacing.lg),
-        context.sp(responsive.isMobile ? theme.spacing.sm : theme.spacing.lg),
+        pagePad,
+        MediaQuery.paddingOf(context).top + pagePad,
+        pagePad,
         bottomInset,
       ),
       child: Center(

@@ -42,10 +42,9 @@ class UiIconButton extends StatelessWidget {
       builder: (BuildContext ctx, UiInteractiveState s) {
         final c = ctx.uiColors;
         final Color? intentColor = intent?.color(ctx);
+        final Color zeroHover = c.surfaceHover.withValues(alpha: 0.0);
         final Color bg = !s.enabled
-            ? (variant == UiVariant.ghost
-                  ? Colors.transparent
-                  : c.disabledBackground)
+            ? (variant == UiVariant.ghost ? zeroHover : c.disabledBackground)
             : intentColor != null
             ? switch (variant) {
                 UiVariant.primary || UiVariant.solid =>
@@ -57,22 +56,22 @@ class UiIconButton extends StatelessWidget {
                 UiVariant.outline =>
                   s.hovered
                       ? intentColor.withValues(alpha: 0.08)
-                      : Colors.transparent,
+                      : intentColor.withValues(alpha: 0.0),
                 UiVariant.ghost =>
                   s.hovered
                       ? intentColor.withValues(alpha: 0.08)
-                      : Colors.transparent,
+                      : intentColor.withValues(alpha: 0.0),
                 _ =>
                   s.hovered
                       ? intentColor.withValues(alpha: 0.15)
-                      : Colors.transparent,
+                      : intentColor.withValues(alpha: 0.0),
               }
             : switch (variant) {
                 UiVariant.primary => s.hovered ? c.primaryHover : c.primary,
                 UiVariant.destructive => c.destructive,
                 UiVariant.success => c.bullish,
                 UiVariant.secondary => s.hovered ? c.surfaceHover : c.secondary,
-                _ => s.hovered ? c.surfaceHover : Colors.transparent,
+                _ => s.hovered ? c.surfaceHover : zeroHover,
               };
         final Color fg = !s.enabled
             ? c.disabledForeground

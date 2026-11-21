@@ -516,7 +516,9 @@ class _QuickLinkCell extends StatelessWidget {
             vertical: context.sp(theme.spacing.sm),
           ),
           decoration: BoxDecoration(
-            color: state.hovered ? color.surfaceHover : Colors.transparent,
+            color: state.hovered
+                ? color.surfaceHover
+                : color.surfaceHover.withValues(alpha: 0.0),
             border: Border(
               left: showLeftRule ? rule : BorderSide.none,
               top: showTopRule ? rule : BorderSide.none,

@@ -266,11 +266,26 @@ class _Glyph {
 }
 
 class _Chunk {
-  _Chunk(this.path, this.start) : metric = path.computeMetrics().first;
+  _Chunk(this.path, this.strokePath, this.start)
+    : metric = path.computeMetrics().first,
+      strokeMetric = strokePath.computeMetrics().first {
+    strokeOverlapLength = math.max(0.0, strokeMetric.length - metric.length);
+  }
+
+  /// Exact non-overlapping segment used for shadow casting & distance ranges so
+  /// outer drop shadows never double-darken at chunk joints.
   final Path path;
+
+  /// Extended segment that begins [strokeOverlapLength] units inside the
+  /// previous chunk so the opaque ribbon stroke completely covers any backward
+  /// blur bleed from this chunk's drop shadow and eliminates butt-cap seams.
+  final Path strokePath;
+
   final double start;
   final ui.PathMetric metric;
-  late final Rect bounds = path.getBounds();
+  final ui.PathMetric strokeMetric;
+  late final double strokeOverlapLength;
+  late final Rect bounds = strokePath.getBounds();
   double get end => start + metric.length;
 }
 
@@ -311,6 +326,10 @@ class _ThreadModel {
     }
 
     const chunkSize = 100;
+    // 14 points * ~4 design units ≈ 56 units — exceeds the blur (8 * 3 = 24) +
+    // shadow Y shift (7) + half-glyph width, yet stays well below any loop
+    // self-crossing distance (min circumference ≥ 2π * 0.9 * thickness ≈ 430).
+    const overlapPoints = 14;
     final chunks = <_Chunk>[];
     // Skip the invisible lead-in on the design canvas. Leave a margin for the
     // stroke and its blurred shadow before the first visible point.
@@ -323,12 +342,16 @@ class _ThreadModel {
     double? entranceStart;
     var start = 0.0;
     for (var s = 0; s < points.length - 1; s += chunkSize) {
-      final segment = points.sublist(
-        s,
-        math.min(s + chunkSize + 1, points.length),
-      );
+      final endIdx = math.min(s + chunkSize + 1, points.length);
+      final segment = points.sublist(s, endIdx);
       final path = Path()..addPolygon(segment, false);
-      final chunk = _Chunk(path, start);
+      final strokePath = s == 0
+          ? path
+          : (Path()..addPolygon(
+              points.sublist(math.max(0, s - overlapPoints), endIdx),
+              false,
+            ));
+      final chunk = _Chunk(path, strokePath, start);
       if (entranceStart == null && artBounds.overlaps(chunk.bounds)) {
         var distance = start;
         for (var i = 1; i < segment.length; i++) {
@@ -392,44 +415,74 @@ class _ThreadPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round
       ..color = ribbon
       ..isAntiAlias = true;
+    final bool lightRibbon = ribbon.computeLuminance() > 0.5;
     final shadowPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = thickness
       ..strokeCap = StrokeCap.butt
       ..strokeJoin = StrokeJoin.round
-      ..color = const Color.fromRGBO(0, 0, 0, .45)
+      ..color = Color.fromRGBO(0, 0, 0, lightRibbon ? 0.24 : 0.45)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
 
     final visible = canvas.getLocalClipBounds().inflate(thickness);
-    for (final chunk in model.chunks) {
+    final chunks = model.chunks;
+    for (var idx = 0; idx < chunks.length; idx++) {
+      final chunk = chunks[idx];
       if (chunk.start >= tip) break;
       if (!visible.overlaps(chunk.bounds)) continue;
       final end = math.min(tip, chunk.end);
-      final path = end == chunk.end
+      final isFullChunk = end == chunk.end;
+      final shadowPath = isFullChunk
           ? chunk.path
           : chunk.metric.extractPath(0, end - chunk.start);
+      final fillPath = isFullChunk
+          ? chunk.strokePath
+          : chunk.strokeMetric.extractPath(
+              0,
+              chunk.strokeOverlapLength + (end - chunk.start),
+            );
       if (shadow) {
-        canvas.drawPath(path.shift(const Offset(0, 7)), shadowPaint);
+        canvas.drawPath(shadowPath.shift(const Offset(0, 7)), shadowPaint);
       }
-      canvas.drawPath(path, stroke);
+      canvas.drawPath(fillPath, stroke);
 
-      final firstWord = ((chunk.start + remaining) / model.repeatLength)
+      // Defer glyphs inside the next chunk's overlap tail so they are painted
+      // once — cleanly on top of the next chunk's seamless stroke bridge — with
+      // zero shadow cut or sliced letters across the chunk joint.
+      final _Chunk? nextChunk = idx + 1 < chunks.length
+          ? chunks[idx + 1]
+          : null;
+      final bool nextChunkDrawn =
+          nextChunk != null &&
+          nextChunk.start < tip &&
+          visible.overlaps(nextChunk.bounds);
+      final double glyphRangeStart = chunk.start - chunk.strokeOverlapLength;
+      final double glyphRangeEnd = nextChunkDrawn
+          ? math.min(end, nextChunk.start - nextChunk.strokeOverlapLength)
+          : end;
+
+      final firstWord = ((glyphRangeStart + remaining) / model.repeatLength)
           .floor();
       for (
         var origin = firstWord * model.repeatLength - remaining;
-        origin < end;
+        origin < glyphRangeEnd;
         origin += model.repeatLength
       ) {
         for (final glyph in model.word) {
           final distance = origin + glyph.center;
-          if (distance < chunk.start ||
-              distance >= end ||
+          if (distance < glyphRangeStart ||
+              distance >= glyphRangeEnd ||
               distance + glyph.painter.width / 2 > tip) {
             continue;
           }
-          final tangent = chunk.metric.getTangentForOffset(
-            distance - chunk.start,
-          )!;
+          final offsetInStroke = (distance - glyphRangeStart).clamp(
+            0.0,
+            chunk.strokeMetric.length,
+          );
+          final tangent = chunk.strokeMetric.getTangentForOffset(
+            offsetInStroke,
+          );
+          if (tangent == null) continue;
           canvas.save();
           canvas.translate(tangent.position.dx, tangent.position.dy);
           canvas.rotate(math.atan2(tangent.vector.dy, tangent.vector.dx));
@@ -593,7 +646,7 @@ class AlphaThreadBackdrop extends StatelessWidget {
 
     return Stack(
       children: <Widget>[
-        Positioned.fill(child: art),
+        Positioned.fill(child: RepaintBoundary(child: art)),
         Positioned.fill(child: child),
       ],
     );

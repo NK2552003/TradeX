@@ -374,7 +374,7 @@ class _NavButton extends StatelessWidget {
                 ? accent.withValues(alpha: 0.12)
                 : (s.hovered && enabled
                       ? c.surfaceHover
-                      : const Color(0x00000000)),
+                      : c.surfaceHover.withValues(alpha: 0.0)),
             borderRadius: radius,
           ),
           foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,

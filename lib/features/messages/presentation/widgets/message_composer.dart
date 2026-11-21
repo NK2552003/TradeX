@@ -113,7 +113,11 @@ class MessageComposerState extends State<MessageComposer>
 
   Future<void> _startRecording() async {
     HapticFeedback.mediumImpact();
-    _pulseController.repeat(reverse: true);
+    if (!MediaQuery.disableAnimationsOf(context)) {
+      _pulseController.repeat(reverse: true);
+    } else {
+      _pulseController.value = 1.0;
+    }
     setState(() {
       _isRecording = true;
       _recordSeconds = 0;
@@ -572,14 +576,16 @@ class MessageComposerState extends State<MessageComposer>
             child: Row(
               children: <Widget>[
                 // Pulsating red indicator dot
-                FadeTransition(
-                  opacity: _pulseController,
-                  child: Container(
-                    width: context.sz(10),
-                    height: context.sz(10),
-                    decoration: BoxDecoration(
-                      color: colors.destructive,
-                      shape: BoxShape.circle,
+                RepaintBoundary(
+                  child: FadeTransition(
+                    opacity: _pulseController,
+                    child: Container(
+                      width: context.sz(10),
+                      height: context.sz(10),
+                      decoration: BoxDecoration(
+                        color: colors.destructive,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
                 ),

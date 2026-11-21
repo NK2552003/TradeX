@@ -16,6 +16,7 @@ class PublicPricingContent extends StatelessWidget {
     required this.onSelect,
     this.busyPlan,
     this.showDetails = true,
+    this.isAuthenticated = true,
   });
 
   final PricingCatalogueResponse catalogue;
@@ -24,6 +25,7 @@ class PublicPricingContent extends StatelessWidget {
   final ValueChanged<PricingPlanModel> onSelect;
   final String? busyPlan;
   final bool showDetails;
+  final bool isAuthenticated;
 
   List<({String heading, List<({IconData icon, String label})> items})>
   _sectionsForTier(AppTier tier) {
@@ -177,11 +179,14 @@ class PublicPricingContent extends StatelessWidget {
     UiColors colors,
     PricingPlanModel plan,
   ) {
-    final bool selected = plan.isCurrent;
+    final bool selected = isAuthenticated && plan.isCurrent;
     final bool highlighted = plan.highlighted || plan.tier == AppTier.premium;
     final bool isBusy = busyPlan == plan.id;
+    final bool isDark = theme.brightness == Brightness.dark;
     final sections = _sectionsForTier(plan.tier);
-    final Color cardBg = colors.surfaceMuted.withValues(alpha: 0.38);
+    final Color cardBg = isDark
+        ? colors.surfaceMuted.withValues(alpha: 0.38)
+        : colors.surface;
 
     final String introLine = switch (plan.tier) {
       AppTier.free => 'Our introductory plan:',
@@ -200,6 +205,8 @@ class PublicPricingContent extends StatelessWidget {
         ? processingText
         : selected
         ? currentText
+        : !isAuthenticated
+        ? (plan.tier == AppTier.free ? 'Start Free' : 'Get ${plan.name}')
         : !plan.isPurchasable
         ? plan.ctaLabel
         : (plan.tier == AppTier.free ? 'Switch to Free' : 'Get ${plan.name}');
@@ -222,24 +229,31 @@ class PublicPricingContent extends StatelessWidget {
               : 'Billed monthly · Cancel anytime');
 
     final bool canPress =
-        busyPlan == null && (plan.isPurchasable || plan.isCurrent);
+        busyPlan == null &&
+        (!isAuthenticated || plan.isPurchasable || selected);
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: selected || highlighted
-            ? colors.surfaceMuted.withValues(alpha: 0.55)
-            : cardBg,
-        borderRadius: context.radius(theme.radii.lg),
-        border: Border.all(
-          color: selected
-              ? colors.success.withValues(alpha: 0.5)
-              : (highlighted
-                    ? colors.primary.withValues(alpha: 0.45)
-                    : colors.border),
-          width: selected || highlighted ? 1.25 : theme.borders.hairline,
+    return RepaintBoundary(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: selected || highlighted
+              ? (isDark
+                    ? colors.surfaceMuted.withValues(alpha: 0.55)
+                    : colors.surface)
+              : cardBg,
+          borderRadius: context.radius(theme.radii.lg),
+          border: Border.all(
+            color: selected
+                ? colors.success.withValues(alpha: isDark ? 0.5 : 0.72)
+                : (highlighted
+                      ? colors.primary.withValues(alpha: isDark ? 0.45 : 0.72)
+                      : colors.border),
+            width: selected || highlighted ? 1.5 : theme.borders.hairline,
+          ),
+          boxShadow: isDark
+              ? null
+              : (selected || highlighted ? theme.shadows.md : theme.shadows.sm),
         ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -371,6 +385,7 @@ class PublicPricingContent extends StatelessWidget {
               ),
           ],
         ],
+      ),
       ),
     );
   }
@@ -685,11 +700,7 @@ class _PublicPricingCtaButtonState extends State<_PublicPricingCtaButton> {
         ? theme.colors.surfaceMuted
         : widget.highlighted
         ? (_hovered && enabled
-              ? Color.lerp(
-                  theme.colors.primary,
-                  const Color(0xFFD6DCE8),
-                  0.22,
-                )!
+              ? theme.colors.primaryHover
               : theme.colors.primary)
         : (_hovered && enabled
               ? theme.colors.surfaceHover

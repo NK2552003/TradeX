@@ -1394,7 +1394,8 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final List<PerplexitySource> preview = sources.take(6).toList();
+    final bool isMobile = context.uiRes.isMobile;
+    final List<PerplexitySource> preview = sources.take(3).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -1436,114 +1437,160 @@ class _PerplexitySourcesCarousel extends StatelessWidget {
           ],
         ),
         UiGap.v(theme.spacing.xxs),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (int i = 0; i < preview.length; i++) ...<Widget>[
-                  SizedBox(
-                    width: context.sz(200),
-                    child: UiCard(
-                      variant: UiCardVariant.outlined,
-                      density: UiDensity.compact,
-                      hoverLift: false,
-                      motion: false,
-                      onTap: onSourceTap != null
-                          ? () => onSourceTap!(preview[i].url)
-                          : null,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Row(
-                            children: <Widget>[
-                              AppSiteLogo(
-                                url: preview[i].url,
-                                domain: preview[i].domain,
-                                label: preview[i].title,
-                                size: 16,
-                              ),
-                              UiGap.h(theme.spacing.xs),
-                              Expanded(
-                                child: Text(
-                                  preview[i].domain.isNotEmpty
-                                      ? preview[i].domain
-                                      : preview[i].url,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: context.uiText.caption.copyWith(
-                                    color: theme.colors.foregroundSubtle,
-                                  ),
-                                ),
-                              ),
-                              UiGap.h(theme.spacing.xxs),
-                              UiBadge(
-                                label: '${preview[i].index}',
-                                size: UiSize.xs,
-                                variant: UiBadgeVariant.soft,
-                                intent: UiIntent.primary,
-                              ),
-                            ],
-                          ),
-                          UiGap.v(theme.spacing.xxs),
-                          Text(
-                            preview[i].title.isNotEmpty
-                                ? preview[i].title
-                                : (preview[i].domain.isNotEmpty
-                                      ? preview[i].domain
-                                      : preview[i].url),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.uiText.label.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+        if (!isMobile)
+          LayoutBuilder(
+            builder: (BuildContext ctx, BoxConstraints constraints) {
+              final bool canFitThreeRow =
+                  constraints.maxWidth.isFinite &&
+                  constraints.maxWidth >= ctx.sz(440);
+              if (canFitThreeRow) {
+                return IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      for (int i = 0; i < preview.length; i++) ...<Widget>[
+                        Expanded(
+                          child: _buildSourceCard(ctx, theme, preview[i]),
+                        ),
+                        if (i < preview.length - 1 ||
+                            sources.length > preview.length)
+                          UiGap.h(theme.spacing.xs),
+                      ],
+                      if (sources.length > preview.length)
+                        SizedBox(
+                          width: ctx.sz(128),
+                          child: _buildSeeAllCard(ctx, theme, preview.length),
+                        ),
+                    ],
                   ),
-                  if (i < preview.length - 1 || sources.length > preview.length)
-                    UiGap.h(theme.spacing.xs),
-                ],
-                if (sources.length > preview.length)
-                  SizedBox(
-                    width: context.sz(148),
-                    child: UiCard(
-                      variant: UiCardVariant.subtle,
-                      density: UiDensity.compact,
-                      hoverLift: false,
-                      motion: false,
-                      onTap: onViewAll,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          UiBadge(
-                            label: '+${sources.length - preview.length}',
-                            size: UiSize.sm,
-                            variant: UiBadgeVariant.soft,
-                            intent: UiIntent.neutral,
-                          ),
-                          UiGap.v(theme.spacing.xxs),
-                          Text(
-                            'See all ${sources.length} sources',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.uiText.label.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
+                );
+              }
+              return _buildHorizontalStrip(ctx, theme, preview);
+            },
+          )
+        else
+          _buildHorizontalStrip(context, theme, preview),
       ],
+    );
+  }
+
+  Widget _buildHorizontalStrip(
+    BuildContext context,
+    UiTheme theme,
+    List<PerplexitySource> preview,
+  ) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            for (int i = 0; i < preview.length; i++) ...<Widget>[
+              SizedBox(
+                width: context.sz(188),
+                child: _buildSourceCard(context, theme, preview[i]),
+              ),
+              if (i < preview.length - 1 || sources.length > preview.length)
+                UiGap.h(theme.spacing.xs),
+            ],
+            if (sources.length > preview.length)
+              SizedBox(
+                width: context.sz(138),
+                child: _buildSeeAllCard(context, theme, preview.length),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSourceCard(
+    BuildContext context,
+    UiTheme theme,
+    PerplexitySource item,
+  ) {
+    return UiCard(
+      variant: UiCardVariant.outlined,
+      density: UiDensity.compact,
+      hoverLift: false,
+      motion: false,
+      onTap: onSourceTap != null ? () => onSourceTap!(item.url) : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              AppSiteLogo(
+                url: item.url,
+                domain: item.domain,
+                label: item.title,
+                size: 16,
+              ),
+              UiGap.h(theme.spacing.xs),
+              Expanded(
+                child: Text(
+                  item.domain.isNotEmpty ? item.domain : item.url,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                  ),
+                ),
+              ),
+              UiGap.h(theme.spacing.xxs),
+              UiBadge(
+                label: '${item.index}',
+                size: UiSize.xs,
+                variant: UiBadgeVariant.soft,
+                intent: UiIntent.primary,
+              ),
+            ],
+          ),
+          UiGap.v(theme.spacing.xxs),
+          Text(
+            item.title.isNotEmpty
+                ? item.title
+                : (item.domain.isNotEmpty ? item.domain : item.url),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: context.uiText.label.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeeAllCard(
+    BuildContext context,
+    UiTheme theme,
+    int shownCount,
+  ) {
+    return UiCard(
+      variant: UiCardVariant.subtle,
+      density: UiDensity.compact,
+      hoverLift: false,
+      motion: false,
+      onTap: onViewAll,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          UiBadge(
+            label: '+${sources.length - shownCount}',
+            size: UiSize.sm,
+            variant: UiBadgeVariant.soft,
+            intent: UiIntent.neutral,
+          ),
+          UiGap.v(theme.spacing.xxs),
+          Text(
+            'See all ${sources.length} sources',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: context.uiText.label.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 }

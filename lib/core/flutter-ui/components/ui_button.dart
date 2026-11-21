@@ -301,8 +301,7 @@ class UiButton extends StatelessWidget {
     final double gap = size.gap(ctx, density: density);
     final TextStyle text = (style?.textStyle ?? size.textStyle(ctx)).copyWith(
       color: st.foreground,
-      decoration: variant == UiVariant.link ? TextDecoration.underline : null,
-      decorationColor: st.foreground,
+      decoration: TextDecoration.none,
     );
 
     final Widget? spinner = loading
@@ -410,11 +409,22 @@ class UiButton extends StatelessWidget {
     final Color tint = (intent ?? UiIntent.primary).color(context);
     Color hoverMix(Color base, Color hover) => s.active ? hover : base;
 
+    final Color zeroHover = c.surfaceHover.withValues(alpha: 0.0);
+
     if (style?.background != null || style?.foreground != null) {
+      final Color baseBg = style?.background ?? zeroHover;
+      final Color resolvedBg = s.enabled && s.active
+          ? Color.alphaBlend(
+              c.surfaceHover.withValues(alpha: 0.65),
+              baseBg,
+            )
+          : baseBg;
       return _ButtonStyle(
-        background: style?.background ?? Colors.transparent,
+        background: resolvedBg,
         foreground: style?.foreground ?? c.foreground,
-        borderColor: style?.borderColor,
+        borderColor:
+            style?.borderColor ??
+            (variant == UiVariant.outline ? c.borderStrong : null),
         gradient: style?.gradient,
       );
     }
@@ -425,7 +435,7 @@ class UiButton extends StatelessWidget {
           variant == UiVariant.link ||
           variant == UiVariant.outline;
       return _ButtonStyle(
-        background: transparent ? Colors.transparent : c.disabledBackground,
+        background: transparent ? zeroHover : c.disabledBackground,
         foreground: c.disabledForeground,
         borderColor: variant == UiVariant.outline ? c.border : null,
       );
@@ -436,11 +446,14 @@ class UiButton extends StatelessWidget {
       case UiVariant.primary:
       case UiVariant.solid:
         final Color fill = intent != null ? intent!.color(context) : c.primary;
+        final Color hoverFill = intent == null
+            ? c.primaryHover
+            : fill.withValues(alpha: 0.88);
         final Color textCol = intent != null
             ? intent!.onColor(context)
             : c.onPrimary;
         return _ButtonStyle(
-          background: hoverMix(fill, fill.withValues(alpha: 0.88)),
+          background: hoverMix(fill, hoverFill),
           foreground: textCol,
           elevated: elevate ?? true,
         );
@@ -456,12 +469,12 @@ class UiButton extends StatelessWidget {
         );
       case UiVariant.ghost:
         return _ButtonStyle(
-          background: s.active || on ? c.surfaceHover : Colors.transparent,
+          background: s.active || on ? c.surfaceHover : zeroHover,
           foreground: intent == null ? c.foreground : tint,
         );
       case UiVariant.outline:
         return _ButtonStyle(
-          background: s.active || on ? c.surfaceHover : Colors.transparent,
+          background: s.active || on ? c.surfaceHover : zeroHover,
           foreground: intent == null ? c.foreground : tint,
           borderColor: intent == null
               ? c.borderStrong
@@ -475,7 +488,7 @@ class UiButton extends StatelessWidget {
         );
       case UiVariant.link:
         return _ButtonStyle(
-          background: Colors.transparent,
+          background: zeroHover,
           foreground: intent == null ? c.foreground : tint,
         );
       case UiVariant.destructive:

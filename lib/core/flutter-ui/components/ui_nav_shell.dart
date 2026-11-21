@@ -202,7 +202,9 @@ class _UiNavEntry extends StatelessWidget {
         decoration: BoxDecoration(
           color: !vertical && selected
               ? theme.colors.primary.withValues(alpha: 0.10)
-              : (s.hovered ? theme.colors.surfaceHover : Colors.transparent),
+              : (s.hovered
+                    ? theme.colors.surfaceHover
+                    : theme.colors.surfaceHover.withValues(alpha: 0.0)),
           borderRadius: ctx.radius(theme.radii.lg),
         ),
         child: vertical

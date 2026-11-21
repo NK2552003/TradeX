@@ -228,16 +228,18 @@ class _LoginPageState extends State<LoginPage> {
                                 SizedBox(height: context.sp(theme.spacing.md)),
                               ],
                               // Main Card Container with split grid layout
-                              UiCard(
-                                variant: UiCardVariant.surface,
-                                child: IntrinsicHeight(
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      // Left Form Column (Full width on mobile, 50% on desktop)
-                                      Expanded(
-                                        child: Padding(
+                              RepaintBoundary(
+                                child: UiCard(
+                                  variant: UiCardVariant.surface,
+                                  child: IntrinsicHeight(
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        // Left Form Column (Full width on mobile, 50% on desktop)
+                                        Expanded(
+                                          child: RepaintBoundary(
+                                            child: Padding(
                                           padding: EdgeInsets.all(
                                             context.sp(
                                               constraints.maxWidth < 360
@@ -566,7 +568,8 @@ class _LoginPageState extends State<LoginPage> {
                                                       'Maximum capacity of ${AuthRepository.maxRegisteredUsersCap} active users reached. Only existing registered users can sign in.',
                                                   intent: UiIntent.warning,
                                                 ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -574,26 +577,31 @@ class _LoginPageState extends State<LoginPage> {
                                       // Right Visual Window Column — desktop only.
                                       if (showSidePanel)
                                         Expanded(
-                                          child: SizedBox(
-                                            height:
-                                                640, // Provide tight height for IntrinsicHeight
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                border: Border(
-                                                  left: BorderSide(
-                                                    color: colors.border,
-                                                    width:
-                                                        theme.borders.hairline,
+                                          child: RepaintBoundary(
+                                            child: SizedBox(
+                                              height:
+                                                  640, // Provide tight height for IntrinsicHeight
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  border: Border(
+                                                    left: BorderSide(
+                                                      color: colors.border,
+                                                      width: theme
+                                                          .borders
+                                                          .hairline,
+                                                    ),
                                                   ),
                                                 ),
+                                                child:
+                                                    const AuthCarouselPanel(),
                                               ),
-                                              child: const AuthCarouselPanel(),
                                             ),
                                           ),
                                         ),
                                     ],
                                   ),
                                 ),
+                              ),
                               ),
                               SizedBox(height: context.sp(theme.spacing.md)),
 
@@ -707,6 +715,10 @@ class _LoginPageState extends State<LoginPage> {
         redirectTo: kIsWeb
             ? Uri.base.origin
             : AppConstants.nativeAuthCallbackUrl,
+        authScreenLaunchMode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.inAppBrowserView,
+        queryParams: const <String, String>{'prompt': 'select_account'},
       );
       if (!launched) {
         throw StateError('Could not open Google sign-in. Please retry.');

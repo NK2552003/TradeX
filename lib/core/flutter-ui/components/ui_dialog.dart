@@ -123,12 +123,13 @@ class UiDialog extends StatelessWidget {
           ),
         );
         final blur = ctx.sp(theme.spacing.xs);
+        final Widget isolatedPanel = RepaintBoundary(child: panel);
         return blurBackdrop
             ? BackdropFilter(
                 filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-                child: panel,
+                child: isolatedPanel,
               )
-            : panel;
+            : isolatedPanel;
       },
     );
   }

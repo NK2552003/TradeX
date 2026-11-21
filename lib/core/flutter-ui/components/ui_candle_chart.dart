@@ -199,27 +199,29 @@ class _UiCandleChartState extends State<UiCandleChart> {
                 _setActive(i);
               }
 
-              final Widget painted = CustomPaint(
-                size: Size(c.maxWidth, c.maxHeight),
-                painter: _UiCandlePainter(
-                  candles: widget.candles,
-                  type: widget.type,
-                  overlays: widget.overlays,
-                  priceLines: widget.priceLines,
-                  markers: widget.markers,
-                  colors: theme.colors,
-                  showVolume: widget.showVolume,
-                  showGrid: widget.showGrid,
-                  activeIndex: _active,
-                  textScaler: MediaQuery.textScalerOf(context),
-                  labelStyle: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundSubtle,
+              final Widget painted = RepaintBoundary(
+                child: CustomPaint(
+                  size: Size(c.maxWidth, c.maxHeight),
+                  painter: _UiCandlePainter(
+                    candles: widget.candles,
+                    type: widget.type,
+                    overlays: widget.overlays,
+                    priceLines: widget.priceLines,
+                    markers: widget.markers,
+                    colors: theme.colors,
+                    showVolume: widget.showVolume,
+                    showGrid: widget.showGrid,
+                    activeIndex: _active,
+                    textScaler: MediaQuery.textScalerOf(context),
+                    labelStyle: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundSubtle,
+                    ),
+                    markerStyle: context.uiText.caption.copyWith(
+                      color: theme.colors.foreground,
+                    ),
+                    format: _fmt,
+                    radius: context.sz(theme.radii.sm),
                   ),
-                  markerStyle: context.uiText.caption.copyWith(
-                    color: theme.colors.foreground,
-                  ),
-                  format: _fmt,
-                  radius: context.sz(theme.radii.sm),
                 ),
               );
 

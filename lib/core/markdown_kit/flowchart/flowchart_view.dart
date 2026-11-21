@@ -91,16 +91,18 @@ class FlowchartView extends StatelessWidget {
     final double width = math.max(graph.contentWidth, 40);
     final double height = math.max(graph.contentHeight, 40);
 
-    return Container(
-      color: palette.background,
-      width: width,
-      height: height,
-      child: CustomPaint(
-        size: Size(width, height),
-        painter: _FlowchartPainter(
-          graph: graph,
-          palette: palette,
-          labelStyle: labelStyle,
+    return RepaintBoundary(
+      child: Container(
+        color: palette.background,
+        width: width,
+        height: height,
+        child: CustomPaint(
+          size: Size(width, height),
+          painter: _FlowchartPainter(
+            graph: graph,
+            palette: palette,
+            labelStyle: labelStyle,
+          ),
         ),
       ),
     );

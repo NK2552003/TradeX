@@ -366,13 +366,17 @@ class _UiCardState extends State<UiCard> {
     switch (_variant) {
       case UiCardVariant.outlined:
         return _CardSkin(
-          background: active ? c.surfaceHover : Colors.transparent,
+          background: active
+              ? c.surfaceHover
+              : c.surfaceHover.withValues(alpha: 0.0),
           borderColor: active ? c.borderStrong : c.border,
         );
       case UiCardVariant.ghost:
         return _CardSkin(
-          background: active ? c.surfaceMuted : Colors.transparent,
-          borderColor: Colors.transparent,
+          background: active
+              ? c.surfaceMuted
+              : c.surfaceMuted.withValues(alpha: 0.0),
+          borderColor: c.border.withValues(alpha: 0.0),
         );
       case UiCardVariant.elevated:
         return _CardSkin(

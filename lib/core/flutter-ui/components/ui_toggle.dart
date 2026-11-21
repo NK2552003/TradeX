@@ -101,20 +101,21 @@ class UiToggle extends StatelessWidget {
                   ? activeIntent.onColor(ctx)
                   : active)
             : (s.hovered ? c.foreground : idle);
+        final Color zeroHover = c.surfaceHover.withValues(alpha: 0.0);
         final Color bg = !enabled
             ? (variant == UiToggleVariant.ghost
-                  ? const Color(0x00000000)
+                  ? zeroHover
                   : c.disabledBackground)
             : value
             ? switch (variant) {
                 UiToggleVariant.solid => active,
-                UiToggleVariant.outline => const Color(0x00000000),
+                UiToggleVariant.outline => zeroHover,
                 UiToggleVariant.ghost => active.withValues(alpha: 0.08),
                 _ => active.withValues(alpha: 0.12),
               }
             : (s.hovered && variant != UiToggleVariant.ghost
                   ? c.surfaceHover
-                  : const Color(0x00000000));
+                  : zeroHover);
 
         return AnimatedScale(
           scale: s.pressed ? 0.96 : 1,

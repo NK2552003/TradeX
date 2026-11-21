@@ -254,14 +254,15 @@ class UiSelect<T> extends StatelessWidget {
           onTap: () => _open(layoutContext),
           semanticLabel: label ?? hintText,
           builder: (BuildContext ctx, UiInteractiveState s) {
+            final Color zeroHover = c.surfaceHover.withValues(alpha: 0.0);
             final Color bgColor = !enabled
-                ? (isGhost ? Colors.transparent : c.disabledBackground)
+                ? (isGhost ? zeroHover : c.disabledBackground)
                 : isGhost
-                ? (s.hovered ? c.surfaceHover : Colors.transparent)
+                ? (s.hovered ? c.surfaceHover : zeroHover)
                 : isFilled
                 ? c.surfaceMuted
                 : isUnderline
-                ? Colors.transparent
+                ? zeroHover
                 : c.surface;
             final Color bColor = (error || errorText != null)
                 ? c.destructive
@@ -395,7 +396,9 @@ class _UiSelectRow<T> extends StatelessWidget {
           horizontal: ctx.sp(theme.spacing.md),
           vertical: ctx.sp(theme.spacing.md),
         ),
-        color: s.hovered ? c.surfaceHover : Colors.transparent,
+        color: s.hovered
+            ? c.surfaceHover
+            : c.surfaceHover.withValues(alpha: 0.0),
         child: Row(
           children: <Widget>[
             if (option.icon != null) ...<Widget>[

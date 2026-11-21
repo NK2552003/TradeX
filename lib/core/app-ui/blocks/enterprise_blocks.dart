@@ -495,11 +495,22 @@ class _PulsingDotState extends State<_PulsingDot>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
+    );
     _anim = Tween<double>(
       begin: 0.35,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _ctrl.stop();
+      _ctrl.value = 1.0;
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat(reverse: true);
+    }
   }
 
   @override
@@ -510,12 +521,17 @@ class _PulsingDotState extends State<_PulsingDot>
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _anim,
-      child: Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+    return RepaintBoundary(
+      child: FadeTransition(
+        opacity: _anim,
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: widget.color,
+            shape: BoxShape.circle,
+          ),
+        ),
       ),
     );
   }
@@ -658,7 +674,6 @@ class DeskLedgerBlock extends StatelessWidget {
                                         color: c.primary,
                                         fontWeight: FontWeight.w600,
                                         fontSize: 13,
-                                        decoration: TextDecoration.underline,
                                       ),
                                     ),
                                   )

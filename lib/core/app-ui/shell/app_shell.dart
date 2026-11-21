@@ -10,6 +10,7 @@ import '../brand/app_logo.dart';
 import '../models/app_models.dart';
 import '../motion/app_motion.dart';
 import '../motion/page_transition.dart';
+import '../theme/app_theme_controller.dart';
 import '../theme/app_tokens.dart';
 import 'app_quiet_dock.dart';
 
@@ -353,11 +354,11 @@ class _AppShellState extends State<AppShell> {
                 ),
               ),
         child: r.isMobile
-            ? switcher
+            ? RepaintBoundary(child: switcher)
             : ClipRRect(
                 borderRadius: borderRadius,
                 clipBehavior: Clip.antiAlias,
-                child: switcher,
+                child: RepaintBoundary(child: switcher),
               ),
       );
     }
@@ -438,7 +439,6 @@ class _AppShellState extends State<AppShell> {
     if (r.isMobile) {
       final AppMobileDockMetrics dockMetrics = AppMobileDockMetrics.of(context);
       final double dockHeight = dockMetrics.height;
-      final double dockWidth = dockMetrics.dockWidth;
       final double dockMargin = _isNativeAndroid ? 8 : 16;
       final double mobileHeaderClearance = widget.hideMobileTopBar
           ? 0.0
@@ -610,11 +610,15 @@ class _AppShellState extends State<AppShell> {
               : Colors.black.withValues(
                   alpha: theme.brightness == Brightness.dark ? 0.36 : 0.10,
                 ),
-          width: keyboardVisible ? 0 : dockWidth,
+          width: keyboardVisible
+              ? 0
+              : dockMetrics.widthForSlots(destinations.length + 1),
           height: keyboardVisible ? 0 : dockHeight,
+          radius: keyboardVisible ? 0 : dockMetrics.radius,
+          indicatorRadius: keyboardVisible ? 0 : dockMetrics.indicatorRadius,
           margin: keyboardVisible ? 0 : dockMargin,
           iconSize: keyboardVisible ? 0 : dockMetrics.iconSize,
-          blur: 18,
+          blur: 12,
           frosted: !keyboardVisible,
           showLabels: false,
           pageDuration: theme.motion.normal,
@@ -687,7 +691,7 @@ class _AppShellState extends State<AppShell> {
                 maxWidth: context.sz(244),
                 child: IgnorePointer(
                   ignoring: _collapsed,
-                  child: expandedSidebar,
+                  child: RepaintBoundary(child: expandedSidebar),
                 ),
               ),
             ),
@@ -1383,7 +1387,9 @@ class _AppNavTileState extends State<AppNavTile> {
         decoration: BoxDecoration(
           color: _isSelected
               ? theme.colors.primary.withValues(alpha: 0.12)
-              : (s.hovered ? theme.colors.surfaceHover : Colors.transparent),
+              : (s.hovered
+                    ? theme.colors.surfaceHover
+                    : theme.colors.surfaceHover.withValues(alpha: 0.0)),
           borderRadius: ctx.radius(theme.radii.md),
           border: _isSelected
               ? Border.all(
@@ -1765,6 +1771,10 @@ class AppTopBar extends StatelessWidget {
     }
 
     final bool showSearchInput = !isCompactHeader && onSearchChanged != null;
+    final bool isDark = theme.brightness == Brightness.dark;
+    final AppThemeController? themeController = AppThemeController.maybeOf(
+      context,
+    );
     final Widget titleWidget = Text(
       isMobile || sectionTitle.isEmpty
           ? pageTitle
@@ -1836,6 +1846,16 @@ class AppTopBar extends StatelessWidget {
             size: UiSize.sm,
             onPressed: onPrimaryAction,
           ),
+        if (themeController != null)
+          UiIconButton(
+            key: const ValueKey<String>('app-header-theme-toggle'),
+            icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            tooltip: isDark ? 'Switch to light theme' : 'Switch to dark theme',
+            size: UiSize.sm,
+            onPressed: () => themeController.setMode(
+              isDark ? ThemeMode.light : ThemeMode.dark,
+            ),
+          ),
         if (onNotifications != null)
           UiIconButton(
             icon: Icons.notifications_none_rounded,
@@ -1863,7 +1883,6 @@ class AppTopBar extends StatelessWidget {
     final BorderRadius headerRadius = isMobile
         ? BorderRadius.circular(22)
         : context.radius(theme.radii.lg);
-    final bool isDark = theme.brightness == Brightness.dark;
 
     return SafeArea(
       bottom: false,
@@ -1882,41 +1901,43 @@ class AppTopBar extends StatelessWidget {
                 context.sp(theme.spacing.xs),
               ),
         child: isMobile
-            ? Container(
-                key: const ValueKey<String>('app-header-surface'),
-                height: 44,
-                decoration: BoxDecoration(
-                  borderRadius: headerRadius,
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: isDark ? 0.36 : 0.10,
-                      ),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: headerRadius,
-                  child: BackdropFilter(
-                    filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: theme.colors.surface.withValues(
-                          alpha: isDark ? 0.62 : 0.74,
+            ? RepaintBoundary(
+                child: Container(
+                  key: const ValueKey<String>('app-header-surface'),
+                  height: 44,
+                  decoration: BoxDecoration(
+                    borderRadius: headerRadius,
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.36 : 0.10,
                         ),
-                        borderRadius: headerRadius,
-                        border: Border.all(
-                          color: theme.colors.borderStrong.withValues(
-                            alpha: isDark ? 0.65 : 0.75,
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: headerRadius,
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: theme.colors.surface.withValues(
+                            alpha: isDark ? 0.62 : 0.74,
                           ),
-                          width: 1.2,
+                          borderRadius: headerRadius,
+                          border: Border.all(
+                            color: theme.colors.borderStrong.withValues(
+                              alpha: isDark ? 0.65 : 0.75,
+                            ),
+                            width: 1.2,
+                          ),
                         ),
-                      ),
-                      child: Padding(
-                        padding: headerPadding,
-                        child: headerRow,
+                        child: Padding(
+                          padding: headerPadding,
+                          child: headerRow,
+                        ),
                       ),
                     ),
                   ),

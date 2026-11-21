@@ -74,7 +74,7 @@ class UiCardGrid extends StatelessWidget {
             children: <Widget>[
               for (int i = 0; i < children.length; i++) ...<Widget>[
                 if (i > 0) SizedBox(height: gap),
-                children[i],
+                RepaintBoundary(child: children[i]),
               ],
             ],
           );
@@ -101,9 +101,11 @@ class UiCardGrid extends StatelessWidget {
             runSpacing: gap,
             children: [
               for (final child in children)
-                SizedBox(
-                  width: width > 0 ? width : constraints.maxWidth,
-                  child: child,
+                RepaintBoundary(
+                  child: SizedBox(
+                    width: width > 0 ? width : constraints.maxWidth,
+                    child: child,
+                  ),
                 ),
             ],
           );
@@ -138,7 +140,7 @@ class UiCardGrid extends StatelessWidget {
           children: [
             for (final (index, card) in cards.indexed) ...[
               if (index > 0) SizedBox(width: gap),
-              Expanded(child: card),
+              Expanded(child: RepaintBoundary(child: card)),
             ],
           ],
         ),
@@ -158,7 +160,7 @@ class UiCardGrid extends StatelessWidget {
           children: [
             for (final (index, card) in cards.indexed) ...[
               if (index > 0) const SizedBox.shrink(),
-              card,
+              RepaintBoundary(child: card),
             ],
           ],
         ),

@@ -111,7 +111,18 @@ class _LostAstronautState extends State<_LostAstronaut>
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 5),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _c.stop();
+      _c.value = 0.0;
+    } else if (!_c.isAnimating) {
+      _c.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -126,20 +137,22 @@ class _LostAstronautState extends State<_LostAstronaut>
       context.sz(300),
       MediaQuery.sizeOf(context).width - 48,
     );
-    return SizedBox(
-      width: side,
-      height: side * 0.82,
-      child: AnimatedBuilder(
-        animation: _c,
-        builder: (BuildContext _, Widget? _) => CustomPaint(
-          painter: _AstronautPainter(
-            t: _c.value,
-            primary: colors.primary,
-            bull: colors.bullish,
-            bear: colors.bearish,
-            surface: colors.surface,
-            fg: colors.foreground,
-            muted: colors.foregroundSubtle,
+    return RepaintBoundary(
+      child: SizedBox(
+        width: side,
+        height: side * 0.82,
+        child: AnimatedBuilder(
+          animation: _c,
+          builder: (BuildContext _, Widget? _) => CustomPaint(
+            painter: _AstronautPainter(
+              t: _c.value,
+              primary: colors.primary,
+              bull: colors.bullish,
+              bear: colors.bearish,
+              surface: colors.surface,
+              fg: colors.foreground,
+              muted: colors.foregroundSubtle,
+            ),
           ),
         ),
       ),

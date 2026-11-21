@@ -46,6 +46,13 @@ class RazorpayWebCheckout {
     required String billingCycle,
     String? userEmail,
     String? userName,
+    bool isDark = true,
+    String? themeColor,
+    String? backdropColor,
+    String? surfaceColor,
+    String? foregroundColor,
+    String? borderColor,
+    String? imageUrl,
   }) async {
     if (!isSupported || keyId.trim().isEmpty) {
       return const RazorpayCheckoutModalResult(
@@ -64,6 +71,13 @@ class RazorpayWebCheckout {
       'billing_cycle': billingCycle,
       'email': userEmail ?? '',
       'user_name': userName ?? '',
+      'is_dark': isDark,
+      'theme_color': ?themeColor,
+      'backdrop_color': ?backdropColor,
+      'surface_color': ?surfaceColor,
+      'foreground_color': ?foregroundColor,
+      'border_color': ?borderColor,
+      'image': ?imageUrl,
     });
 
     try {

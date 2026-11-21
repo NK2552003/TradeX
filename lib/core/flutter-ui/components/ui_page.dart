@@ -78,7 +78,7 @@ class UiPage extends StatelessWidget {
           pad.left + safePad.left,
           pad.top + safePad.top,
           pad.right + safePad.right,
-          pad.bottom + safePad.bottom,
+          r.isMobile ? context.uiPageBottomInset : (pad.bottom + safePad.bottom),
         ),
         child: Align(alignment: Alignment.topCenter, child: body),
       );

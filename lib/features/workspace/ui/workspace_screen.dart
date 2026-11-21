@@ -1405,46 +1405,48 @@ class _WorkspaceFabState extends State<_WorkspaceFab>
                   final BorderRadius btnRadius = BorderRadius.circular(
                     btnSize / 2,
                   );
-                  return Container(
-                    width: btnSize,
-                    height: btnSize,
-                    decoration: BoxDecoration(
-                      borderRadius: btnRadius,
-                      boxShadow: <BoxShadow>[
-                        BoxShadow(
-                          color: Colors.black.withValues(
-                            alpha: isDark ? 0.36 : 0.10,
-                          ),
-                          blurRadius: 18,
-                          spreadRadius: 0,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: btnRadius,
-                      child: BackdropFilter(
-                        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: btnRadius,
-                            color: theme.colors.surface.withValues(
-                              alpha: isDark ? 0.62 : 0.74,
+                  return RepaintBoundary(
+                    child: Container(
+                      width: btnSize,
+                      height: btnSize,
+                      decoration: BoxDecoration(
+                        borderRadius: btnRadius,
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: isDark ? 0.36 : 0.10,
                             ),
-                            border: Border.all(
-                              color: theme.colors.borderStrong.withValues(
-                                alpha: isDark ? 0.65 : 0.75,
+                            blurRadius: 18,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: btnRadius,
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: btnRadius,
+                              color: theme.colors.surface.withValues(
+                                alpha: isDark ? 0.62 : 0.74,
                               ),
-                              width: 1.2,
+                              border: Border.all(
+                                color: theme.colors.borderStrong.withValues(
+                                  alpha: isDark ? 0.65 : 0.75,
+                                ),
+                                width: 1.2,
+                              ),
                             ),
-                          ),
-                          child: Center(
-                            child: Icon(
-                              icon,
-                              size: itemCtx.uiRes.isMobile
-                                  ? m.iconSize
-                                  : itemCtx.sz(22),
-                              color: color,
+                            child: Center(
+                              child: Icon(
+                                icon,
+                                size: itemCtx.uiRes.isMobile
+                                    ? m.iconSize
+                                    : itemCtx.sz(22),
+                                color: color,
+                              ),
                             ),
                           ),
                         ),
@@ -1523,62 +1525,64 @@ class _WorkspaceFabState extends State<_WorkspaceFab>
                 final AppMobileDockMetrics m = AppMobileDockMetrics.of(fabCtx);
                 final double fabSize = fabCtx.uiRes.isMobile ? m.height : 56.0;
                 final double fabIconSize = fabCtx.uiRes.isMobile
-                    ? m.iconSize + 2
+                    ? m.iconSize
                     : ctx.sz(26);
                 final BorderRadius fabRadius = BorderRadius.circular(
                   fabSize / 2,
                 );
-                return GestureDetector(
-                  onTap: toggle,
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: fabSize,
-                    height: fabSize,
-                    decoration: BoxDecoration(
-                      borderRadius: fabRadius,
-                      boxShadow: <BoxShadow>[
-                        BoxShadow(
-                          color: Colors.black.withValues(
-                            alpha: isDark ? 0.36 : 0.10,
-                          ),
-                          blurRadius: 18,
-                          spreadRadius: 0,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: fabRadius,
-                      child: BackdropFilter(
-                        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                    child: DecoratedBox(
+                return RepaintBoundary(
+                  child: GestureDetector(
+                    onTap: toggle,
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      width: fabSize,
+                      height: fabSize,
                       decoration: BoxDecoration(
                         borderRadius: fabRadius,
-                        color: theme.colors.surface.withValues(
-                          alpha: isDark ? 0.62 : 0.74,
-                        ),
-                        border: Border.all(
-                          color: theme.colors.borderStrong.withValues(
-                            alpha: isDark ? 0.65 : 0.75,
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: isDark ? 0.36 : 0.10,
+                            ),
+                            blurRadius: 18,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 6),
                           ),
-                          width: 1.2,
-                        ),
+                        ],
                       ),
-                      child: Center(
-                        child: RotationTransition(
-                          turns: _rotateAnimation,
-                          child: Icon(
-                            Icons.add_rounded,
-                            size: fabIconSize,
-                            color: activeFg,
+                      child: ClipRRect(
+                        borderRadius: fabRadius,
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: fabRadius,
+                              color: theme.colors.surface.withValues(
+                                alpha: isDark ? 0.62 : 0.74,
+                              ),
+                              border: Border.all(
+                                color: theme.colors.borderStrong.withValues(
+                                  alpha: isDark ? 0.65 : 0.75,
+                                ),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Center(
+                              child: RotationTransition(
+                                turns: _rotateAnimation,
+                                child: Icon(
+                                  Icons.add_rounded,
+                                  size: fabIconSize,
+                                  color: activeFg,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            );
+                );
               },
             ),
           ],

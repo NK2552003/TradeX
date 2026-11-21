@@ -100,17 +100,19 @@ class UiWaterfallChart extends StatelessWidget {
       children: <Widget>[
         SizedBox(
           height: context.sz(height ?? 132),
-          child: CustomPaint(
-            painter: _WaterfallPainter(
-              opens: opens,
-              closes: closes,
-              colors: colors,
-              isTotal: steps.map((UiWaterfallStep s) => s.isTotal).toList(),
-              lo: lo,
-              hi: hi,
-              connector: c.borderStrong,
-              baseline: c.border,
-              radius: context.sz(theme.radii.sm) / 2,
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _WaterfallPainter(
+                opens: opens,
+                closes: closes,
+                colors: colors,
+                isTotal: steps.map((UiWaterfallStep s) => s.isTotal).toList(),
+                lo: lo,
+                hi: hi,
+                connector: c.borderStrong,
+                baseline: c.border,
+                radius: context.sz(theme.radii.sm) / 2,
+              ),
             ),
           ),
         ),

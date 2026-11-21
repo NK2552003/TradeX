@@ -166,10 +166,14 @@ class _PublicationReaderState extends State<PublicationReader> {
     final theme = context.ui;
     final colors = context.uiColors;
 
+    final double hPad = context.sp(theme.spacing.lg);
+    final double vPad = context.sp(theme.spacing.md);
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(theme.spacing.lg),
-        vertical: context.sp(theme.spacing.md),
+      padding: EdgeInsets.fromLTRB(
+        hPad,
+        (widget.embedded ? MediaQuery.paddingOf(context).top : 0.0) + vPad,
+        hPad,
+        vPad,
       ),
       child: SelectionArea(
         child: Column(

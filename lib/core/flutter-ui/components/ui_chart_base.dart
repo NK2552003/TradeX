@@ -194,34 +194,36 @@ class _UiChartState extends State<UiChart> {
           if (i != _active) setState(() => _active = i);
         }
 
-        final Widget paint = CustomPaint(
-          size: Size(w, plotH),
-          painter: _ChartPainter(
-            data: widget.data,
-            series: <UiChartSeries>[
-              for (final int i in shown) widget.series[i],
-            ],
-            seriesIndices: shown,
-            colors: <Color>[for (final int i in shown) colors[i]],
-            gridColor: theme.colors.border,
-            axisTextColor: theme.colors.foregroundSubtle,
-            axisTextStyle: ctx.uiText.caption,
-            textScaler: MediaQuery.textScalerOf(ctx),
-            showGrid: widget.showGrid && !widget.minimal,
-            showAxisLabels: axes,
-            curved: widget.curved,
-            formatter: fmt,
-            // Label density adapts to available width.
-            maxXLabels: ctx.uiRes.pick<int>(mobile: 4, tablet: 6, desktop: 8),
-            padding: pad,
-            strokeWidth: ctx.sz(2),
-            activeIndex: widget.interactive ? _active : null,
-            crosshairColor: theme.colors.borderStrong,
-            surfaceColor: theme.colors.surface,
-            stacked: widget.stacked,
-            glow: widget.glow,
-            thresholds: widget.thresholds,
-            thresholdColor: theme.colors.warning,
+        final Widget paint = RepaintBoundary(
+          child: CustomPaint(
+            size: Size(w, plotH),
+            painter: _ChartPainter(
+              data: widget.data,
+              series: <UiChartSeries>[
+                for (final int i in shown) widget.series[i],
+              ],
+              seriesIndices: shown,
+              colors: <Color>[for (final int i in shown) colors[i]],
+              gridColor: theme.colors.border,
+              axisTextColor: theme.colors.foregroundSubtle,
+              axisTextStyle: ctx.uiText.caption,
+              textScaler: MediaQuery.textScalerOf(ctx),
+              showGrid: widget.showGrid && !widget.minimal,
+              showAxisLabels: axes,
+              curved: widget.curved,
+              formatter: fmt,
+              // Label density adapts to available width.
+              maxXLabels: ctx.uiRes.pick<int>(mobile: 4, tablet: 6, desktop: 8),
+              padding: pad,
+              strokeWidth: ctx.sz(2),
+              activeIndex: widget.interactive ? _active : null,
+              crosshairColor: theme.colors.borderStrong,
+              surfaceColor: theme.colors.surface,
+              stacked: widget.stacked,
+              glow: widget.glow,
+              thresholds: widget.thresholds,
+              thresholdColor: theme.colors.warning,
+            ),
           ),
         );
 

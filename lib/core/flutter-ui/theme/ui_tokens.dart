@@ -50,7 +50,7 @@ class UiPalette {
   static const Color info500 = Color(0xFF4A8FA8);
   static const Color info700 = Color(0xFF2E718B);
 
-  // Chart series — muted, evenly spaced hues
+  // Chart series — muted, evenly spaced hues for dark surfaces
   static const List<Color> series = <Color>[
     brand500,
     Color(0xFF4FA39B),
@@ -60,6 +60,18 @@ class UiPalette {
     Color(0xFF4EB57F),
     Color(0xFFCF8455),
     Color(0xFF5C9CB8),
+  ];
+
+  // High-contrast jewel series for light surfaces (WCAG AA+ on white/alabaster)
+  static const List<Color> seriesLight = <Color>[
+    Color(0xFF3E52BD),
+    Color(0xFF187A71),
+    Color(0xFF9C5E09),
+    Color(0xFFA63960),
+    Color(0xFF6348A8),
+    Color(0xFF157347),
+    Color(0xFFB3531D),
+    Color(0xFF236685),
   ];
 }
 
@@ -125,31 +137,31 @@ class UiColors {
   Color get error => destructive;
 
   factory UiColors.light() => const UiColors(
-    background: UiPalette.gray50,
+    background: Color(0xFFF5F4F1),
     surface: UiPalette.white,
-    surfaceMuted: UiPalette.gray100,
-    surfaceHover: UiPalette.gray150,
-    overlay: Color(0x99151312),
-    border: UiPalette.gray200,
-    borderStrong: UiPalette.gray300,
-    foreground: UiPalette.gray900,
-    foregroundMuted: UiPalette.gray500,
-    foregroundSubtle: UiPalette.gray400,
-    primary: UiPalette.gray900,
-    primaryHover: UiPalette.gray800,
-    onPrimary: UiPalette.gray50,
-    secondary: UiPalette.gray100,
-    onSecondary: UiPalette.gray900,
-    bullish: UiPalette.bullish600,
-    bearish: UiPalette.bearish600,
-    warning: UiPalette.warning700,
-    info: UiPalette.info700,
-    destructive: UiPalette.bearish600,
+    surfaceMuted: Color(0xFFECEAE5),
+    surfaceHover: Color(0xFFE3E0DA),
+    overlay: Color(0x9911100F),
+    border: Color(0xFFD5D1CA),
+    borderStrong: Color(0xFFB0ABA2),
+    foreground: Color(0xFF11100F),
+    foregroundMuted: Color(0xFF45413C),
+    foregroundSubtle: Color(0xFF605B55),
+    primary: Color(0xFF11100F),
+    primaryHover: Color(0xFF2B2826),
+    onPrimary: UiPalette.white,
+    secondary: Color(0xFFEAE7E2),
+    onSecondary: Color(0xFF11100F),
+    bullish: Color(0xFF147246),
+    bearish: Color(0xFFB42318),
+    warning: Color(0xFF965800),
+    info: Color(0xFF1A5E7E),
+    destructive: Color(0xFFB42318),
     onDestructive: UiPalette.white,
-    focusRing: UiPalette.brand500,
-    disabledBackground: UiPalette.gray100,
-    disabledForeground: UiPalette.gray400,
-    series: UiPalette.series,
+    focusRing: Color(0xFF3E52BD),
+    disabledBackground: Color(0xFFEAE7E2),
+    disabledForeground: Color(0xFF7A746D),
+    series: UiPalette.seriesLight,
   );
 
   factory UiColors.dark() => const UiColors(
@@ -448,19 +460,19 @@ class UiShadows {
 
   factory UiShadows.light() => const UiShadows(
     sm: <BoxShadow>[
-      BoxShadow(color: Color(0x0A1A1512), blurRadius: 2, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x121A1512), blurRadius: 3, offset: Offset(0, 1)),
     ],
     md: <BoxShadow>[
-      BoxShadow(color: Color(0x0F1A1512), blurRadius: 10, offset: Offset(0, 3)),
-      BoxShadow(color: Color(0x0A1A1512), blurRadius: 2, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x161A1512), blurRadius: 12, offset: Offset(0, 4)),
+      BoxShadow(color: Color(0x0D1A1512), blurRadius: 3, offset: Offset(0, 1)),
     ],
     lg: <BoxShadow>[
       BoxShadow(
-        color: Color(0x1A1A1512),
+        color: Color(0x211A1512),
         blurRadius: 32,
         offset: Offset(0, 16),
       ),
-      BoxShadow(color: Color(0x0D1A1512), blurRadius: 6, offset: Offset(0, 2)),
+      BoxShadow(color: Color(0x121A1512), blurRadius: 6, offset: Offset(0, 2)),
     ],
   );
 

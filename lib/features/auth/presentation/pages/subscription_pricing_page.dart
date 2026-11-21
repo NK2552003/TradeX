@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
 import 'package:alphajournal/core/billing/razorpay_web_checkout.dart';
+import 'package:alphajournal/core/billing/revenuecat_billing.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
 import 'package:alphajournal/core/config/env_config.dart';
 import 'package:alphajournal/core/config/supabase_config.dart';
 // ignore: unnecessary_import
@@ -17,12 +20,14 @@ class SubscriptionPricingPage extends StatefulWidget {
     required this.onContinue,
     this.onBack,
     this.onSelectPlan,
+    this.onRequireAuth,
     this.repository,
     this.isPostSignup = true,
   });
   final VoidCallback onContinue;
   final VoidCallback? onBack;
   final void Function(PricingPlanModel plan, bool isAnnual)? onSelectPlan;
+  final void Function(PricingPlanModel plan, bool isAnnual)? onRequireAuth;
   final SubscriptionPricingRepository? repository;
   final bool isPostSignup;
   @override
@@ -37,7 +42,35 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
       .getPricingCatalogue();
   bool _annual = true;
   String? _busy;
+
+  bool get _isSignedIn => SupabaseConfig.isConfigured
+      ? SupabaseConfig.client?.auth.currentUser != null
+      : widget.isPostSignup;
+
+  bool get _isNativeMobile =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  static String _toHexColor(Color c) {
+    final int r = (c.r * 255).round().clamp(0, 255);
+    final int g = (c.g * 255).round().clamp(0, 255);
+    final int b = (c.b * 255).round().clamp(0, 255);
+    return '#${r.toRadixString(16).padLeft(2, '0')}'
+        '${g.toRadixString(16).padLeft(2, '0')}'
+        '${b.toRadixString(16).padLeft(2, '0')}';
+  }
+
   Future<void> _select(PricingPlanModel plan) async {
+    if (!_isSignedIn) {
+      if (widget.onRequireAuth != null) {
+        widget.onRequireAuth!(plan, _annual);
+      } else {
+        widget.onBack?.call();
+      }
+      return;
+    }
+
     setState(() => _busy = plan.id);
     try {
       final cycle = _annual ? 'annual' : 'monthly';
@@ -45,19 +78,66 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
           !plan.isCurrent &&
           SupabaseConfig.isConfigured &&
           SupabaseConfig.client?.auth.currentUser != null) {
+        if (_isNativeMobile && !RevenueCatBilling.isConfigured) {
+          final Uri webBillingUri = Uri.parse(
+            '${AppConstants.appSubdomainUrl}/settings_billing',
+          ).replace(
+            queryParameters: <String, String>{'plan': plan.id, 'cycle': cycle},
+          );
+          bool opened = false;
+          try {
+            opened = await launchUrl(
+              webBillingUri,
+              mode: LaunchMode.inAppBrowserView,
+            );
+          } catch (_) {
+            opened = false;
+          }
+          if (!opened) {
+            opened = await launchUrl(
+              webBillingUri,
+              mode: LaunchMode.externalApplication,
+            );
+          }
+          if (!opened) {
+            throw StateError('Could not open ${AppConstants.appSubdomainUrl}.');
+          }
+          if (!mounted) return;
+          UiToast.show(
+            context,
+            title: 'Opened AlphaJournal Web',
+            message:
+                'Complete your upgrade on the website; your account updates automatically.',
+            intent: UiIntent.info,
+          );
+          return;
+        }
+
         final billingRepo = BillingSettingsRepositoryImpl();
         final session = await billingRepo.startCheckout(plan.id, cycle);
+        if (!mounted) return;
         final keyId = (session.keyId != null && session.keyId!.isNotEmpty)
             ? session.keyId!
             : EnvConfig.razorpayKeyId;
 
         if (RazorpayWebCheckout.isSupported && keyId.isNotEmpty) {
+          final UiTheme uiTheme = context.ui;
+          final bool isDark = uiTheme.brightness == Brightness.dark;
           final modalResult = await RazorpayWebCheckout.open(
             keyId: keyId,
             subscriptionId: session.sessionId,
             planName: plan.name,
             billingCycle: cycle,
             userEmail: SupabaseConfig.client?.auth.currentUser?.email,
+            isDark: isDark,
+            themeColor: _toHexColor(
+              isDark ? uiTheme.colors.surface : uiTheme.colors.primary,
+            ),
+            backdropColor: _toHexColor(uiTheme.colors.background),
+            surfaceColor: _toHexColor(uiTheme.colors.surface),
+            foregroundColor: _toHexColor(uiTheme.colors.foreground),
+            borderColor: _toHexColor(uiTheme.colors.borderStrong),
+            imageUrl: '${AppConstants.appSubdomainUrl}/icons/Icon-192.png',
           );
           if (!mounted) return;
           if (modalResult.isSuccess) {
@@ -95,9 +175,14 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
 
         if (!await launchUrl(
           Uri.parse(session.url),
-          mode: LaunchMode.externalApplication,
+          mode: LaunchMode.inAppBrowserView,
         )) {
-          throw StateError('Could not open Razorpay checkout.');
+          if (!await launchUrl(
+            Uri.parse(session.url),
+            mode: LaunchMode.externalApplication,
+          )) {
+            throw StateError('Could not open Razorpay checkout.');
+          }
         }
         if (!mounted) return;
         UiToast.show(
@@ -167,13 +252,16 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
                           ),
                         ),
                       UiGap.v(theme.spacing.md),
-                      PublicPricingContent(
-                        catalogue: catalogue,
-                        annual: _annual,
-                        busyPlan: _busy,
-                        onAnnualChanged: (value) =>
-                            setState(() => _annual = value),
-                        onSelect: _select,
+                      RepaintBoundary(
+                        child: PublicPricingContent(
+                          catalogue: catalogue,
+                          annual: _annual,
+                          busyPlan: _busy,
+                          isAuthenticated: _isSignedIn,
+                          onAnnualChanged: (value) =>
+                              setState(() => _annual = value),
+                          onSelect: _select,
+                        ),
                       ),
                     ],
                   ),

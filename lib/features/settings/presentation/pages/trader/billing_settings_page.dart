@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
 import 'package:alphajournal/core/billing/revenuecat_billing.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
 import 'package:alphajournal/core/config/customer_limitations.dart';
 import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 import 'package:alphajournal/features/settings/data/repositories/billing_settings_repository.dart';
@@ -291,17 +294,59 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
 
     final SubscriptionSummary? loaded = _subscription;
     if (loaded == null) {
-      return Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-        child: UiEmptyState(
-          icon: Icons.receipt_long_outlined,
-          title: 'Billing is unavailable',
-          message:
-              'We could not read your subscription. Try again in a moment.',
-          action: UiButton(
-            label: 'Retry',
-            variant: UiVariant.outline,
-            onPressed: _loadBillingData,
+      final bool isNativeMobile =
+          !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS);
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            context.sp(theme.spacing.lg),
+            MediaQuery.paddingOf(context).top + context.sp(theme.spacing.lg),
+            context.sp(theme.spacing.lg),
+            context.uiRes.isMobile
+                ? context.uiPageBottomInset
+                : context.sp(theme.spacing.lg),
+          ),
+          child: UiEmptyState(
+            icon: Icons.receipt_long_outlined,
+            title: 'Billing is unavailable',
+            message: isNativeMobile
+                ? 'We could not load your subscription in the app right now. You can view or upgrade your plan on the AlphaJournal website.'
+                : 'We could not read your subscription. Try again in a moment.',
+            action: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: context.sp(theme.spacing.sm),
+              runSpacing: context.sp(theme.spacing.xs),
+              children: <Widget>[
+                UiButton(
+                  label: 'Retry',
+                  variant: UiVariant.outline,
+                  onPressed: _loadBillingData,
+                ),
+                if (isNativeMobile)
+                  UiButton(
+                    label: 'Open Website',
+                    intent: UiIntent.primary,
+                    leadingIcon: Icons.open_in_new_rounded,
+                    onPressed: () async {
+                      final uri = Uri.parse(
+                        '${AppConstants.appSubdomainUrl}/settings_billing',
+                      );
+                      final ok = await launchUrl(
+                        uri,
+                        mode: LaunchMode.inAppBrowserView,
+                      );
+                      if (!ok) {
+                        await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      }
+                    },
+                  ),
+              ],
+            ),
           ),
         ),
       );
@@ -357,8 +402,17 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
           )
         : null;
 
+    final bool isMobile = context.uiRes.isMobile;
+    final double pagePad = context.sp(
+      isMobile ? theme.spacing.md : theme.spacing.lg,
+    );
     return SingleChildScrollView(
-      padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+      padding: EdgeInsets.fromLTRB(
+        pagePad,
+        MediaQuery.paddingOf(context).top + pagePad,
+        pagePad,
+        isMobile ? context.uiPageBottomInset : pagePad,
+      ),
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -410,12 +464,14 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                                   UiBadge(
                                     label: isAffiliate
                                         ? 'PARTNER'
-                                        : (sub.endsAtPeriodEnd
+                                        : (sub.tier != AppTier.free &&
+                                                  sub.endsAtPeriodEnd
                                               ? 'ENDING'
                                               : 'ACTIVE'),
                                     intent: isAffiliate
                                         ? UiIntent.warning
-                                        : (sub.endsAtPeriodEnd
+                                        : (sub.tier != AppTier.free &&
+                                                  sub.endsAtPeriodEnd
                                               ? UiIntent.warning
                                               : UiIntent.bullish),
                                     size: UiSize.xs,
@@ -445,10 +501,11 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                       SizedBox(height: context.sp(theme.spacing.md)),
                       planAction,
                     ],
-                    // The reader has cancelled but is still inside a paid
-                    // period: say when it ends and offer the way back.
+                    // The reader has cancelled a paid plan but is still inside
+                    // the prepaid period: say when it ends and offer the way back.
                     if (_verifiedBillingConnected &&
                         selfServe &&
+                        sub.tier != AppTier.free &&
                         sub.endsAtPeriodEnd) ...<Widget>[
                       SizedBox(height: context.sp(theme.spacing.md)),
                       UiCallout(

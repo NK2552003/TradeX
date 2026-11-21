@@ -34,16 +34,30 @@ class _UiMarqueeState extends State<UiMarquee>
   bool _running = false;
   Timer? _timer;
 
+  bool _disableAnimations = false;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startScroll());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool reducedMotion = MediaQuery.disableAnimationsOf(context);
+    _disableAnimations = reducedMotion;
+    if (reducedMotion) {
+      _running = false;
+      _timer?.cancel();
+    } else if (!_running) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startScroll());
+    }
   }
 
   void _startScroll() async {
-    if (!mounted) return;
+    if (!mounted || _disableAnimations || _running) return;
     _running = true;
-    while (mounted && _running) {
+    while (mounted && _running && !_disableAnimations) {
       if (!_hovered &&
           _scrollController.hasClients &&
           _scrollController.position.hasContentDimensions) {
@@ -111,13 +125,14 @@ class _UiMarqueeState extends State<UiMarquee>
           : null,
       child: Padding(
         padding: widget.padding,
-        child: ClipRect(
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            scrollDirection: Axis.horizontal,
-            physics: const NeverScrollableScrollPhysics(),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+        child: RepaintBoundary(
+          child: ClipRect(
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 textWidget,
                 SizedBox(width: widget.blankSpace),
@@ -127,6 +142,7 @@ class _UiMarqueeState extends State<UiMarquee>
               ],
             ),
           ),
+        ),
         ),
       ),
     );

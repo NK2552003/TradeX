@@ -502,12 +502,16 @@ class _MenuRow extends StatelessWidget {
           bottom: ctx.sp(theme.spacing.xs) * density.factor,
         ),
         color: !enabled
-            ? const Color(0x00000000)
+            ? c.surfaceHover.withValues(alpha: 0.0)
             : s.hovered
             ? (item.intent == null
                   ? c.surfaceHover
-                  : accent.withValues(alpha: 0.10))
-            : (item.selected ? c.surfaceMuted : const Color(0x00000000)),
+                  : accent.withValues(alpha: 0.12))
+            : (item.selected
+                  ? c.surfaceMuted
+                  : (item.intent == null ? c.surfaceHover : accent).withValues(
+                      alpha: 0.0,
+                    )),
         child: Row(
           children: <Widget>[
             if (item.icon != null) ...<Widget>[

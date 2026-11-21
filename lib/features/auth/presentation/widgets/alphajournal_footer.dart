@@ -48,13 +48,16 @@ class AlphaJournalFooter extends StatelessWidget {
           vertical: context.sp(theme.spacing.md),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            UiBadge(
-              label: category,
-              intent: UiIntent.primary,
-              size: UiSize.xs,
-              variant: UiBadgeVariant.soft,
+            Align(
+              alignment: Alignment.centerLeft,
+              child: UiBadge(
+                label: category,
+                intent: UiIntent.primary,
+                size: UiSize.xs,
+                variant: UiBadgeVariant.soft,
+              ),
             ),
             SizedBox(height: context.sp(theme.spacing.md)),
             SelectableText(
@@ -66,13 +69,18 @@ class AlphaJournalFooter extends StatelessWidget {
               ),
             ),
             SizedBox(height: context.sp(theme.spacing.xl)),
-            UiButton(
-              label: 'View Complete Security Policy',
-              variant: UiVariant.outline,
-              onPressed: () {
-                Navigator.of(context).pop();
-                PublicationReader.open(context, 'security');
-              },
+            SizedBox(
+              width: double.infinity,
+              child: UiButton(
+                label: 'View Complete Security Policy',
+                expand: true,
+                size: UiSize.lg,
+                variant: UiVariant.outline,
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  PublicationReader.open(context, 'security');
+                },
+              ),
             ),
           ],
         ),
@@ -88,8 +96,8 @@ class AlphaJournalFooter extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const UiDivider(),
-        SizedBox(height: context.sp(theme.spacing.lg)),
+        const UiDivider(spacing: 0),
+        SizedBox(height: context.sp(theme.spacing.xl)),
 
         // Bottom Bar: Copyright & Quick Links
         Padding(

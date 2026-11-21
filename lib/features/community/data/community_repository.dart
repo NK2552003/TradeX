@@ -2698,8 +2698,9 @@ class CommunityRepository extends ChangeNotifier {
           }
           final authorProf = postData['profiles'] as Map<String, dynamic>?;
           final handle =
-              (authorProf?['handle'] ?? authorProf?['username']) as String? ??
-              'trader';
+              ((authorProf?['handle'] ?? authorProf?['username']) as String? ??
+                      'trader')
+                  .replaceFirst(RegExp(r'^@+'), '');
           final body = postData['body'] as String? ?? 'Community Post';
           final createdAt =
               DateTime.tryParse(row['created_at']?.toString() ?? '') ??
@@ -2795,8 +2796,9 @@ class CommunityRepository extends ChangeNotifier {
           }
           final authorProf = postData['profiles'] as Map<String, dynamic>?;
           final handle =
-              (authorProf?['handle'] ?? authorProf?['username']) as String? ??
-              'trader';
+              ((authorProf?['handle'] ?? authorProf?['username']) as String? ??
+                      'trader')
+                  .replaceFirst(RegExp(r'^@+'), '');
           final body = postData['body'] as String? ?? 'Trade setup';
           final createdAt =
               DateTime.tryParse(row['created_at']?.toString() ?? '') ??

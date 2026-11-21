@@ -83,12 +83,15 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
     final colors = theme.colors;
     // The page renders inside the shell, and on a phone the dock floats over the
     // bottom of it, so the last row needs to be able to scroll clear of it.
+    final bool isMobile = context.uiRes.isMobile;
+    final double pagePad = context.sp(
+      isMobile ? theme.spacing.md : theme.spacing.lg,
+    );
     final EdgeInsets padding = EdgeInsets.fromLTRB(
-      context.sp(theme.spacing.lg),
-      context.sp(theme.spacing.lg),
-      context.sp(theme.spacing.lg),
-      context.sp(theme.spacing.lg) +
-          (context.uiRes.isMobile ? context.uiDockInset : 0),
+      pagePad,
+      MediaQuery.paddingOf(context).top + pagePad,
+      pagePad,
+      isMobile ? context.uiPageBottomInset : pagePad,
     );
 
     if (_loading) {

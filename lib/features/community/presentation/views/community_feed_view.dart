@@ -230,27 +230,28 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   /// Floating capsule bar with frosted glass, hairline border, soft glow indicator,
   /// and trailing tab customizer button.
   Widget _buildFloatingBar(BuildContext context, UiTheme theme, bool isMobile) {
-    return Container(
-      height: context.sz(44),
-      decoration: BoxDecoration(
-        borderRadius: context.radius(theme.radii.pill),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.24),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: context.radius(theme.radii.pill),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+    return RepaintBoundary(
+      child: Container(
+        height: context.sz(44),
+        decoration: BoxDecoration(
+          borderRadius: context.radius(theme.radii.pill),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.24),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: context.radius(theme.radii.pill),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
             decoration: BoxDecoration(
@@ -344,6 +345,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
             ),
           ),
         ),
+      ),
       ),
     );
   }

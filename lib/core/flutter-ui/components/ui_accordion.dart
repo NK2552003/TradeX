@@ -13,6 +13,10 @@ enum UiAccordionVariant {
 
   /// No borders at all — headers only.
   ghost,
+
+  /// Editorial hairline list with circled numerals, display headings, and
+  /// animated `+` -> `×` expand/collapse transitions.
+  editorial,
 }
 
 class UiAccordionItem {
@@ -131,6 +135,7 @@ class _UiAccordionState extends State<UiAccordion> {
     final List<Widget> tiles = <Widget>[
       for (int i = 0; i < widget.items.length; i++)
         _UiAccordionTile(
+          index: i,
           item: widget.items[i],
           open: _effective.contains(i),
           size: widget.size,
@@ -140,8 +145,9 @@ class _UiAccordionState extends State<UiAccordion> {
           chevronLeading: widget.chevronLeading,
           showDivider:
               widget.dividers &&
-              widget.variant == UiAccordionVariant.contained &&
-              i != widget.items.length - 1,
+              ((widget.variant == UiAccordionVariant.contained &&
+                      i != widget.items.length - 1) ||
+                  widget.variant == UiAccordionVariant.editorial),
           enabled: widget.enabled && widget.items[i].enabled,
           onTap: () => _toggle(i),
         ),
@@ -187,12 +193,25 @@ class _UiAccordionState extends State<UiAccordion> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: tiles,
         );
+      case UiAccordionVariant.editorial:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            if (widget.dividers && tiles.isNotEmpty)
+              Container(
+                height: theme.borders.hairline,
+                color: theme.colors.border,
+              ),
+            ...tiles,
+          ],
+        );
     }
   }
 }
 
 class _UiAccordionTile extends StatelessWidget {
   const _UiAccordionTile({
+    required this.index,
     required this.item,
     required this.open,
     required this.onTap,
@@ -205,6 +224,7 @@ class _UiAccordionTile extends StatelessWidget {
     required this.enabled,
   });
 
+  final int index;
   final UiAccordionItem item;
   final bool open;
   final VoidCallback onTap;
@@ -216,8 +236,162 @@ class _UiAccordionTile extends StatelessWidget {
   final bool chevronLeading;
   final bool enabled;
 
+  Widget _buildEditorialTile(BuildContext context) {
+    final theme = context.ui;
+    final c = theme.colors;
+    final bool compact = context.uiRes.isMobile;
+    final bool reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final Duration toggleDuration = reducedMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 280);
+    final Duration expandDuration = reducedMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 320);
+
+    final double badgeSize = compact ? 24.0 : 28.0;
+    final double gap = compact ? 14.0 : 18.0;
+    final double contentIndent = badgeSize + gap;
+
+    final Widget numberBadge =
+        item.leading ??
+        AnimatedContainer(
+          duration: toggleDuration,
+          curve: Curves.easeOutCubic,
+          width: badgeSize,
+          height: badgeSize,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: open
+                ? c.foreground.withValues(alpha: 0.08)
+                : c.foreground.withValues(alpha: 0.0),
+            border: Border.all(
+              color: enabled ? c.foreground : c.disabledForeground,
+              width: 1.75,
+            ),
+          ),
+          child: Text(
+            '${index + 1}',
+            style: context.uiText.numeric.copyWith(
+              fontSize: compact ? 12.0 : 13.5,
+              fontWeight: FontWeight.w700,
+              height: 1.0,
+              color: enabled ? c.foreground : c.disabledForeground,
+            ),
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        UiInteractive(
+          enabled: enabled,
+          onTap: enabled ? onTap : null,
+          selected: open,
+          semanticLabel: '${index + 1}. ${item.title}',
+          builder: (BuildContext ctx, UiInteractiveState s) {
+            final Color iconColor = !enabled
+                ? c.disabledForeground
+                : (open || s.hovered ? c.foreground : c.foregroundMuted);
+            return AnimatedContainer(
+              duration: theme.motion.fast,
+              decoration: BoxDecoration(
+                color: s.hovered
+                    ? c.surfaceHover.withValues(alpha: 0.45)
+                    : c.surfaceHover.withValues(alpha: 0.0),
+              ),
+              foregroundDecoration: s.focused
+                  ? uiFocusRing(ctx, BorderRadius.zero)
+                  : null,
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? 4.0 : 8.0,
+                vertical: compact ? 18.0 : 24.0,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  numberBadge,
+                  SizedBox(width: gap),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          item.title,
+                          style: ctx.uiText.display.copyWith(
+                            fontSize: compact ? 20.0 : 26.0,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.6,
+                            height: 1.15,
+                            color: enabled
+                                ? c.foreground
+                                : c.disabledForeground,
+                          ),
+                        ),
+                        if (item.subtitle != null) ...<Widget>[
+                          const SizedBox(height: 3),
+                          Text(
+                            item.subtitle!,
+                            style: ctx.uiText.caption.copyWith(
+                              color: c.foregroundMuted,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (item.trailing != null) ...<Widget>[
+                    SizedBox(width: ctx.sp(theme.spacing.sm)),
+                    item.trailing!,
+                  ],
+                  SizedBox(width: ctx.sp(theme.spacing.md)),
+                  AnimatedRotation(
+                    turns: open ? 0.125 : 0.0,
+                    duration: toggleDuration,
+                    curve: Curves.easeOutCubic,
+                    child: Icon(
+                      Icons.add_rounded,
+                      size: compact ? 22.0 : 25.0,
+                      color: iconColor,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        _EditorialAccordionReveal(
+          open: open,
+          duration: expandDuration,
+          child: SizedBox(
+            width: double.infinity,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                (compact ? 4.0 : 8.0) + contentIndent,
+                2.0,
+                compact ? 8.0 : 32.0,
+                compact ? 22.0 : 30.0,
+              ),
+              child: DefaultTextStyle(
+                style: context.uiText.body.copyWith(
+                  color: c.foregroundMuted,
+                ),
+                child: item.content,
+              ),
+            ),
+          ),
+        ),
+        if (showDivider)
+          Container(height: theme.borders.hairline, color: c.border),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (variant == UiAccordionVariant.editorial) {
+      return _buildEditorialTile(context);
+    }
     final theme = context.ui;
     final c = theme.colors;
     final double f = density.factor;
@@ -256,7 +430,7 @@ class _UiAccordionTile extends StatelessWidget {
                       ? c.surfaceHover
                       : (open && variant != UiAccordionVariant.ghost
                             ? c.surfaceMuted
-                            : const Color(0x00000000)),
+                            : c.surfaceHover.withValues(alpha: 0.0)),
                 ),
                 foregroundDecoration: s.focused
                     ? uiFocusRing(ctx, BorderRadius.zero)
@@ -368,6 +542,94 @@ class _UiAccordionTile extends StatelessWidget {
         if (showDivider)
           Container(height: theme.borders.hairline, color: c.border),
       ],
+    );
+  }
+}
+
+class _EditorialAccordionReveal extends StatefulWidget {
+  const _EditorialAccordionReveal({
+    required this.open,
+    required this.duration,
+    required this.child,
+  });
+
+  final bool open;
+  final Duration duration;
+  final Widget child;
+
+  @override
+  State<_EditorialAccordionReveal> createState() =>
+      _EditorialAccordionRevealState();
+}
+
+class _EditorialAccordionRevealState extends State<_EditorialAccordionReveal>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+    value: widget.open ? 1.0 : 0.0,
+  );
+  late final Animation<double> _sizeCurve = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
+  late final Animation<double> _fadeCurve = CurvedAnimation(
+    parent: _controller,
+    curve: const Interval(0.12, 1.0, curve: Curves.easeOut),
+    reverseCurve: const Interval(0.0, 0.72, curve: Curves.easeIn),
+  );
+  late final Animation<Offset> _slideCurve = Tween<Offset>(
+    begin: const Offset(0, -0.04),
+    end: Offset.zero,
+  ).animate(_sizeCurve);
+
+  @override
+  void didUpdateWidget(covariant _EditorialAccordionReveal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.duration != widget.duration) {
+      _controller.duration = widget.duration;
+    }
+    if (oldWidget.open != widget.open) {
+      if (widget.duration == Duration.zero) {
+        _controller.value = widget.open ? 1.0 : 0.0;
+      } else if (widget.open) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (BuildContext context, Widget? child) {
+        if (_controller.isDismissed) {
+          return const SizedBox.shrink();
+        }
+        return ClipRect(
+          child: SizeTransition(
+            sizeFactor: _sizeCurve,
+            alignment: Alignment.topLeft,
+            child: FadeTransition(
+              opacity: _fadeCurve,
+              child: SlideTransition(
+                position: _slideCurve,
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }

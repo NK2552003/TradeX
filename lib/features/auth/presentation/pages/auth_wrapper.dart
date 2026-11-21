@@ -605,6 +605,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialStage != widget.initialStage &&
         widget.initialStage != AuthStage.splash &&
+        widget.initialStage != AuthStage.authenticated &&
         _sessionState.stage != AuthStage.authenticated &&
         !_isAuthLoading) {
       _sessionState = _sessionState.copyWith(stage: widget.initialStage);
@@ -614,14 +615,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void _navigateToStage(AuthStage stage, {UserRole? role, String? email}) {
     final activeService = SupabaseAuthBackendService.instance;
     final profile = activeService.currentUserProfile;
-    if (stage == AuthStage.authenticated && role != null) {
+    final bool hasLiveAuth =
+        !SupabaseConfig.isConfigured ||
+        SupabaseConfig.client?.auth.currentUser != null;
+    final AuthStage safeStage =
+        (stage == AuthStage.authenticated && !hasLiveAuth)
+        ? AuthStage.login
+        : stage;
+    if (safeStage == AuthStage.authenticated && role != null) {
       final userId = profile?.id ?? _sessionState.userId;
       AuthSessionStorage.saveWorkspaceRole(userId, role);
       if (userId.isNotEmpty) unawaited(RevenueCatBilling.identify(userId));
     }
     setState(() {
       _sessionState = _sessionState.copyWith(
-        stage: stage,
+        stage: safeStage,
         role: role ?? _sessionState.role,
         email: email ?? _sessionState.email,
         userId: profile?.id,
@@ -631,7 +639,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     });
     widget.onRoleChanged?.call(_sessionState.role);
-    widget.onStageChanged?.call(stage);
+    widget.onStageChanged?.call(safeStage);
   }
 
   void _resetToLoggedOutState({UserRole? preservedRole}) {
@@ -865,14 +873,30 @@ class _AuthWrapperState extends State<AuthWrapper> {
               );
 
             case AuthStage.subscription:
+              final bool hasAuthenticatedSession =
+                  (!SupabaseConfig.isConfigured &&
+                      (activeProfile != null ||
+                          _sessionState.userId.isNotEmpty)) ||
+                  SupabaseConfig.client?.auth.currentUser != null;
               return SubscriptionPricingPage(
-                isPostSignup: true,
+                isPostSignup: hasAuthenticatedSession,
                 onBack: () => _navigateToStage(AuthStage.onboarding),
-                onContinue: () => _navigateToStage(
-                  AuthStage.authenticated,
-                  role: _sessionState.role,
-                  email: _sessionState.email,
-                ),
+                onRequireAuth: (plan, isAnnual) {
+                  AuthSessionStorage.markOnboardingCompleted();
+                  _navigateToStage(AuthStage.signup, role: UserRole.customer);
+                },
+                onContinue: () {
+                  if (!hasAuthenticatedSession) {
+                    AuthSessionStorage.markOnboardingCompleted();
+                    _navigateToStage(AuthStage.signup, role: UserRole.customer);
+                    return;
+                  }
+                  _navigateToStage(
+                    AuthStage.authenticated,
+                    role: _sessionState.role,
+                    email: _sessionState.email,
+                  );
+                },
               );
 
             case AuthStage.forgotPassword:

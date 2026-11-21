@@ -1126,10 +1126,12 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                           children: <Widget>[
                             // Subtle financial grid pattern overlay
                             Positioned.fill(
-                              child: CustomPaint(
-                                painter: _GridPatternPainter(
-                                  gridColor: Colors.white.withValues(
-                                    alpha: 0.08,
+                              child: RepaintBoundary(
+                                child: CustomPaint(
+                                  painter: _GridPatternPainter(
+                                    gridColor: Colors.white.withValues(
+                                      alpha: 0.08,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -5156,7 +5158,7 @@ class _TraderActivityHistoryPreviewState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             Padding(
-              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.md)),
+              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
               child: UiToggleGroup<int>(
                 value: _filterIndex,
                 variant: UiToggleGroupVariant.segmented,
@@ -5193,6 +5195,7 @@ class _TraderActivityHistoryPreviewState
               )
             else
               ListView.separated(
+                padding: EdgeInsets.zero,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: filteredItems.length,
@@ -5237,75 +5240,72 @@ class _TraderActivityHistoryPreviewState
                     },
                     child: UiCard(
                       variant: UiCardVariant.surface,
-                      child: Padding(
-                        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Container(
-                              width: context.sz(36),
-                              height: context.sz(36),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: theme.colors.surfaceMuted,
-                              ),
-                              child: Icon(
-                                icon,
-                                size: context.sz(18),
-                                color: intent == UiIntent.danger
-                                    ? theme.colors.destructive
-                                    : (intent == UiIntent.success
-                                          ? theme.colors.success
-                                          : theme.colors.primary),
-                              ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Container(
+                            width: context.sz(36),
+                            height: context.sz(36),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: theme.colors.surfaceMuted,
                             ),
-                            SizedBox(width: context.sp(theme.spacing.md)),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Row(
-                                    children: <Widget>[
-                                      UiBadge(
-                                        label: badgeLabel,
-                                        intent: intent,
-                                        variant: UiBadgeVariant.soft,
-                                      ),
-                                      const Spacer(),
-                                      Text(
-                                        _formatActivityTime(item.timestamp),
-                                        style: context.uiText.caption.copyWith(
-                                          color: theme.colors.foregroundMuted,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(
-                                    height: context.sp(theme.spacing.xs),
-                                  ),
-                                  Text(
-                                    item.title,
-                                    style: context.uiText.bodyStrong,
-                                  ),
-                                  if (item.subtitle != null &&
-                                      item.subtitle!.isNotEmpty) ...<Widget>[
-                                    SizedBox(
-                                      height: context.sp(theme.spacing.xxs),
+                            child: Icon(
+                              icon,
+                              size: context.sz(18),
+                              color: intent == UiIntent.danger
+                                  ? theme.colors.destructive
+                                  : (intent == UiIntent.success
+                                        ? theme.colors.success
+                                        : theme.colors.primary),
+                            ),
+                          ),
+                          SizedBox(width: context.sp(theme.spacing.md)),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Row(
+                                  children: <Widget>[
+                                    UiBadge(
+                                      label: badgeLabel,
+                                      intent: intent,
+                                      variant: UiBadgeVariant.soft,
                                     ),
+                                    const Spacer(),
                                     Text(
-                                      item.subtitle!,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: context.uiText.body.copyWith(
+                                      _formatActivityTime(item.timestamp),
+                                      style: context.uiText.caption.copyWith(
                                         color: theme.colors.foregroundMuted,
                                       ),
                                     ),
                                   ],
+                                ),
+                                SizedBox(
+                                  height: context.sp(theme.spacing.xs),
+                                ),
+                                Text(
+                                  item.title,
+                                  style: context.uiText.bodyStrong,
+                                ),
+                                if (item.subtitle != null &&
+                                    item.subtitle!.isNotEmpty) ...<Widget>[
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxs),
+                                  ),
+                                  Text(
+                                    item.subtitle!,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: context.uiText.body.copyWith(
+                                      color: theme.colors.foregroundMuted,
+                                    ),
+                                  ),
                                 ],
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   );

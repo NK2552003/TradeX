@@ -162,15 +162,18 @@ class _TradingPreferencesPageState extends State<TradingPreferencesPage> {
     }
 
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final double pagePad = context.sp(
+      isMobile ? theme.spacing.md : theme.spacing.lg,
+    );
     final double bottomInset = isMobile
         ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
-        context.sp(theme.spacing.lg),
-        context.sp(theme.spacing.lg),
-        context.sp(theme.spacing.lg),
+        pagePad,
+        MediaQuery.paddingOf(context).top + pagePad,
+        pagePad,
         bottomInset,
       ),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -289,6 +292,7 @@ class _TradingPreferencesPageState extends State<TradingPreferencesPage> {
                           )
                         else
                           ListView.separated(
+                            padding: EdgeInsets.zero,
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _checklist.length,

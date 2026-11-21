@@ -28,7 +28,18 @@ class _CommunityAudioMiniPlayerState extends State<CommunityAudioMiniPlayer>
     _waveController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
-    )..repeat(reverse: true);
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _waveController.stop();
+      _waveController.value = 0.5;
+    } else if (!_waveController.isAnimating) {
+      _waveController.repeat(reverse: true);
+    }
   }
 
   @override
@@ -97,30 +108,32 @@ class _CommunityAudioMiniPlayerState extends State<CommunityAudioMiniPlayer>
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 // Animated soundwave bars
-                AnimatedBuilder(
-                  animation: _waveController,
-                  builder: (context, child) {
-                    final v = _waveController.value;
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        _WaveBar(
-                          height: 6 + (v * 10),
-                          color: theme.colors.danger,
-                        ),
-                        const SizedBox(width: 2),
-                        _WaveBar(
-                          height: 14 - (v * 8),
-                          color: theme.colors.danger,
-                        ),
-                        const SizedBox(width: 2),
-                        _WaveBar(
-                          height: 8 + (v * 8),
-                          color: theme.colors.danger,
-                        ),
-                      ],
-                    );
-                  },
+                RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: _waveController,
+                    builder: (context, child) {
+                      final v = _waveController.value;
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          _WaveBar(
+                            height: 6 + (v * 10),
+                            color: theme.colors.danger,
+                          ),
+                          const SizedBox(width: 2),
+                          _WaveBar(
+                            height: 14 - (v * 8),
+                            color: theme.colors.danger,
+                          ),
+                          const SizedBox(width: 2),
+                          _WaveBar(
+                            height: 8 + (v * 8),
+                            color: theme.colors.danger,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
                 SizedBox(width: context.sp(theme.spacing.xs)),
 

@@ -377,11 +377,14 @@ class _AiCopilotSettingsPageState extends State<AiCopilotSettingsPage> {
         ? _settings.defaultSpecialistId
         : specialistOptions.first.value;
 
+    final double pagePad = context.sp(
+      isMobile ? theme.spacing.md : theme.spacing.lg,
+    );
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
-        context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
-        context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
-        context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
+        pagePad,
+        MediaQuery.paddingOf(context).top + pagePad,
+        pagePad,
         bottomInset,
       ),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -919,9 +922,15 @@ class _CopilotToolSubpage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final bool isMobile = context.uiRes.isMobile;
+    final double pagePad = context.sp(
+      isMobile ? theme.spacing.md : theme.spacing.lg,
+    );
     return Padding(
-      padding: EdgeInsets.all(
-        context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
+      padding: EdgeInsets.fromLTRB(
+        pagePad,
+        MediaQuery.paddingOf(context).top + pagePad,
+        pagePad,
+        isMobile ? context.uiPageBottomInset : pagePad,
       ),
       child: Align(
         alignment: Alignment.topCenter,

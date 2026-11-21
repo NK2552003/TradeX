@@ -206,18 +206,22 @@ Future<T?> showSettingsSideSheet<T>(
 
                             // Side Sheet Body Content
                             Expanded(
-                              child: scrollable
-                                  ? SingleChildScrollView(
-                                      padding: EdgeInsets.only(
-                                        bottom: isMobile
-                                            ? bottomInset + 16.0
-                                            : ctx.sp(theme.spacing.lg),
-                                      ),
-                                      physics:
-                                          const AlwaysScrollableScrollPhysics(),
-                                      child: child,
-                                    )
-                                  : child,
+                              child: MediaQuery.removePadding(
+                                context: ctx,
+                                removeTop: showHeader,
+                                child: scrollable
+                                    ? SingleChildScrollView(
+                                        padding: EdgeInsets.only(
+                                          bottom: isMobile
+                                              ? bottomInset + 16.0
+                                              : ctx.sp(theme.spacing.lg),
+                                        ),
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        child: child,
+                                      )
+                                    : child,
+                              ),
                             ),
                           ],
                         ),

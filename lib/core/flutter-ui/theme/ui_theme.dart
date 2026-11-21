@@ -300,10 +300,13 @@ extension UiThemeContext on BuildContext {
   /// whatever the shell floats over the content (a bottom dock, a home
   /// indicator, a rail shadow).
   ///
-  /// The shell publishes that footprint as a [MediaQuery] bottom padding, so a
-  /// page never has to know the dock's height — read this instead of hardcoding
-  /// a magic number, or the page breaks the moment the dock changes size.
-  double get uiDockInset => MediaQuery.paddingOf(this).bottom + sp(uiSpace.lg);
+  /// The shell keeps the real system bottom inset on [MediaQuery] so [SafeArea]
+  /// pages do not render an opaque dead band, while scrollable pages add the
+  /// floating mobile dock clearance here.
+  double get uiDockInset =>
+      MediaQuery.paddingOf(this).bottom +
+      (uiRes.isMobile ? 68.0 : 0.0) +
+      sp(uiSpace.lg);
 
   /// [uiDockInset], or room for the keyboard when it is open.
   double get uiPageBottomInset {

@@ -199,19 +199,21 @@ class _UiGraphCanvasState extends State<UiGraphCanvas> {
                     }
                     widget.onSelect?.call(hit);
                   },
-                  child: CustomPaint(
-                    size: size,
-                    painter: _UiGraphPainter(
-                      nodes: widget.nodes,
-                      edges: widget.edges,
-                      positions: _positions,
-                      colors: theme.colors,
-                      selectedId: widget.selectedId,
-                      textScaler: MediaQuery.textScalerOf(ctx),
-                      labelStyle: ctx.uiText.caption.copyWith(
-                        color: theme.colors.foreground,
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      size: size,
+                      painter: _UiGraphPainter(
+                        nodes: widget.nodes,
+                        edges: widget.edges,
+                        positions: _positions,
+                        colors: theme.colors,
+                        selectedId: widget.selectedId,
+                        textScaler: MediaQuery.textScalerOf(ctx),
+                        labelStyle: ctx.uiText.caption.copyWith(
+                          color: theme.colors.foreground,
+                        ),
+                        radiusOf: (UiGraphNode n) => _nodeRadius(ctx, n),
                       ),
-                      radiusOf: (UiGraphNode n) => _nodeRadius(ctx, n),
                     ),
                   ),
                 ),

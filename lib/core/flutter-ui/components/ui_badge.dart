@@ -265,20 +265,27 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
     duration: const Duration(milliseconds: 1200),
   );
 
+  void _syncPulse() {
+    final bool shouldPulse =
+        widget.pulse && !MediaQuery.disableAnimationsOf(context);
+    if (shouldPulse && !_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    } else if (!shouldPulse && _controller.isAnimating) {
+      _controller.stop();
+      _controller.value = 1.0;
+    }
+  }
+
   @override
-  void initState() {
-    super.initState();
-    if (widget.pulse) _controller.repeat(reverse: true);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncPulse();
   }
 
   @override
   void didUpdateWidget(covariant _Dot oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.pulse && !_controller.isAnimating) {
-      _controller.repeat(reverse: true);
-    } else if (!widget.pulse && _controller.isAnimating) {
-      _controller.stop();
-    }
+    _syncPulse();
   }
 
   @override
@@ -295,9 +302,11 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
       decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
     );
     if (!widget.pulse) return dot;
-    return FadeTransition(
-      opacity: Tween<double>(begin: 0.35, end: 1).animate(_controller),
-      child: dot,
+    return RepaintBoundary(
+      child: FadeTransition(
+        opacity: Tween<double>(begin: 0.35, end: 1).animate(_controller),
+        child: dot,
+      ),
     );
   }
 }

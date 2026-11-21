@@ -103,8 +103,8 @@ class AppWorkspacePane extends StatelessWidget {
           );
 
     return UiSplitPane(
-      primary: listPane,
-      detail: detailPane,
+      primary: RepaintBoundary(child: listPane),
+      detail: RepaintBoundary(child: detailPane),
       detailVisible: hasSelection,
       initialRatio: initialRatio,
     );
@@ -134,9 +134,9 @@ class AppWorkspaceThreePane extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return UiThreePane(
-      rail: rail,
-      list: list,
-      detail: detail,
+      rail: RepaintBoundary(child: rail),
+      list: RepaintBoundary(child: list),
+      detail: RepaintBoundary(child: detail),
       detailVisible: hasSelection,
       railVisible: railVisible,
       railWidth: railWidth,

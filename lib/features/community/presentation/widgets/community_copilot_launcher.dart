@@ -448,23 +448,24 @@ class _CommunityCopilotLauncherState extends State<CommunityCopilotLauncher> {
     final double size = context.uiRes.isMobile ? m.height : 56.0;
     final double iconSize = context.uiRes.isMobile ? m.iconSize : 22.0;
     final BorderRadius radius = BorderRadius.circular(size / 2);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.36 : 0.10),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: radius,
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+    return RepaintBoundary(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.36 : 0.10),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: theme.colors.surface.withValues(
@@ -498,6 +499,7 @@ class _CommunityCopilotLauncherState extends State<CommunityCopilotLauncher> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -528,7 +530,7 @@ class _CommunityCopilotLauncherState extends State<CommunityCopilotLauncher> {
       return wrapSynced(
         _glassPillButton(
           context: context,
-          icon: Icons.chat_bubble_outline_rounded,
+          icon: Icons.auto_awesome_rounded,
           tooltip: 'Ask copilot',
           onPressed: onCopilot,
         ),
@@ -551,7 +553,7 @@ class _CommunityCopilotLauncherState extends State<CommunityCopilotLauncher> {
         wrapSynced(
           _glassPillButton(
             context: context,
-            icon: Icons.chat_bubble_outline_rounded,
+            icon: Icons.auto_awesome_rounded,
             tooltip: 'Ask copilot',
             onPressed: onCopilot,
           ),

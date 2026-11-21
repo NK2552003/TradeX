@@ -137,13 +137,16 @@ class _BillingHistoryPageState extends State<BillingHistoryPage> {
     final UiTheme theme = context.ui;
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final bool isMobile = context.uiRes.isMobile;
+    final double pagePad = context.sp(
+      isMobile ? theme.spacing.md : theme.spacing.lg,
+    );
     final double bottomInset = isMobile
         ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
     final EdgeInsets padding = EdgeInsets.fromLTRB(
-      context.sp(theme.spacing.lg),
-      context.sp(theme.spacing.lg),
-      context.sp(theme.spacing.lg),
+      pagePad,
+      MediaQuery.paddingOf(context).top + pagePad,
+      pagePad,
       bottomInset,
     );
 

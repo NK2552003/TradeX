@@ -26,7 +26,18 @@ class _AuthBackgroundState extends State<AuthBackground>
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3200),
-    )..repeat(reverse: true);
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pulseController.stop();
+      _pulseController.value = 0.5;
+    } else if (!_pulseController.isAnimating) {
+      _pulseController.repeat(reverse: true);
+    }
   }
 
   @override
@@ -49,9 +60,11 @@ class _AuthBackgroundState extends State<AuthBackground>
           Positioned(
             top: context.sz(-160),
             left: context.sz(-120),
-            child: _Bloom(
-              size: context.sz(460),
-              color: colors.primary.withValues(alpha: 0.16),
+            child: RepaintBoundary(
+              child: _Bloom(
+                size: context.sz(460),
+                color: colors.primary.withValues(alpha: 0.16),
+              ),
             ),
           ),
           // Secondary bloom — bottom-right, tinted with the bullish accent
@@ -59,29 +72,33 @@ class _AuthBackgroundState extends State<AuthBackground>
           Positioned(
             bottom: context.sz(-180),
             right: context.sz(-140),
-            child: _Bloom(
-              size: context.sz(520),
-              color: colors.bullish.withValues(alpha: 0.10),
+            child: RepaintBoundary(
+              child: _Bloom(
+                size: context.sz(520),
+                color: colors.bullish.withValues(alpha: 0.10),
+              ),
             ),
           ),
           if (widget.showGrid)
             Positioned.fill(
               child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: _pulseController,
-                  builder: (context, _) {
-                    // Ease in/out rather than a linear pulse.
-                    final t = Curves.easeInOut.transform(
-                      _pulseController.value,
-                    );
-                    return CustomPaint(
-                      size: Size.infinite,
-                      painter: _DotGridPainter(
-                        color: colors.foregroundSubtle,
-                        pulse: t,
-                      ),
-                    );
-                  },
+                child: RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (context, _) {
+                      // Ease in/out rather than a linear pulse.
+                      final t = Curves.easeInOut.transform(
+                        _pulseController.value,
+                      );
+                      return CustomPaint(
+                        size: Size.infinite,
+                        painter: _DotGridPainter(
+                          color: colors.foregroundSubtle,
+                          pulse: t,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),

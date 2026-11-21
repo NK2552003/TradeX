@@ -26,24 +26,30 @@ class AppMobileDockMetrics {
 
   double get radius => height / 2;
 
-  static AppMobileDockMetrics of(BuildContext context) {
+  double get indicatorSize => math.max(0.0, height - 8.0);
+
+  double get indicatorRadius => indicatorSize / 2;
+
+  double widthForSlots(int slots) => height * math.max(1, slots);
+
+  static AppMobileDockMetrics of(BuildContext context, {int slots = 5}) {
     final double screenWidth = MediaQuery.sizeOf(context).width;
-    final double height = screenWidth < 370
-        ? 46.0
-        : (screenWidth < 430 ? 50.0 : 56.0);
-    final double iconSize = screenWidth < 370
+    final double edgeInset = screenWidth < 380 ? 10.0 : 12.0;
+    final double minSideGap = screenWidth < 380 ? 8.0 : 10.0;
+    final int effectiveSlots = math.max(2, slots);
+    // Reserve space for the two flanking circular buttons (2 * height), the
+    // dock (effectiveSlots * height), and side margins so every slot in the
+    // dock is an exact 1:1 square (height × height) and the active indicator
+    // is always a true circle ((height - 8) × (height - 8)).
+    final double maxFittingHeight =
+        (screenWidth - 2 * (edgeInset + minSideGap)) / (effectiveSlots + 2);
+    final int rawEvenHeight =
+        (maxFittingHeight.clamp(38.0, 50.0).floor() ~/ 2) * 2;
+    final double height = rawEvenHeight.toDouble();
+    final double iconSize = height <= 44.0
         ? 19.0
-        : (screenWidth < 430 ? 20.0 : 22.0);
-    final double edgeInset = screenWidth < 430 ? 10.0 : 12.0;
-    const double minSideGap = 8.0;
-    final double available = screenWidth - (edgeInset + height + minSideGap) * 2;
-    // Keep natural compact pill proportions (~4.45× height for 5 slots) so the
-    // dock never stretches awkwardly wide, while still shrinking gracefully if
-    // a viewport is extra narrow.
-    final double idealWidth = height * 4.45;
-    final double dockWidth = math
-        .min(idealWidth, available)
-        .clamp(160.0, idealWidth);
+        : (height <= 48.0 ? 20.0 : 21.0);
+    final double dockWidth = height * effectiveSlots;
     return AppMobileDockMetrics(
       height: height,
       dockWidth: dockWidth,
@@ -512,6 +518,19 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
   }
 
   Widget _buildDock(BuildContext context, QuietDockTheme theme) {
+    final int slotCount =
+        widget.destinations.length + (widget.centerAction != null ? 1 : 0);
+    final double h = theme.height;
+    final double exactWidth = h > 0 ? h * slotCount : theme.width;
+    final double exactRadius = h > 0 ? h / 2 : theme.radius;
+    final double exactIndicatorRadius = h > 8
+        ? (h - 8) / 2
+        : theme.indicatorRadius;
+    final QuietDockTheme normalizedTheme = widget.theme.copyWith(
+      width: exactWidth,
+      radius: exactRadius,
+      indicatorRadius: exactIndicatorRadius,
+    );
     return SlideTransition(
       key: const ValueKey('app-dock-slide'),
       position: _dockSlide,
@@ -526,9 +545,10 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
               excluding: _dockHidden,
               child: IgnorePointer(
                 ignoring: _dockHidden,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
+                child: RepaintBoundary(
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
                     QuietDock(
                       destinations: widget.destinations,
                       selectedIndex: _index,
@@ -537,7 +557,7 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
                       centerActionActive:
                           _menuOpen || widget.centerActionActive,
                       onCenterActionPressed: _toggleMenu,
-                      theme: widget.theme,
+                      theme: normalizedTheme,
                     ),
                     if (widget.lockedDestinationIndices.isNotEmpty)
                       Positioned.fill(
@@ -547,7 +567,7 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
                             child: Align(
                               alignment: Alignment.bottomCenter,
                               child: Container(
-                                width: theme.width,
+                                width: exactWidth,
                                 height: theme.height,
                                 margin: EdgeInsets.only(bottom: theme.margin),
                                 child: _DockLockOverlayRow(
@@ -571,7 +591,7 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
                           child: Align(
                             alignment: Alignment.bottomCenter,
                             child: SizedBox(
-                              width: 56,
+                              width: theme.height,
                               height: theme.height,
                               child: Padding(
                                 padding: const EdgeInsets.only(
@@ -592,6 +612,7 @@ class _AppQuietDockScaffoldState extends State<AppQuietDockScaffold>
                         ),
                       ),
                   ],
+                ),
                 ),
               ),
             ),
@@ -622,48 +643,50 @@ class _DockLeftGlassButton extends StatelessWidget {
     final uiTheme = context.ui;
     final bool isDark = uiTheme.brightness == Brightness.dark;
     final BorderRadius radius = BorderRadius.circular(size / 2);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.36 : 0.10),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: radius,
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: uiTheme.colors.surface.withValues(
-                alpha: isDark ? 0.62 : 0.74,
-              ),
-              borderRadius: radius,
-              border: Border.all(
-                color: uiTheme.colors.borderStrong.withValues(
-                  alpha: isDark ? 0.65 : 0.75,
-                ),
-                width: 1.2,
-              ),
+    return RepaintBoundary(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.36 : 0.10),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
             ),
-            child: Material(
-              color: Colors.transparent,
-              child: Tooltip(
-                message: tooltip,
-                child: InkWell(
-                  borderRadius: radius,
-                  onTap: onPressed,
-                  child: Center(
-                    child: Icon(
-                      icon,
-                      size: iconSize,
-                      color: uiTheme.colors.foreground,
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: uiTheme.colors.surface.withValues(
+                  alpha: isDark ? 0.62 : 0.74,
+                ),
+                borderRadius: radius,
+                border: Border.all(
+                  color: uiTheme.colors.borderStrong.withValues(
+                    alpha: isDark ? 0.65 : 0.75,
+                  ),
+                  width: 1.2,
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: Tooltip(
+                  message: tooltip,
+                  child: InkWell(
+                    borderRadius: radius,
+                    onTap: onPressed,
+                    child: Center(
+                      child: Icon(
+                        icon,
+                        size: iconSize,
+                        color: uiTheme.colors.foreground,
+                      ),
                     ),
                   ),
                 ),
@@ -898,27 +921,30 @@ class _FrostedQuickGridTile extends StatelessWidget {
     );
 
     if (theme.frosted && theme.blur > 0) {
+      final double sigma = theme.blur.clamp(0.0, 12.0);
       content = BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: theme.blur, sigmaY: theme.blur),
+        filter: ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
         child: content,
       );
     }
 
-    return Semantics(
-      button: true,
-      label: item.label,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: tileRadius,
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: theme.shadowColor!,
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
+    return RepaintBoundary(
+      child: Semantics(
+        button: true,
+        label: item.label,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: tileRadius,
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: theme.shadowColor!,
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: ClipRRect(borderRadius: tileRadius, child: content),
         ),
-        child: ClipRRect(borderRadius: tileRadius, child: content),
       ),
     );
   }

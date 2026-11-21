@@ -5,6 +5,7 @@ import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
 import 'package:alphajournal/features/auth/models/auth_user_role.dart';
 import 'package:alphajournal/features/settings/data/repositories/privacy_repository.dart';
 import 'package:alphajournal/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:alphajournal/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class DeleteAccountPage extends StatefulWidget {
   const DeleteAccountPage({
@@ -244,15 +245,18 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     final theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final double pagePad = context.sp(
+      isMobile ? theme.spacing.md : theme.spacing.lg,
+    );
     final double bottomInset = isMobile
         ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
-        context.sp(theme.spacing.lg),
-        context.sp(theme.spacing.lg),
-        context.sp(theme.spacing.lg),
+        pagePad,
+        MediaQuery.paddingOf(context).top + pagePad,
+        pagePad,
         bottomInset,
       ),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -413,7 +417,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                     child: UiButton(
                       label: 'Keep My Account',
                       variant: UiVariant.outline,
-                      onPressed: () => Navigator.of(context).maybePop(),
+                      onPressed: () => closeSettingsSubpage(context),
                     ),
                   ),
                   SizedBox(

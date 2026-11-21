@@ -198,8 +198,9 @@ class DeskStatsOverview extends StatelessWidget {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
 
-    return UiCard(
-      key: data.key,
+    return RepaintBoundary(
+      child: UiCard(
+        key: data.key,
       variant: UiCardVariant.surface,
       minHeight: context.sz(84),
       padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
@@ -276,6 +277,7 @@ class DeskStatsOverview extends StatelessWidget {
           else
             const SizedBox.shrink(),
         ],
+      ),
       ),
     );
   }

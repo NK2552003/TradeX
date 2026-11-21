@@ -362,10 +362,12 @@ class _UiToggleButton<T> extends StatelessWidget {
             : Alignment.center,
         decoration: BoxDecoration(
           color: !enabled
-              ? const Color(0x00000000)
+              ? c.surfaceHover.withValues(alpha: 0.0)
               : selected
               ? activeBg
-              : (s.hovered ? c.surfaceHover : const Color(0x00000000)),
+              : (s.hovered
+                    ? c.surfaceHover
+                    : c.surfaceHover.withValues(alpha: 0.0)),
           borderRadius: buttonRadius,
           border: variant == UiToggleGroupVariant.pill
               ? Border.all(
@@ -377,7 +379,9 @@ class _UiToggleButton<T> extends StatelessWidget {
                   bottom: BorderSide(
                     color: selected
                         ? (tint?.color(context) ?? c.primary)
-                        : const Color(0x00000000),
+                        : (tint?.color(context) ?? c.primary).withValues(
+                            alpha: 0.0,
+                          ),
                     width: theme.borders.focus,
                   ),
                 )

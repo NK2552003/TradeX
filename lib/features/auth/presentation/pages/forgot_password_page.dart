@@ -61,7 +61,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   bool _isLoading = false;
   String? _errorText;
-  int _timerSeconds = 60;
+  final ValueNotifier<int> _timerSeconds = ValueNotifier<int>(60);
   Timer? _timer;
 
   @override
@@ -77,6 +77,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _timerSeconds.dispose();
     _emailController.dispose();
     _otpController.dispose();
     _newPasswordController.dispose();
@@ -85,17 +86,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   void _startResendTimer() {
-    _timerSeconds = 60;
+    _timerSeconds.value = 60;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) return;
-      setState(() {
-        if (_timerSeconds > 0) {
-          _timerSeconds--;
-        } else {
-          _timer?.cancel();
-        }
-      });
+      if (_timerSeconds.value > 0) {
+        _timerSeconds.value--;
+      } else {
+        _timer?.cancel();
+      }
     });
   }
 
@@ -297,8 +296,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        UiCard(
-                          variant: UiCardVariant.surface,
+                        RepaintBoundary(
+                          child: UiCard(
+                            variant: UiCardVariant.surface,
                           child: Padding(
                             padding: EdgeInsets.all(
                               context.sp(
@@ -505,37 +505,49 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                   SizedBox(
                                     height: context.sp(theme.spacing.md),
                                   ),
-                                  Wrap(
-                                    alignment: WrapAlignment.center,
-                                    runSpacing: context.sp(theme.spacing.xs),
-                                    crossAxisAlignment:
-                                        WrapCrossAlignment.center,
-                                    children: [
-                                      Text(
-                                        _timerSeconds > 0
-                                            ? 'Resend code in ${_timerSeconds}s'
-                                            : "Didn't get a code?",
-                                        style: context.uiText.caption.copyWith(
-                                          color: colors.foregroundSubtle,
+                                  ValueListenableBuilder<int>(
+                                    valueListenable: _timerSeconds,
+                                    builder: (context, secondsLeft, _) {
+                                      return Wrap(
+                                        alignment: WrapAlignment.center,
+                                        runSpacing: context.sp(
+                                          theme.spacing.xs,
                                         ),
-                                      ),
-                                      if (_timerSeconds == 0) ...[
-                                        SizedBox(
-                                          width: context.sp(theme.spacing.xs),
-                                        ),
-                                        GestureDetector(
-                                          onTap: _handleSendResetLink,
-                                          child: Text(
-                                            'Resend OTP',
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          Text(
+                                            secondsLeft > 0
+                                                ? 'Resend code in ${secondsLeft}s'
+                                                : "Didn't get a code?",
                                             style: context.uiText.caption
                                                 .copyWith(
-                                                  color: colors.primary,
-                                                  fontWeight: FontWeight.bold,
+                                                  color:
+                                                      colors.foregroundSubtle,
                                                 ),
                                           ),
-                                        ),
-                                      ],
-                                    ],
+                                          if (secondsLeft == 0) ...[
+                                            SizedBox(
+                                              width: context.sp(
+                                                theme.spacing.xs,
+                                              ),
+                                            ),
+                                            GestureDetector(
+                                              onTap: _handleSendResetLink,
+                                              child: Text(
+                                                'Resend OTP',
+                                                style: context.uiText.caption
+                                                    .copyWith(
+                                                      color: colors.primary,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      );
+                                    },
                                   ),
                                   SizedBox(
                                     height: context.sp(theme.spacing.lg),
@@ -665,6 +677,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               ],
                             ),
                           ),
+                        ),
                         ),
                         SizedBox(height: context.sp(theme.spacing.lg)),
 

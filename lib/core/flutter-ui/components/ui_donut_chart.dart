@@ -67,24 +67,26 @@ class UiDonutChart extends StatelessWidget {
       );
     }
 
-    Widget buildDonut(double dim) => SizedBox(
-      width: dim,
-      height: dim,
-      child: Stack(
-        alignment: Alignment.center,
-        children: <Widget>[
-          CustomPaint(
-            size: Size.square(dim),
-            painter: _DonutPainter(
-              values: slices.map((UiDonutSlice s) => s.value).toList(),
-              colors: colors,
-              trackColor: theme.colors.surfaceMuted,
-              thickness: context.sz(thickness ?? 22),
-              gap: 0.02,
+    Widget buildDonut(double dim) => RepaintBoundary(
+      child: SizedBox(
+        width: dim,
+        height: dim,
+        child: Stack(
+          alignment: Alignment.center,
+          children: <Widget>[
+            CustomPaint(
+              size: Size.square(dim),
+              painter: _DonutPainter(
+                values: slices.map((UiDonutSlice s) => s.value).toList(),
+                colors: colors,
+                trackColor: theme.colors.surfaceMuted,
+                thickness: context.sz(thickness ?? 22),
+                gap: 0.02,
+              ),
             ),
-          ),
-          ?centerWidget,
-        ],
+            ?centerWidget,
+          ],
+        ),
       ),
     );
 

@@ -1,5 +1,6 @@
 import 'package:alphajournal/core/app-ui/theme/app_tokens.dart';
 import 'package:alphajournal/core/config/customer_limitations.dart';
+import 'package:alphajournal/core/config/supabase_config.dart';
 import 'package:alphajournal/core/data/app_session.dart';
 import 'package:alphajournal/core/data/demo_data_source.dart';
 import 'package:alphajournal/features/auth/models/pricing_models.dart';
@@ -29,14 +30,18 @@ class SubscriptionPricingRepositoryImpl
   }) async {
     final json = await _content.pricing();
     CustomerTierQuota.installPublishedCatalogue(json);
+    final bool isAuthenticated =
+        !SupabaseConfig.isConfigured ||
+        SupabaseConfig.client?.auth.currentUser != null;
     json['plans'] = (json['plans'] as List).map((raw) {
       final row = Map<String, dynamic>.from(raw as Map);
       final currentTierName = _session.tier.value.name;
       final planTier = row['tier']?.toString();
       row['is_current'] =
-          planTier == currentTierName ||
-          ((planTier == 'premium' || planTier == 'pro') &&
-              (currentTierName == 'pro' || currentTierName == 'premium'));
+          isAuthenticated &&
+          (planTier == currentTierName ||
+              ((planTier == 'premium' || planTier == 'pro') &&
+                  (currentTierName == 'pro' || currentTierName == 'premium')));
       return row;
     }).toList();
     return PricingCatalogueResponse.fromJson(json);

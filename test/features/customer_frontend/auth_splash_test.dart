@@ -138,7 +138,8 @@ void main() {
     expect(find.byType(LoginPage), findsNothing);
     expect(find.text('Restoring secure session...'), findsNothing);
     delayed.ready.complete();
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(SplashScreen), findsNothing);
     expect(find.byType(LoginPage), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());

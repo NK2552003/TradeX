@@ -915,15 +915,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     }
 
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final double pagePad = context.sp(
+      isMobile ? theme.spacing.md : theme.spacing.lg,
+    );
+    final double topInset = MediaQuery.paddingOf(context).top + pagePad;
     final double bottomInset = isMobile
         ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
-        context.sp(theme.spacing.lg),
-        context.sp(theme.spacing.lg),
-        context.sp(theme.spacing.lg),
+        pagePad,
+        topInset,
+        pagePad,
         bottomInset,
       ),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,

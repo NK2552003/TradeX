@@ -60,7 +60,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   bool _isResending = false;
   bool _isAlreadyConfirmed = false;
   String? _errorText;
-  int _timerSeconds = 0;
+  final ValueNotifier<int> _timerSeconds = ValueNotifier<int>(0);
   Timer? _timer;
 
   @override
@@ -92,22 +92,21 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _timerSeconds.dispose();
     _codeController.dispose();
     super.dispose();
   }
 
   void _startResendTimer() {
-    _timerSeconds = widget.resendCooldownSeconds;
+    _timerSeconds.value = widget.resendCooldownSeconds;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
       if (!mounted) return;
-      setState(() {
-        if (_timerSeconds > 0) {
-          _timerSeconds--;
-        } else {
-          _timer?.cancel();
-        }
-      });
+      if (_timerSeconds.value > 0) {
+        _timerSeconds.value--;
+      } else {
+        _timer?.cancel();
+      }
     });
   }
 
@@ -146,7 +145,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   }
 
   Future<void> _handleResend() async {
-    if (_timerSeconds > 0 || _isResending) return;
+    if (_timerSeconds.value > 0 || _isResending) return;
 
     setState(() {
       _isResending = true;
@@ -215,8 +214,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        UiCard(
-                          variant: UiCardVariant.surface,
+                        RepaintBoundary(
+                          child: UiCard(
+                            variant: UiCardVariant.surface,
                           child: Padding(
                             padding: EdgeInsets.all(
                               context.sp(
@@ -334,40 +334,47 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                                 ),
                                 SizedBox(height: context.sp(theme.spacing.lg)),
 
-                                Wrap(
-                                  alignment: WrapAlignment.center,
-                                  runSpacing: context.sp(theme.spacing.xs),
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: <Widget>[
-                                    Text(
-                                      _timerSeconds > 0
-                                          ? 'Resend code in ${_timerSeconds}s'
-                                          : "Didn't get a code?",
-                                      style: context.uiText.caption.copyWith(
-                                        color: colors.foregroundSubtle,
-                                      ),
-                                    ),
-                                    if (_timerSeconds == 0) ...<Widget>[
-                                      SizedBox(
-                                        width: context.sp(theme.spacing.xs),
-                                      ),
-                                      GestureDetector(
-                                        onTap: _isResending
-                                            ? null
-                                            : _handleResend,
-                                        child: Text(
-                                          _isResending
-                                              ? 'Sending…'
-                                              : 'Resend OTP',
+                                ValueListenableBuilder<int>(
+                                  valueListenable: _timerSeconds,
+                                  builder: (context, secondsLeft, _) {
+                                    return Wrap(
+                                      alignment: WrapAlignment.center,
+                                      runSpacing: context.sp(theme.spacing.xs),
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: <Widget>[
+                                        Text(
+                                          secondsLeft > 0
+                                              ? 'Resend code in ${secondsLeft}s'
+                                              : "Didn't get a code?",
                                           style: context.uiText.caption
                                               .copyWith(
-                                                color: colors.primary,
-                                                fontWeight: FontWeight.bold,
+                                                color: colors.foregroundSubtle,
                                               ),
                                         ),
-                                      ),
-                                    ],
-                                  ],
+                                        if (secondsLeft == 0) ...<Widget>[
+                                          SizedBox(
+                                            width: context.sp(theme.spacing.xs),
+                                          ),
+                                          GestureDetector(
+                                            onTap: _isResending
+                                                ? null
+                                                : _handleResend,
+                                            child: Text(
+                                              _isResending
+                                                  ? 'Sending…'
+                                                  : 'Resend OTP',
+                                              style: context.uiText.caption
+                                                  .copyWith(
+                                                    color: colors.primary,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    );
+                                  },
                                 ),
                                 SizedBox(height: context.sp(theme.spacing.lg)),
 
@@ -385,6 +392,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                               ],
                             ),
                           ),
+                        ),
                         ),
                         SizedBox(height: context.sp(theme.spacing.lg)),
 

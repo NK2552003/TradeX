@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:alphajournal/core/app-ui/app_ui.dart';
 import 'package:alphajournal/core/billing/razorpay_web_checkout.dart';
 import 'package:alphajournal/core/billing/revenuecat_billing.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
 import 'package:alphajournal/core/config/customer_limitations.dart';
 import 'package:alphajournal/core/config/env_config.dart';
 import 'package:alphajournal/core/config/supabase_config.dart';
@@ -134,17 +135,102 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
     }
   }
 
+  bool get _isNativeMobile =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  static String _toHexColor(Color c) {
+    final int r = (c.r * 255).round().clamp(0, 255);
+    final int g = (c.g * 255).round().clamp(0, 255);
+    final int b = (c.b * 255).round().clamp(0, 255);
+    return '#${r.toRadixString(16).padLeft(2, '0')}'
+        '${g.toRadixString(16).padLeft(2, '0')}'
+        '${b.toRadixString(16).padLeft(2, '0')}';
+  }
+
+  Future<void> _openWebsiteBilling({PricingPlanModel? plan}) async {
+    final String cycle = _isAnnual ? 'annual' : 'monthly';
+    final Uri webBillingUri = Uri.parse(
+      '${AppConstants.appSubdomainUrl}/settings_billing',
+    ).replace(
+      queryParameters: plan == null
+          ? null
+          : <String, String>{'plan': plan.id, 'cycle': cycle},
+    );
+    bool launched = false;
+    try {
+      launched = await launchUrl(
+        webBillingUri,
+        mode: LaunchMode.inAppBrowserView,
+      );
+    } catch (_) {
+      launched = false;
+    }
+    if (!launched) {
+      launched = await launchUrl(
+        webBillingUri,
+        mode: LaunchMode.externalApplication,
+      );
+    }
+    if (!launched) {
+      throw StateError('Could not open ${AppConstants.appSubdomainUrl}.');
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext ctx) => UiDialog(
+        title: 'Continue on AlphaJournal Web',
+        content: Text(
+          'Subscription checkout opens on alphajournal.in for now. After completing your upgrade on the website, tap "Refresh Plan" to sync your account.',
+          style: context.uiText.body,
+        ),
+        actions: <Widget>[
+          UiButton(
+            label: 'Close',
+            variant: UiVariant.outline,
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          UiButton(
+            label: 'Refresh Plan',
+            intent: UiIntent.primary,
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await _loadData();
+              if (!mounted) return;
+              final AppTier nextTier =
+                  _subscription?.tier ?? AppSession.instance.tier.value;
+              widget.onPlanChanged?.call(nextTier);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openBusinessCheckout(PricingPlanModel plan) async {
     if (_processingTierId != null) return;
     setState(() => _processingTierId = plan.id);
     final String cycle = _isAnnual ? 'annual' : 'monthly';
     try {
+      // On native Android/iOS builds without store billing configured,
+      // direct the user to AlphaJournal web billing instead of failing to
+      // open the inline web Razorpay modal inside the APK.
+      if (_isNativeMobile && !RevenueCatBilling.isConfigured) {
+        await _openWebsiteBilling(plan: plan);
+        return;
+      }
+
       final session = await _billingRepo.startCheckout(plan.id, cycle);
+      if (!mounted) return;
       final String keyId = (session.keyId != null && session.keyId!.isNotEmpty)
           ? session.keyId!
           : EnvConfig.razorpayKeyId;
 
       if (RazorpayWebCheckout.isSupported && keyId.isNotEmpty) {
+        final UiTheme uiTheme = context.ui;
+        final bool isDark = uiTheme.brightness == Brightness.dark;
         final user = SupabaseConfig.client?.auth.currentUser;
         final modalResult = await RazorpayWebCheckout.open(
           keyId: keyId,
@@ -152,6 +238,15 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
           planName: plan.name,
           billingCycle: cycle,
           userEmail: user?.email,
+          isDark: isDark,
+          themeColor: _toHexColor(
+            isDark ? uiTheme.colors.surface : uiTheme.colors.primary,
+          ),
+          backdropColor: _toHexColor(uiTheme.colors.background),
+          surfaceColor: _toHexColor(uiTheme.colors.surface),
+          foregroundColor: _toHexColor(uiTheme.colors.foreground),
+          borderColor: _toHexColor(uiTheme.colors.borderStrong),
+          imageUrl: '${AppConstants.appSubdomainUrl}/icons/Icon-192.png',
         );
         if (!mounted) return;
 
@@ -202,9 +297,14 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
 
       if (!await launchUrl(
         Uri.parse(session.url),
-        mode: LaunchMode.externalApplication,
+        mode: LaunchMode.inAppBrowserView,
       )) {
-        throw StateError('Could not open the secure checkout.');
+        if (!await launchUrl(
+          Uri.parse(session.url),
+          mode: LaunchMode.externalApplication,
+        )) {
+          throw StateError('Could not open the secure checkout.');
+        }
       }
       if (!mounted) return;
       await _showExternalCheckoutReturnDialog(plan, session.sessionId);
@@ -554,11 +654,42 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
     final UiResponsive responsive = context.uiRes;
 
     if (_loadFailed) {
-      return UiEmptyState(
-        title: 'Pricing unavailable',
-        message: 'The published subscription catalogue could not be loaded.',
-        actionLabel: 'Try again',
-        onActionPressed: _loadData,
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            context.sp(theme.spacing.lg),
+            MediaQuery.paddingOf(context).top + context.sp(theme.spacing.lg),
+            context.sp(theme.spacing.lg),
+            responsive.isMobile
+                ? context.uiPageBottomInset
+                : context.sp(theme.spacing.lg),
+          ),
+          child: UiEmptyState(
+            title: 'Pricing unavailable',
+            message: _isNativeMobile
+                ? 'Could not load plans inside the app right now. You can manage or upgrade your subscription on the AlphaJournal website.'
+                : 'The published subscription catalogue could not be loaded.',
+            action: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: context.sp(theme.spacing.sm),
+              runSpacing: context.sp(theme.spacing.xs),
+              children: <Widget>[
+                UiButton(
+                  label: 'Try again',
+                  variant: UiVariant.outline,
+                  onPressed: _loadData,
+                ),
+                if (_isNativeMobile)
+                  UiButton(
+                    label: 'Open Website',
+                    intent: UiIntent.primary,
+                    leadingIcon: Icons.open_in_new_rounded,
+                    onPressed: () => _openWebsiteBilling(),
+                  ),
+              ],
+            ),
+          ),
+        ),
       );
     }
     if (_loading || _catalogue == null) {
@@ -572,12 +703,16 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
     final AppTier currentTier =
         _subscription?.tier ?? AppSession.instance.tier.value;
 
+    final double hPad = context.sp(
+      responsive.isMobile ? theme.spacing.md : theme.spacing.xl,
+    );
+    final double vPad = context.sp(theme.spacing.lg);
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(
-          responsive.isMobile ? theme.spacing.md : theme.spacing.xl,
-        ),
-        vertical: context.sp(theme.spacing.lg),
+      padding: EdgeInsets.fromLTRB(
+        hPad,
+        MediaQuery.paddingOf(context).top + vPad,
+        hPad,
+        responsive.isMobile ? context.uiPageBottomInset : vPad,
       ),
       child: Center(
         child: ConstrainedBox(

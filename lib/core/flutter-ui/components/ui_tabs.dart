@@ -245,7 +245,7 @@ class _UiTab extends StatelessWidget {
           fg = s.hovered ? c.foreground : c.foregroundMuted;
         }
 
-        Color bg = const Color(0x00000000);
+        Color bg = c.surfaceHover.withValues(alpha: 0.0);
         if (enabled) {
           if (variant == UiTabsVariant.pill && selected) {
             bg = accent;
@@ -269,7 +269,7 @@ class _UiTab extends StatelessWidget {
             border: variant == UiTabsVariant.underline
                 ? Border(
                     bottom: BorderSide(
-                      color: selected ? accent : const Color(0x00000000),
+                      color: selected ? accent : accent.withValues(alpha: 0.0),
                       width: ctx.sz(2),
                     ),
                   )

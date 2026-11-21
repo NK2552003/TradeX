@@ -1414,8 +1414,9 @@ class UiSkeleton extends StatefulWidget {
       builder: (BuildContext context) {
         final theme = context.ui;
         final double pad = context.sp(theme.spacing.lg);
+        final double topPad = MediaQuery.paddingOf(context).top + pad;
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(pad, pad, pad, context.uiDockInset),
+          padding: EdgeInsets.fromLTRB(pad, topPad, pad, context.uiDockInset),
           physics: const NeverScrollableScrollPhysics(),
           child: Align(
             alignment: Alignment.topCenter,
@@ -1457,8 +1458,9 @@ class UiSkeleton extends StatefulWidget {
       builder: (BuildContext context) {
         final theme = context.ui;
         final double pad = context.sp(theme.spacing.lg);
+        final double topPad = MediaQuery.paddingOf(context).top + pad;
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(pad, pad, pad, context.uiDockInset),
+          padding: EdgeInsets.fromLTRB(pad, topPad, pad, context.uiDockInset),
           physics: const NeverScrollableScrollPhysics(),
           child: Align(
             alignment: Alignment.topCenter,
@@ -1522,7 +1524,12 @@ class UiSkeleton extends StatefulWidget {
         );
 
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(pad, pad, pad, context.uiDockInset),
+          padding: EdgeInsets.fromLTRB(
+            pad,
+            MediaQuery.paddingOf(context).top + pad,
+            pad,
+            context.uiDockInset,
+          ),
           physics: const NeverScrollableScrollPhysics(),
           child: Align(
             alignment: Alignment.topCenter,
@@ -1631,8 +1638,9 @@ class UiSkeleton extends StatefulWidget {
       builder: (BuildContext context) {
         final theme = context.ui;
         final double pad = context.sp(theme.spacing.lg);
+        final double topPad = MediaQuery.paddingOf(context).top + pad;
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(pad, pad, pad, context.uiDockInset),
+          padding: EdgeInsets.fromLTRB(pad, topPad, pad, context.uiDockInset),
           physics: const NeverScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1664,7 +1672,12 @@ class UiSkeleton extends StatefulWidget {
         final double pad = context.sp(theme.spacing.lg);
         final bool mobile = context.uiRes.isMobile;
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(pad, pad, pad, context.uiDockInset),
+          padding: EdgeInsets.fromLTRB(
+            pad,
+            MediaQuery.paddingOf(context).top + pad,
+            pad,
+            context.uiDockInset,
+          ),
           physics: const NeverScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2401,18 +2414,20 @@ class _UiSkeletonState extends State<UiSkeleton> {
         );
     final double diameter = context.sz(widget.width ?? widget.height ?? 14);
 
-    return SizedBox(
-      width: widget.circle ? diameter : widget.width,
-      height: widget.circle ? diameter : height,
-      // The sweep is painted, not rebuilt: the painter listens to the shared
-      // driver directly, so an animating page costs one repaint per frame
-      // instead of one widget rebuild per placeholder box.
-      child: CustomPaint(
-        painter: _UiShimmerPainter(
-          progress: _UiShimmerDriver.instance.progress,
-          base: theme.colors.surfaceMuted.withValues(alpha: 0.82),
-          highlight: theme.colors.foreground.withValues(alpha: 0.055),
-          radius: widget.circle ? null : radius,
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.circle ? diameter : widget.width,
+        height: widget.circle ? diameter : height,
+        // The sweep is painted, not rebuilt: the painter listens to the shared
+        // driver directly, so an animating page costs one repaint per frame
+        // instead of one widget rebuild per placeholder box.
+        child: CustomPaint(
+          painter: _UiShimmerPainter(
+            progress: _UiShimmerDriver.instance.progress,
+            base: theme.colors.surfaceMuted.withValues(alpha: 0.82),
+            highlight: theme.colors.foreground.withValues(alpha: 0.055),
+            radius: widget.circle ? null : radius,
+          ),
         ),
       ),
     );

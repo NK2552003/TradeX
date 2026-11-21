@@ -37,6 +37,13 @@ class RazorpayWebCheckout {
     required String billingCycle,
     String? userEmail,
     String? userName,
+    bool isDark = true,
+    String? themeColor,
+    String? backdropColor,
+    String? surfaceColor,
+    String? foregroundColor,
+    String? borderColor,
+    String? imageUrl,
   }) async {
     return const RazorpayCheckoutModalResult(
       status: 'unavailable',

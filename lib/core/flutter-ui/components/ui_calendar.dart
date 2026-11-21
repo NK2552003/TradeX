@@ -520,7 +520,9 @@ class _UiCalendarState extends State<UiCalendar> {
                           ? c.primary
                           : inRange
                           ? c.primary.withValues(alpha: 0.12)
-                          : (s.hovered ? c.surfaceHover : Colors.transparent),
+                          : (s.hovered
+                                ? c.surfaceHover
+                                : c.surfaceHover.withValues(alpha: 0.0)),
                       borderRadius: c2.radius(theme.radii.md),
                       border: isToday && !isSelected
                           ? Border.all(

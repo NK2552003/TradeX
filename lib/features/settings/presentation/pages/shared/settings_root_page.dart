@@ -469,13 +469,18 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
 
   Widget _buildSettingsOverview(BuildContext context) {
     final theme = context.ui;
+    final bool isMobile = context.uiRes.isMobile;
     final double pagePadding = context.sp(theme.spacing.md);
+    final double topInset = MediaQuery.paddingOf(context).top + pagePadding;
+    final double bottomInset = isMobile
+        ? context.uiPageBottomInset
+        : (pagePadding + MediaQuery.paddingOf(context).bottom);
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         pagePadding,
+        topInset,
         pagePadding,
-        pagePadding,
-        pagePadding + MediaQuery.paddingOf(context).bottom,
+        bottomInset,
       ),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       child: Column(

@@ -340,12 +340,15 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         );
         final previewTheme = theme.copyWith(colors: previewColors);
 
+        final double pagePad = context.sp(
+          isMobile ? theme.spacing.md : theme.spacing.lg,
+        );
         return SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: EdgeInsets.fromLTRB(
-            context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
-            context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
-            context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
+            pagePad,
+            MediaQuery.paddingOf(context).top + pagePad,
+            pagePad,
             bottomInset,
           ),
           child: Align(

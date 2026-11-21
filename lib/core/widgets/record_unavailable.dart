@@ -32,7 +32,18 @@ class _RecordOpeningBannerState extends State<RecordOpeningBanner>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2400),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _controller.value = 0.0;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -61,23 +72,25 @@ class _RecordOpeningBannerState extends State<RecordOpeningBanner>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: context.sz(96),
-                    height: context.sz(96),
-                    child: AnimatedBuilder(
-                      animation: _controller,
-                      builder: (context, _) => CustomPaint(
-                        painter: _AnimatedEmblemPainter(
-                          progress: _controller.value,
-                          primary: theme.colors.primary,
-                          accent: theme.colors.info,
-                          surface: theme.colors.surfaceMuted,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            widget.icon,
-                            size: context.sz(30),
-                            color: theme.colors.primary,
+                  RepaintBoundary(
+                    child: SizedBox(
+                      width: context.sz(96),
+                      height: context.sz(96),
+                      child: AnimatedBuilder(
+                        animation: _controller,
+                        builder: (context, _) => CustomPaint(
+                          painter: _AnimatedEmblemPainter(
+                            progress: _controller.value,
+                            primary: theme.colors.primary,
+                            accent: theme.colors.info,
+                            surface: theme.colors.surfaceMuted,
+                          ),
+                          child: Center(
+                            child: Icon(
+                              widget.icon,
+                              size: context.sz(30),
+                              color: theme.colors.primary,
+                            ),
                           ),
                         ),
                       ),

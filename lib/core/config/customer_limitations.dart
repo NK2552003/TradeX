@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:alphajournal/core/app-ui/app_ui.dart';
 import 'package:alphajournal/core/billing/razorpay_web_checkout.dart';
+import 'package:alphajournal/core/billing/revenuecat_billing.dart';
+import 'package:alphajournal/core/config/app_constants.dart';
 import 'package:alphajournal/core/config/customer_data_policy.dart';
 import 'package:alphajournal/core/config/customer_quota_usage.dart';
 import 'package:alphajournal/core/config/env_config.dart';
@@ -893,8 +896,56 @@ class CustomerLimitations {
             final String tierId = tier == AppTier.premium
                 ? 'tier_pro'
                 : 'tier_enterprise';
+            final bool isNativeMobile =
+                !kIsWeb &&
+                (defaultTargetPlatform == TargetPlatform.android ||
+                    defaultTargetPlatform == TargetPlatform.iOS);
             setDialogState(() => processingTier = tier);
             try {
+              if (isNativeMobile && !RevenueCatBilling.isConfigured) {
+                final Uri webBillingUri = Uri.parse(
+                  '${AppConstants.appSubdomainUrl}/settings_billing',
+                ).replace(
+                  queryParameters: <String, String>{
+                    'plan': tierId,
+                    'cycle': cycle,
+                  },
+                );
+                bool opened = false;
+                try {
+                  opened = await launchUrl(
+                    webBillingUri,
+                    mode: LaunchMode.inAppBrowserView,
+                  );
+                } catch (_) {
+                  opened = false;
+                }
+                if (!opened) {
+                  opened = await launchUrl(
+                    webBillingUri,
+                    mode: LaunchMode.externalApplication,
+                  );
+                }
+                if (!opened) {
+                  throw StateError(
+                    'Could not open ${AppConstants.appSubdomainUrl}.',
+                  );
+                }
+                if (dialogCtx.mounted) {
+                  setDialogState(() => processingTier = null);
+                }
+                if (ctx.mounted) Navigator.of(ctx).pop();
+                if (!context.mounted) return;
+                UiToast.show(
+                  context,
+                  title: 'Opened AlphaJournal Web',
+                  message:
+                      'Complete your upgrade on the website; your account updates automatically.',
+                  intent: UiIntent.info,
+                );
+                return;
+              }
+
               final billingRepo = BillingSettingsRepositoryImpl();
               final checkoutSession = await billingRepo.startCheckout(
                 tierId,
@@ -907,12 +958,32 @@ class CustomerLimitations {
                   : EnvConfig.razorpayKeyId;
 
               if (RazorpayWebCheckout.isSupported && keyId.isNotEmpty) {
+                String toHex(Color c) {
+                  final int r = (c.r * 255).round().clamp(0, 255);
+                  final int g = (c.g * 255).round().clamp(0, 255);
+                  final int b = (c.b * 255).round().clamp(0, 255);
+                  return '#${r.toRadixString(16).padLeft(2, '0')}'
+                      '${g.toRadixString(16).padLeft(2, '0')}'
+                      '${b.toRadixString(16).padLeft(2, '0')}';
+                }
+
+                final bool isDark = theme.brightness == Brightness.dark;
                 final modalResult = await RazorpayWebCheckout.open(
                   keyId: keyId,
                   subscriptionId: checkoutSession.sessionId,
                   planName: q.planName,
                   billingCycle: cycle,
                   userEmail: SupabaseConfig.client?.auth.currentUser?.email,
+                  isDark: isDark,
+                  themeColor: toHex(
+                    isDark ? theme.colors.surface : theme.colors.primary,
+                  ),
+                  backdropColor: toHex(theme.colors.background),
+                  surfaceColor: toHex(theme.colors.surface),
+                  foregroundColor: toHex(theme.colors.foreground),
+                  borderColor: toHex(theme.colors.borderStrong),
+                  imageUrl:
+                      '${AppConstants.appSubdomainUrl}/icons/Icon-192.png',
                 );
                 if (dialogCtx.mounted) {
                   setDialogState(() => processingTier = null);

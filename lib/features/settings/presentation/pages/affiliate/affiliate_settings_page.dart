@@ -159,8 +159,17 @@ class _AffiliateSettingsPageState extends State<AffiliateSettingsPage> {
       _slug.trim().isEmpty ? s.referralCode : _slug.trim(),
     );
 
+    final bool isMobile = context.uiRes.isMobile;
+    final double pagePad = context.sp(
+      isMobile ? theme.spacing.md : theme.spacing.lg,
+    );
     return SingleChildScrollView(
-      padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+      padding: EdgeInsets.fromLTRB(
+        pagePad,
+        MediaQuery.paddingOf(context).top + pagePad,
+        pagePad,
+        isMobile ? context.uiPageBottomInset : pagePad,
+      ),
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
