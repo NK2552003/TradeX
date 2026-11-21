@@ -704,9 +704,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   }
 
   List<Widget> _headerActions(BuildContext context) {
-    final UiTheme theme = context.ui;
     return <Widget>[
-      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.auto_awesome_rounded,
         variant: UiVariant.ghost,
@@ -714,22 +712,19 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
         tooltip: 'Critique and optimize strategy with AI',
         onPressed: _busy ? null : _analyzeWithAi,
       ),
-      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.share_outlined,
         variant: UiVariant.ghost,
         tooltip: 'Share strategy',
         onPressed: _busy ? null : _shareStrategy,
       ),
-      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.picture_as_pdf_outlined,
         variant: UiVariant.ghost,
         tooltip: 'Export as PDF',
         onPressed: _busy ? null : _exportPdf,
       ),
-      if (widget.onAttachToPost != null) ...<Widget>[
-        SizedBox(width: context.sp(theme.spacing.xs)),
+      if (widget.onAttachToPost != null)
         UiIconButton(
           icon: Icons.add_comment_outlined,
           variant: UiVariant.ghost,
@@ -740,7 +735,6 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
                   AppWritingPostAttachment.strategy(_strategy),
                 ),
         ),
-      ],
       if (_canEdit) ...<Widget>[
         if (widget.onEditWriting != null)
           UiIconButton(
@@ -750,14 +744,12 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
             variant: UiVariant.outline,
             onPressed: widget.onEditWriting,
           ),
-
         UiIconButton(
           icon: Icons.bookmark_add_outlined,
           variant: UiVariant.ghost,
           tooltip: 'Save a revision',
           onPressed: _busy ? null : _saveRevision,
         ),
-        SizedBox(width: context.sp(theme.spacing.xs)),
         UiIconButton(
           icon: Icons.edit_outlined,
           tooltip: 'Edit details',
@@ -765,8 +757,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           variant: UiVariant.primary,
           onPressed: _busy ? null : widget.onEdit,
         ),
-      ] else if (_canOpenWorkspaceEditor) ...<Widget>[
-        SizedBox(width: context.sp(theme.spacing.xs)),
+      ] else if (_canOpenWorkspaceEditor)
         UiIconButton(
           icon: Icons.edit_note_rounded,
           tooltip: 'Edit in Writing Desk',
@@ -774,7 +765,6 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           variant: UiVariant.primary,
           onPressed: _busy ? null : widget.onEditWriting,
         ),
-      ],
     ];
   }
 

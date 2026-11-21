@@ -47,13 +47,17 @@ class UiDrawer extends StatelessWidget {
       barrierColor: theme.colors.overlay,
       transitionDuration: theme.motion.normal,
       pageBuilder: (BuildContext ctx, _, _) => SafeArea(
+        top: true,
+        bottom: !mobile,
         child: AnimatedPadding(
-          duration: theme.motion.fast,
+          duration: MediaQuery.disableAnimationsOf(ctx)
+              ? Duration.zero
+              : theme.motion.fast,
           padding:
               MediaQuery.viewInsetsOf(ctx) +
-              EdgeInsets.all(
-                ctx.sp(mobile ? theme.spacing.sm : theme.spacing.md),
-              ),
+              (mobile
+                  ? EdgeInsets.zero
+                  : EdgeInsets.all(ctx.sp(theme.spacing.md))),
           child: LayoutBuilder(
             builder: (context, box) => Align(
               alignment: mobile
@@ -68,15 +72,24 @@ class UiDrawer extends StatelessWidget {
                   key: const ValueKey('ui-drawer-surface'),
                   padding: EdgeInsets.zero,
                   variant: UiCardVariant.elevated,
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: UiDrawer(
-                      title: title,
-                      footer: footer,
-                      scrollable: scrollable,
-                      showHeader: showHeader,
-                      contentPadding: contentPadding,
-                      child: child,
+                  borderRadius: mobile
+                      ? BorderRadius.vertical(
+                          top: Radius.circular(ctx.sz(theme.radii.xl)),
+                        )
+                      : null,
+                  child: SafeArea(
+                    top: false,
+                    bottom: mobile,
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: UiDrawer(
+                        title: title,
+                        footer: footer,
+                        scrollable: scrollable,
+                        showHeader: showHeader,
+                        contentPadding: contentPadding,
+                        child: child,
+                      ),
                     ),
                   ),
                 ),

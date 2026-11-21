@@ -144,20 +144,28 @@ class UiHeader extends StatelessWidget {
     if (actions.isEmpty) return identity;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isMobile = context.uiRes.isMobile;
+        final bool stacked =
+            actions.isNotEmpty && constraints.maxWidth < context.sz(720);
         final Widget actionRow = Wrap(
           spacing: context.sp(theme.spacing.xs),
           runSpacing: context.sp(theme.spacing.xs),
-          alignment: WrapAlignment.end,
+          alignment: stacked && isMobile
+              ? WrapAlignment.center
+              : WrapAlignment.end,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: actions,
         );
-        if (actions.isNotEmpty && constraints.maxWidth < context.sz(720)) {
+        if (stacked) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               identity,
               SizedBox(height: context.sp(theme.spacing.sm)),
-              Align(alignment: Alignment.centerLeft, child: actionRow),
+              Align(
+                alignment: isMobile ? Alignment.center : Alignment.centerLeft,
+                child: actionRow,
+              ),
             ],
           );
         }

@@ -48,6 +48,7 @@ class UiDialog extends StatelessWidget {
     required WidgetBuilder builder,
     bool barrierDismissible = true,
     Color? barrierColor,
+    bool useSafeArea = true,
   }) async {
     final navigator = Navigator.of(context, rootNavigator: true);
     final route = _UiDialogRoute<T>(
@@ -62,6 +63,7 @@ class UiDialog extends StatelessWidget {
       themes: InheritedTheme.capture(from: context, to: navigator.context),
       barrierDismissible: barrierDismissible,
       barrierColor: barrierColor ?? context.ui.colors.overlay,
+      useSafeArea: useSafeArea,
     );
     final result = await navigator.push<T>(route);
     await route.completed;
@@ -78,45 +80,57 @@ class UiDialog extends StatelessWidget {
     bool blurBackdrop = false,
   }) {
     final theme = context.ui;
+    final bool isMobile = context.uiRes.isMobile;
     return present<T>(
       context: context,
       barrierDismissible: dismissible,
       barrierColor: theme.colors.overlay,
+      useSafeArea: !isMobile,
       builder: (BuildContext ctx) {
         final mobile = ctx.uiRes.isMobile;
         final inset = EdgeInsets.all(
           ctx.sp(mobile ? theme.spacing.lg : theme.spacing.xl),
         );
         final body = _UiDialogHost(pinFooter: pinFooter, child: child);
-        final panel = AnimatedPadding(
-          duration: MediaQuery.disableAnimationsOf(ctx)
-              ? Duration.zero
-              : theme.motion.fast,
-          padding:
-              MediaQuery.viewInsetsOf(ctx) +
-              EdgeInsets.all(ctx.sp(mobile ? 0 : theme.spacing.md)),
-          child: Align(
-            alignment: mobile ? Alignment.bottomCenter : Alignment.center,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: ctx.sz(maxWidth),
-                maxHeight:
-                    MediaQuery.sizeOf(ctx).height * (mobile ? 0.92 : 0.88),
-              ),
-              child: UiCard(
-                key: const ValueKey('ui-dialog-surface'),
-                padding: EdgeInsets.zero,
-                variant: UiCardVariant.elevated,
-                borderRadius: mobile
-                    ? BorderRadius.vertical(
-                        top: Radius.circular(ctx.sz(theme.radii.xl)),
-                      )
-                    : null,
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: pinFooter
-                      ? Padding(padding: inset, child: body)
-                      : SingleChildScrollView(padding: inset, child: body),
+        final panel = SafeArea(
+          top: mobile,
+          bottom: false,
+          left: false,
+          right: false,
+          child: AnimatedPadding(
+            duration: MediaQuery.disableAnimationsOf(ctx)
+                ? Duration.zero
+                : theme.motion.fast,
+            padding:
+                MediaQuery.viewInsetsOf(ctx) +
+                EdgeInsets.all(ctx.sp(mobile ? 0 : theme.spacing.md)),
+            child: Align(
+              alignment: mobile ? Alignment.bottomCenter : Alignment.center,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: mobile ? double.infinity : ctx.sz(maxWidth),
+                  maxHeight:
+                      MediaQuery.sizeOf(ctx).height * (mobile ? 0.92 : 0.88),
+                ),
+                child: UiCard(
+                  key: const ValueKey('ui-dialog-surface'),
+                  padding: EdgeInsets.zero,
+                  variant: UiCardVariant.elevated,
+                  borderRadius: mobile
+                      ? BorderRadius.vertical(
+                          top: Radius.circular(ctx.sz(theme.radii.xl)),
+                        )
+                      : null,
+                  child: SafeArea(
+                    top: false,
+                    bottom: mobile,
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: pinFooter
+                          ? Padding(padding: inset, child: body)
+                          : SingleChildScrollView(padding: inset, child: body),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -321,6 +335,7 @@ class _UiDialogRoute<T> extends DialogRoute<T> {
     required super.themes,
     required super.barrierDismissible,
     required super.barrierColor,
+    super.useSafeArea,
     required this.duration,
     required this.reverseDuration,
   });

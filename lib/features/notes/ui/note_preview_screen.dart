@@ -463,7 +463,6 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         tooltip: 'Analyze note with AI Copilot',
         onPressed: _analyzeWithAi,
       ),
-      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: _isSaved
             ? Icons.bookmark_rounded
@@ -473,14 +472,12 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         tooltip: _isSaved ? 'Remove from saved' : 'Save note',
         onPressed: _toggleSaveNote,
       ),
-      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.share_outlined,
         variant: UiVariant.ghost,
         tooltip: 'Share note',
         onPressed: _shareNote,
       ),
-      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: _note.isPublic
             ? Icons.public_rounded
@@ -492,15 +489,13 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             : 'Private note (tap to make public)',
         onPressed: _canEdit ? _toggleVisibility : null,
       ),
-      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.picture_as_pdf_outlined,
         variant: UiVariant.ghost,
         tooltip: 'Export as PDF',
         onPressed: _exportPdf,
       ),
-      if (widget.onAttachToPost != null) ...<Widget>[
-        SizedBox(width: context.sp(theme.spacing.xs)),
+      if (widget.onAttachToPost != null)
         UiIconButton(
           icon: Icons.add_comment_outlined,
           variant: UiVariant.ghost,
@@ -508,9 +503,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           onPressed: () =>
               widget.onAttachToPost!(AppWritingPostAttachment.note(_note)),
         ),
-      ],
       if (_canEdit) ...<Widget>[
-        SizedBox(width: context.sp(theme.spacing.xs)),
         UiIconButton(
           icon: Icons.edit_note_rounded,
           tooltip: 'Edit note',
@@ -518,7 +511,6 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           variant: UiVariant.outline,
           onPressed: widget.onEditWriting ?? widget.onEdit,
         ),
-        SizedBox(width: context.sp(theme.spacing.xs)),
         UiIconButton(
           icon: Icons.edit_outlined,
           tooltip: 'Edit details',
@@ -526,8 +518,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           variant: UiVariant.primary,
           onPressed: widget.onEdit,
         ),
-      ] else if (_canOpenWorkspaceEditor) ...<Widget>[
-        SizedBox(width: context.sp(theme.spacing.xs)),
+      ] else if (_canOpenWorkspaceEditor)
         UiIconButton(
           icon: Icons.edit_note_rounded,
           tooltip: 'Edit in Writing Desk',
@@ -535,7 +526,6 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           variant: UiVariant.primary,
           onPressed: widget.onEditWriting,
         ),
-      ],
     ];
 
     return Column(

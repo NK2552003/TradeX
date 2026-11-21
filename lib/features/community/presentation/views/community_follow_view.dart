@@ -121,18 +121,6 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     final bool isMobile = context.uiRes.isMobile;
 
     return CommunityFloatingTabShell(
-      banner:
-          (_refreshing || widget.repository.isLoading) &&
-              widget.repository.hasLoadedFollows
-          ? Semantics(
-              liveRegion: true,
-              child: Text(
-                'Refreshing network…',
-                textAlign: TextAlign.center,
-                style: context.uiText.caption,
-              ),
-            )
-          : null,
       tabBar: _buildFloatingBar(context, theme, isMobile),
       body: Builder(
         builder: (BuildContext bodyCtx) {

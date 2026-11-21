@@ -46,9 +46,8 @@ Future<T?> showSettingsSideSheet<T>(
 
           final double floatingInset = isMobile ? 0 : ctx.sp(theme.spacing.sm);
           final double keyboardInset = MediaQuery.viewInsetsOf(ctx).bottom;
-          final double dockInset = isMobile ? ctx.uiDockInset : 0.0;
           final double bottomInset = isMobile
-              ? (keyboardInset > 0 ? keyboardInset + 24.0 : dockInset)
+              ? keyboardInset
               : (floatingInset + keyboardInset);
 
           final Animation<double> curveAnim = CurvedAnimation(
@@ -63,7 +62,17 @@ Future<T?> showSettingsSideSheet<T>(
                 )
               : ctx.radius(theme.radii.xl);
 
-          return Padding(
+          final double mobileMaxHeight =
+              (MediaQuery.sizeOf(ctx).height -
+                      MediaQuery.paddingOf(ctx).top -
+                      20.0)
+                  .clamp(320.0, MediaQuery.sizeOf(ctx).height * 0.94);
+
+          return AnimatedPadding(
+            duration: MediaQuery.disableAnimationsOf(ctx)
+                ? Duration.zero
+                : theme.motion.fast,
+            curve: Curves.easeOutCubic,
             padding: EdgeInsets.fromLTRB(
               floatingInset,
               floatingInset,
@@ -88,21 +97,26 @@ Future<T?> showSettingsSideSheet<T>(
                   child: Container(
                     key: const ValueKey<String>('settings-side-sheet-surface'),
                     width: targetWidth,
-                    height: isMobile
-                        ? (MediaQuery.sizeOf(ctx).height * 0.90)
-                        : double.infinity,
+                    height: isMobile ? mobileMaxHeight : double.infinity,
                     constraints: BoxConstraints(
                       maxHeight: isMobile
-                          ? (MediaQuery.sizeOf(ctx).height * 0.90)
+                          ? mobileMaxHeight
                           : MediaQuery.sizeOf(ctx).height - (floatingInset * 2),
                     ),
                     decoration: BoxDecoration(
                       color: colors.surface,
                       borderRadius: sheetRadius,
-                      border: Border.all(
-                        color: colors.border,
-                        width: theme.borders.hairline,
-                      ),
+                      border: isMobile
+                          ? Border(
+                              top: BorderSide(
+                                color: colors.border,
+                                width: theme.borders.hairline,
+                              ),
+                            )
+                          : Border.all(
+                              color: colors.border,
+                              width: theme.borders.hairline,
+                            ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.35),

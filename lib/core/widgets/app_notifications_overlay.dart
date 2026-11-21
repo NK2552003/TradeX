@@ -54,6 +54,8 @@ class AppNotificationsOverlay extends StatefulWidget {
       transitionDuration: theme.motion.normal,
       pageBuilder: (BuildContext ctx, _, _) {
         return SafeArea(
+          top: true,
+          bottom: !isMobile,
           child: Align(
             alignment: isMobile
                 ? Alignment.bottomCenter
@@ -64,18 +66,30 @@ class AppNotificationsOverlay extends StatefulWidget {
                   ? MediaQuery.sizeOf(ctx).height * 0.94
                   : double.infinity,
               child: UiCard(
+                key: const ValueKey<String>(
+                  'app-notifications-overlay-surface',
+                ),
                 padding: EdgeInsets.zero,
                 variant: UiCardVariant.elevated,
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: AppNotificationsOverlay(
-                    repository: repository,
-                    currentUser: currentUser,
-                    onOpenRef: onOpenRef,
-                    onOpenPost: onOpenPost,
-                    onOpenAuthor: onOpenAuthor,
-                    onOpenSecuritySettings: onOpenSecuritySettings,
-                    onClose: () => Navigator.of(ctx).maybePop(),
+                borderRadius: isMobile
+                    ? BorderRadius.vertical(
+                        top: Radius.circular(ctx.sz(theme.radii.xl)),
+                      )
+                    : null,
+                child: SafeArea(
+                  top: false,
+                  bottom: isMobile,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: AppNotificationsOverlay(
+                      repository: repository,
+                      currentUser: currentUser,
+                      onOpenRef: onOpenRef,
+                      onOpenPost: onOpenPost,
+                      onOpenAuthor: onOpenAuthor,
+                      onOpenSecuritySettings: onOpenSecuritySettings,
+                      onClose: () => Navigator.of(ctx).maybePop(),
+                    ),
                   ),
                 ),
               ),

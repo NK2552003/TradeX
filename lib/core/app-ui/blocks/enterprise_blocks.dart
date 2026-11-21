@@ -735,33 +735,44 @@ class DeskOverlaySheet extends StatelessWidget {
     return UiDialog.present<T>(
       context: context,
       barrierDismissible: true,
-      builder: (BuildContext ctx) => AnimatedPadding(
-        duration: theme.motion.fast,
-        padding: MediaQuery.viewInsetsOf(ctx),
-        child: Align(
-          alignment: mobile ? Alignment.bottomCenter : Alignment.centerRight,
-          child: SizedBox(
-            width: mobile ? double.infinity : ctx.sz(width),
-            height: mobile
-                ? MediaQuery.sizeOf(ctx).height * 0.94
-                : double.infinity,
-            child: Material(
-              type: MaterialType.transparency,
-              child: UiCard(
-                variant: UiCardVariant.elevated,
-                padding: EdgeInsets.zero,
-                borderRadius: mobile
-                    ? BorderRadius.vertical(
-                        top: Radius.circular(ctx.sz(theme.radii.xl)),
-                      )
-                    : BorderRadius.horizontal(
-                        left: Radius.circular(ctx.sz(theme.radii.lg)),
-                      ),
-                child: UiDialog(
-                  title: title,
-                  description: subtitle,
-                  actions: actions,
-                  child: SingleChildScrollView(child: child),
+      useSafeArea: !mobile,
+      builder: (BuildContext ctx) => SafeArea(
+        top: mobile,
+        bottom: false,
+        left: false,
+        right: false,
+        child: AnimatedPadding(
+          duration: theme.motion.fast,
+          padding: MediaQuery.viewInsetsOf(ctx),
+          child: Align(
+            alignment: mobile ? Alignment.bottomCenter : Alignment.centerRight,
+            child: SizedBox(
+              width: mobile ? double.infinity : ctx.sz(width),
+              height: mobile
+                  ? MediaQuery.sizeOf(ctx).height * 0.94
+                  : double.infinity,
+              child: Material(
+                type: MaterialType.transparency,
+                child: UiCard(
+                  variant: UiCardVariant.elevated,
+                  padding: EdgeInsets.zero,
+                  borderRadius: mobile
+                      ? BorderRadius.vertical(
+                          top: Radius.circular(ctx.sz(theme.radii.xl)),
+                        )
+                      : BorderRadius.horizontal(
+                          left: Radius.circular(ctx.sz(theme.radii.lg)),
+                        ),
+                  child: SafeArea(
+                    top: false,
+                    bottom: mobile,
+                    child: UiDialog(
+                      title: title,
+                      description: subtitle,
+                      actions: actions,
+                      child: SingleChildScrollView(child: child),
+                    ),
+                  ),
                 ),
               ),
             ),

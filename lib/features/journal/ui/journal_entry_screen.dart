@@ -615,9 +615,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
   }
 
   List<Widget> _headerActions(BuildContext context) {
-    final UiTheme theme = context.ui;
     return <Widget>[
-      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.auto_awesome_rounded,
         variant: UiVariant.ghost,
@@ -625,22 +623,19 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
         tooltip: 'Analyze trade execution with AI',
         onPressed: _busy ? null : _analyzeWithAi,
       ),
-      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.share_outlined,
         variant: UiVariant.ghost,
         tooltip: 'Share trade',
         onPressed: _busy ? null : _shareTrade,
       ),
-      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.picture_as_pdf_outlined,
         variant: UiVariant.ghost,
         tooltip: 'Export as PDF',
         onPressed: _busy ? null : _exportPdf,
       ),
-      if (_canEdit) ...<Widget>[
-        SizedBox(width: context.sp(theme.spacing.xs)),
+      if (_canEdit)
         UiIconButton(
           icon: _entry.isPublic
               ? Icons.public_rounded
@@ -652,21 +647,17 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
               : 'Private review (tap to make public)',
           onPressed: _busy ? null : _toggleVisibility,
         ),
-      ],
-      if (widget.onAttachToPost != null) ...<Widget>[
-        SizedBox(width: context.sp(theme.spacing.xs)),
+      if (widget.onAttachToPost != null)
         UiIconButton(
           icon: Icons.add_comment_outlined,
           variant: UiVariant.ghost,
           tooltip: 'Attach journal entry to a post',
-
           onPressed: _busy
               ? null
               : () => widget.onAttachToPost!(
                   AppWritingPostAttachment.journal(_entry),
                 ),
         ),
-      ],
       if (_canEdit) ...<Widget>[
         if (widget.onEditWriting != null)
           UiIconButton(
@@ -676,8 +667,6 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
             variant: UiVariant.outline,
             onPressed: widget.onEditWriting,
           ),
-
-        SizedBox(width: context.sp(theme.spacing.xs)),
         UiIconButton(
           icon: Icons.edit_outlined,
           tooltip: 'Edit details',
@@ -685,8 +674,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
           variant: UiVariant.primary,
           onPressed: widget.onEdit,
         ),
-      ] else if (_canOpenWorkspaceEditor) ...<Widget>[
-        SizedBox(width: context.sp(theme.spacing.xs)),
+      ] else if (_canOpenWorkspaceEditor)
         UiIconButton(
           icon: Icons.edit_note_rounded,
           tooltip: 'Edit in Writing Desk',
@@ -694,7 +682,6 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
           variant: UiVariant.primary,
           onPressed: widget.onEditWriting,
         ),
-      ],
     ];
   }
 
