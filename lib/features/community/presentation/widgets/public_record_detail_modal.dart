@@ -208,15 +208,28 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
 
   void _close() {
     final NavigatorState navigator = Navigator.of(context);
+    final Route<dynamic>? route = ModalRoute.of(context);
+    if (route != null && route.isActive) {
+      navigator.popUntil((Route<dynamic> candidate) => candidate == route);
+      if (navigator.canPop()) navigator.pop();
+      return;
+    }
     if (navigator.canPop()) navigator.pop();
   }
 
   void _openEditor() {
     final VoidCallback? openEditor = widget.onOpenEditor;
     if (openEditor == null) return;
-    final NavigatorState navigator = Navigator.of(context);
-    if (navigator.canPop()) navigator.pop();
+    _close();
     WidgetsBinding.instance.addPostFrameCallback((_) => openEditor());
+  }
+
+  void _handleOpenRef(AppLinkRef ref) {
+    final ValueChanged<AppLinkRef>? onOpenRef = widget.onOpenRef;
+    if (onOpenRef == null) return;
+    final AppLinkRef normalized = ref.copyWith(isPublicContext: true);
+    _close();
+    WidgetsBinding.instance.addPostFrameCallback((_) => onOpenRef(normalized));
   }
 
   bool get _canOpenEditor {
@@ -282,7 +295,7 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
         onClose: _close,
         onEdit: _openEditor,
         onEditWriting: _canOpenEditor ? _openEditor : null,
-        onOpenLink: widget.onOpenRef,
+        onOpenLink: widget.onOpenRef == null ? null : _handleOpenRef,
         linkGraph: _publicGraph,
         canEdit: false,
         isPublicContext: true,
@@ -295,7 +308,7 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
         onClose: _close,
         onEdit: _openEditor,
         onEditWriting: _canOpenEditor ? _openEditor : null,
-        onOpenLink: widget.onOpenRef,
+        onOpenLink: widget.onOpenRef == null ? null : _handleOpenRef,
         linkGraph: _publicGraph,
         canEdit: false,
         isPublicContext: true,
@@ -308,7 +321,7 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
         onClose: _close,
         onEdit: _openEditor,
         onEditWriting: _canOpenEditor ? _openEditor : null,
-        onOpenLink: widget.onOpenRef,
+        onOpenLink: widget.onOpenRef == null ? null : _handleOpenRef,
         linkGraph: _publicGraph,
         canEdit: false,
         isPublicContext: true,

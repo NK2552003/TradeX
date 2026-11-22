@@ -416,7 +416,16 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
                             ref: ref,
                             onTap: widget.onOpenRef == null
                                 ? null
-                                : () => widget.onOpenRef!(ref),
+                                : () {
+                                    final navigator = Navigator.of(context);
+                                    if (navigator.canPop()) navigator.pop();
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                          widget.onOpenRef!(
+                                            ref.copyWith(isPublicContext: true),
+                                          );
+                                        });
+                                  },
                           ),
                         ),
                       ),

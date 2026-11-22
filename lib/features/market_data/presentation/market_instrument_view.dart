@@ -147,8 +147,16 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
               onChanged: (section) => setState(() => _section = section),
             ),
           );
+          final double dockClearance = AppMobileDockMetrics.bottomClearance(
+            context,
+          );
           final body = Padding(
-            padding: EdgeInsets.all(inset),
+            padding: EdgeInsets.fromLTRB(
+              inset,
+              inset,
+              inset,
+              inset + dockClearance,
+            ),
             child: KeyedSubtree(key: ValueKey(_section), child: content),
           );
           return Column(

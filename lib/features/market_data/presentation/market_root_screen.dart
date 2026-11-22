@@ -23,6 +23,7 @@ class MarketRootScreen extends StatefulWidget {
     this.destination = 'market',
     this.onNavigate,
     this.onSubpageChanged,
+    this.onReturnToOrigin,
     this.openRequest,
     this.searchQuery = '',
   });
@@ -31,6 +32,7 @@ class MarketRootScreen extends StatefulWidget {
   final ValueChanged<String>? onNavigate;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
   onSubpageChanged;
+  final VoidCallback? onReturnToOrigin;
   final AppLinkOpenRequest? openRequest;
   final String searchQuery;
   @override
@@ -173,8 +175,21 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
   }
 
   void _back() {
+    final (MarketArticle?, MarketInstrument?) previous = _history.isEmpty
+        ? (null, null)
+        : _history.removeLast();
+    if (previous.$1 == null &&
+        previous.$2 == null &&
+        widget.onReturnToOrigin != null) {
+      setState(() {
+        _article = null;
+        _instrument = null;
+      });
+      widget.onSubpageChanged?.call(null, null, null);
+      widget.onReturnToOrigin!();
+      return;
+    }
     setState(() {
-      final previous = _history.isEmpty ? (null, null) : _history.removeLast();
       _article = previous.$1;
       _instrument = previous.$2;
     });
@@ -241,21 +256,31 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
   );
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<MarketSnapshot>(
-    future: _future,
-    builder: (context, result) {
-      if (result.hasError) {
-        return UiEmptyState(
-          title: 'Market assets unavailable',
-          message: 'Unable to load market data snapshot',
-          actionLabel: 'Try again',
-          onActionPressed: () =>
-              setState(() => _future = _repo.snapshot(refresh: true)),
-        );
-      }
-      if (!result.hasData) {
-        return UiSkeleton.market(tab: _tab);
-      }
+  Widget build(BuildContext context) {
+    final bool isMobile = context.uiRes.isMobile;
+    final double mobileTopInset =
+        isMobile ? MediaQuery.paddingOf(context).top : 0.0;
+    return FutureBuilder<MarketSnapshot>(
+      future: _future,
+      builder: (context, result) {
+        if (result.hasError) {
+          return Padding(
+            padding: EdgeInsets.only(top: mobileTopInset),
+            child: UiEmptyState(
+              title: 'Market assets unavailable',
+              message: 'Unable to load market data snapshot',
+              actionLabel: 'Try again',
+              onActionPressed: () =>
+                  setState(() => _future = _repo.snapshot(refresh: true)),
+            ),
+          );
+        }
+        if (!result.hasData) {
+          return Padding(
+            padding: EdgeInsets.only(top: mobileTopInset),
+            child: UiSkeleton.market(tab: _tab),
+          );
+        }
       final snapshot = result.data!;
       final dossier =
           _instrument ??
@@ -369,9 +394,9 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
       return Padding(
         padding: EdgeInsets.fromLTRB(
           context.sp(context.ui.spacing.md),
-          context.sp(context.ui.spacing.sm),
+          mobileTopInset + context.sp(context.ui.spacing.sm),
           context.sp(context.ui.spacing.md),
-          context.sp(context.ui.spacing.md),
+          isMobile ? 0.0 : context.sp(context.ui.spacing.md),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -406,8 +431,8 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
                     UiTabItem(label: 'Coverage', icon: Icons.dataset_outlined),
                   ],
                   index: _tab,
-                  stretch: true,
-                  scrollable: false,
+                  stretch: !isMobile,
+                  scrollable: isMobile,
                   showPanel: false,
                   onChanged: _changeTab,
                 ),
@@ -556,4 +581,5 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
       );
     },
   );
+  }
 }

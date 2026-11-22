@@ -41,8 +41,14 @@ class MarketTwoPanel extends StatelessWidget {
             pane(secondaryFirstOnMobile ? primary : secondary),
           ],
         );
+        final double dockClearance = AppMobileDockMetrics.bottomClearance(
+          context,
+        );
         return box.hasBoundedHeight
-            ? SingleChildScrollView(child: stacked)
+            ? SingleChildScrollView(
+                padding: EdgeInsets.only(bottom: dockClearance),
+                child: stacked,
+              )
             : stacked;
       }
 

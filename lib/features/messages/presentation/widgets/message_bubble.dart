@@ -309,7 +309,9 @@ class MessageBubble extends StatelessWidget {
         ),
         child: AppLinkRefTile(
           ref: ref,
-          onTap: onOpenRef == null ? null : () => onOpenRef!(ref),
+          onTap: onOpenRef == null
+              ? null
+              : () => onOpenRef!(ref.copyWith(isPublicContext: true)),
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:quiet_dock/quiet_dock.dart';
 import 'package:alphajournal/core/flutter-ui/flutter_ui.dart';
@@ -56,6 +57,19 @@ class AppMobileDockMetrics {
       iconSize: iconSize,
       edgeInset: edgeInset,
     );
+  }
+
+  /// Bottom scroll padding needed on mobile screens so the final items in a
+  /// scrollable view clear the floating dock and its bottom margin cleanly.
+  static double bottomClearance(BuildContext context, {double extra = 16.0}) {
+    if (!context.uiRes.isMobile) return 0.0;
+    final AppMobileDockMetrics metrics = of(context);
+    final double dockMargin =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android ? 8.0 : 16.0;
+    return MediaQuery.paddingOf(context).bottom +
+        metrics.height +
+        dockMargin +
+        extra;
   }
 }
 

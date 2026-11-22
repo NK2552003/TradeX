@@ -319,7 +319,14 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
               riskMantra: trader.riskMantra,
               subscriptionTier: trader.tier.name,
               verified: trader.verified,
-              onOpenRef: widget.onOpenRef,
+              onOpenRef: widget.onOpenRef == null
+                  ? null
+                  : (AppLinkRef ref) {
+                      Navigator.of(ctx).pop();
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        widget.onOpenRef!(ref.copyWith(isPublicContext: true));
+                      });
+                    },
               onDirectMessage: (AppTrader t) {
                 Navigator.of(ctx).pop();
                 if (_repo.isMessagingRestricted(t)) {

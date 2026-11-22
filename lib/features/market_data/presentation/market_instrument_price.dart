@@ -187,55 +187,64 @@ class InstrumentPriceChart extends StatelessWidget {
             )
           : LayoutBuilder(
               builder: (context, constraints) {
+                final bool compact =
+                    context.uiRes.isMobile || constraints.maxWidth < 600;
                 final height = constraints.maxWidth < 480 ? 240.0 : 330.0;
                 final isLine = chartType == UiPriceChartType.line;
+                final Widget rangeToggle = UiToggleGroup<MarketHistoryRange>(
+                  key: const ValueKey('market-history-range-toggle'),
+                  size: UiSize.sm,
+                  expand: compact,
+                  value: range,
+                  options: [
+                    for (final item in MarketHistoryRange.values)
+                      UiOption(
+                        value: item,
+                        label: marketHistoryRangeLabel(item),
+                      ),
+                  ],
+                  onChanged: onRangeChanged,
+                );
+                final Widget chartTypeToggle = UiToggleGroup<UiPriceChartType>(
+                  key: const ValueKey('market-history-chart-type-toggle'),
+                  size: UiSize.sm,
+                  expand: compact,
+                  value: chartType,
+                  onChanged: onChartTypeChanged,
+                  options: const [
+                    UiOption(
+                      value: UiPriceChartType.candles,
+                      label: 'Candles',
+                    ),
+                    UiOption(
+                      value: UiPriceChartType.hollow,
+                      label: 'Bars',
+                    ),
+                    UiOption(
+                      value: UiPriceChartType.line,
+                      label: 'Line',
+                    ),
+                    UiOption(
+                      value: UiPriceChartType.area,
+                      label: 'Area',
+                    ),
+                  ],
+                );
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: context.sp(theme.spacing.lg),
-                      runSpacing: context.sp(theme.spacing.sm),
-                      children: [
-                        UiToggleGroup<MarketHistoryRange>(
-                          key: const ValueKey('market-history-range-toggle'),
-                          size: UiSize.sm,
-                          value: range,
-                          options: [
-                            for (final item in MarketHistoryRange.values)
-                              UiOption(
-                                value: item,
-                                label: marketHistoryRangeLabel(item),
-                              ),
-                          ],
-                          onChanged: onRangeChanged,
-                        ),
-                        UiToggleGroup<UiPriceChartType>(
-                          size: UiSize.sm,
-                          value: chartType,
-                          onChanged: onChartTypeChanged,
-                          options: const [
-                            UiOption(
-                              value: UiPriceChartType.candles,
-                              label: 'Candles',
-                            ),
-                            UiOption(
-                              value: UiPriceChartType.hollow,
-                              label: 'Bars',
-                            ),
-                            UiOption(
-                              value: UiPriceChartType.line,
-                              label: 'Line',
-                            ),
-                            UiOption(
-                              value: UiPriceChartType.area,
-                              label: 'Area',
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                    if (compact) ...[
+                      rangeToggle,
+                      UiGap.v(theme.spacing.sm),
+                      chartTypeToggle,
+                    ] else
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: context.sp(theme.spacing.lg),
+                        runSpacing: context.sp(theme.spacing.sm),
+                        children: [rangeToggle, chartTypeToggle],
+                      ),
                     UiGap.v(theme.spacing.md),
                     if (chartType == UiPriceChartType.candles ||
                         chartType == UiPriceChartType.hollow)

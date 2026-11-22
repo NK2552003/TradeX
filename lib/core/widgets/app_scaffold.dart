@@ -1483,6 +1483,9 @@ class _AppScaffoldState extends State<AppScaffold> {
           openRequest: _linkRequest,
           onNavigate: _go,
           onSubpageChanged: _onSubpageChanged,
+          onReturnToOrigin: _linkedOrigins.isNotEmpty
+              ? _returnFromLinkedRecord
+              : null,
         ),
       );
     }
@@ -2496,6 +2499,8 @@ class _AppScaffoldState extends State<AppScaffold> {
                 : null,
             researchPanelBuilder: null,
             hideMobileTopBar:
+                _isMessagesFeature && _activeSubpageOnBack != null,
+            hideMobileDock:
                 _isMessagesFeature && _activeSubpageOnBack != null,
             child: _buildActivePage(),
           ),

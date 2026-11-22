@@ -114,9 +114,16 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
       }
     }
 
+    final bool isMobile = context.uiRes.isMobile;
+    final double mobileTopInset = isMobile
+        ? MediaQuery.paddingOf(context).top + context.sp(theme.spacing.xs)
+        : 0.0;
+    final double dockClearance = AppMobileDockMetrics.bottomClearance(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        if (mobileTopInset > 0) SizedBox(height: mobileTopInset),
         _searchBar(context),
         _filterChips(context, repo),
         if (showRequestsBanner) _requestsBanner(context, repo),
@@ -125,7 +132,12 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
               ? (!kReleaseMode &&
                         AdSenseScope.maybeOf(context)?.config.preview == true
                     ? SingleChildScrollView(
-                        padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+                        padding: EdgeInsets.fromLTRB(
+                          context.sp(theme.spacing.sm),
+                          context.sp(theme.spacing.sm),
+                          context.sp(theme.spacing.sm),
+                          context.sp(theme.spacing.sm) + dockClearance,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           mainAxisSize: MainAxisSize.min,
@@ -136,12 +148,15 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
                           ],
                         ),
                       )
-                    : _empty(context))
+                    : Padding(
+                        padding: EdgeInsets.only(bottom: dockClearance),
+                        child: _empty(context),
+                      ))
               : ListView(
                   padding: EdgeInsets.only(
                     left: context.sp(theme.spacing.sm),
                     right: context.sp(theme.spacing.sm),
-                    bottom: context.sp(theme.spacing.xl),
+                    bottom: context.sp(theme.spacing.xl) + dockClearance,
                   ),
                   children: <Widget>[
                     if (showPinned && unreadTotal > 0)

@@ -63,9 +63,11 @@ class AppShell extends StatefulWidget {
     this.pagePlaceholderBuilder,
     this.researchPanelBuilder,
     this.hideMobileTopBar = false,
+    this.hideMobileDock = false,
   });
 
   final bool hideMobileTopBar;
+  final bool hideMobileDock;
 
   final List<AppNavSection> sections;
   final String selectedId;
@@ -441,9 +443,10 @@ class _AppShellState extends State<AppShell> {
       final AppMobileDockMetrics dockMetrics = AppMobileDockMetrics.of(context);
       final double dockHeight = dockMetrics.height;
       final double dockMargin = _isNativeAndroid ? 8 : 16;
+      final bool hideDock = keyboardVisible || widget.hideMobileDock;
       final double mobileHeaderClearance = widget.hideMobileTopBar
           ? 0.0
-          : (_isNativeAndroid ? 50.0 : 54.0);
+          : (_isNativeAndroid ? 56.0 : 60.0);
       // Keep the real system bottom safe-area inset instead of inflating it
       // with the floating dock height so SafeArea pages never render a blank
       // dead band at the bottom of the screen. Provide top clearance for the
@@ -591,39 +594,39 @@ class _AppShellState extends State<AppShell> {
           );
         },
         theme: QuietDockTheme(
-          background: keyboardVisible
+          background: hideDock
               ? Colors.transparent
               : theme.colors.surface.withValues(
                   alpha: theme.brightness == Brightness.dark ? 0.62 : 0.74,
                 ),
-          borderColor: keyboardVisible
+          borderColor: hideDock
               ? Colors.transparent
               : theme.colors.borderStrong.withValues(
                   alpha: theme.brightness == Brightness.dark ? 0.65 : 0.75,
                 ),
           selectedColor: theme.colors.primary,
           unselectedColor: theme.colors.foregroundMuted,
-          indicatorColor: keyboardVisible
+          indicatorColor: hideDock
               ? Colors.transparent
               : theme.colors.primary.withValues(alpha: 0.12),
-          indicatorBorderColor: keyboardVisible
+          indicatorBorderColor: hideDock
               ? Colors.transparent
               : theme.colors.primary.withValues(alpha: 0.3),
-          shadowColor: keyboardVisible
+          shadowColor: hideDock
               ? Colors.transparent
               : Colors.black.withValues(
                   alpha: theme.brightness == Brightness.dark ? 0.36 : 0.10,
                 ),
-          width: keyboardVisible
+          width: hideDock
               ? 0
               : dockMetrics.widthForSlots(destinations.length + 1),
-          height: keyboardVisible ? 0 : dockHeight,
-          radius: keyboardVisible ? 0 : dockMetrics.radius,
-          indicatorRadius: keyboardVisible ? 0 : dockMetrics.indicatorRadius,
-          margin: keyboardVisible ? 0 : dockMargin,
-          iconSize: keyboardVisible ? 0 : dockMetrics.iconSize,
+          height: hideDock ? 0 : dockHeight,
+          radius: hideDock ? 0 : dockMetrics.radius,
+          indicatorRadius: hideDock ? 0 : dockMetrics.indicatorRadius,
+          margin: hideDock ? 0 : dockMargin,
+          iconSize: hideDock ? 0 : dockMetrics.iconSize,
           blur: 12,
-          frosted: !keyboardVisible,
+          frosted: !hideDock,
           showLabels: false,
           pageDuration: theme.motion.normal,
         ),
